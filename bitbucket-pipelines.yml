@@ -1,0 +1,45 @@
+# Template docker-push
+
+# This template allows you to build and push your docker image to a Docker Hub account.
+# The workflow allows running tests, code linting and security scans on feature branches (as well as master).
+# The docker image will be validated and pushed to the docker registry after the code is merged to master.
+
+# Prerequisites: $DOCKERHUB_USERNAME, $DOCKERHUB_PASSWORD setup as deployment variables
+
+image: atlassian/default-image:3
+
+pipelines:
+  branches:
+    master:
+      - step:
+          name: Deploy to Production
+          deployment: Production
+          script:
+            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+            - IMAGE=etendo/etendo_copilot_core:master
+            - docker build -t ${IMAGE} .
+            - docker push ${IMAGE}
+          services:
+            - docker
+    develop:
+      - step:
+          name: Deploy to Develop
+          deployment: Develop
+          script:
+            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+            - IMAGE=etendo/etendo_copilot_core:develop
+            - docker build -t ${IMAGE} .
+            - docker push ${IMAGE}
+          services:
+            - docker
+    experimental:
+      - step:
+          name: Deploy to Experimental
+          deployment: Experimental
+          script:
+            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+            - IMAGE=etendo/etendo_copilot_core:experimental
+            - docker build -t ${IMAGE} .
+            - docker push ${IMAGE}
+          services:
+            - docker

@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "etendo-copilot-core"
+version = "0.1.0"
+description = ""
+authors = ["sebastianbarrozo <sebastian.barrozo@etendo.software>"]
+readme = "README.md"
+packages = [{include = "etendo_copilot_core"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+flask = "^2.3.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
