@@ -6,12 +6,26 @@
 
 # Prerequisites: $DOCKERHUB_USERNAME, $DOCKERHUB_PASSWORD setup as deployment variables
 
-image: atlassian/default-image:3
-
+definitions:
+  steps:
+    - step: &build-step
+        image: maven:3.3.9
+        name: SonarQube analysis
+        script:
+          - pipe: sonarsource/sonarqube-scan:1.0.0
+            variables:
+              SONAR_HOST_URL: ${SONAR_HOST_URL} # Get the value from the repository/workspace variable.
+              SONAR_TOKEN: ${SONAR_TOKEN} # Get the value from the repository/workspace variable. You shouldn't set secret in clear text here.
+  caches:
+    sonar: ~/.sonar
+clone:
+  depth: full
 pipelines:
   branches:
     master:
+      - step: *build-step
       - step:
+          image: atlassian/default-image:3
           name: Deploy to Production
           deployment: Production
           script:
@@ -23,6 +37,7 @@ pipelines:
             - docker
     develop:
       - step:
+          image: atlassian/default-image:3
           name: Deploy to Develop
           deployment: Develop
           script:
@@ -43,3 +58,6 @@ pipelines:
             - docker push ${IMAGE}
           services:
             - docker
+  pull-requests:
+    '**':
+      - step: *build-step
