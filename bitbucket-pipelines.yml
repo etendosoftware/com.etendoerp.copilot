@@ -16,6 +16,27 @@ definitions:
             variables:
               SONAR_HOST_URL: ${SONAR_HOST_URL} # Get the value from the repository/workspace variable.
               SONAR_TOKEN: ${SONAR_TOKEN} # Get the value from the repository/workspace variable. You shouldn't set secret in clear text here.
+    - step: &make-review
+        name: Make Review Step
+        script:
+          - printenv
+          -  echo "-------------------------------------------------------------------------"
+          -  echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+          -  docker run -d -p 5000:5000 -e REPO_API_TOKEN="${ETENDOBOT_TOKEN}" -e PULL_REQUEST=$BITBUCKET_PR_ID -e PROJECT=$BITBUCKET_REPO_OWNER -e REPO_SLUG=$BITBUCKET_REPO_SLUG -e OPENAI_API_KEY=$OPENAI_API_KEY etendo/code-reviewer:latest
+          -  echo "-------------------------------------------------------------------------"
+          -  sleep 10s
+          - response=$(curl -s -o response.txt -w "%{http_code}" -X GET http://localhost:5000/review/bitbucket)
+          -  if [ $response -ne 200 ]; then
+          -    echo "API call failed with status code $response"
+          -    echo "Response text:"
+          -    cat response.txt
+          -    exit 1
+          -  fi
+          -  echo "API call successful with status code $response"
+          -  echo "Response text:"
+          -  cat response.txt
+        services:
+          - docker
   caches:
     sonar: ~/.sonar
 clone:
@@ -60,4 +81,6 @@ pipelines:
             - docker
   pull-requests:
     '**':
-      - step: *build-step
+      - parallel:
+        - step: *make-review
+        - step: *build-step
