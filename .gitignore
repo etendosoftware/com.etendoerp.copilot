@@ -52,3 +52,6 @@ __pycache__
 .venv
 .vscode
 .env
+
+.mypy_cache
+.pytest_cache
