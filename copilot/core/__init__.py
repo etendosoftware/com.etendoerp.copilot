@@ -1,4 +1,5 @@
 """Blueprint for the core module."""
+import logging
 from flask import Blueprint, render_template
 
 core = Blueprint("core", __name__)
