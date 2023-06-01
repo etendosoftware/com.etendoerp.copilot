@@ -2,8 +2,6 @@
 import logging
 from flask import Blueprint, render_template
 
-logging.basicConfig(level=logging.INFO)
-
 core = Blueprint("core", __name__)
 
 # pylint: disable=wrong-import-position

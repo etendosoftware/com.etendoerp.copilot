@@ -1,12 +1,14 @@
 """This is a Flask app that can be used to test the Bastian module."""
 
-import logging
 from flask import Flask, jsonify, make_response
+from flask_wtf.csrf import CSRFProtect
 
 
 def create_app():
     """Create and configure an instance of the Flask application."""
     app = Flask(__name__)
+    csrf = CSRFProtect(app)
+    csrf.init_app(app)
 
     @app.route("/")
     def hello_from_root():
@@ -17,8 +19,7 @@ def create_app():
         return jsonify(message="Hello from path!")
 
     @app.errorhandler(404)
-    def resource_not_found(error):
-        logging.error(error)
+    def resource_not_found(error):  # pylint: disable=unused-argument
         return make_response(jsonify(error="Not found!"), 404)
 
     return app

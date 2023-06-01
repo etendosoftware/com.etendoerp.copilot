@@ -43,7 +43,7 @@ class RetrievalTool(Tool):
         response = requests.request(
             "POST", url, headers=headers, data=payload, timeout=10000
         )
-
+        response.raise_for_status()
         response_data = response.json()
         doc_id = response_data["results"][0]["results"][0]["id"].split("_")[0]
 

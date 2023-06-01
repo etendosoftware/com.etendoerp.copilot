@@ -29,15 +29,13 @@ class BastianFetcher(Tool):
 
     def __call__(self, question, *args, **kwargs):
         url = "http://localhost:5005/question"
-
         payload = json.dumps({"question": question})
         headers = {
             "X-API-KEY": "7f2b9a38-f562-40ea-89ce-86a3191f4ed2",
             "Content-Type": "application/json",
         }
-
         response = requests.request(
             "POST", url, headers=headers, data=payload, timeout=10000
         )
-
+        response.raise_for_status()
         return response.json()["answer"]

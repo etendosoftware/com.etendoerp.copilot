@@ -21,6 +21,7 @@ jsonpickle = "^3.0.1"
 sentencepiece = "^0.1.99"
 types-requests = "^2.31.0.1"
 python-dotenv = "^1.0.0"
+flask-wtf = "^1.1.1"
 
 
 [build-system]
