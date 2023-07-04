@@ -8,7 +8,7 @@ from transformers.tools import (
 )
 
 from . import core  # pylint: disable=cyclic-import
-from .bastian_tool import BastianFetcher
+from .bastian_tool import BastianFetcher, XMLTranslatorTool
 
 
 @core.route("/", methods=["GET"])
@@ -31,19 +31,21 @@ def serve_question():
     question = data["question"]
 
     bastian_tool = BastianFetcher()
+    translator_tool = XMLTranslatorTool()
     config = dotenv_values(".env")
 
     agent = OpenAiAgent(
         model="gpt-4",
         api_key=config.get("OPENAI_API_KEY"),
-        additional_tools=[bastian_tool],
+        additional_tools=[translator_tool],
     )
-
+            
     response = agent.chat(
         question,
         remote=True,
         return_code=False,
     )
+    print(response)
     if isinstance(response, (dict, str)):
         return {
             "answer": response,
