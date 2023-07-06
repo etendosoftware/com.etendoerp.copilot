@@ -45,7 +45,7 @@ def serve_question():
         remote=True,
         return_code=False,
     )
-    print(response)
+    
     if isinstance(response, (dict, str)):
         return {
             "answer": response,
