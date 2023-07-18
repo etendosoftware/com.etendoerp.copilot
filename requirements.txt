@@ -185,9 +185,9 @@ charset-normalizer==3.2.0 ; python_version >= "3.10" and python_version < "4.0" 
     --hash=sha256:f7560358a6811e52e9c4d142d497f1a6e10103d3a6881f18d04dbce3729c0e2c \
     --hash=sha256:f779d3ad205f108d14e99bb3859aa7dd8e9c68874617c72354d7ecaec2a054ac \
     --hash=sha256:f87f746ee241d30d6ed93969de31e5ffd09a2961a051e60ae6bddde9ec3583aa
-click==8.1.5 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:4be4b1af8d665c6d942909916d31a213a106800c47d0eeba73d34da3cbc11367 \
-    --hash=sha256:e576aa487d679441d7d30abb87e1b43d24fc53bffb8758443b1a9e1cee504548
+click==8.1.6 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:48ee849951919527a045bfe3bf7baa8a959c423134e1a5b98c05c20ba75a1cbd \
+    --hash=sha256:fa244bb30b3b5ee2cae3da8f55c9e5e0c0e86093306301fb418eb9dc40fbded5
 colorama==0.4.6 ; python_version >= "3.10" and python_version < "4.0" and (sys_platform == "win32" or platform_system == "Windows") \
     --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
@@ -474,6 +474,9 @@ numpy==1.25.1 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:e8f6049c4878cb16960fbbfb22105e49d13d752d4d8371b55110941fb3b17800 \
     --hash=sha256:f76aebc3358ade9eacf9bc2bb8ae589863a4f911611694103af05346637df1b7 \
     --hash=sha256:fd67b306320dcadea700a8f79b9e671e607f8696e98ec255915c0c6d6b818503
+nvidia-cublas-cu11==11.11.3.6 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:39fb40e8f486dd8a2ddb8fdeefe1d5b28f5b99df01c87ab3676f057a74a5a6f3 \
+    --hash=sha256:6ab12b1302bef8ac1ff4414edd1c059e57f4833abef9151683fb8f4de25900be
 nvidia-cudnn-cu11==8.5.0.96 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:402f40adfc6f418f9dae9ab402e773cfed9beae52333f6d86ae3107a1b9527e7 \
     --hash=sha256:71f8111eb830879ff2836db3cccf03bbd735df9b0d17cd93761732ac50a8a108
