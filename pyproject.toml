@@ -23,7 +23,7 @@ types-requests = "^2.31.0.1"
 python-dotenv = "^1.0.0"
 flask-wtf = "^1.1.1"
 nvidia-cudnn-cu11 = "==8.5.0.96"
-nvidia-cublas-cu11 = "11.11.3.6"
+nvidia-cublas-cu11 = "11.10.3.66"
 nvidia-cufft-cu11 = "10.9.0.58"
 
 [build-system]
