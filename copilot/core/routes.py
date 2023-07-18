@@ -37,7 +37,7 @@ def serve_question():
     agent = OpenAiAgent(
         model="gpt-4",
         api_key=config.get("OPENAI_API_KEY"),
-        additional_tools=[translator_tool],
+        additional_tools=[bastian_tool,translator_tool],
     )
             
     response = agent.chat(
