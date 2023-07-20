@@ -7,6 +7,7 @@ import requests
 from transformers import Tool  # pylint: disable=no-name-in-module
 import openai
 from transformers import GPT2Tokenizer
+import os
 
 
 
@@ -34,7 +35,8 @@ class BastianFetcher(Tool):
     outputs = ["answer"]
 
     def __call__(self, question, *args, **kwargs):
-        url = "http://localhost:5005/question"
+        url = os.getenv('BASTIAN_URL', 'http://localhost:5005') + "/question"
+
         payload = json.dumps({"question": question})
         headers = {
             "X-API-KEY": "7f2b9a38-f562-40ea-89ce-86a3191f4ed2",

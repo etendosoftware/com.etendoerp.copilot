@@ -13,5 +13,8 @@ RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 # Copy the Python files
 COPY ./copilot /app/copilot
 
+# Copy the run file
+COPY ./run.py /app/run.py
+
 # Start the server
 CMD ["python", "run.py"]
