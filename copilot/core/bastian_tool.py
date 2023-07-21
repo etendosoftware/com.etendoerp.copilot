@@ -51,7 +51,7 @@ class BastianFetcher(Tool):
 
 class XMLTranslatorTool(Tool):
     name = "xml_translator_tool"
-    description = "A tool that translates the content of an XML from one language to another, specified inside the xml"
+    description = "This is a tool that directly translate the content of a XML from one language to another, specified inside the xml"
     inputs = ["question"]
     outputs = ["translated_file_path"]
 
