@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["sebastianbarrozo <sebastian.barrozo@etendo.software>"]
 readme = "README.md"
-packages = [{include = "etendo_copilot_core"}]
+packages = [{include = "copilot"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -12,9 +12,8 @@ flask = "^2.3.2"
 pytest = "^7.3.1"
 transformers = {extras = ["agents"], version = "^4.29.2"}
 openai = "^0.27.7"
-torch = "^2.0.1"
+torch = {version = "2.0.1", source = "torchcpu201"}
 diffusers = "^0.16.1"
-accelerate = "^0.19.0"
 bs4 = "^0.0.1"
 pillow = "^9.5.0"
 jsonpickle = "^3.0.1"
@@ -22,20 +21,22 @@ sentencepiece = "^0.1.99"
 types-requests = "^2.31.0.1"
 python-dotenv = "^1.0.0"
 flask-wtf = "^1.1.1"
-nvidia-cublas-cu11 = "11.10.3.66" 
-nvidia-cuda-cupti-cu11 = "11.7.101" 
-nvidia-cuda-nvrtc-cu11 = "11.7.99" 
-nvidia-cuda-runtime-cu11 = "11.7.99" 
-nvidia-cudnn-cu11 = "8.5.0.96" 
-nvidia-cufft-cu11 = "10.9.0.58" 
-nvidia-curand-cu11 = "10.2.10.91" 
-nvidia-cusolver-cu11 = "11.4.0.1" 
-nvidia-cusparse-cu11 = "11.7.4.91" 
-nvidia-nccl-cu11 = "2.14.3 "
-nvidia-nvtx-cu11 = "11.7.91"
-triton = "2.0.0"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.extras]
+runtime = ["torch"]
+
+[[tool.poetry.source]]
+name = "torchcpu201"
+url = "https://download.pytorch.org/whl/cpu/"
+priority = "supplemental"
+
+
+[[tool.poetry.source]]
+name = "PyPI"
+priority = "primary"
+
