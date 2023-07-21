@@ -79,17 +79,6 @@ pipelines:
             - docker push ${IMAGE}
           services:
             - docker
-    epic/EML-283:
-      - step:
-          name: Deploy to Experimental
-          deployment: EML-283
-          script:
-            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-            - IMAGE=etendo/etendo_copilot_core:EML-283
-            - docker build -t ${IMAGE} .
-            - docker push ${IMAGE}
-          services:
-            - docker     
   pull-requests:
     '**':
       - parallel:
