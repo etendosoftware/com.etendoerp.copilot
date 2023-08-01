@@ -1,6 +1,5 @@
 """Initialize Flask app."""
 from flask import Flask, render_template
-from flask_wtf.csrf import CSRFProtect
 
 # Register blueprints
 from .core import core as core_blueprint
@@ -11,7 +10,7 @@ class Copilot:
 
     def run(self):
         """Run the app."""
-        self.create_app().run(debug=True)
+        self.create_app().run(debug=True, host="0.0.0.0", port=5000)
 
     def create_app(self, test_config=None):
         """Create and configure an instance of the Flask application.
@@ -22,11 +21,7 @@ class Copilot:
             Flask: The Flask app.
         """
         __app = Flask(__name__, instance_relative_config=True)
-        csrf = CSRFProtect(__app)
-        csrf.init_app(__app)
-        __app.config.from_mapping(
-            SECRET_KEY="dev",
-        )
+
         if test_config is None:
             # load the instance config, if it exists, when not testing
             __app.config.from_pyfile("config.py", silent=True)
@@ -52,4 +47,4 @@ class Copilot:
 
 if __name__ == "__main__":
     app = Copilot()
-    app.create_app().run(debug=True)
+    app.create_app().run(debug=True, host="0.0.0.0", port=5000)

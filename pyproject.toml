@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["sebastianbarrozo <sebastian.barrozo@etendo.software>"]
 readme = "README.md"
-packages = [{include = "etendo_copilot_core"}]
+packages = [{include = "copilot"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -12,9 +12,8 @@ flask = "^2.3.2"
 pytest = "^7.3.1"
 transformers = {extras = ["agents"], version = "^4.29.2"}
 openai = "^0.27.7"
-torch = "^2.0.1"
+torch = {version = "2.0.1", source = "torchcpu201"}
 diffusers = "^0.16.1"
-accelerate = "^0.19.0"
 bs4 = "^0.0.1"
 pillow = "^9.5.0"
 jsonpickle = "^3.0.1"
@@ -27,3 +26,17 @@ flask-wtf = "^1.1.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.extras]
+runtime = ["torch"]
+
+[[tool.poetry.source]]
+name = "torchcpu201"
+url = "https://download.pytorch.org/whl/cpu/"
+priority = "supplemental"
+
+
+[[tool.poetry.source]]
+name = "PyPI"
+priority = "primary"
+
