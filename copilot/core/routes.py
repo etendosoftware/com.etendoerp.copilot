@@ -1,5 +1,6 @@
 """Routes for the core blueprint."""
-from dotenv import dotenv_values
+import os
+
 from flask import render_template, request
 
 # pylint: disable=import-error, no-name-in-module
@@ -9,9 +10,10 @@ from transformers.tools import (
 
 from . import core  # pylint: disable=cyclic-import
 from .bastian_tool import BastianFetcher, XMLTranslatorTool
-import os
+from .hello_word_tool import HelloWorldTool
 
-OPENAI_API_KEY= os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 
 @core.route("/", methods=["GET"])
 def serve_index():
@@ -34,19 +36,21 @@ def serve_question():
 
     bastian_tool = BastianFetcher()
     translator_tool = XMLTranslatorTool()
+    hello_word_tool = HelloWorldTool()
 
     agent = OpenAiAgent(
-        model="gpt-4",
+        # model="gpt-4",
+        model="gpt-3",
         api_key=OPENAI_API_KEY,
-        additional_tools=[bastian_tool,translator_tool],
+        additional_tools=[bastian_tool, translator_tool, hello_word_tool],
     )
-            
+
     response = agent.chat(
         question,
         remote=True,
         return_code=False,
     )
-    
+
     if isinstance(response, (dict, str)):
         return {
             "answer": response,

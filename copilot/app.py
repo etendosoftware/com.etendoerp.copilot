@@ -10,7 +10,7 @@ class Copilot:
 
     def run(self):
         """Run the app."""
-        self.create_app().run(debug=True, host="0.0.0.0", port=5000)
+        self.create_app().run(debug=True, host="0.0.0.0", port=5001)
 
     def create_app(self, test_config=None):
         """Create and configure an instance of the Flask application.
@@ -47,4 +47,4 @@ class Copilot:
 
 if __name__ == "__main__":
     app = Copilot()
-    app.create_app().run(debug=True, host="0.0.0.0", port=5000)
+    app.create_app().run(debug=True, host="0.0.0.0", port=5001)
