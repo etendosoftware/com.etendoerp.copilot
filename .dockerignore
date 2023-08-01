@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.python-version
+.venv
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
