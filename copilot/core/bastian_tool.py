@@ -1,20 +1,29 @@
 """This is a tool which knows a lot about Etendo ERP. It takes a question and returns an answer."""
 import json
-import os
-import re
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
-
-import openai
+import re
 import requests
-from transformers import (
-    GPT2Tokenizer,
-    Tool,  # pylint: disable=no-name-in-module
-)
+from transformers import Tool  # pylint: disable=no-name-in-module
+import openai
+from transformers import GPT2Tokenizer
+import os
+
+
+class ToolWrapper(Tool):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.enabled = True
+
+    def enable(self):
+        self.enabled = True
+
+    def disable(self):
+        self.enabled = False
 
 
 # pylint: disable=too-few-public-methods
-class BastianFetcher(Tool):
+class BastianFetcher(ToolWrapper):
     """A tool for fetching answers to questions about Etendo ERP.
 
     This tool sends a question to a local server running the Etendo ERP
@@ -48,14 +57,14 @@ class BastianFetcher(Tool):
         return response.json()["answer"]
 
 
-class XMLTranslatorTool(Tool):
+class XMLTranslatorTool(ToolWrapper):
     name = "xml_translator_tool"
-    description = "This is a tool that directly translate the content of a XML from one language to another, specified inside the xml"
+    description = "This is a tool that receives a path and directly translates the content of XML from one language to another, specified within the xml"
     inputs = ["question"]
-    outputs = ["translated_file_path"]
+    outputs = ["translated_files_paths"]
 
-    def __call__(self, question, *args, **kwargs):
-        self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    def __call__(self,path, *args, **kwargs):
+        self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
         self.language = "Spanish"
         self.business_requirement = "Human Resources"
         self.prompt = f"""
@@ -69,8 +78,16 @@ class XMLTranslatorTool(Tool):
 
         The XML content that you're translating pertains to a {self.business_requirement} software component. In cases where a word or phrase might have multiple valid translations, choose the translation that best aligns with the {self.business_requirement} context.
         """
-        translated_file_path = self.translate_xml_file(question)
-        return translated_file_path
+        translated_files_paths = []
+        xml_files = [f for f in os.listdir(path) if f.endswith('.xml')]
+
+        for xml_file in xml_files:
+            filepath = os.path.join(path, xml_file)
+            translated_file_path = self.translate_xml_file(filepath)
+            if translated_file_path:  # If a translation was performed
+                translated_files_paths.append(translated_file_path)
+
+        return translated_files_paths
 
     def split_xml_into_segments(self, content, max_tokens):
         root = ET.fromstring(content)
@@ -140,13 +157,17 @@ class XMLTranslatorTool(Tool):
                 for value in child.findall("value"):
                     original = value.get("original")
                     is_trl = "Y" if original and original.strip() else "N"
-                    value.set("isTrl", is_trl)
-                child.set(
-                    "trl", "Y" if any(value.get("isTrl") == "Y" for value in child.findall("value")) else "N"
-                )
+                    value.set('isTrl', is_trl)
+                child.set('trl', "Y" if any(value.get('isTrl') == 'Y' for value in child.findall('value')) else "N")
 
-            with open(filepath, "w", encoding="utf-8") as file:
-                file.write(f"{first_line}\n")
-                file.write(ET.tostring(formatted_root, encoding="unicode"))
+            base_dir, file_name = os.path.split(filepath)
+            translated_dir = os.path.join(base_dir, "translations")
 
-            return filepath
+            os.makedirs(translated_dir, exist_ok=True)
+            new_filepath = os.path.join(translated_dir, file_name)
+
+            with open(new_filepath, "w", encoding='utf-8') as file:
+                file.write(f'{first_line}\n')
+                file.write(ET.tostring(formatted_root, encoding='unicode'))
+
+            return f"Translated files in the XML 'translations' folder"
