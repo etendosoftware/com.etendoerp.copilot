@@ -12,7 +12,7 @@ flask = "^2.3.2"
 pytest = "^7.3.1"
 transformers = {extras = ["agents"], version = "^4.29.2"}
 openai = "^0.27.7"
-# torch = {version = "2.0.1", source = "torchcpu201"}
+torch = {version = "2.0.1", source = "torchcpu201"}
 diffusers = "^0.16.1"
 bs4 = "^0.0.1"
 pillow = "^9.5.0"

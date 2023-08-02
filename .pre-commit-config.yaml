@@ -37,7 +37,7 @@ repos:
     hooks:
       - id: pylint
         name: pylint
-        entry: /Users/franco/.local/bin/poetry run pylint
+        entry: poetry run pylint
         language: system
         types: [python]
         args: [

@@ -1,8 +1,9 @@
 """Routes for the core blueprint."""
+import json
 import os
 
 from flask import render_template, request
-import json
+
 # pylint: disable=import-error, no-name-in-module
 from transformers.tools import (
     OpenAiAgent,
@@ -10,7 +11,6 @@ from transformers.tools import (
 
 from . import core  # pylint: disable=cyclic-import
 from .bastian_tool import BastianFetcher, XMLTranslatorTool
-from .hello_word_tool import HelloWorldTool
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -22,7 +22,7 @@ class ToolManager:
         self.load_tools()
 
     def load_tools(self):
-        with open(self.tool_config_path, 'r') as file:
+        with open(self.tool_config_path, "r") as file:
             tool_config = json.load(file)
 
         if tool_config.get("BastianFetcher", "enabled") == "enabled":
@@ -56,8 +56,7 @@ def serve_question():
     question = data["question"]
 
     agent = OpenAiAgent(
-        # model="gpt-4",
-        model="gpt-3",
+        model="gpt-4",
         api_key=OPENAI_API_KEY,
         additional_tools=enabled_tools,
     )

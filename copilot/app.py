@@ -1,4 +1,6 @@
 """Initialize Flask app."""
+import os
+
 from flask import Flask, render_template
 
 # Register blueprints
@@ -10,7 +12,7 @@ class Copilot:
 
     def run(self):
         """Run the app."""
-        self.create_app().run(debug=True, host="0.0.0.0", port=5001)
+        self.create_app().run(debug=True, host="0.0.0.0", port=os.getenv("COPILOT_PORT"))
 
     def create_app(self, test_config=None):
         """Create and configure an instance of the Flask application.
@@ -47,4 +49,4 @@ class Copilot:
 
 if __name__ == "__main__":
     app = Copilot()
-    app.create_app().run(debug=True, host="0.0.0.0", port=5001)
+    app.create_app().run(debug=True, host="0.0.0.0", port=os.getenv("COPILOT_PORT"))
