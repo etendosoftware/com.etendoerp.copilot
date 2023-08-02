@@ -1,13 +1,16 @@
 """This is a tool which knows a lot about Etendo ERP. It takes a question and returns an answer."""
 import json
+import os
+import re
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
-import re
-import requests
-from transformers import Tool  # pylint: disable=no-name-in-module
+
 import openai
-from transformers import GPT2Tokenizer
-import os
+import requests
+from transformers import (
+    GPT2Tokenizer,
+    Tool,  # pylint: disable=no-name-in-module
+)
 
 
 class ToolWrapper(Tool):
@@ -63,8 +66,8 @@ class XMLTranslatorTool(ToolWrapper):
     inputs = ["question"]
     outputs = ["translated_files_paths"]
 
-    def __call__(self,path, *args, **kwargs):
-        self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    def __call__(self, path, *args, **kwargs):
+        self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.language = "Spanish"
         self.business_requirement = "Human Resources"
         self.prompt = f"""
@@ -79,7 +82,7 @@ class XMLTranslatorTool(ToolWrapper):
         The XML content that you're translating pertains to a {self.business_requirement} software component. In cases where a word or phrase might have multiple valid translations, choose the translation that best aligns with the {self.business_requirement} context.
         """
         translated_files_paths = []
-        xml_files = [f for f in os.listdir(path) if f.endswith('.xml')]
+        xml_files = [f for f in os.listdir(path) if f.endswith(".xml")]
 
         for xml_file in xml_files:
             filepath = os.path.join(path, xml_file)
@@ -157,8 +160,10 @@ class XMLTranslatorTool(ToolWrapper):
                 for value in child.findall("value"):
                     original = value.get("original")
                     is_trl = "Y" if original and original.strip() else "N"
-                    value.set('isTrl', is_trl)
-                child.set('trl', "Y" if any(value.get('isTrl') == 'Y' for value in child.findall('value')) else "N")
+                    value.set("isTrl", is_trl)
+                child.set(
+                    "trl", "Y" if any(value.get("isTrl") == "Y" for value in child.findall("value")) else "N"
+                )
 
             base_dir, file_name = os.path.split(filepath)
             translated_dir = os.path.join(base_dir, "translations")
@@ -166,8 +171,8 @@ class XMLTranslatorTool(ToolWrapper):
             os.makedirs(translated_dir, exist_ok=True)
             new_filepath = os.path.join(translated_dir, file_name)
 
-            with open(new_filepath, "w", encoding='utf-8') as file:
-                file.write(f'{first_line}\n')
-                file.write(ET.tostring(formatted_root, encoding='unicode'))
+            with open(new_filepath, "w", encoding="utf-8") as file:
+                file.write(f"{first_line}\n")
+                file.write(ET.tostring(formatted_root, encoding="unicode"))
 
-            return f"Translated files in the XML 'translations' folder"
+            return "Translated files in the XML 'translations' folder"
