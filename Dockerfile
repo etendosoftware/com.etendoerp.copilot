@@ -10,6 +10,8 @@ ENV TRANSFORMERS_OFFLINE=1
 COPY pyproject.toml /app/pyproject.toml
 COPY ./copilot /app/copilot
 COPY ./run.py /app/run.py
+COPY ./tools_config.json /app/tools_config.json
+COPY README.md /app/README.md
 
 RUN pip install poetry \
   && poetry config virtualenvs.create false \

@@ -37,4 +37,6 @@ poetry install
 	- Copy `.env.sample` into `.env` and set the right values
 	- `poetry run python run.py`
 
-* Using docker: `docker run -e RUN_MODE='<run_mode>' -e OPENAI_API_KEY="<api-key-value>" -p 5001:5000 etendo/chatbot_etendo`
+* Using docker: `docker run --env-file .env -p 5001:5000 etendo/chatbot_etendo`
+
+* Mount code as volume: `docker run --env-file .env -p 5001:5000 -v $(pwd)/copilot:/app/copilot etendo/chatbot_etendo`
