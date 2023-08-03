@@ -64,6 +64,9 @@ def serve_question():
         remote=True,
         return_code=False,
     )
+
+    print(response)
+    
     if isinstance(response, list):
         response = "\n".join(response)
 
