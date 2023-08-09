@@ -14,7 +14,6 @@ def client_setup():
         yield client
 
 
-# pylint: disable=redefined-outer-name
 def test_hello(client_setup):
     """Start with a blank page."""
 

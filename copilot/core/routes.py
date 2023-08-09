@@ -3,8 +3,6 @@ import json
 import os
 
 from flask import render_template, request
-
-# pylint: disable=import-error, no-name-in-module
 from transformers.tools import (
     OpenAiAgent,
 )

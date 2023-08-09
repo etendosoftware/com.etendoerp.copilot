@@ -10,7 +10,6 @@ import requests
 from transformers import Tool  # pylint: disable=no-name-in-module
 
 
-# pylint: disable=too-few-public-methods
 class RetrievalTool(Tool):
     """A tool for fetching answers to questions about Etendo ERP.
 

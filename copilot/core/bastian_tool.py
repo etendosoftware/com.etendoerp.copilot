@@ -9,7 +9,7 @@ import openai
 import requests
 from transformers import (
     GPT2Tokenizer,
-    Tool,  # pylint: disable=no-name-in-module
+    Tool,
 )
 
 
@@ -25,7 +25,6 @@ class ToolWrapper(Tool):
         self.enabled = False
 
 
-# pylint: disable=too-few-public-methods
 class BastianFetcher(ToolWrapper):
     """A tool for fetching answers to questions about Etendo ERP.
 
