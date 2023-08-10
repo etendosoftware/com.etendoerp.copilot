@@ -38,3 +38,9 @@ poetry install
 	- `poetry run python run.py`
 
 * Using docker: `docker run -e RUN_MODE='<run_mode>' -e OPENAI_API_KEY="<api-key-value>" -p 5001:5000 etendo/chatbot_etendo`
+
+
+## Pre-commit
+* Install pre-commit from [HERE](https://pre-commit.com/#install)
+* Setup pre-commit `pre-commit install & pre-commit autoupdate`
+* If you want to run for all the files: `pre-commit run --all-files`

@@ -1,6 +1,6 @@
 """Este es un ejemplo de paquete."""
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name="mi_paquete",
