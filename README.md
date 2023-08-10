@@ -40,3 +40,9 @@ poetry install
 * Using docker: `docker run --env-file .env -p 5001:5000 etendo/chatbot_etendo`
 
 * Mount code as volume: `docker run --env-file .env -p 5001:5000 -v $(pwd)/copilot:/app/copilot etendo/chatbot_etendo`
+
+
+## Pre-commit
+* Install pre-commit from [HERE](https://pre-commit.com/#install)
+* Setup pre-commit `pre-commit install & pre-commit autoupdate`
+* If you want to run for all the files: `pre-commit run --all-files`

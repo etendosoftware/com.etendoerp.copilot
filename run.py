@@ -5,8 +5,9 @@ This module is the entry point for the application. It creates the Flask app
 
 import multiprocessing
 import os
-from dotenv import load_dotenv
+
 from copilot.app import Copilot
+from dotenv import load_dotenv
 
 
 def run_modular():
@@ -41,8 +42,4 @@ if __name__ == "__main__":
     if run_mode == "MODULAR":
         run_modular()
     else:
-        print(
-            "Variable de entorno RUN_MODE no configurada correctamente."
-            "Debe ser 'MONOLITH' o 'MODULAR'."
-        )
-        
+        print("Environment variable RUN_MODE is required. Please set your .env file")

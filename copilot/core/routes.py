@@ -1,26 +1,26 @@
 """Routes for the core blueprint."""
-from dotenv import dotenv_values
-from flask import render_template, request
 import json
-# pylint: disable=import-error, no-name-in-module
+import os
+
+from flask import render_template, request
 from transformers.tools import (
     OpenAiAgent,
 )
 
 from . import core  # pylint: disable=cyclic-import
 from .bastian_tool import BastianFetcher, XMLTranslatorTool
-import os
 
-OPENAI_API_KEY= os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 
 class ToolManager:
     def __init__(self, tool_config_path="tools_config.json"):
         self.tools = []
         self.tool_config_path = tool_config_path
         self.load_tools()
-        
+
     def load_tools(self):
-        with open(self.tool_config_path, 'r') as file:
+        with open(self.tool_config_path, "r") as file:
             tool_config = json.load(file)
 
         if tool_config.get("BastianFetcher", "enabled") == "enabled":
@@ -28,7 +28,7 @@ class ToolManager:
 
         if tool_config.get("XMLTranslatorTool", "enabled") == "enabled":
             self.tools.append(XMLTranslatorTool())
-        
+
     def get_tools(self):
         return self.tools
 
@@ -58,12 +58,15 @@ def serve_question():
         api_key=OPENAI_API_KEY,
         additional_tools=enabled_tools,
     )
-            
+
     response = agent.chat(
         question,
         remote=True,
         return_code=False,
     )
+
+    print(response)
+    
     if isinstance(response, list):
         response = "\n".join(response)
 

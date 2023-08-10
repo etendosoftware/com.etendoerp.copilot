@@ -1,4 +1,6 @@
 """Initialize Flask app."""
+import os
+
 from flask import Flask, render_template
 
 # Register blueprints
@@ -10,7 +12,7 @@ class Copilot:
 
     def run(self):
         """Run the app."""
-        self.create_app().run(debug=True, host="0.0.0.0", port=5000)
+        self.create_app().run(debug=True, host="0.0.0.0", port=os.getenv("COPILOT_PORT"))
 
     def create_app(self, test_config=None):
         """Create and configure an instance of the Flask application.
@@ -31,13 +33,11 @@ class Copilot:
 
         @__app.errorhandler(404)
         def page_not_found(error):
-            # pylint: disable=unused-argument
             # note that we set the 404 status explicitly
             return render_template("404.html"), 404
 
         @__app.errorhandler(500)
         def internal_server_error(error):
-            # pylint: disable=unused-argument
             return render_template("500.html"), 500
 
         __app.register_blueprint(core_blueprint)
@@ -47,4 +47,4 @@ class Copilot:
 
 if __name__ == "__main__":
     app = Copilot()
-    app.create_app().run(debug=True, host="0.0.0.0", port=5000)
+    app.create_app().run(debug=True, host="0.0.0.0", port=os.getenv("COPILOT_PORT"))
