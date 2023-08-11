@@ -31,8 +31,11 @@ poetry env use 3.10
 poetry install
 ```
 
-## How to run copilot
+### Add new dependencies
+* For prod dependency run: `poetry add <dep_name>`
+* For dev dependency run: `poetry add <dep_name> --group dev`
 
+## How to run copilot
 * Locally outside docker:
 	- Copy `.env.sample` into `.env` and set the right values
 	- `poetry run python run.py`
@@ -40,7 +43,6 @@ poetry install
 * Using docker: `docker run --env-file .env -p 5001:5000 etendo/chatbot_etendo`
 
 * Mount code as volume: `docker run --env-file .env -p 5001:5000 -v $(pwd)/copilot:/app/copilot etendo/chatbot_etendo`
-
 
 ## Pre-commit
 * Install pre-commit from [HERE](https://pre-commit.com/#install)
