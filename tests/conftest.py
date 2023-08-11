@@ -1,5 +1,5 @@
-from pytest import fixture
 from copilot.app import Copilot
+from pytest import fixture
 
 
 @fixture

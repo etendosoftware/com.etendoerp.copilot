@@ -1,5 +1,6 @@
 """Test copilot core."""
 
+
 def test_hello(client):
     """Start with a blank page."""
 
