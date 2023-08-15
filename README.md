@@ -31,14 +31,39 @@ poetry env use 3.10
 poetry install
 ```
 
-## How to run copilot
+### Torch and MacOS issue
+If you are getting this issue from `poetry install`: `Unable to find installation candidates for torch (2.0.1+cpu)`.
 
+Workaround:
+```
+poetry shell
+pip install torch==2.0.1
+deactivate
+```
+
+Verify installation:
+```
+poetry run python
+>>> import torch
+>>> torch.__version__
+'2.0.1'
+```
+
+### Add new dependencies
+* For prod dependency run: `poetry add <dep_name>`
+* For dev dependency run: `poetry add <dep_name> --group dev`
+
+## How to run copilot
 * Locally outside docker:
 	- Copy `.env.sample` into `.env` and set the right values
 	- `poetry run python run.py`
 
-* Using docker: `docker run -e RUN_MODE='<run_mode>' -e OPENAI_API_KEY="<api-key-value>" -p 5001:5000 etendo/chatbot_etendo`
+* Using docker: `docker run --env-file .env -p 5001:5000 etendo/chatbot_etendo`
 
+* Mount code as volume: `docker run --env-file .env -p 5001:5000 -v $(pwd)/copilot:/app/copilot etendo/chatbot_etendo`
+
+## How to run unit test
+`poetry run pytest tests`
 
 ## Pre-commit
 * Install pre-commit from [HERE](https://pre-commit.com/#install)

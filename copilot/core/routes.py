@@ -66,7 +66,7 @@ def serve_question():
     )
 
     print(response)
-    
+
     if isinstance(response, list):
         response = "\n".join(response)
 
