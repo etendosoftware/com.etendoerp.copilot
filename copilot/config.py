@@ -1,6 +1,6 @@
 """This is the core module of the Copilot application."""
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name="copilot",
