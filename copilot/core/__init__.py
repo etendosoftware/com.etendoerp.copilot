@@ -1,3 +1,3 @@
 """Blueprint for the core module."""
 
-from . import routes  # noqa:E402
+from .routes import core_blueprint  # noqa:E402
