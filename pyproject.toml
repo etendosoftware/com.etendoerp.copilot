@@ -26,6 +26,7 @@ flask-wtf = "^1.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.3.1"
+ipython = "^8.14.0"
 
 [build-system]
 requires = ["poetry-core"]

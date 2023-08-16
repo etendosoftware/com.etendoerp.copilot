@@ -1,4 +1,4 @@
 {
-    "BastianFetcher": "enabled",
-    "XMLTranslatorTool": "enabled"
+    "BastianFetcher": true,
+    "XMLTranslatorTool": true
 }
