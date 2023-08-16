@@ -2,15 +2,16 @@
 import json
 import os
 
-from flask import render_template, request
+from flask import Blueprint, render_template, request
 from transformers.tools import (
     OpenAiAgent,
 )
 
-from . import core  # pylint: disable=cyclic-import
 from .bastian_tool import BastianFetcher, XMLTranslatorTool
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+core = Blueprint("core", __name__)
 
 
 class ToolManager:
