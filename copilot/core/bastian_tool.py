@@ -7,7 +7,7 @@ import requests
 
 from .tool_wrapper import ToolWrapper
 
-BASTION_URL: Final[str] = os.getenv("BASTIAN_URL", "http://localhost:5005")
+BASTIAN: Final[str] = os.getenv("BASTIAN_URL", "http://localhost:5005")
 
 
 class BastianFetcher(ToolWrapper):
@@ -32,7 +32,7 @@ class BastianFetcher(ToolWrapper):
     outputs = ["answer"]
 
     def __call__(self, question, *args, **kwargs):
-        url = f"{BASTION_URL}/question"
+        url = f"{BASTIAN}/question"
 
         payload = json.dumps({"question": question})
         headers = {
