@@ -19,7 +19,7 @@ def create_app():
         return jsonify(message="Hello from path!")
 
     @app.errorhandler(404)
-    def resource_not_found(error):  # pylint: disable=unused-argument
+    def resource_not_found(error):
         return make_response(jsonify(error="Not found!"), 404)
 
     return app
