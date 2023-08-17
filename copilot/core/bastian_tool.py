@@ -164,14 +164,9 @@ class XMLTranslatorTool(ToolWrapper):
                     "trl", "Y" if any(value.get("isTrl") == "Y" for value in child.findall("value")) else "N"
                 )
 
-            base_dir, file_name = os.path.split(filepath)
-            translated_dir = os.path.join(base_dir, "translations")
-
-            os.makedirs(translated_dir, exist_ok=True)
-            new_filepath = os.path.join(translated_dir, file_name)
-
-            with open(new_filepath, "w", encoding="utf-8") as file:
-                file.write(f"{first_line}\n")
-                file.write(ET.tostring(formatted_root, encoding="unicode"))
-
-            return "Translated files in the XML 'translations' folder"
+            with open(filepath, "w", encoding='utf-8') as file:
+                file.write(f'{first_line}\n')
+                file.write(ET.tostring(formatted_root, encoding='unicode'))
+            
+            return f"Successfully translated file {filepath}."
+ 
