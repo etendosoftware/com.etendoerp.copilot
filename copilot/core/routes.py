@@ -4,7 +4,6 @@ import os
 from flask import Blueprint, render_template, request
 from transformers.tools import OpenAiAgent
 
-from . import core
 from .tool_manager import configured_tools
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -12,7 +11,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 core_blueprint = Blueprint("core", __name__)
 
 
-@core.route("/", methods=["GET"])
+@core_blueprint.route("/", methods=["GET"])
 def serve_index():
     """Serves the home page of the website.
 
