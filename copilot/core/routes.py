@@ -1,13 +1,15 @@
 """Routes for the core blueprint."""
 import os
 
-from flask import render_template, request
+from flask import Blueprint, render_template, request
 from transformers.tools import OpenAiAgent
 
 from . import core
 from .tool_manager import configured_tools
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+core_blueprint = Blueprint("core", __name__)
 
 
 @core.route("/", methods=["GET"])
@@ -20,7 +22,7 @@ def serve_index():
     return render_template("index.html")
 
 
-@core.route("/question", methods=["POST"])
+@core_blueprint.route("/question", methods=["POST"])
 def serve_question():
     """Serves the question answering endpoint."""
     # Get the JSON data from the request
