@@ -4,7 +4,7 @@ import os
 from flask import Flask, render_template
 
 # Register blueprints
-from .core import core as core_blueprint
+from .core import core_blueprint
 
 
 class Copilot:
