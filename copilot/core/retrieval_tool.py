@@ -7,10 +7,11 @@ database, requires another tool which elaborates an answer.
 import json
 
 import requests
-from transformers import Tool  # pylint: disable=no-name-in-module
+
+from .tool_wrapper import ToolWrapper
 
 
-class RetrievalTool(Tool):
+class RetrievalTool(ToolWrapper):
     """A tool for fetching answers to questions about Etendo ERP.
 
     This tool sends a question to a local server running the Etendo ERP
