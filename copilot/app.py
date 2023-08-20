@@ -4,6 +4,11 @@ from typing import Optional
 from flask import Flask
 
 from .core import core_blueprint
+from .handlers import register_error_handlers
+
+
+def register_apis(app: Flask):
+    app.register_blueprint(core_blueprint)
 
 
 def create_app(self, test_config: Optional[str] = None) -> Flask:
@@ -23,14 +28,6 @@ def create_app(self, test_config: Optional[str] = None) -> Flask:
         # load the test config if passed in
         app.config.from_mapping(test_config)
 
-    @app.errorhandler(404)
-    def page_not_found(error):
-        return "not found", 404
-
-    @app.errorhandler(500)
-    def internal_server_error(error):
-        return "interal server error", 500
-
-    app.register_blueprint(core_blueprint)
-
+    register_apis(app)
+    register_error_handlers(app)
     return app
