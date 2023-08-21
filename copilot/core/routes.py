@@ -4,7 +4,7 @@ from typing import Dict
 
 from flask import Blueprint, jsonify, request
 
-from . import agent
+from .agent import open_ai_agent
 from .schemas import QuestionSchema
 
 core_blueprint = Blueprint("core", __name__)
@@ -17,10 +17,7 @@ def serve_question():
     question_schema: QuestionSchema = QuestionSchema(**data)
     question = question_schema.question
 
-    if not agent.open_ai_agent:
-        agent.set_open_ai_agent()
-
-    agent_response = agent.open_ai_agent.chat(
+    agent_response = open_ai_agent.chat(
         question,
         remote=True,
         return_code=False,

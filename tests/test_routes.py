@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from unittest import mock
 
-from copilot.core import agent
+from copilot.core import routes
 from pytest import fixture
 
 
@@ -14,7 +14,7 @@ def mocked_agent_response() -> str:
 def mocked_agent(mocked_agent_response):
     mocked_chat = mock.MagicMock(return_value=mocked_agent_response)
     mock_response = mock.MagicMock(chat=mocked_chat)
-    agent.open_ai_agent = mock_response
+    routes.open_ai_agent = mock_response
 
 
 def test_copilot_question_with_wrong_payload(client):
