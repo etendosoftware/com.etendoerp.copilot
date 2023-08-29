@@ -61,23 +61,33 @@ class BastianFetcher(ToolWrapper):
 
 class XMLTranslatorTool(ToolWrapper):
     name = "xml_translator_tool"
-    description = "This is a tool that receives a path and directly translates the content of XML from one language to another, specified within the xml"
+    description = "This is a tool that receives a relative path and directly translates the content of XML from one language to another, specified within the xml"
     inputs = ["question"]
     outputs = ["translated_files_paths"]
 
-    def __call__(self, path, *args, **kwargs):
+    def __call__(self, relative_path,*args, **kwargs):
         self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.language = "Spanish"
         self.business_requirement = "Human Resources"
 
         translated_files_paths = []
-        xml_files = [f for f in os.listdir(path) if f.endswith(".xml")]
+        path_from_question = relative_path.strip()
 
-        for xml_file in xml_files:
-            filepath = os.path.join(path, xml_file)
-            translated_file_path = self.translate_xml_file(filepath)
-            if translated_file_path:  # If a translation was performed
-                translated_files_paths.append(translated_file_path)
+        desktop_path = os.path.join(os.path.expanduser("~"), "Escritorio")
+        absolute_path = os.path.join(desktop_path, path_from_question)
+
+        referencedata_path = os.path.join(absolute_path, "referencedata")
+        
+        if not os.path.exists(referencedata_path):
+            raise ValueError(f"The 'referencedata' directory was not found at {referencedata_path}.")
+
+        for dirpath, dirnames, filenames in os.walk(referencedata_path):
+            xml_files = [f for f in filenames if f.endswith(".xml")]
+            for xml_file in xml_files:
+                filepath = os.path.join(dirpath, xml_file)
+                translated_file_path = self.translate_xml_file(filepath)
+                if translated_file_path:
+                    translated_files_paths.append(translated_file_path)
 
         return translated_files_paths
     
@@ -182,5 +192,5 @@ class XMLTranslatorTool(ToolWrapper):
                 file.write(f'{first_line}\n')
                 file.write(ET.tostring(formatted_root, encoding='unicode'))
             
-            return f"Successfully translated file {filepath}."
+        return f"Successfully translated file {filepath}."
  
