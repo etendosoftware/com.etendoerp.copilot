@@ -4,7 +4,7 @@ import os
 import re
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
-
+import pycountry
 import openai
 import requests
 from transformers import (
@@ -69,17 +69,7 @@ class XMLTranslatorTool(ToolWrapper):
         self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.language = "Spanish"
         self.business_requirement = "Human Resources"
-        self.prompt = f"""
-        ---
-        Translate the English text contained within the "original" XML property into {self.language} and place this translation as the value within the XML element itself, leaving the "original" attribute intact. Here is an example for your reference:
 
-        <value column="Name" isTrl="N" original="Current Salary Grade.">Grado de salario actual.</value>
-
-        The objective is to generate an XML output identical to the input, except that the text within the second "original" node should be translated, leaving all other elements and attributes untouched.
-        Considerations:
-
-        The XML content that you're translating pertains to a {self.business_requirement} software component. In cases where a word or phrase might have multiple valid translations, choose the translation that best aligns with the {self.business_requirement} context.
-        """
         translated_files_paths = []
         xml_files = [f for f in os.listdir(path) if f.endswith(".xml")]
 
@@ -90,6 +80,13 @@ class XMLTranslatorTool(ToolWrapper):
                 translated_files_paths.append(translated_file_path)
 
         return translated_files_paths
+    
+    def get_language_name(self, iso_code):
+        language_part = iso_code.split('_')[0]
+        language = pycountry.languages.get(alpha_2=language_part)
+        if language:
+            return language.name
+        return None
 
     def split_xml_into_segments(self, content, max_tokens):
         root = ET.fromstring(content)
@@ -117,6 +114,23 @@ class XMLTranslatorTool(ToolWrapper):
             first_line = file.readline().strip()
             content = file.read()
             root = ET.fromstring(content)
+            language_attr = root.attrib.get('language', 'es_ES')
+            target_language = self.get_language_name(language_attr)
+            if not target_language:
+                target_language = "English"
+
+            self.prompt = f"""
+            ---
+            Translate the English text contained within the "original" XML property into {target_language} and place this translation as the value within the XML element itself, leaving the "original" attribute intact. Here is an example for your reference:
+
+            <value column="Name" isTrl="N" original="Current Salary Grade.">Grado de salario actual.</value>
+
+            The objective is to generate an XML output identical to the input, except that the text within the second "original" node should be translated, leaving all other elements and attributes untouched.
+            Considerations:
+
+            The XML content that you're translating pertains to a {self.business_requirement} software component. In cases where a word or phrase might have multiple valid translations, choose the translation that best aligns with the {self.business_requirement} context.
+            """
+
             if not root.findall(".//value[@original]"):
                 return
             translated_text = ""
@@ -125,7 +139,7 @@ class XMLTranslatorTool(ToolWrapper):
             language = root.attrib.get("language", "es_ES")
             table = root.attrib.get("table", "")
             version = root.attrib.get("version")
-
+            
             for child in root:
                 segment = ET.tostring(child).decode()
                 segment_prompt = f"{self.prompt}\n{segment}"
