@@ -18,13 +18,13 @@ def mocked_agent(mocked_agent_response):
 
 
 def test_copilot_question_with_wrong_payload(client):
-    response = client.post("/question", content_type="application/json", json={})
+    response = client.post("/question", json={})
     assert response.status_code == HTTPStatus.BAD_REQUEST
-    assert "validation error for QuestionSchema" in response.json.get("description")
+    assert response.json()['detail'][0]['message'] == "Field required"
 
 
 def test_copilot_question_with_valid_payload(client, mocked_agent, mocked_agent_response):
-    response = client.post("/question", content_type="application/json", json={"question": "What is Etendo?"})
+    response = client.post("/question", json={"question": "What is Etendo?"})
     assert response.status_code == HTTPStatus.OK
-    assert "answer" in response.json
-    assert response.json["answer"] == mocked_agent_response
+    assert "answer" in response.json()
+    assert response.json()["answer"] == mocked_agent_response

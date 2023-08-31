@@ -8,13 +8,9 @@ packages = [{include = "copilot"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-flask = "^2.3.2"
 transformers = {extras = ["agents"], version = "^4.29.2"}
 openai = "^0.27.7"
-torch = [
-  {version = "2.0.1", markers = "sys_platform == 'darwin'"},
-  {version = "2.0.1", markers = "sys_platform != 'darwin'", source = "torchcpu201"}
-]
+torch = {version = "2.0.1", source = "torchcpu201"}
 diffusers = "^0.16.1"
 bs4 = "^0.0.1"
 pillow = "^9.5.0"
@@ -26,10 +22,13 @@ flask-wtf = "^1.1.1"
 pytest-shutil = "1.7.0"
 pycountry = "^22.3.5"
 pydantic = "^2.2.1"
+fastapi = "^0.103.0"
+uvicorn = "^0.23.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.3.1"
 ipython = "^8.14.0"
+httpx = "^0.24.1"
 
 [build-system]
 requires = ["poetry-core"]

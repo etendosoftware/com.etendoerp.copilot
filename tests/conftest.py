@@ -1,13 +1,11 @@
-from copilot.app import create_app
+from copilot.app import app
 from pytest import fixture
+from fastapi.testclient import TestClient
 
 
-@fixture
+@fixture(scope="session", autouse=True)
 def client():
     """Create a test client."""
-    app = create_app(__name__)
-    app.config["TESTING"] = True
-    app.config["DEBUG"] = False
 
-    with app.test_client() as client:
-        yield client
+    return TestClient(app)
+

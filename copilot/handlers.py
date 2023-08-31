@@ -1,35 +1,31 @@
 from typing import Tuple
 
 from copilot.core import exceptions
-from flask import Flask, Response, jsonify, request
-from pydantic import ValidationError
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
+
+from fastapi.responses import JSONResponse
+from fastapi import Request, HTTPException, status
 
 
-def make_error_response(e: BaseException, message: str, status_code: int) -> Tuple[Response, int]:
-    return (
-        jsonify(
-            error=e.__class__.__name__,
-            description=message,
-            status_code=status_code,
-            request_id=request.headers.get("request-id"),
-        ),
-        status_code,
-    )
+def pydanctic_validation_handler(request: Request, exc: RequestValidationError):
+    for error in exc.errors():
+        error['message'] = error.pop('msg')
+
+    return JSONResponse(content=jsonable_encoder({"detail": exc.errors()}), status_code=status.HTTP_400_BAD_REQUEST)
 
 
-def validation_error_handler(e):
-    return make_error_response(e, str(e) or "Invalid request.", 400)
+def application_error_handler(request: Request, exc: HTTPException):
+    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"message": exc.detail})
 
 
-def application_error_handler(e):
-    return make_error_response(e, str(e), 400)
+def internal_error_handler(request: Request, exc: HTTPException):
+    return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"message": exc.detail})
 
 
-def internal_error_handler(e):
-    return make_error_response(e, str(e), 500)
 
-
-def register_error_handlers(app: Flask):
-    app.register_error_handler(ValidationError, validation_error_handler)
-    app.register_error_handler(exceptions.ApplicationError, application_error_handler)
-    app.register_error_handler(Exception, internal_error_handler)
+def register_error_handlers(app: FastAPI):
+    app.add_exception_handler(RequestValidationError, pydanctic_validation_handler)
+    app.add_exception_handler(exceptions.ApplicationError, application_error_handler)
+    app.add_exception_handler(Exception, internal_error_handler)
