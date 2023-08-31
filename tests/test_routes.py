@@ -20,7 +20,7 @@ def mocked_agent(mocked_agent_response):
 def test_copilot_question_with_wrong_payload(client):
     response = client.post("/question", json={})
     assert response.status_code == HTTPStatus.BAD_REQUEST
-    assert response.json()['detail'][0]['message'] == "Field required"
+    assert response.json()["detail"][0]["message"] == "Field required"
 
 
 def test_copilot_question_with_valid_payload(client, mocked_agent, mocked_agent_response):

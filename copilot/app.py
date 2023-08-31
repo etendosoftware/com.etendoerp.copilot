@@ -1,8 +1,7 @@
-from starlette.responses import RedirectResponse
-from fastapi import FastAPI, Request
-
 from copilot.core import api_router
 from copilot.handlers import register_error_handlers
+from fastapi import FastAPI, Request
+from starlette.responses import RedirectResponse
 
 app: FastAPI = FastAPI(title="Copilot API")
 
