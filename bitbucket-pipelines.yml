@@ -40,23 +40,12 @@ definitions:
     - step: &test-build
         name: Build image and test dummy request
         script:
-          - echo "*****************************************************************************"
-          - echo "Building image"
-          - echo "*****************************************************************************"
           - docker build -t copilot-test .
-          - echo "*****************************************************************************"
-          - echo "Runnings image"
-          - echo "*****************************************************************************"
           - docker run -d -p 5001:5001 -e OPENAI_API_KEY=$OPENAI_API_KEY -e BASTIAN_URL=https://bastian.back.labs.etendo.cloud -e COPILOT_PORT=5001 copilot-test
           - sleep 20s
-          - echo "*****************************************************************************"
-          - echo "Make a POST /question request sample"
-          - echo "*****************************************************************************"
           - |
             REQUEST_PAYLOAD='{"question": "What is etendo?"}'
             response=$(curl -s -o response.txt -X POST -H "Content-Type: application/json" -d "$REQUEST_PAYLOAD" http://localhost:5001/question)
-          -  echo "Response text:"
-          -  cat response.txt
           -  if [ $response -ne 200 ]; then
           -    echo "Copilot API call failed with status code $response"
           -    exit 1
