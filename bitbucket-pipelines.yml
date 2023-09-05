@@ -48,7 +48,7 @@ definitions:
           - echo "Runnings image"
           - echo "*****************************************************************************"
           - docker run -d -p 5001:5001 -e OPENAI_API_KEY=$OPENAI_API_KEY -e BASTIAN_URL=https://bastian.back.labs.etendo.cloud -e COPILOT_PORT=5001 copilot-test
-          -  sleep 10s
+          - sleep 20s
           - echo "*****************************************************************************"
           - echo "Make a POST /question request sample"
           - echo "*****************************************************************************"
