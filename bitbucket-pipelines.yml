@@ -45,7 +45,7 @@ definitions:
           - echo "*****************************************************************************"
           - docker build -t copilot-test .
           - echo "*****************************************************************************"
-          - echo "Runningn image"
+          - echo "Runnings image"
           - echo "*****************************************************************************"
           - docker run -d -p 5001:5001 -e OPENAI_API_KEY=$OPENAI_API_KEY -e BASTIAN_URL=https://bastian.back.labs.etendo.cloud -e COPILOT_PORT=5001 copilot-test
           -  sleep 10s
@@ -53,9 +53,8 @@ definitions:
           - echo "Make a POST /question request sample"
           - echo "*****************************************************************************"
           - |
-            request_payload: |
-              question: What is etendo?
-            response=$(curl -s -o response.txt -X POST -H "Content-Type: application/yaml" -d "$  " http://localhost:5001/question)
+            REQUEST_PAYLOAD='{"question": "What is etendo?"}'
+            response=$(curl -s -o response.txt -X POST -H "Content-Type: application/json" -d "$REQUEST_PAYLOAD" http://localhost:5001/question)
           -  if [ $response -ne 200 ]; then
           -    echo "Copilot API call failed with status code $response"
           -    exit 1
