@@ -52,7 +52,10 @@ definitions:
           - echo "*****************************************************************************"
           - echo "Make a POST /question request sample"
           - echo "*****************************************************************************"
-          - response=$(curl -s -o response.txt -X POST -H "Content-Type: application/json" -d '{"question": "What is etendo?"}' http://localhost:5001/question)
+          - |
+            request_payload: |
+              question: What is etendo?
+            response=$(curl -s -o response.txt -X POST -H "Content-Type: application/yaml" -d "$request_payload" http://localhost:5001/question)
           -  if [ $response -ne 200 ]; then
           -    echo "Copilot API call failed with status code $response"
           -    exit 1
