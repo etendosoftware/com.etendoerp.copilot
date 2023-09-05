@@ -55,6 +55,8 @@ definitions:
           - |
             REQUEST_PAYLOAD='{"question": "What is etendo?"}'
             response=$(curl -s -o response.txt -X POST -H "Content-Type: application/json" -d "$REQUEST_PAYLOAD" http://localhost:5001/question)
+          -  echo "Response text:"
+          -  cat response.txt
           -  if [ $response -ne 200 ]; then
           -    echo "Copilot API call failed with status code $response"
           -    exit 1
