@@ -37,6 +37,19 @@ definitions:
           -  cat response.txt
         services:
           - docker
+    - step: &test-build
+        name: Build image and test dummy request
+        script:
+          - docker build -t copilot-test .
+          - docker run -d -p 5001:5001 -e OPENAI_API_KEY=$OPENAI_API_KEY -e BASTIAN_URL=https://bastian.back.labs.etendo.cloud -e COPILOT_PORT=5001 copilot-test
+          - sleep 30s
+          - |
+            REQUEST_PAYLOAD='{"question": "What is etendo?"}'
+            curl -s -o response.txt -X POST -H "Content-Type: application/json" -d "$REQUEST_PAYLOAD" http://localhost:5001/question
+          -  echo "Response text:"
+          -  cat response.txt
+        services:
+          - docker
   caches:
     sonar: ~/.sonar
 clone:
@@ -84,3 +97,4 @@ pipelines:
       - parallel:
         - step: *make-review
         - step: *build-step
+        - step: *test-build
