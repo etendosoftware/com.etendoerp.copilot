@@ -66,6 +66,9 @@ poetry run python
 ## How to run unit test
 `poetry run pytest tests`
 
+## OpenAPI URL
+You can get the open api (swagger) documentation from `http://localhost:<port>/docs` or `http://localhost:<port>/redoc`
+
 ## Pre-commit
 * Install pre-commit from [HERE](https://pre-commit.com/#install)
 * Setup pre-commit `pre-commit install & pre-commit autoupdate`
