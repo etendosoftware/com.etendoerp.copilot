@@ -3,12 +3,12 @@
 Copilot helps users answer questions and assignments through different tools. 
 
 # How to use Copilot as user
-1- Make sure [docker](https://docs.docker.com/get-docker/) is installed
-2- Get the `etendo/etendo_copilot_core` image from [dockerhub](https://hub.docker.com/repository/docker/etendo/etendo_copilot_core/tags?page=1&ordering=last_updated): `docker pull etendo/etendo_copilot_core:develop`
-3- Once image is downloaded:
-a) Set your local configuration copying `.env.sample` into `.env` and set the right values
-b) Run a container as: ` docker run -it --env-file .env -p <host_machine_port>:<inside_docker_port> -v $(pwd)/:/app/ etendo/etendo_copilot_core:develop`
-c) Make a request sample: `curl -i -X POST -H "Content-Type: application/json" -d '{"question": "What is etendo?"}' http://localhost:<host_machine_port>/question`
+* Make sure [docker](https://docs.docker.com/get-docker/) is installed
+* Get the `etendo/etendo_copilot_core` image from [dockerhub](https://hub.docker.com/repository/docker/etendo/etendo_copilot_core/tags?page=1&ordering=last_updated): `docker pull etendo/etendo_copilot_core:develop`
+* Once image is downloaded:
+    * Set your local configuration copying `.env.sample` into `.env` and set the right values
+    * Run a container as: ` docker run -it --env-file .env -p <host_machine_port>:<inside_docker_port> -v $(pwd)/:/app/ etendo/etendo_copilot_core:develop`
+    * Make a request sample: `curl -i -X POST -H "Content-Type: application/json" -d '{"question": "What is etendo?"}' http://localhost:<host_machine_port>/question`
 
 
 # Deploy docker image
