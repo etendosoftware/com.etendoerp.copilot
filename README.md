@@ -1,5 +1,5 @@
 # Setup
-Set the environment variable `OPENAI_API_KEY` with a valid value
+Set the environment variable `OPENAI_API_KEY` with a valid value.
 
 # Deploy docker image
 ```
@@ -17,8 +17,7 @@ kubectl port-forward -n chat-etendo svc/etendo-retrieval 8085:8080
 
 ## Virtual environment
 
-As tool for managing multiple Python versions you can use [pyenv](https://github.com/pyenv/pyenv). `pyenv` does not manage package dependencies, so for this purpose you can use [Poetry](https://python-poetry.org/).
-It will create an isolated virtual environment for the `etendo-copilot-core` project.
+As tool for managing multiple Python versions you can use [pyenv](https://github.com/pyenv/pyenv). `pyenv` does not manage package dependencies, so for this purpose you can use [Poetry](https://python-poetry.org/). It will create an isolated virtual environment for the `etendo-copilot-core` project.
 
 * Install `pyenv`: https://github.com/pyenv/pyenv#installation
 * Install `Poetry`: `curl -sSL https://install.python-poetry.org | python3 -`
@@ -30,6 +29,8 @@ pyenv local 3.10
 poetry env use 3.10
 poetry install
 ```
+
+Alternative, you can use Docker.
 
 ### Torch and MacOS issue
 If you are getting this issue from `poetry install`: `Unable to find installation candidates for torch (2.0.1+cpu)`.
@@ -58,9 +59,9 @@ poetry run python
 	- Copy `.env.sample` into `.env` and set the right values
 	- `poetry run python run.py`
 
-* Using docker: `docker run --env-file .env -p 5001:5000 etendo/chatbot_etendo`
+* Using docker, make sure `.env` is created and all the variables are set, only then run `docker run --env-file .env -p 5001:5001 etendo/chatbot_etendo`. You can set the port that you want, just be sure to set the same port in the image from `.env` if not, the api will never be reached.
 
-* Mount code as volume: `docker run --env-file .env -p 5001:5000 -v $(pwd)/copilot:/app/copilot etendo/chatbot_etendo`
+* Mount code as volume: `docker run --env-file .env -p 5001:5001 -v $(pwd)/copilot:/app/copilot etendo/chatbot_etendo`.
 
 ## How to run unit test
 `poetry run pytest tests`
