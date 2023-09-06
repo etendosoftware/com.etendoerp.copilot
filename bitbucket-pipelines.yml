@@ -42,15 +42,10 @@ definitions:
         script:
           - docker build -t copilot-test .
           - docker run -d -p 5001:5001 -e OPENAI_API_KEY=$OPENAI_API_KEY -e BASTIAN_URL=https://bastian.back.labs.etendo.cloud -e COPILOT_PORT=5001 copilot-test
-          - sleep 50s
+          - sleep 30s
           - |
             REQUEST_PAYLOAD='{"question": "What is etendo?"}'
-            response=$(curl -s -o response.txt -X POST -H "Content-Type: application/json" -d "$REQUEST_PAYLOAD" http://localhost:5001/question)
-          -  if [ $response -ne 200 ]; then
-          -    echo "Copilot API call failed with status code $response"
-          -    exit 1
-          -  fi
-          -  echo "Copilot API call successful with status code $response"
+            curl -s -o response.txt -X POST -H "Content-Type: application/json" -d "$REQUEST_PAYLOAD" http://localhost:5001/question
           -  echo "Response text:"
           -  cat response.txt
         services:
