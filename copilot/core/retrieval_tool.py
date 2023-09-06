@@ -5,12 +5,13 @@ database, requires another tool which elaborates an answer.
 """
 
 import json
+
 import requests
-from transformers import Tool  # pylint: disable=no-name-in-module
+
+from .tool_wrapper import ToolWrapper
 
 
-# pylint: disable=too-few-public-methods
-class RetrievalTool(Tool):
+class RetrievalTool(ToolWrapper):
     """A tool for fetching answers to questions about Etendo ERP.
 
     This tool sends a question to a local server running the Etendo ERP
@@ -40,18 +41,14 @@ class RetrievalTool(Tool):
             "Content-Type": "application/json",
         }
 
-        response = requests.request(
-            "POST", url, headers=headers, data=payload, timeout=10000
-        )
+        response = requests.request("POST", url, headers=headers, data=payload, timeout=10000)
         response.raise_for_status()
         response_data = response.json()
         doc_id = response_data["results"][0]["results"][0]["id"].split("_")[0]
 
         url = f"http://localhost:8092/ETDOC_Document/{doc_id}"
 
-        response = requests.request(
-            "GET", url, headers=headers, data=payload, timeout=10000
-        )
+        response = requests.request("GET", url, headers=headers, data=payload, timeout=10000)
 
         content = response.json()["content"]
         return content

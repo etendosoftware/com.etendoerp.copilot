@@ -1,54 +1,18 @@
-"""Routes for the core blueprint."""
-from dotenv import dotenv_values
-from flask import render_template, request
+from fastapi import APIRouter
 
-# pylint: disable=import-error, no-name-in-module
-from transformers.tools import (
-    OpenAiAgent,
-)
+from .agent import open_ai_agent
+from .schemas import QuestionSchema
 
-from . import core  # pylint: disable=cyclic-import
-from .bastian_tool import BastianFetcher, XMLTranslatorTool
-import os
-
-OPENAI_API_KEY= os.getenv("OPENAI_API_KEY")
-
-@core.route("/", methods=["GET"])
-def serve_index():
-    """Serves the home page of the website.
-
-    Returns:
-        str: The HTML content of the home page.
-    """
-    return render_template("index.html")
+core_router = APIRouter()
 
 
-@core.route("/question", methods=["POST"])
-def serve_question():
-    """Serves the question answering endpoint."""
-    # Get the JSON data from the request
-    data = request.get_json()
-
-    # Extract the question from the data
-    question = data["question"]
-
-    bastian_tool = BastianFetcher()
-    translator_tool = XMLTranslatorTool()
-
-    agent = OpenAiAgent(
-        model="gpt-4",
-        api_key=OPENAI_API_KEY,
-        additional_tools=[bastian_tool,translator_tool],
-    )
-            
-    response = agent.chat(
-        question,
+@core_router.post("/question")
+def serve_question(question: QuestionSchema):
+    """Copilot main endpdoint to answering questions."""
+    agent_response = open_ai_agent.chat(
+        question.question,
         remote=True,
         return_code=False,
     )
-    
-    if isinstance(response, (dict, str)):
-        return {
-            "answer": response,
-        }
-    raise ValueError("Invalid response type")
+
+    return {"answer": agent_response}
