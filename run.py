@@ -8,4 +8,4 @@ import uvicorn
 from copilot import app
 
 if __name__ == "__main__":
-    uvicorn.run(app.app, host="localhost", port=int(os.getenv("COPILOT_PORT")))
+    uvicorn.run(app.app, host="0.0.0.0", port=int(os.getenv("COPILOT_PORT")))
