@@ -10,7 +10,8 @@ COPY ./run.py /app/run.py
 COPY ./tools_config.json /app/tools_config.json
 COPY README.md /app/README.md
 
-RUN pip install poetry==1.5.1 \
+RUN pip install --upgrade pip \
+  && pip install poetry==1.5.1 \
   && poetry config virtualenvs.create false \
   && poetry install --no-interaction --no-ansi --without dev
 
