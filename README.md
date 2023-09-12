@@ -1,6 +1,6 @@
 # Copilot
 
-Copilot helps users answer questions and assignments through different tools. 
+Copilot helps users answer questions and assignments through different tools.
 
 # How to use Copilot as user
 * Make sure [docker](https://docs.docker.com/get-docker/) is installed
