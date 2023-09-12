@@ -2,7 +2,7 @@ from copilot.core.tool_wrapper import ToolWrapper
 
 
 class HelloWorldTool(ToolWrapper):
-    """A dummy hello world tool implementation
+    """A dummy hello world tool implementation.
 
     Attributes:
         name (str): The name of the tool.
