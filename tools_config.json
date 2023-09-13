@@ -4,6 +4,6 @@
         "XMLTranslatorTool": true
     },
     "third_party_tools": {
-        "HelloWorldTool": false
+        "HelloWorldTool": true
     }
 }
