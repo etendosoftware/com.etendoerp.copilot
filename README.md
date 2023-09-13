@@ -86,19 +86,17 @@ You can get the open api (swagger) documentation from `http://localhost:<port>/d
 * Setup pre-commit `pre-commit install & pre-commit autoupdate`
 * If you want to run for all the files: `pre-commit run --all-files`
 
+# Third Party Tools Implementation
 
-# Third Party Tools
 Any developer can define his own tools and attach them into copilot agent. So as to do this the third party tools **MUST** be added into the `tools` package.
 
-## How to defined a new tool: baby steps
+## Baby steps to define a new tool
 
-1- Creates a new python module inside `tools` package: `hello_world.py`
+1- Create a new python module inside `tools` package: `hello_world.py`
 
-2- Extends the ToolWrapper class from copilot.core.tool_wrapper and set your own tool implementation.
+2- Extend the ToolWrapper class from copilot.core.tool_wrapper and set your own tool implementation. Boilerplate sample:
 
-Boilerplate sample:
-
-```
+```py
 from copilot.core.tool_wrapper import ToolWrapper
 
 class MyTool(ToolWrapper):
@@ -106,7 +104,7 @@ class MyTool(ToolWrapper):
     description = 'My tool description'
 
     def __call__(self, *args, **kwargs):
-        # Implement your tool's logic here
+        # Implement your tool's logic HERE
 ```
 
 3- Enable the new tool from `tools_config.json` under `third_party_tools`:
