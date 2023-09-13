@@ -85,3 +85,38 @@ You can get the open api (swagger) documentation from `http://localhost:<port>/d
 * Install pre-commit from [HERE](https://pre-commit.com/#install)
 * Setup pre-commit `pre-commit install & pre-commit autoupdate`
 * If you want to run for all the files: `pre-commit run --all-files`
+
+# Third Party Tools Implementation
+
+Any developer can define his own tools and attach them into copilot agent. So as to do this the third party tools **MUST** be added into the `tools` package.
+
+## Baby steps to define a new tool
+
+1- Create a new python module inside `tools` package: `hello_world.py`
+
+2- Extend the ToolWrapper class from copilot.core.tool_wrapper and set your own tool implementation. Boilerplate sample:
+
+```py
+from copilot.core.tool_wrapper import ToolWrapper
+
+class MyTool(ToolWrapper):
+    name = 'my_tool_name'
+    description = 'My tool description'
+
+    def __call__(self, *args, **kwargs):
+        # Implement your tool's logic HERE
+```
+
+3- Enable the new tool from `tools_config.json` under `third_party_tools`:
+```
+{
+    "native_tools": {
+        ...
+    },
+    "third_party_tools": {
+        "MyTool": true
+    }
+}
+```
+
+4- Restart the copilot container loading the project root folder through a volume: `docker run --env-file .env -p 5001:5001 -v $(pwd):/app etendo/chatbot_etendo`
