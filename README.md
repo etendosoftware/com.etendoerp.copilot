@@ -90,7 +90,7 @@ You can get the open api (swagger) documentation from `http://localhost:<port>/d
 
 Any developer can define his own tools and attach them into copilot agent. So as to do this the third party tools **MUST** be added into the `tools` package.
 
-## Baby steps to define a new tool
+## Baby steps to define a new tool from copilot source code
 
 1- Create a new python module inside `tools` package: `hello_world.py`
 
@@ -120,3 +120,43 @@ class MyTool(ToolWrapper):
 ```
 
 4- Restart the copilot container loading the project root folder through a volume: `docker run --env-file .env -p 5001:5001 -v $(pwd):/app etendo/chatbot_etendo`
+
+
+## Baby steps to define a new tool just using copilot image
+
+1- Create a `tools` directory and inside it create a `__init__.py` file.
+
+2- Create a new python module inside `tools` package: `hello_world.py`
+
+3- Extend the ToolWrapper class from copilot.core.tool_wrapper and set your own tool implementation. Boilerplate sample:
+
+```py
+from copilot.core.tool_wrapper import ToolWrapper
+
+class MyTool(ToolWrapper):
+    name = 'my_tool_name'
+    description = 'My tool description'
+
+    def __call__(self, *args, **kwargs):
+        # Implement your tool's logic HERE
+```
+
+4- Expose the new tool class name from `__init__.py`
+
+```py
+from .hello_world import MyTool
+```
+
+5- Enable the new tool from `tools_config.json` under `third_party_tools`:
+```
+{
+    "native_tools": {
+        ...
+    },
+    "third_party_tools": {
+        "MyTool": true
+    }
+}
+```
+
+6- Restart the copilot container loading the project root folder through a volume: `docker run --env-file .env -p 5001:5001 -v $(pwd)/tools:/app/tools -v $(pwd)/tools_config.json:/app/tools_config.json etendo/chatbot_etendo`
