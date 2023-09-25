@@ -102,6 +102,9 @@ class XMLTranslatorTool(ToolWrapper):
             
             for child in root:
                 segment = ET.tostring(child).decode()
+                if child.get('isTrl', 'N') == 'Y':
+                    translated_text += f"{segment}\n\n" 
+                    continue
                 segment_prompt = f"{self.prompt}\n{segment}"
                 messages = [{"role": "system", "content": segment_prompt}]
                 response = openai.ChatCompletion.create(
