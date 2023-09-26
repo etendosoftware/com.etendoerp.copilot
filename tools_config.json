@@ -1,9 +1,10 @@
 {
     "native_tools": {
         "BastianFetcher": true,
-        "XMLTranslatorTool": true
+        "XMLTranslatorTool": false
     },
     "third_party_tools": {
-        "HelloWorldTool": true
+        "HelloWorldTool": true,
+        "TranslatorTool": true
     }
 }
