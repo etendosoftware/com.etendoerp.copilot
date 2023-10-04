@@ -2,15 +2,15 @@ import os
 import re
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
+import copy
 import pycountry
 import openai
 from transformers import GPT2Tokenizer
+from copilot.core.tool_wrapper import ToolWrapper
 
-from .tool_wrapper import ToolWrapper
 
-
-class XMLTranslatorTool(ToolWrapper):
-    name = "xml_translator_tool"
+class TranslatorTool(ToolWrapper):
+    name = "translator_tool"
     description = "This is a tool that receives a relative path and directly translates the content of XML from one language to another, specified within the xml"
     inputs = ["question"]
     outputs = ["translated_files_paths"]
@@ -101,34 +101,29 @@ class XMLTranslatorTool(ToolWrapper):
             version = root.attrib.get("version")
             
             for child in root:
-                segment = ET.tostring(child).decode()
+                new_child = copy.deepcopy(child) 
+
                 values = child.findall('value')
-                needs_translation = any(value.get('isTrl', 'N') == 'N' for value in values)
+                for value in values:
+                    if value.get('isTrl', 'N') == 'Y':
+                        continue
 
-                if not needs_translation:
-                    translated_text += f"{segment}\n\n"
-                    continue
+                    value_prompt = f"{self.prompt}\n{ET.tostring(value).decode()}"
+                    messages = [{"role": "system", "content": value_prompt}]
+                    response = openai.ChatCompletion.create(
+                        model="gpt-4", messages=messages, max_tokens=2000, temperature=0
+                    )
 
-                segment_prompt = f"{self.prompt}\n{segment}"
-                messages = [{"role": "system", "content": segment_prompt}]
-                response = openai.ChatCompletion.create(
-                    model="gpt-4", messages=messages, max_tokens=2000, temperature=0
-                )
+                    translation = response["choices"][0]["message"]["content"].strip()
+                    translated_value = ET.fromstring(translation)
+                    
+                    corresponding_value_in_new_child = new_child.find(f"value[@column='{value.get('column')}']")
+                    if corresponding_value_in_new_child is not None:
+                        corresponding_value_in_new_child.text = translated_value.text
+                        corresponding_value_in_new_child.set("isTrl", "Y" if translated_value.text else "N")
 
-                translation = response["choices"][0]["message"]["content"].strip()
 
-                translated_element = ET.fromstring(translation)
-                values = translated_element.findall("value")
-                original_values = child.findall("value")
-
-                for i in range(len(values)):
-                    original_text = original_values[i].text
-                    if original_text:
-                        original_values[i].text = values[i].text
-                        is_trl = "Y" if values[i].text else "N"
-                        original_values[i].set("isTrl", is_trl)
-
-                translated_text += f"{translation}\n\n"
+                translated_text += f"{ET.tostring(new_child).decode()}\n\n"
 
             translated_text = f'<compiereTrl baseLanguage="{base_language}" language="{language}" table="{table}" version="{version}">\n{translated_text}</compiereTrl>'
             dom = xml.dom.minidom.parseString(translated_text)
