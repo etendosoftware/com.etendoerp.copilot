@@ -29,7 +29,7 @@ def fake_valid_config_file():
     with open(json_file_path, "w") as json_file:
         json.dump(
             {
-                "native_tools": {"BastianFetcher": True, "XMLTranslatorTool": False},
+                "native_tools": {"BastianFetcher": True, "XML_translation_tool": False},
                 "third_party_tools": {"HelloWorldTool": True, "MyTool": False},
             },
             json_file,
