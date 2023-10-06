@@ -9,8 +9,8 @@ from transformers import GPT2Tokenizer
 from copilot.core.tool_wrapper import ToolWrapper
 
 
-class TranslatorTool(ToolWrapper):
-    name = "translator_tool"
+class XML_translation_tool(ToolWrapper):
+    name = "XML_translation_tool"
     description = "This is a tool that receives a relative path and directly translates the content of XML from one language to another, specified within the xml"
     inputs = ["question"]
     outputs = ["translated_files_paths"]
