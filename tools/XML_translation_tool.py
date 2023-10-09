@@ -2,13 +2,13 @@ import os
 import re
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
+import copy
 import pycountry
 import openai
 from transformers import GPT2Tokenizer
-import time
-
 from copilot.core.tool_wrapper import ToolWrapper
-
+import concurrent.futures
+import time
 
 class XML_translation_tool(ToolWrapper):
     name = "XML_translation_tool"
@@ -23,7 +23,7 @@ class XML_translation_tool(ToolWrapper):
 
         translated_files_paths = []
         script_directory = os.path.dirname(os.path.abspath(__file__)) 
-        first_level_up = os.path.dirname(script_directory)
+        first_level_up = os.path.dirname(script_directory)  # Esto te lleva una carpeta hacia arriba (a "core")
         second_level_up = os.path.dirname(first_level_up)  
         parent_directory = os.path.dirname(second_level_up)
         absolute_path = os.path.join(parent_directory, relative_path)
@@ -69,51 +69,81 @@ class XML_translation_tool(ToolWrapper):
             segments.append(ET.tostring(current_segment).strip().decode())
 
         return segments
+    
+    def translate_text(self, segment_prompt):
+        while True:
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo-16k", messages=[{
+                        "role": "system",
+                        "content": segment_prompt
+                    }], max_tokens=2000, temperature=0
+                )
+                translation = response["choices"][0]["message"]["content"].strip()
+                return translation
+            except openai.error.RateLimitError:
+                print("Rate limit reached. Retrying in 60 seconds.")
+                time.sleep(60)
 
     def translate_xml_file(self, filepath):
         with open(filepath, "r") as file:
             first_line = file.readline().strip()
             content = file.read()
             root = ET.fromstring(content)
+            language_attr = root.attrib.get('language', 'es_ES')
+            target_language = self.get_language_name(language_attr)
+            if not target_language:
+                target_language = "English"
 
-            if not root.findall(".//value[@original]"):
-                return
-                
-            for child in root:
-                needs_translation = any(value.get('isTrl', 'N') == 'N' and value.get('original').strip() 
-                                        for value in child.findall('value'))
+            self.prompt = f"""
+            ---
+            Translate the English text contained within the "original" XML property into {target_language} and place this translation as the value within the XML element itself, leaving the "original" attribute intact. Here is an example for your reference:
 
-                if not needs_translation:
-                    continue
+            <value column="Name" isTrl="N" original="Current Salary Grade.">Grado de salario actual.</value>
 
-                for value in child.findall('value'):
-                    if value.get('isTrl') == 'N' and value.get('original').strip():
-                        original_text = value.get('original').strip()
-                        segment_prompt = f"""
-                        Translate the following English text into {self.language}:
-                        {original_text}
+            The objective is to generate an XML output identical to the input, except that the text within the second "original" node should be translated, leaving all other elements and attributes untouched.
+            Considerations:
 
-                        The XML content that you're translating pertains to a {self.business_requirement} software component. In cases where a word or phrase might have multiple valid translations, choose the translation that best aligns with the {self.business_requirement} context.
-                        """
-                        messages = [{"role": "system", "content": segment_prompt}]
-                        while True:
-                            try:
-                                response = openai.ChatCompletion.create(
-                                    model="gpt-4", messages=messages, max_tokens=2000, temperature=0
-                                )
-                                break 
-                            except openai.error.RateLimitError:
-                                print("Rate limit reached. Retrying in 60 seconds.")
-                                time.sleep(60)  
+            The XML content that you're translating pertains to a {self.business_requirement} software component. In cases where a word or phrase might have multiple valid translations, choose the translation that best aligns with the {self.business_requirement} context.
+            """
+
+            values_needing_translation = [
+                value for value in root.findall('.//value')
+                if value.get('isTrl', 'N') == 'N' and value.get('original').strip()
+            ]
+
+            if not values_needing_translation:
+                return None
+
+            def translate_value(value):
+                value_prompt = f"{self.prompt}\n{value.get('original').strip()}"
+                messages = [{"role": "system", "content": value_prompt}]
+                while True:
+                    try:
+                        response = openai.ChatCompletion.create(
+                        model="gpt-3.5-turbo-16k", messages=messages, max_tokens=2000, temperature=0
+                    )
 
                         translation = response["choices"][0]["message"]["content"].strip()
-                        if translation:
-                            value.text = translation
-                            value.set('isTrl', 'Y')
-                            child.set('trl', 'Y')
+                        translation_text = re.search(r'>\s*(.+?)\s*<', translation)
+                        if translation_text:
+                            return translation_text.group(1)  # Return only the text content, not the whole XML node
+                        return ""
+                    except openai.error.RateLimitError:
+                        print("Rate limit reached. Retrying in 60 seconds.")
+                        time.sleep(60)
 
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future_to_translation = {executor.submit(translate_value, value): value for value in values_needing_translation}
+                for future in concurrent.futures.as_completed(future_to_translation):
+                    value = future_to_translation[future]
+                    translation = future.result()
+                    value.text = translation
+                    value.set('isTrl', 'Y')
+
+            tree = ET.ElementTree(root)
             with open(filepath, "w", encoding='utf-8') as file:
-                file.write(f'{first_line}\n')
-                file.write(ET.tostring(root, encoding='unicode'))
-                
+                file.write(first_line + '\n')
+                tree.write(file, encoding='unicode')
+        
         return f"Successfully translated file {filepath}."
