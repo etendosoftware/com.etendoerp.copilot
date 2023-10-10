@@ -21,8 +21,7 @@ class XML_translation_tool(ToolWrapper):
     def __call__(self, relative_path,*args, **kwargs):
         self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.language = "Spanish"
-        self.business_requirement = "ERP"
-
+        self.business_requirement = os.getenv("BUSINESS_TOPIC", "ERP")
         translated_files_paths = []
         script_directory = os.path.dirname(os.path.abspath(__file__)) 
         first_level_up = os.path.dirname(script_directory)
@@ -73,10 +72,7 @@ class XML_translation_tool(ToolWrapper):
         return segments
 
     def translate_xml_file(self, filepath):
-        model = os.environ.get("OPENAI_MODEL")
-        if model is None:
-            raise ValueError("Las variables de entorno OPENAI_API_KEY y OPENAI_MODEL deben estar definidas en el archivo .env")
-
+        model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo-16k")  
         with open(filepath, "r") as file:
             first_line = file.readline().strip()
             content = file.read()
@@ -125,10 +121,10 @@ class XML_translation_tool(ToolWrapper):
                             temperature=0
                         )
                     except openai.error.Timeout as e:
-                        print(f"La solicitud se quedó sin tiempo de espera: {e}")
+                        print(f"The request ran out of waiting time: {e}")
                         time.sleep(10)
                     except Exception as e:
-                        print(f"Ocurrió un error: {e}")
+                        print(f"An error occurred: {e}")
                     translation = response["choices"][0]["message"]["content"].strip()
                     translated_value = ET.fromstring(translation)
                     
