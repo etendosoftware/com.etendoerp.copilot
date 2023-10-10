@@ -7,7 +7,6 @@ import pycountry
 import openai
 from transformers import GPT2Tokenizer
 from copilot.core.tool_wrapper import ToolWrapper
-import concurrent.futures
 import time
 
 class XML_translation_tool(ToolWrapper):
@@ -69,21 +68,6 @@ class XML_translation_tool(ToolWrapper):
             segments.append(ET.tostring(current_segment).strip().decode())
 
         return segments
-    
-    def translate_text(self, segment_prompt):
-        while True:
-            try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo-16k", messages=[{
-                        "role": "system",
-                        "content": segment_prompt
-                    }], max_tokens=2000, temperature=0
-                )
-                translation = response["choices"][0]["message"]["content"].strip()
-                return translation
-            except openai.error.RateLimitError:
-                print("Rate limit reached. Retrying in 60 seconds.")
-                time.sleep(60)
 
     def translate_xml_file(self, filepath):
         with open(filepath, "r") as file:
@@ -107,43 +91,65 @@ class XML_translation_tool(ToolWrapper):
             The XML content that you're translating pertains to a {self.business_requirement} software component. In cases where a word or phrase might have multiple valid translations, choose the translation that best aligns with the {self.business_requirement} context.
             """
 
-            values_needing_translation = [
-                value for value in root.findall('.//value')
-                if value.get('isTrl', 'N') == 'N' and value.get('original').strip()
-            ]
+            if not root.findall(".//value[@original]"):
+                return
+            translated_text = ""
 
-            if not values_needing_translation:
-                return None
+            base_language = root.attrib.get("baseLanguage", "en_US")
+            language = root.attrib.get("language", "es_ES")
+            table = root.attrib.get("table", "")
+            version = root.attrib.get("version")
+            
+            for child in root:
+                new_child = copy.deepcopy(child) 
 
-            def translate_value(value):
-                value_prompt = f"{self.prompt}\n{value.get('original').strip()}"
-                messages = [{"role": "system", "content": value_prompt}]
-                while True:
+                values = child.findall('value')
+                for value in values:
+                    if value.get('isTrl', 'N') == 'Y':
+                        continue
+
+                    value_prompt = f"{self.prompt}\n{ET.tostring(value).decode()}"
+                    messages = [{"role": "system", "content": value_prompt}]
                     try:
                         response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo-16k", messages=messages, max_tokens=2000, temperature=0
-                    )
+                            model="gpt-3.5-turbo-16k", 
+                            messages=messages, 
+                            max_tokens=2000, 
+                            temperature=0
+                        )
+                    except openai.error.Timeout as e:
+                        print(f"La solicitud se quedó sin tiempo de espera: {e}")
+                        time.sleep(10)
+                    except Exception as e:
+                        print(f"Ocurrió un error: {e}")
+                    translation = response["choices"][0]["message"]["content"].strip()
+                    translated_value = ET.fromstring(translation)
+                    
+                    corresponding_value_in_new_child = new_child.find(f"value[@column='{value.get('column')}']")
+                    if corresponding_value_in_new_child is not None:
+                        corresponding_value_in_new_child.text = translated_value.text
+                        corresponding_value_in_new_child.set("isTrl", "Y" if translated_value.text else "N")
 
-                        translation = response["choices"][0]["message"]["content"].strip()
-                        translation_text = re.search(r'>\s*(.+?)\s*<', translation)
-                        if translation_text:
-                            return translation_text.group(1)  # Return only the text content, not the whole XML node
-                        return ""
-                    except openai.error.RateLimitError:
-                        print("Rate limit reached. Retrying in 60 seconds.")
-                        time.sleep(60)
 
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future_to_translation = {executor.submit(translate_value, value): value for value in values_needing_translation}
-                for future in concurrent.futures.as_completed(future_to_translation):
-                    value = future_to_translation[future]
-                    translation = future.result()
-                    value.text = translation
-                    value.set('isTrl', 'Y')
+                translated_text += f"{ET.tostring(new_child).decode()}\n\n"
 
-            tree = ET.ElementTree(root)
+            translated_text = f'<compiereTrl baseLanguage="{base_language}" language="{language}" table="{table}" version="{version}">\n{translated_text}</compiereTrl>'
+            dom = xml.dom.minidom.parseString(translated_text)
+            formatted_text = dom.toxml()
+            formatted_text = re.sub("\n\\s*\n", "\n", formatted_text)
+            formatted_root = ET.fromstring(formatted_text)
+
+            for child in formatted_root:
+                for value in child.findall("value"):
+                    original = value.get("original")
+                    is_trl = "Y" if original and original.strip() else "N"
+                    value.set("isTrl", is_trl)
+                child.set(
+                    "trl", "Y" if any(value.get("isTrl") == "Y" for value in child.findall("value")) else "N"
+                )
+
             with open(filepath, "w", encoding='utf-8') as file:
-                file.write(first_line + '\n')
-                tree.write(file, encoding='unicode')
-        
+                file.write(f'{first_line}\n')
+                file.write(ET.tostring(formatted_root, encoding='unicode'))
+            
         return f"Successfully translated file {filepath}."
