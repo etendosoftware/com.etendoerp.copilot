@@ -9,7 +9,6 @@ from tools import *  # noqa: F403
 from .bastian_tool import BastianFetcher
 from .retrieval_tool import RetrievalTool
 from .tool_wrapper import ToolWrapper
-
 # fmt: on
 
 

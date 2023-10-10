@@ -7,7 +7,10 @@ import pycountry
 import openai
 from transformers import GPT2Tokenizer
 from copilot.core.tool_wrapper import ToolWrapper
+import time
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class XML_translation_tool(ToolWrapper):
     name = "XML_translation_tool"
@@ -18,11 +21,10 @@ class XML_translation_tool(ToolWrapper):
     def __call__(self, relative_path,*args, **kwargs):
         self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.language = "Spanish"
-        self.business_requirement = "Human Resources"
-
+        self.business_requirement = os.getenv("BUSINESS_TOPIC", "ERP")
         translated_files_paths = []
         script_directory = os.path.dirname(os.path.abspath(__file__)) 
-        first_level_up = os.path.dirname(script_directory)  # Esto te lleva una carpeta hacia arriba (a "core")
+        first_level_up = os.path.dirname(script_directory)
         second_level_up = os.path.dirname(first_level_up)  
         parent_directory = os.path.dirname(second_level_up)
         absolute_path = os.path.join(parent_directory, relative_path)
@@ -70,6 +72,7 @@ class XML_translation_tool(ToolWrapper):
         return segments
 
     def translate_xml_file(self, filepath):
+        model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo-16k")  
         with open(filepath, "r") as file:
             first_line = file.readline().strip()
             content = file.read()
@@ -110,10 +113,18 @@ class XML_translation_tool(ToolWrapper):
 
                     value_prompt = f"{self.prompt}\n{ET.tostring(value).decode()}"
                     messages = [{"role": "system", "content": value_prompt}]
-                    response = openai.ChatCompletion.create(
-                        model="gpt-4", messages=messages, max_tokens=2000, temperature=0
-                    )
-
+                    try:
+                        response = openai.ChatCompletion.create(
+                            model=model,
+                            messages=messages,
+                            max_tokens=2000,
+                            temperature=0
+                        )
+                    except openai.error.Timeout as e:
+                        print(f"The request ran out of waiting time: {e}")
+                        time.sleep(10)
+                    except Exception as e:
+                        print(f"An error occurred: {e}")
                     translation = response["choices"][0]["message"]["content"].strip()
                     translated_value = ET.fromstring(translation)
                     
@@ -145,5 +156,3 @@ class XML_translation_tool(ToolWrapper):
                 file.write(ET.tostring(formatted_root, encoding='unicode'))
             
         return f"Successfully translated file {filepath}."
- 
-
