@@ -8,6 +8,9 @@ import openai
 from transformers import GPT2Tokenizer
 from copilot.core.tool_wrapper import ToolWrapper
 import time
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class XML_translation_tool(ToolWrapper):
     name = "XML_translation_tool"
@@ -18,11 +21,11 @@ class XML_translation_tool(ToolWrapper):
     def __call__(self, relative_path,*args, **kwargs):
         self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.language = "Spanish"
-        self.business_requirement = "Human Resources"
+        self.business_requirement = "ERP"
 
         translated_files_paths = []
         script_directory = os.path.dirname(os.path.abspath(__file__)) 
-        first_level_up = os.path.dirname(script_directory)  # Esto te lleva una carpeta hacia arriba (a "core")
+        first_level_up = os.path.dirname(script_directory)
         second_level_up = os.path.dirname(first_level_up)  
         parent_directory = os.path.dirname(second_level_up)
         absolute_path = os.path.join(parent_directory, relative_path)
@@ -70,6 +73,10 @@ class XML_translation_tool(ToolWrapper):
         return segments
 
     def translate_xml_file(self, filepath):
+        model = os.environ.get("OPENAI_MODEL")
+        if model is None:
+            raise ValueError("Las variables de entorno OPENAI_API_KEY y OPENAI_MODEL deben estar definidas en el archivo .env")
+
         with open(filepath, "r") as file:
             first_line = file.readline().strip()
             content = file.read()
@@ -112,9 +119,9 @@ class XML_translation_tool(ToolWrapper):
                     messages = [{"role": "system", "content": value_prompt}]
                     try:
                         response = openai.ChatCompletion.create(
-                            model="gpt-3.5-turbo-16k", 
-                            messages=messages, 
-                            max_tokens=2000, 
+                            model=model,
+                            messages=messages,
+                            max_tokens=2000,
                             temperature=0
                         )
                     except openai.error.Timeout as e:
