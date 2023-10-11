@@ -72,7 +72,7 @@ class XML_translation_tool(ToolWrapper):
         return segments
 
     def translate_xml_file(self, filepath):
-        model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo-16k")
+        model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
         with open(filepath, "r") as file:
             first_line = file.readline().strip()
             content = file.read()
