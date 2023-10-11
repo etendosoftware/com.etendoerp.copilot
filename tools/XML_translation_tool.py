@@ -72,87 +72,60 @@ class XML_translation_tool(ToolWrapper):
         return segments
 
     def translate_xml_file(self, filepath):
-        model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo-16k")  
+        model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
         with open(filepath, "r") as file:
             first_line = file.readline().strip()
             content = file.read()
             root = ET.fromstring(content)
+
             language_attr = root.attrib.get('language', 'es_ES')
             target_language = self.get_language_name(language_attr)
             if not target_language:
                 target_language = "English"
-
-            self.prompt = f"""
-            ---
-            Translate the English text contained within the "original" XML property into {target_language} and place this translation as the value within the XML element itself, leaving the "original" attribute intact. Here is an example for your reference:
-
-            <value column="Name" isTrl="N" original="Current Salary Grade.">Grado de salario actual.</value>
-
-            The objective is to generate an XML output identical to the input, except that the text within the second "original" node should be translated, leaving all other elements and attributes untouched.
-            Considerations:
-
-            The XML content that you're translating pertains to a {self.business_requirement} software component. In cases where a word or phrase might have multiple valid translations, choose the translation that best aligns with the {self.business_requirement} context.
-            """
-
-            if not root.findall(".//value[@original]"):
-                return
-            translated_text = ""
-
-            base_language = root.attrib.get("baseLanguage", "en_US")
-            language = root.attrib.get("language", "es_ES")
-            table = root.attrib.get("table", "")
-            version = root.attrib.get("version")
-            
+            value_elements = []
             for child in root:
-                new_child = copy.deepcopy(child) 
-
+                is_trl = 'N'
                 values = child.findall('value')
                 for value in values:
                     if value.get('isTrl', 'N') == 'Y':
                         continue
+                    original_text = value.get('original', '').strip()
+                    if not original_text:
+                        continue
+                    value_elements.append(value)
+                    is_trl = 'Y'
+                child.attrib['trl'] = is_trl
 
-                    value_prompt = f"{self.prompt}\n{ET.tostring(value).decode()}"
-                    messages = [{"role": "system", "content": value_prompt}]
-                    try:
-                        response = openai.ChatCompletion.create(
-                            model=model,
-                            messages=messages,
-                            max_tokens=2000,
-                            temperature=0
-                        )
-                    except openai.error.Timeout as e:
-                        print(f"The request ran out of waiting time: {e}")
-                        time.sleep(10)
-                    except Exception as e:
-                        print(f"An error occurred: {e}")
-                    translation = response["choices"][0]["message"]["content"].strip()
-                    translated_value = ET.fromstring(translation)
-                    
-                    corresponding_value_in_new_child = new_child.find(f"value[@column='{value.get('column')}']")
-                    if corresponding_value_in_new_child is not None:
-                        corresponding_value_in_new_child.text = translated_value.text
-                        corresponding_value_in_new_child.set("isTrl", "Y" if translated_value.text else "N")
+            if not value_elements:
+                return None
 
+            original_texts = [value.text for value in value_elements if value.text and value.text.strip()]
+            prompt_texts = "\n".join(original_texts)
+            self.prompt = f"""
+            ---
+            Translate the following texts from English to {target_language} in the context of {self.business_requirement} software:
+            {prompt_texts}
+            """
 
-                translated_text += f"{ET.tostring(new_child).decode()}\n\n"
+            messages = [{"role": "system", "content": self.prompt}]
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages=messages,
+                max_tokens=2000,
+                temperature=0
+            )
 
-            translated_text = f'<compiereTrl baseLanguage="{base_language}" language="{language}" table="{table}" version="{version}">\n{translated_text}</compiereTrl>'
-            dom = xml.dom.minidom.parseString(translated_text)
-            formatted_text = dom.toxml()
-            formatted_text = re.sub("\n\\s*\n", "\n", formatted_text)
-            formatted_root = ET.fromstring(formatted_text)
-
-            for child in formatted_root:
-                for value in child.findall("value"):
-                    original = value.get("original")
-                    is_trl = "Y" if original and original.strip() else "N"
-                    value.set("isTrl", is_trl)
-                child.set(
-                    "trl", "Y" if any(value.get("isTrl") == "Y" for value in child.findall("value")) else "N"
-                )
+            translations = response["choices"][0]["message"]["content"].strip().split('\n')
+            
+            for i, value in enumerate(value_elements):
+                if i < len(translations):  
+                    value.text = translations[i].strip()
+                    value.set('isTrl', 'Y')
+                
+            translated_text = ET.tostring(root).decode()
 
             with open(filepath, "w", encoding='utf-8') as file:
                 file.write(f'{first_line}\n')
-                file.write(ET.tostring(formatted_root, encoding='unicode'))
-            
-        return f"Successfully translated file {filepath}."
+                file.write(translated_text)
+
+            return f"Successfully translated file {filepath}."
