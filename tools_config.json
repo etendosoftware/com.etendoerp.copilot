@@ -3,7 +3,6 @@
         "BastianFetcher": true
     },
     "third_party_tools": {
-        "HelloWorldTool": true,
-        "XML_translation_tool": true
+        "HelloWorldTool": true
     }
 }
