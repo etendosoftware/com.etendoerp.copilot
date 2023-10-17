@@ -1,0 +1,38 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_language_version:
+  python: python3.10
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-byte-order-marker # Forbid UTF-8 byte-order markers
+      # Check for files with names that would conflict on a case-insensitive
+      # filesystem like MacOS HFS+ or Windows FAT.
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+      - id: debug-statements
+      - id: check-added-large-files
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: "6.3.0"
+    hooks:
+      - id: pydocstyle
+        args:
+          [
+            "--add-ignore=D100,D101,D102,D103,D104,D105,D106,D107",
+            "--convention=google",
+          ]
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.275
+    hooks:
+      - id: ruff
+        args:
+          - --fix
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+      - id: black

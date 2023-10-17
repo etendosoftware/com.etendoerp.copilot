@@ -1,0 +1,8 @@
+{
+    "native_tools": {
+        "BastianFetcher": true
+    },
+    "third_party_tools": {
+        "HelloWorldTool": true
+    }
+}

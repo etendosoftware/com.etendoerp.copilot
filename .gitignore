@@ -52,3 +52,11 @@ __pycache__
 .venv
 .vscode
 .env
+.python-version
+
+.mypy_cache
+.pytest_cache
+.ruff_cache
+
+build/
+etendo.artifact.properties
