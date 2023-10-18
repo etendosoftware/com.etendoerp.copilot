@@ -1,9 +1,11 @@
-from copilot.app import app
 from fastapi.testclient import TestClient
 from pytest import fixture
 
 
-@fixture(scope="session", autouse=True)
-def client():
+@fixture()
+def client(monkeypatch):
     """Create a test client."""
-    return TestClient(app)
+    with monkeypatch.context() as patch_context:
+        patch_context.setenv("OPENAI_API_KEY", 'fake-openai-key')
+        from copilot.app import app
+        return TestClient(app)
