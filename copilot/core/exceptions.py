@@ -10,3 +10,7 @@ class ApplicationError(RuntimeError):
 
 class OpenAIApiKeyNotFound(ApplicationError):
     message = "The OpenAPI api-key is not found as environment variable"
+
+
+class ToolConfigFileNotFound(ApplicationError):
+    message = "The tools configuration file is not found as environment variable"

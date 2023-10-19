@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_open_ai_agent_creation_without_api_key(monkeypatch):
+def test_open_ai_agent_creation_without_api_key(monkeypatch, set_fake_openai_api_key):
     with monkeypatch.context() as m:
         m.delenv("OPENAI_API_KEY", raising=False)
 
