@@ -1,10 +1,6 @@
 import json
 
 import pytest
-from copilot.core.bastian_tool import BastianFetcher
-from copilot.core.tool_manager import load_configured_tools
-
-from tools import HelloWorldTool
 
 
 @pytest.fixture
@@ -38,17 +34,26 @@ def fake_valid_config_file():
     yield json_file_path
 
 
-def test_load_configured_tools_empty_file(empty_config_file):
+def test_load_configured_tools_empty_file(empty_config_file, set_fake_openai_api_key):
+    from copilot.core.tool_manager import load_configured_tools
+
     with pytest.raises(Exception) as exc_info:
         load_configured_tools(config_filename=empty_config_file)
     assert str(exc_info.value) == "Unsupported tool configuration file format"
 
 
-def test_load_configured_tools_no_valid_config(fake_json_config_file):
+def test_load_configured_tools_no_valid_config(fake_json_config_file, set_fake_openai_api_key):
+    from copilot.core.tool_manager import load_configured_tools
+
     assert load_configured_tools(config_filename=fake_json_config_file) == []
 
 
-def test_load_configured_tools_with_valid_file(fake_valid_config_file):
+def test_load_configured_tools_with_valid_file(fake_valid_config_file, set_fake_openai_api_key):
+    from copilot.core.bastian_tool import BastianFetcher
+    from copilot.core.tool_manager import load_configured_tools
+
+    from tools import HelloWorldTool
+
     configured_tools = load_configured_tools(config_filename=fake_valid_config_file)
     assert len(configured_tools) == 2
 
