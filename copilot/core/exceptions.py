@@ -8,6 +8,5 @@ class ApplicationError(RuntimeError):
         return self._message
 
 
-
 class OpenAIApiKeyNotFound(ApplicationError):
     message = "The OpenAPI api-key is not found as environment variable"

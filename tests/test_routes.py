@@ -15,8 +15,9 @@ def mocked_agent(mocked_agent_response, monkeypatch):
     mock_response = mock.MagicMock(chat=mocked_chat)
 
     with monkeypatch.context() as patch_context:
-        patch_context.setenv("OPENAI_API_KEY", 'fake-openai-key')
+        patch_context.setenv("OPENAI_API_KEY", "fake-openai-key")
         from copilot.core import routes
+
         routes.open_ai_agent = mock_response
 
 
