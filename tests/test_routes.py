@@ -1,8 +1,8 @@
 import os
-
 from http import HTTPStatus
-from pytest import fixture
 from unittest import mock
+
+from pytest import fixture
 
 
 @fixture
@@ -37,7 +37,8 @@ def test_copilot_question_with_valid_payload(client, mocked_agent, mocked_agent_
 
 def test_copilot_get_history(client, set_fake_openai_api_key, mocked_agent, mocked_agent_response):
     # reset file to ensure order
-    from copilot.core.local_history import LocalHistoryRecorder, LOCAL_HISTORY_FILEPATH
+    from copilot.core.local_history import LOCAL_HISTORY_FILEPATH, LocalHistoryRecorder
+
     os.remove(LOCAL_HISTORY_FILEPATH)
     LocalHistoryRecorder()
 

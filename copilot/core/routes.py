@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
 from .agent import open_ai_agent
-from .schemas import QuestionSchema
 from .local_history import ChatHistory, local_history_recorder
+from .schemas import QuestionSchema
 
 core_router = APIRouter()
 
