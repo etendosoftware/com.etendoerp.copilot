@@ -2,8 +2,7 @@
 import json
 import os
 from typing import Final
-import os
-import xml.etree.ElementTree as ET
+
 import requests
 
 from .tool_wrapper import ToolWrapper
@@ -43,5 +42,3 @@ class BastianFetcher(ToolWrapper):
         response = requests.request("POST", url, headers=headers, data=payload, timeout=10000)
         response.raise_for_status()
         return response.json()["answer"]
-
-
