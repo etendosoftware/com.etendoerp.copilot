@@ -1,7 +1,6 @@
 from http import HTTPStatus
 from unittest import mock
 
-from copilot.core import routes
 from pytest import fixture
 
 
@@ -11,10 +10,15 @@ def mocked_agent_response() -> str:
 
 
 @fixture
-def mocked_agent(mocked_agent_response):
+def mocked_agent(mocked_agent_response, monkeypatch):
     mocked_chat = mock.MagicMock(return_value=mocked_agent_response)
     mock_response = mock.MagicMock(chat=mocked_chat)
-    routes.open_ai_agent = mock_response
+
+    with monkeypatch.context() as patch_context:
+        patch_context.setenv("OPENAI_API_KEY", "fake-openai-key")
+        from copilot.core import routes
+
+        routes.open_ai_agent = mock_response
 
 
 def test_copilot_question_with_wrong_payload(client):
