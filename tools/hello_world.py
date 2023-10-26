@@ -9,7 +9,7 @@ class HelloWorldTool(ToolWrapper):
         description (str): A brief description of the tool.
     """
 
-    name = "hello_world_tool_2"
+    name = "hello_world_tool"
     description = "This is the classic HelloWorld tool implementation."
 
     def run(self, query: str, *args, **kwargs) -> str:
