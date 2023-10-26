@@ -2,8 +2,8 @@ import abc
 from typing import Optional
 
 from langchain.callbacks.manager import (
+    AsyncCallbackManagerForToolRun,
     CallbackManagerForToolRun,
-    AsyncCallbackManagerForToolRun
 )
 from langchain.tools import BaseTool
 
