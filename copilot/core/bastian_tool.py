@@ -28,13 +28,10 @@ class BastianFetcher(ToolWrapper):
         """This is a tool which knows a lot about Etendo ERP. " "It takes a question and returns an answer."""
     )
 
-    inputs = ["question"]
-    outputs = ["answer"]
-
-    def __call__(self, question, *args, **kwargs):
+    def run(self, query: str, *args, **kwargs) -> str:
         url = f"{BASTIAN}/question"
 
-        payload = json.dumps({"question": question})
+        payload = json.dumps({"question": query})
         headers = {
             "X-API-KEY": "7f2b9a38-f562-40ea-89ce-86a3191f4ed2",
             "Content-Type": "application/json",
