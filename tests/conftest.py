@@ -28,7 +28,9 @@ def fake_valid_config_file(json_file_path: str = FAKE_TOOL_CONFIG_FILEPATH):
 def set_fake_openai_api_key(monkeypatch, fake_valid_config_file):
     with monkeypatch.context() as patch_context:
         patch_context.setenv("OPENAI_API_KEY", "fake-openai-key")
-        patch_context.setenv("SYSTEM_PROMPT", "You are very powerful assistant, but bad at calculating lengths of words")
+        patch_context.setenv(
+            "SYSTEM_PROMPT", "You are very powerful assistant, but bad at calculating lengths of words"
+        )
         patch_context.setenv("CONFIGURED_TOOLS_FILENAME", fake_valid_config_file)
         yield
 

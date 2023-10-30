@@ -10,14 +10,9 @@ core_router = APIRouter()
 @core_router.post("/question")
 def serve_question(question: QuestionSchema):
     """Copilot main endpdoint to answering questions."""
-    agent_response = AgentResponse(
-        **langchain_agent_executor.invoke({"input": question.question})
-    )
+    agent_response = AgentResponse(**langchain_agent_executor.invoke({"input": question.question}))
 
-    local_history_recorder.record_chat(
-        chat_question=question.question,
-        chat_answer=agent_response.output
-    )
+    local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
 
     return {"answer": agent_response.output}
 

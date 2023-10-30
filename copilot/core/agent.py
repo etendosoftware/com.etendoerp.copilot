@@ -32,7 +32,6 @@ def get_langchain_agent_executor(chat_model: BaseChatModel) -> AgentExecutor:
     if not OPENAI_API_KEY:
         raise OpenAIApiKeyNotFound()
 
-    breakpoint()
     if not SYSTEM_PROMPT:
         raise SystemPromptNotFound()
 
