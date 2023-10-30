@@ -10,10 +10,11 @@ from langchain.chat_models.base import BaseChatModel
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools.render import format_tool_to_openai_function
 
-from .exceptions import OpenAIApiKeyNotFound
+from .exceptions import OpenAIApiKeyNotFound, SystemPromptNotFound
 from .tool_manager import configured_tools
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
+SYSTEM_PROMPT: Final[str] = os.getenv("SYSTEM_PROMPT")
 
 
 @dataclass
@@ -31,6 +32,9 @@ def get_langchain_agent_executor(chat_model: BaseChatModel) -> AgentExecutor:
     if not OPENAI_API_KEY:
         raise OpenAIApiKeyNotFound()
 
+    if not SYSTEM_PROMPT:
+        raise SystemPromptNotFound()
+
     # loads the language model we are going to use to control the agent
     llm = chat_model(temperature=0)
 
@@ -39,16 +43,16 @@ def get_langchain_agent_executor(chat_model: BaseChatModel) -> AgentExecutor:
 
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", "You are very powerful assistant, but bad at calculating lengths of words."),
+            ("system", SYSTEM_PROMPT),
             ("user", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
+            MessagesPlaceholder(variable_name="copilot_agent_scratchpad"),
         ]
     )
 
     agent = (
         {
             "input": lambda x: x["input"],
-            "agent_scratchpad": lambda x: format_to_openai_functions(x["intermediate_steps"]),
+            "copilot_agent_scratchpad": lambda x: format_to_openai_functions(x["intermediate_steps"]),
         }
         | prompt
         | llm_with_tools
