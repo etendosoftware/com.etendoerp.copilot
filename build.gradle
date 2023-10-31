@@ -1,3 +1,9 @@
+import org.gradle.internal.resource.transport.http.HttpRequestException
+
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+
 /**
 *   This file was generated automatically by the 'createModuleBuild' task.
 *   Created at: 2023-10-11T18:30:24.227165Z.
@@ -44,5 +50,81 @@ repositories {
 * Ex: implementation "com.sun.mail:javax.mail:1.6.2"
 */
 dependencies {
+}
 
+def targetDir = new File(projectDir, '../../')
+
+ext.sharedPrompt = ""
+ext.errorMsg = null
+
+fileTree(dir: targetDir).matching {
+    include '**/gradle.properties'
+}.each { file ->
+    Properties properties = new Properties()
+    file.withInputStream { stream ->
+        properties.load(stream)
+    }
+    properties.each { key, value ->
+        if (key.toString().startsWith('copilot.')) {
+            tasks.create(name: key, group: 'copilot') {
+                finalizedBy 'copilot.do'
+                doLast {
+                    sharedPrompt = value
+                    for (def i = 0; i < 10; i++) {
+                        String arg = "arg";
+                        if (i > 0) {
+                            arg = 'arg' + i
+                        }
+                        if (sharedPrompt.contains(arg)) {
+                            if (!project.hasProperty(arg)) {
+                                errorMsg = "🤖 Please provide the parameter: " + arg + " (Ex. -P" + arg + "=value)"
+                                sharedPrompt = null
+                                return
+                            }
+                            sharedPrompt = value.replace('{' + arg + '}', project.findProperty(arg))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+task 'copilot.do' {
+    doLast {
+        final String COPILOT_PORT_PROPERTY = "COPILOT_PORT"
+        project.logger.lifecycle("🤖 👋 Hello Human!")
+        if(sharedPrompt == null || sharedPrompt == "") {
+            if(!project.findProperty("prompt")) {
+                if(errorMsg != null) {
+                    project.logger.error(errorMsg)
+                } else {
+                    project.logger.lifecycle("🤖 Please provide the parameter: prompt (Ex. -Pprompt=\"How are you?\")")
+                }
+                return
+            }
+            sharedPrompt = project.findProperty("prompt")
+        }
+        project.logger.lifecycle("🤖 I'm working on your request: $sharedPrompt")
+        String translationURL = "http://0.0.0.0:${project.ext.get(COPILOT_PORT_PROPERTY)}/question"
+
+        HttpClient client = HttpClient.newHttpClient()
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(translationURL))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"question\":\"${sharedPrompt}\"}"))
+                .build()
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString())
+        int httpCode = response.statusCode()
+        String responseBody = response.body()
+
+        if (httpCode >= 400) {
+            throw new HttpRequestException("* Task failed with status code ${httpCode}: ${responseBody}", null)
+        } else {
+            var responseJson = new groovy.json.JsonSlurper().parseText(responseBody)
+            project.logger.lifecycle("🤖 " + responseJson.answer)
+            project.logger.lifecycle("🤖 Glad to help you! 😃")
+        }
+    }
 }
