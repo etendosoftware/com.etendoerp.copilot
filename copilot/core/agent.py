@@ -15,6 +15,7 @@ from .tool_manager import configured_tools
 
 OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
 SYSTEM_PROMPT: Final[str] = os.getenv("SYSTEM_PROMPT")
+MODEL: Final[str] = os.getenv("OPENAI_MODEL", ChatOpenAI)
 
 
 @dataclass
@@ -62,4 +63,4 @@ def get_langchain_agent_executor(chat_model: BaseChatModel) -> AgentExecutor:
     return AgentExecutor(agent=agent, tools=configured_tools, verbose=True)
 
 
-langchain_agent_executor: Final[BaseChatModel] = get_langchain_agent_executor(chat_model=ChatOpenAI)
+langchain_agent_executor: Final[BaseChatModel] = get_langchain_agent_executor(chat_model=MODEL)
