@@ -15,7 +15,7 @@ from .tool_manager import configured_tools
 
 OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
 SYSTEM_PROMPT: Final[str] = os.getenv("SYSTEM_PROMPT")
-OPENAI_MODEL: Final[str] = os.getenv("OPENAI_MODEL", "ChatOpenAI")
+OPENAI_MODEL: Final[str] = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 
 
 @dataclass
