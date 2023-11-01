@@ -15,7 +15,7 @@ from .tool_manager import configured_tools
 
 OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
 SYSTEM_PROMPT: Final[str] = os.getenv("SYSTEM_PROMPT")
-MODEL: Final[str] = os.getenv("OPENAI_MODEL", ChatOpenAI)
+OPENAI_MODEL: Final[str] = os.getenv("OPENAI_MODEL", "ChatOpenAI")
 
 
 @dataclass
@@ -24,7 +24,7 @@ class AgentResponse:
     output: str
 
 
-def get_langchain_agent_executor(chat_model: BaseChatModel) -> AgentExecutor:
+def get_langchain_agent_executor(open_ai_model: str) -> AgentExecutor:
     """Construct and return an agent from scratch, using LangChain Expression Language.
 
     Raises:
@@ -37,7 +37,7 @@ def get_langchain_agent_executor(chat_model: BaseChatModel) -> AgentExecutor:
         raise SystemPromptNotFound()
 
     # loads the language model we are going to use to control the agent
-    llm = chat_model(temperature=0)
+    llm = ChatOpenAI(temperature=0, model_name=OPENAI_MODEL)
 
     # binds tools to the LLM
     llm_with_tools = llm.bind(functions=[format_tool_to_openai_function(tool) for tool in configured_tools])
@@ -63,4 +63,4 @@ def get_langchain_agent_executor(chat_model: BaseChatModel) -> AgentExecutor:
     return AgentExecutor(agent=agent, tools=configured_tools, verbose=True)
 
 
-langchain_agent_executor: Final[BaseChatModel] = get_langchain_agent_executor(chat_model=MODEL)
+langchain_agent_executor: Final[BaseChatModel] = get_langchain_agent_executor(open_ai_model=OPENAI_MODEL)
