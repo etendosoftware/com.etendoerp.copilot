@@ -7,14 +7,12 @@ class HelloWorldTool(ToolWrapper):
     Attributes:
         name (str): The name of the tool.
         description (str): A brief description of the tool.
-        inputs (List[str]): The names of the input arguments for the tool.
-        outputs (List[str]): The names of the output values for the tool.
     """
 
     name = "hello_world_tool"
     description = "This is the classic HelloWorld tool implementation."
 
-    def __call__(self, *args, **kwargs):
+    def run(self, query: str, *args, **kwargs) -> str:
         return """
             Create your custom tool by creating a Python class that extends the ToolWrapper class"
             from the copilot.core.tool_wrapper module. Here's an example of how to define a custom tool:"
@@ -25,6 +23,6 @@ class HelloWorldTool(ToolWrapper):
                 name = "hello_world_tool"
                 description = "This is the classic HelloWorld tool implementation."
 
-                def __call__(self, *args, **kwargs):
+                def run(self, query: str) -> str:
                     # Implement your tool's logic here
             """

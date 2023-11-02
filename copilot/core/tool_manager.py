@@ -1,5 +1,6 @@
 import json
-from typing import Dict, Final, List
+import os
+from typing import Dict, Final, List, Optional, TypeAlias
 
 from tools import *  # noqa: F403
 
@@ -7,18 +8,25 @@ from tools import *  # noqa: F403
 # ruff: noqa: F401
 # fmt: off
 from .bastian_tool import BastianFetcher
+from .exceptions import ToolConfigFileNotFound
 from .retrieval_tool import RetrievalTool
 from .tool_wrapper import ToolWrapper
+
 # fmt: on
 
+LangChainTools: TypeAlias = List[ToolWrapper]
 
-CONFIGURED_TOOLS_FILENAME: Final[str] = "tools_config.json"
+
 NATIVE_TOOL_IMPLEMENTATION: Final[str] = "copilot"
 NATIVE_TOOLS_NODE_NAME: Final[str] = "native_tools"
 THIRD_PARTY_TOOLS_NODE_NAME: Final[str] = "third_party_tools"
+CONFIGURED_TOOLS_FILENAME: Optional[str] = os.getenv("CONFIGURED_TOOLS_FILENAME")
 
 
-def load_configured_tools(config_filename: str = CONFIGURED_TOOLS_FILENAME) -> List[ToolWrapper]:
+def load_configured_tools(config_filename: Optional[str] = CONFIGURED_TOOLS_FILENAME) -> LangChainTools:
+    if not config_filename:
+        raise ToolConfigFileNotFound()
+
     configured_tools: List[ToolWrapper] = []
     with open(config_filename, "r") as config_tool_file:
         try:
@@ -40,4 +48,4 @@ def load_configured_tools(config_filename: str = CONFIGURED_TOOLS_FILENAME) -> L
     return configured_tools
 
 
-configured_tools: List[ToolWrapper] = load_configured_tools()
+configured_tools: LangChainTools = load_configured_tools()
