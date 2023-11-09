@@ -18,3 +18,6 @@ class SystemPromptNotFound(ApplicationError):
 
 class ToolConfigFileNotFound(ApplicationError):
     message = "The tools configuration file is not found as environment variable"
+
+class ToolDependenciesFileNotFound(ApplicationError):
+    message = "The tools dependencies file is not found as environment variable"
