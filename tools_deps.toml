@@ -1,5 +1,4 @@
 [HelloWorldTool]
-beautifulsoup4 = "==4.10.0"
-matplotlib = "*"
+matplotlib = "*"  # latest
 numpy = ">=1.20.1"
 requests = "~2.0.1"
