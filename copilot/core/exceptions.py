@@ -1,3 +1,6 @@
+from .tool_dependencies import Dependency
+
+
 class ApplicationError(RuntimeError):
     message = "There was an unexpected error, if this error persist contact support."
 
@@ -22,3 +25,12 @@ class ToolConfigFileNotFound(ApplicationError):
 
 class ToolDependenciesFileNotFound(ApplicationError):
     message = "The tools dependencies file is not found as environment variable"
+
+
+class ToolDependencyMismatch(ApplicationError):
+    def __init__(self, dependency: Dependency, installed_version: str):
+        message = (
+            f"Dependency mismatch error for {dependency.name}. "
+            f"Installed {installed_version}, Required: {dependency.version}"
+        )
+        super().__init__(msg=message)
