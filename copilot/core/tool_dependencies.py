@@ -1,13 +1,15 @@
 import re
-import pkg_resources
 from dataclasses import dataclass
 from typing import ClassVar, Dict, List, Optional, TypeAlias
+
+import pkg_resources
 
 
 @dataclass
 class Dependency:
     """Represents a tool dependency."""
-    LATEST_VERSION: ClassVar[str] = 'latest'
+
+    LATEST_VERSION: ClassVar[str] = "latest"
 
     name: str
 
@@ -22,7 +24,7 @@ class Dependency:
         if not self.version:
             return self._get_latest_version()
 
-        pattern = re.compile(r'\d+')
+        pattern = re.compile(r"\d+")
         matches = pattern.findall(self.version)
         return ".".join(matches)
 

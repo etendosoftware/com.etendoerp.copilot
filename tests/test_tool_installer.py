@@ -1,9 +1,9 @@
-import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
+import pytest
 from copilot.core import tool_installer
-from copilot.core.tool_dependencies import Dependency
 from copilot.core.exceptions import ApplicationError, ToolDependencyMismatch
+from copilot.core.tool_dependencies import Dependency
 
 
 @pytest.fixture
@@ -12,30 +12,32 @@ def dependency() -> Dependency:
 
 
 def test_check_version_are_the_same(dependency):
-    assert tool_installer._check_version_mismatch(
-        installed_version="1.0.0",
-        required_version=dependency.required_version()
-    ) is False
+    assert (
+        tool_installer._check_version_mismatch(
+            installed_version="1.0.0", required_version=dependency.required_version()
+        )
+        is False
+    )
 
 
 def test_check_version_mismatch(dependency):
     assert tool_installer._check_version_mismatch(
-        installed_version="2.0.0",
-        required_version=dependency.required_version()
+        installed_version="2.0.0", required_version=dependency.required_version()
     )
 
 
 def test_check_installed_version_is_not_oldest(dependency):
-    assert tool_installer._check_installed_version_is_oldest(
-        installed_version="1.1.1",
-        required_version=dependency.required_version()
-    ) is False
+    assert (
+        tool_installer._check_installed_version_is_oldest(
+            installed_version="1.1.1", required_version=dependency.required_version()
+        )
+        is False
+    )
 
 
 def test_check_installed_version_is_oldest(dependency):
     assert tool_installer._check_installed_version_is_oldest(
-        installed_version="0.1.1",
-        required_version=dependency.required_version()
+        installed_version="0.1.1", required_version=dependency.required_version()
     )
 
 

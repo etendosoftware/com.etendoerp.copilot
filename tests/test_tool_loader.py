@@ -49,9 +49,10 @@ def test_load_configured_tools_no_valid_config(set_fake_openai_api_key):
         assert tool_loader.load_configured_tools() == []
 
 
-@patch('copilot.core.tool_loader.tool_installer', return_value=Mock())
+@patch("copilot.core.tool_loader.tool_installer", return_value=Mock())
 def test_load_configured_tools_with_valid_file(fake_valid_config_file, set_fake_openai_api_key):
     from copilot.core.bastian_tool import BastianFetcher
+
     from tools import HelloWorldTool
 
     json_config = {"native_tools": {"BastianFetcher": True}, "third_party_tools": {"HelloWorldTool": True}}

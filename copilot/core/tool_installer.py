@@ -2,11 +2,10 @@ import importlib
 
 from packaging import version
 from packaging.specifiers import Specifier
-
 from pip._internal import main as pip_main
 
 from .exceptions import ApplicationError, ToolDependencyMismatch
-from .tool_dependencies import Dependency, Dependencies
+from .tool_dependencies import Dependencies, Dependency
 from .utils import SUCCESS_CODE, print_green, print_red, print_yellow
 
 
@@ -17,15 +16,14 @@ def _pip_install(package: str):
 
 
 def _check_version_mismatch(installed_version: str, required_version: str) -> bool:
-    """Checks if there is a mismatch between the installed version and the required one
-    """
+    """Checks if there is a mismatch between the installed version and the required one."""
     installed = version.parse(installed_version)
     specifier = Specifier(f"=={required_version}")
     return installed not in specifier
 
 
 def _check_installed_version_is_oldest(installed_version: str, required_version: str) -> bool:
-    """Checks if the installed version is oldest in comparison with the required one"""
+    """Checks if the installed version is oldest in comparison with the required one."""
     installed = version.parse(installed_version)
     required = version.parse(required_version)
     return installed < required
@@ -61,7 +59,7 @@ def _is_package_installed(dependency: Dependency) -> bool:
 
 
 def _is_package_imported(dependency: Dependency, verbose: bool = True) -> bool:
-    """Checks if package (a.k.a dependency) can be imported as normal module"""
+    """Checks if package (a.k.a dependency) can be imported as normal module."""
     if verbose:
         print_yellow(f"Importing {dependency.name}")
     try:
