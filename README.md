@@ -160,3 +160,15 @@ from .hello_world import MyTool
 ```
 
 6- Restart the copilot container loading the project root folder through a volume: `docker run --env-file .env -p 5001:5001 -v $(pwd)/tools:/app/tools -v $(pwd)/tools_config.json:/app/tools_config.json etendo/chatbot_etendo`
+
+## Third Party Tools dependencies
+Formats:
+* `pandas`                => Installing latest version
+* `pandas==1.3.3`         => Installing a specific version
+* `pandas>=1.0.3`         => Greater than or equal to a certain version
+* `pandas<=1.2.4`         => Less than or equal to a certain version
+* `pandas>1.0.0`          => Greater than a certain version
+* `pandas<2.0.0`          => Less than a certain version
+* `pandas>=1.0.0,<=2.0.0` => Using version ranges
+* `pandas~=1.0.0`         => Tilde operator (~) for installing compatible versions
+* `pandas^1.0.0`          => Caret operator (^) for installing compatible versions

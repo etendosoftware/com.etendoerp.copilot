@@ -2,8 +2,7 @@
 import json
 import os
 from typing import Final
-import os
-import xml.etree.ElementTree as ET
+
 import requests
 
 from .tool_wrapper import ToolWrapper
@@ -29,13 +28,10 @@ class BastianFetcher(ToolWrapper):
         """This is a tool which knows a lot about Etendo ERP. " "It takes a question and returns an answer."""
     )
 
-    inputs = ["question"]
-    outputs = ["answer"]
-
-    def __call__(self, question, *args, **kwargs):
+    def run(self, query: str, *args, **kwargs) -> str:
         url = f"{BASTIAN}/question"
 
-        payload = json.dumps({"question": question})
+        payload = json.dumps({"question": query})
         headers = {
             "X-API-KEY": "7f2b9a38-f562-40ea-89ce-86a3191f4ed2",
             "Content-Type": "application/json",
@@ -43,5 +39,3 @@ class BastianFetcher(ToolWrapper):
         response = requests.request("POST", url, headers=headers, data=payload, timeout=10000)
         response.raise_for_status()
         return response.json()["answer"]
-
-
