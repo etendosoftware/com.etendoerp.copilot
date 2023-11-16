@@ -11,7 +11,7 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools.render import format_tool_to_openai_function
 
 from .exceptions import OpenAIApiKeyNotFound, SystemPromptNotFound
-from .tool_manager import configured_tools
+from .tool_loader import LangChainTools, ToolLoader
 
 OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
 SYSTEM_PROMPT: Final[str] = os.getenv("SYSTEM_PROMPT")
@@ -40,6 +40,8 @@ def get_langchain_agent_executor(open_ai_model: str) -> AgentExecutor:
     llm = ChatOpenAI(temperature=0, model_name=OPENAI_MODEL)
 
     # binds tools to the LLM
+
+    configured_tools: LangChainTools = ToolLoader().load_configured_tools()
     llm_with_tools = llm.bind(functions=[format_tool_to_openai_function(tool) for tool in configured_tools])
 
     prompt = ChatPromptTemplate.from_messages(
