@@ -1,8 +1,3 @@
-import org.gradle.internal.resource.transport.http.HttpRequestException
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-
 /**
  *   This file was generated automatically by the 'createModuleBuild' task.
  *   Created at: 2023-10-11T18:30:24.227165Z.
@@ -17,10 +12,10 @@ import java.net.http.HttpResponse
  }
  */
 
-group          = "com.etendoerp"
-version        = "1.0.1"
-description    = "Etendo Copilot is a platform for developers that optimises development time with AI-enabled tools to reduce development time and improve development quality."
-ext.artifact   = "copilot"
+group = "com.etendoerp"
+version = "1.0.1"
+description = "Etendo Copilot is a platform for developers that optimises development time with AI-enabled tools to reduce development time and improve development quality."
+ext.artifact = "copilot"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
 
 configurations {
@@ -31,9 +26,9 @@ publishing {
     publications {
         "com.etendoerp.copilot"(MavenPublication) {
             from components.java
-            groupId    = group
+            groupId = group
             artifactId = artifact
-            version    = version
+            version = version
         }
     }
     repositories {
