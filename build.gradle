@@ -1,13 +1,24 @@
+import org.gradle.internal.resource.transport.http.HttpRequestException
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+
 /**
-*   This file was generated automatically by the 'createModuleBuild' task.
-*   Created at: 2023-10-11T18:30:24.227165Z.
-*
-*   WARNING: Do not put your credentials directly in this file.
-*
-*/
+ *   This file was generated automatically by the 'createModuleBuild' task.
+ *   Created at: 2023-10-11T18:30:24.227165Z.
+ *
+ *   WARNING: Do not put your credentials directly in this file.
+ *
+ repositories {
+ mavenCentral()
+ maven {
+ url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+ }
+ }
+ */
 
 group          = "com.etendoerp"
-version        = "1.0.1-SNAPSHOT"
+version        = "1.0.1"
 description    = "Etendo Copilot is a platform for developers that optimises development time with AI-enabled tools to reduce development time and improve development quality."
 ext.artifact   = "copilot"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
@@ -32,17 +43,10 @@ publishing {
     }
 }
 
-repositories {
-    mavenCentral()
-    maven {
-        url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
-    }
-}
 
 /**
-* Declare Java dependencies using 'implementation'
-* Ex: implementation "com.sun.mail:javax.mail:1.6.2"
-*/
-dependencies {
-}
-
+ * Declare Java dependencies using 'implementation'
+ * Ex: implementation "com.sun.mail:javax.mail:1.6.2"
+ dependencies {
+ }
+ */
