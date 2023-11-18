@@ -1,7 +1,9 @@
 import os
 import json
 
+from openai.types.beta.assistant import Assistant
 from langchain.tools.render import format_tool_to_openai_function
+
 from time import sleep
 from typing import Final
 
@@ -16,16 +18,20 @@ class AssistantAgent(CopilotAgent):
     OPENAI_VERSION: Final[str] = "1.2.4"
 
     def __init__(self):
+        # https://platform.openai.com/docs/assistants/overview/agents
         super().__init__()
         self._assert_openai_is_installed(version=self.OPENAI_VERSION)
         self._client = None
         self._formated_tools_openai = None
-        self._assistant = self._get_openai_assistant()
+        self._assistant: Assistant = self._get_openai_assistant()
 
-    def _get_openai_assistant(self):
+    def _get_openai_assistant(self) -> Assistant:
+        """Creates an assistant. An Assistant represents an entity that can be
+        configured to respond to users Messages."""
         self._assert_open_api_key_is_set()
         self._assert_system_prompt_is_set()
 
+        # import delayed to avoid issue when langchain is configured under v0.28.0
         from openai import OpenAI
         self._client = OpenAI(api_key=self.OPENAI_API_KEY)
 

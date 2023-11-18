@@ -174,3 +174,8 @@ Formats:
 * `pandas>=1.0.0,<=2.0.0` => Using version ranges
 * `pandas~=1.0.0`         => Tilde operator (~) for installing compatible versions
 * `pandas^1.0.0`          => Caret operator (^) for installing compatible versions
+
+# Resources
+* [Langchain Agents](https://python.langchain.com/docs/modules/agents/)
+* [Assistants API](https://platform.openai.com/docs/assistants/overview)
+* [How Assistants work](https://platform.openai.com/docs/assistants/how-it-works)
