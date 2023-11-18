@@ -10,11 +10,14 @@ core_router = APIRouter()
 @core_router.post("/question")
 def serve_question(question: QuestionSchema):
     """Copilot main endpdoint to answering questions."""
-    agent_response: AgentResponse = copilot_agent.execute(question)
+    try:
+        agent_response: AgentResponse = copilot_agent.execute(question)
 
-    local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
+        local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
 
-    return {"answer": agent_response.output}
+        return {"answer": agent_response.output}
+    except Exception as ex:
+        return {"error": str(ex)}
 
 
 @core_router.get("/history")
