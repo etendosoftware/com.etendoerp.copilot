@@ -34,3 +34,7 @@ class ToolDependencyMismatch(ApplicationError):
             f"Installed {installed_version}, Required: {dependency.version}"
         )
         super().__init__(msg=message)
+
+
+class UnsupportedAgent(ApplicationError):
+    message = "Unsupported agent. Please review AGENT_TYPE environment variable"
