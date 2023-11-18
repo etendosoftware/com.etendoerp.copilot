@@ -60,6 +60,9 @@ class AssistantAgent(CopilotAgent):
         except NotFoundError as ex:
             raise AssistantIdNotFound(assistant_id=assistant_id) from ex
 
+    def get_assistant_id(self) -> str:
+        return self._assistant.id
+
     def execute(self, question: QuestionSchema) -> AgentResponse:
         from openai import NotFoundError, APIConnectionError, APITimeoutError
         try:
