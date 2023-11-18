@@ -1,11 +1,10 @@
 import json
 import os
+
 from time import sleep
 from typing import Final
 
 from langchain.tools.render import format_tool_to_openai_function
-from openai import APIConnectionError, APITimeoutError, NotFoundError
-from openai.types.beta.assistant import Assistant
 
 from ..exceptions import AssistantIdNotFound, AssistantTimeout
 from ..schemas import QuestionSchema
@@ -25,18 +24,16 @@ class AssistantAgent(CopilotAgent):
         self._assert_openai_is_installed(version=self.OPENAI_VERSION)
         self._client = None
         self._formated_tools_openai = None
-        self._assistant: Assistant = self._get_openai_assistant()
+        self._assistant = self._get_openai_assistant()
 
-    def _get_openai_assistant(self) -> Assistant:
+    def _get_openai_assistant(self):
         """Creates an assistant. An Assistant represents an entity that can be
-        configured to respond to users Messages.
-        """
+        configured to respond to users Messages."""
         self._assert_open_api_key_is_set()
         self._assert_system_prompt_is_set()
 
-        # import delayed to avoid issue when langchain is configured under v0.28.0
+        # import delayed to avoid conflict with openai version used by langchain agent
         from openai import OpenAI
-
         self._client = OpenAI(api_key=self.OPENAI_API_KEY)
 
         # Convert configured tools into a format compatible with OpenAI functions.
@@ -51,6 +48,7 @@ class AssistantAgent(CopilotAgent):
         return assistant
 
     def _update_assistant(self, assistant_id: int):
+        from openai import NotFoundError
         try:
             self._assistant = self._client.beta.assistants.update(
                 assistant_id,
@@ -63,6 +61,7 @@ class AssistantAgent(CopilotAgent):
             raise AssistantIdNotFound(assistant_id=assistant_id) from ex
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
+        from openai import NotFoundError, APIConnectionError, APITimeoutError
         try:
             if question.assistant_id:
                 self._update_assistant(assistant_id=question.assistant_id)

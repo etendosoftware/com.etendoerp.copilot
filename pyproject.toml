@@ -8,7 +8,6 @@ packages = [{include = "copilot"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-openai = "^0.27.7"
 torch = {version = "2.0.1", source = "torchcpu201"}
 python-dotenv = "^1.0.0"
 pydantic = "^2.2.1"

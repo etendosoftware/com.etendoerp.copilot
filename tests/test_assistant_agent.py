@@ -1,4 +1,5 @@
 import os
+import openai
 from unittest.mock import Mock
 
 import pytest
@@ -9,14 +10,16 @@ from copilot.core.exceptions import (
     OpenAIApiKeyNotFound,
 )
 from copilot.core.schemas import QuestionSchema
-from openai import APIConnectionError, APITimeoutError, OpenAI
+
+if os.getenv("AGENT_TYPE") != "openai-assistant":
+    pytest.skip("Skipping open 1.2.4 is required", allow_module_level=True)
 
 
 @pytest.fixture
 def assistant_agent() -> AssistantAgent:
-    from copilot.core.agent.agent import CopilotAgent
-
-    CopilotAgent.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    from copilot.core import agent
+    agent.AGENT_TYPE = agent.AgentEnum.OPENAI_ASSISTANT.value
+    agent.agent.CopilotAgent.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     return AssistantAgent()
 
 
@@ -53,7 +56,7 @@ def test_assistant_openai_down(assistant_agent):
     Then: The function detects the API unavailability.
           It returns a meaningful error message or falls back to a predefined behavior.
     """
-    assistant_agent._client.beta.threads.create = Mock(side_effect=APIConnectionError(request=Mock()))
+    assistant_agent._client.beta.threads.create = Mock(side_effect=openai.APIConnectionError(request=Mock()))
     with pytest.raises(AssistantTimeout, match=AssistantTimeout.message):
         assistant_agent.execute(QuestionSchema(question="Fake question"))
 
@@ -66,7 +69,9 @@ def test_empty_question(assistant_agent):
     When: The assistant function is called with these parameters.
     Then: The function returns an error or a prompt asking for a valid question.
     """
-    response = assistant_agent.execute(QuestionSchema(question=""))
+    response = assistant_agent.execute(
+        QuestionSchema(question="", assistant_id=assistant_agent._assistant.id)
+    )
     assert "assist you" in response.output.message or "you need assistance" in response.output.message
 
 
@@ -77,7 +82,7 @@ def test_timeout_assistant_openai(assistant_agent):
     When: The assistant function is called and the response from the API takes longer than the expected timeout threshold.
     Then: The function times out and returns an appropriate error message indicating the timeout issue.
     """
-    assistant_agent._client.beta.threads.create = Mock(side_effect=APITimeoutError(request=Mock()))
+    assistant_agent._client.beta.threads.create = Mock(side_effect=openai.APITimeoutError(request=Mock()))
     with pytest.raises(AssistantTimeout, match=AssistantTimeout.message):
         assistant_agent.execute(QuestionSchema(question="Fake question"))
 
@@ -94,7 +99,7 @@ def test_update_assistant():
     """
     copilot_assistant_agent = AssistantAgent()
 
-    _client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    _client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     new_assistant = _client.beta.assistants.create(name="test", model=copilot_assistant_agent.OPENAI_MODEL)
 
     old_assistant_id = copilot_assistant_agent._assistant.id
