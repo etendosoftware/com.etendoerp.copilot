@@ -1,6 +1,6 @@
 # Copilot
 
-Copilot helps users answer questions and assignments through different tools.
+Copilot helps users answer questions and assignments through different tools. So far, copilot supports two agents types: `Langchain Agent` and `OpenAI Assistant Agent`.
 
 # How to use Copilot as user
 * Make sure [docker](https://docs.docker.com/get-docker/) is installed
@@ -72,6 +72,8 @@ poetry run python
 	- `poetry run python run.py`
 
 * Using docker, make sure `.env` is created and all the variables are set, only then run `docker run --env-file .env -p 5001:5001 etendo/chatbot_etendo`. You can set the port that you want, just be sure to set the same port in the image from `.env` if not, the api will never be reached.
+
+* The `AGENT_TYPE` environment variable should be used to set the agent type. There are two available agent: `langchain` and `openai-assistant`. By default copilot will be executed for `langchain`.
 
 * Mount code as volume: `docker run --env-file .env -p 5001:5001 -v $(pwd)/copilot:/app/copilot etendo/chatbot_etendo`.
 
