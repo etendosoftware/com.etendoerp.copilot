@@ -1,8 +1,12 @@
 from unittest.mock import Mock
 
-from copilot.core import agent
-from copilot.core.exceptions import UnsupportedAgent, OpenAIApiKeyNotFound, SystemPromptNotFound
 import pytest
+from copilot.core import agent
+from copilot.core.exceptions import (
+    OpenAIApiKeyNotFound,
+    SystemPromptNotFound,
+    UnsupportedAgent,
+)
 
 
 def test_langchain_agent_is_intanciated():
@@ -18,7 +22,7 @@ def test_assistant_agent_is_intanciated():
 
 
 def test_unnsupported_agent():
-    agent.AGENT_TYPE = 'unexistent_agent'
+    agent.AGENT_TYPE = "unexistent_agent"
     with pytest.raises(UnsupportedAgent, match=UnsupportedAgent.message):
         agent._get_agent_executor()
 

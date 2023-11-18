@@ -27,7 +27,6 @@ def fake_valid_config_file(json_file_path: str = FAKE_TOOL_CONFIG_FILEPATH):
 
 @fixture
 def set_fake_openai_api_key(monkeypatch, fake_valid_config_file):
-    import copilot
     with monkeypatch.context() as patch_context:
         OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
         patch_context.setenv("OPENAI_API_KEY", OPENAI_API_KEY)

@@ -15,11 +15,11 @@ def pydanctic_validation_handler(request: Request, exc: RequestValidationError):
 
 
 def application_error_handler(request: Request, exc: HTTPException):
-    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"message": exc.detail})
+    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"message": str(exc)})
 
 
 def internal_error_handler(request: Request, exc: HTTPException):
-    return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"message": exc.detail})
+    return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exc)})
 
 
 def register_error_handlers(app: FastAPI):

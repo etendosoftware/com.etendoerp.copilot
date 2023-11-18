@@ -4,6 +4,7 @@ from unittest import mock
 
 from pytest import fixture
 
+
 @fixture
 def mocked_agent_response() -> str:
     return "Mocked agent response"
@@ -12,6 +13,7 @@ def mocked_agent_response() -> str:
 @fixture
 def mocked_agent(mocked_agent_response, monkeypatch):
     from copilot.core.agent import AgentResponse
+
     mocked_agent_executor = mock.MagicMock()
     mocked_agent_executor.execute = mock.MagicMock(
         return_value=AgentResponse(input="fake", output=mocked_agent_response)

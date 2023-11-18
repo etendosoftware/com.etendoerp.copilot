@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-ASSISTANT_ID = "asst_xTVuJdin4ipd05utqcuFlKmI"
+ASSISTANT_ID = "asst_sM9ces1fb3bTgaCZrJIl3knb"
 
 
 class QuestionSchema(BaseModel):

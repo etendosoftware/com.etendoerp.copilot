@@ -1,4 +1,5 @@
 import os
+from typing import Dict, Final
 
 from langchain.agents import AgentExecutor
 from langchain.agents.format_scratchpad import format_to_openai_functions
@@ -7,10 +8,9 @@ from langchain.chat_models import ChatOpenAI
 from langchain.chat_models.base import BaseChatModel
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools.render import format_tool_to_openai_function
-from typing import Dict, Final
 
-from .agent import AgentResponse, CopilotAgent
 from ..schemas import QuestionSchema
+from .agent import AgentResponse, CopilotAgent
 
 
 class LangchainAgent(CopilotAgent):
@@ -20,8 +20,8 @@ class LangchainAgent(CopilotAgent):
     def __init__(self):
         super().__init__()
         self._assert_openai_is_installed(version=self.OPENAI_VERSION)
-        self._langchain_agent_executor: Final[BaseChatModel] = (
-            self._get_langchain_agent_executor(open_ai_model=self.OPENAI_MODEL)
+        self._langchain_agent_executor: Final[BaseChatModel] = self._get_langchain_agent_executor(
+            open_ai_model=self.OPENAI_MODEL
         )
 
     def _get_langchain_agent_executor(self, open_ai_model: str) -> AgentExecutor:

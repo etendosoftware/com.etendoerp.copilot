@@ -1,15 +1,18 @@
 import os
-
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Final, Union
 
-from ..exceptions import OpenAIApiKeyNotFound, SystemPromptNotFound, ToolDependencyMismatch
-from ..schemas import QuestionSchema
-from ..tool_loader import LangChainTools, ToolLoader
-from ..tool_dependencies import Dependency
 from .. import tool_installer
+from ..exceptions import (
+    OpenAIApiKeyNotFound,
+    SystemPromptNotFound,
+    ToolDependencyMismatch,
+)
+from ..schemas import QuestionSchema
+from ..tool_dependencies import Dependency
+from ..tool_loader import LangChainTools, ToolLoader
 
 
 class AgentEnum(str, Enum):
@@ -32,6 +35,7 @@ class AgentResponse:
 
 class CopilotAgent:
     """Copilot Agent interface."""
+
     OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
     SYSTEM_PROMPT: Final[str] = os.getenv("SYSTEM_PROMPT")
 

@@ -38,3 +38,13 @@ class ToolDependencyMismatch(ApplicationError):
 
 class UnsupportedAgent(ApplicationError):
     message = "Unsupported agent. Please review AGENT_TYPE environment variable"
+
+
+class AssistantIdNotFound(ApplicationError):
+    def __init__(self, assistant_id: str):
+        message = f"No assistant found with id '{assistant_id}'"
+        super().__init__(msg=message)
+
+
+class AssistantTimeout(ApplicationError):
+    message = "Assistant agent connection error. Try it again."
