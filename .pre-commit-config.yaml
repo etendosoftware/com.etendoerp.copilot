@@ -23,7 +23,7 @@ repos:
       - id: pydocstyle
         args:
           [
-            "--add-ignore=D100,D101,D102,D103,D104,D105,D106,D107",
+            "--add-ignore=D100,D101,D102,D103,D104,D105,D106,D107,D205,D209,D415",
             "--convention=google",
           ]
   - repo: https://github.com/charliermarsh/ruff-pre-commit

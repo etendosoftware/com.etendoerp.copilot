@@ -8,7 +8,6 @@ packages = [{include = "copilot"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-openai = "^0.27.7"
 python-dotenv = "^1.0.0"
 pydantic = "^2.2.1"
 fastapi = "^0.103.0"
@@ -27,14 +26,6 @@ httpx = "^0.24.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.extras]
-runtime = ["torch"]
-
-[[tool.poetry.source]]
-name = "torchcpu201"
-url = "https://download.pytorch.org/whl/cpu/"
-priority = "explicit"
 
 [[tool.poetry.source]]
 name = "PyPI"

@@ -12,16 +12,19 @@ def mocked_agent_response() -> str:
 
 @fixture
 def mocked_agent(mocked_agent_response, monkeypatch):
+    from copilot.core.agent import AgentResponse
+
     mocked_agent_executor = mock.MagicMock()
-    mocked_agent_executor.invoke = mock.MagicMock(
-        return_value={"input": "fake", "output": mocked_agent_response}
+    mocked_agent_executor.execute = mock.MagicMock(
+        return_value=AgentResponse(input="fake", output=mocked_agent_response)
     )
 
     with monkeypatch.context() as patch_context:
-        patch_context.setenv("OPENAI_API_KEY", "fake-openai-key")
+        patch_context.setenv("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+        patch_context.setenv("AGENT_TYPE", "langchain")
         from copilot.core import routes
 
-        routes.langchain_agent_executor = mocked_agent_executor
+        routes.copilot_agent = mocked_agent_executor
 
 
 def test_copilot_question_with_wrong_payload(client):
