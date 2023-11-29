@@ -32,8 +32,8 @@ LangChainTools: TypeAlias = List[ToolWrapper]
 NATIVE_TOOL_IMPLEMENTATION: Final[str] = "copilot"
 NATIVE_TOOLS_NODE_NAME: Final[str] = "native_tools"
 THIRD_PARTY_TOOLS_NODE_NAME: Final[str] = "third_party_tools"
-CONFIGURED_TOOLS_FILENAME: Optional[str] = os.getenv("CONFIGURED_TOOLS_FILENAME")
-DEPENDENCIES_TOOLS_FILENAME: Optional[str] = os.getenv("DEPENDENCIES_TOOLS_FILENAME")
+CONFIGURED_TOOLS_FILENAME: Optional[str] = os.getenv("CONFIGURED_TOOLS_FILENAME", "tools_config.json")
+DEPENDENCIES_TOOLS_FILENAME: Optional[str] = os.getenv("DEPENDENCIES_TOOLS_FILENAME", "tools_deps.toml")
 
 
 class ToolLoader:
