@@ -1,6 +1,5 @@
 from copilot.core.tool_wrapper import ToolWrapper
 
-
 class HelloWorldTool(ToolWrapper):
     """A dummy hello world tool implementation.
 
@@ -22,7 +21,12 @@ class HelloWorldTool(ToolWrapper):
             class HelloWorldTool(ToolWrapper):
                 name = "hello_world_tool"
                 description = "This is the classic HelloWorld tool implementation."
-
-                def run(self, query: str) -> str:
+                
+                inputs = ['name', 'another_text']
+                outputs = ['message']
+                
+                def run(self, name: str, another_text: str, *args, **kwargs):
+                    result_message = f"Hello {name}, {another_text}"
                     # Implement your tool's logic here
+                    return {"message": result_message}
             """
