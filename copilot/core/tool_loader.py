@@ -80,9 +80,17 @@ class ToolLoader:
             tools_dependencies: ToolsDependencies = {}
             for key, value in tools_deps.items():
                 tools_dependencies[key] = [
-                    Dependency(name=k, version=None if v == "*" else v) for k, v in value.items()
+                    Dependency(name=self.split_string(k, '|', True), version=None if v == "*" else v,
+                               import_name=self.split_string(k, '|', False)) for k, v in value.items()
                 ]
             return tools_dependencies
+
+    def split_string(self, s: str, delimiter: str, left: bool):
+            if delimiter in s:
+                parts = s.split(delimiter)
+                return parts[0] if left else parts[1]
+            else:
+                return s if left else None
 
     def _is_tool_implemented(self, tool_name: str) -> bool:
         return tool_name in {tool.__name__ for tool in ToolWrapper.__subclasses__()}

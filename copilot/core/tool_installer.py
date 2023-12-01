@@ -63,7 +63,7 @@ def _is_package_imported(dependency: Dependency, verbose: bool = True) -> bool:
     if verbose:
         print_yellow(f"Importing {dependency.name}")
     try:
-        importlib.import_module(dependency.name)
+        importlib.import_module(dependency.get_import_name())
     except Exception as ex:
         print_red(str(ex))
         return False
