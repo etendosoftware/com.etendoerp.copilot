@@ -86,11 +86,17 @@ class ToolLoader:
             return tools_dependencies
 
     def split_string(self, s: str, delimiter: str, left: bool):
-            if delimiter in s:
-                parts = s.split(delimiter)
-                return parts[0] if left else parts[1]
-            else:
-                return s if left else None
+        # amount of times that delimiter appears in string
+        delimiter_amount = s.count(delimiter)
+        if delimiter_amount <= 0:
+            return s if left else None
+        # if delimiter is in string
+        # if delimiter is in string more than once
+        if delimiter_amount > 1:
+            # throw error
+            raise ValueError("Delimiter appears more than once in string")
+        parts = s.split(delimiter)
+        return parts[0] if left else parts[1]
 
     def _is_tool_implemented(self, tool_name: str) -> bool:
         return tool_name in {tool.__name__ for tool in ToolWrapper.__subclasses__()}
