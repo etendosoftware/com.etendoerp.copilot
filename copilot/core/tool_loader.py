@@ -28,7 +28,6 @@ from .utils import SUCCESS_CODE, print_green, print_yellow
 
 LangChainTools: TypeAlias = List[ToolWrapper]
 
-
 NATIVE_TOOL_IMPLEMENTATION: Final[str] = "copilot"
 NATIVE_TOOLS_NODE_NAME: Final[str] = "native_tools"
 THIRD_PARTY_TOOLS_NODE_NAME: Final[str] = "third_party_tools"
@@ -40,9 +39,9 @@ class ToolLoader:
     """Responsible for loading the user tools and making them available to the copilot agent."""
 
     def __init__(
-        self,
-        config_filename: Optional[str] = CONFIGURED_TOOLS_FILENAME,
-        tools_deps_filename: Optional[str] = DEPENDENCIES_TOOLS_FILENAME,
+            self,
+            config_filename: Optional[str] = CONFIGURED_TOOLS_FILENAME,
+            tools_deps_filename: Optional[str] = DEPENDENCIES_TOOLS_FILENAME,
     ):
         self._tools_config = self._get_tool_config(filepath=config_filename)
         self._tools_dependencies = self._get_tool_dependencies(filepath=tools_deps_filename)
@@ -80,21 +79,30 @@ class ToolLoader:
             tools_dependencies: ToolsDependencies = {}
             for key, value in tools_deps.items():
                 tools_dependencies[key] = [
-                    Dependency(name=self.split_string(k, '|', True), version=None if v == "*" else v,
-                               import_name=self.split_string(k, '|', False)) for k, v in value.items()
+                    # the depencies are defined as depency_name = "version". If the dependency_name has a |, it means
+                    # that the name for install is different than the name for import. In this case, the left side of
+                    # the | is the name for install and the right side is the name for import.
+                    Dependency(name=self.left_side(dependency_name), version=None if version == "*" else version,
+                               import_name=self.rigth_side(dependency_name)) for dependency_name, version in value.items()
                 ]
             return tools_dependencies
+
+    def rigth_side(self, k):
+        return self.split_string(k, '|', False)
+
+    def left_side(self, k):
+        return self.split_string(k, '|', True)
 
     def split_string(self, s: str, delimiter: str, left: bool):
         # amount of times that delimiter appears in string
         delimiter_amount = s.count(delimiter)
         if delimiter_amount <= 0:
+            # delimiter is not in string, so left side is the string itself and right side is None
             return s if left else None
-        # if delimiter is in string
-        # if delimiter is in string more than once
+        # if delimiter is in string more than once, raise error
         if delimiter_amount > 1:
-            # throw error
             raise ValueError("Delimiter appears more than once in string")
+        # delimiter is in string once, so split string and return left or right side
         parts = s.split(delimiter)
         return parts[0] if left else parts[1]
 
