@@ -16,6 +16,9 @@ class Dependency:
     # when version is not provided, it represents latest
     version: Optional[str] = None
 
+    # when import_name is not provided, it represents the name for import
+    import_name: Optional[str] = None
+
     def fullname(self) -> str:
         """Returns dependency fullname which will be installed via pip."""
         return f"{self.name}{self.version or ''}"
@@ -33,6 +36,10 @@ class Dependency:
         distribution = pkg_resources.get_distribution(self.name)
         latest_version = distribution.version
         return latest_version
+
+    def get_import_name(self) -> str:
+        """Returns dependency import name. If not provided, it returns the name."""
+        return self.import_name or self.name
 
 
 Dependencies: TypeAlias = List[Dependency]
