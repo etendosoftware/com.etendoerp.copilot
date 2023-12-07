@@ -13,7 +13,6 @@ from . import tool_installer
 # tools need to be imported so they can be inferred from globals
 # ruff: noqa: F401
 # fmt: off
-from .bastian_tool import BastianFetcher
 from .exceptions import (
     ApplicationError,
     ToolConfigFileNotFound,
