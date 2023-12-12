@@ -37,7 +37,7 @@ class CopilotAgent:
     """Copilot Agent interface."""
 
     OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
-    SYSTEM_PROMPT: Final[str] = os.getenv("SYSTEM_PROMPT")
+    SYSTEM_PROMPT: Final[str] = os.getenv("SYSTEM_PROMPT", "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.")
 
     def __init__(self):
         self._configured_tools: LangChainTools = ToolLoader().load_configured_tools()

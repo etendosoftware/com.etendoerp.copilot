@@ -1,10 +1,10 @@
 /**
-*   This file was generated automatically by the 'createModuleBuild' task.
-*   Created at: 2023-10-11T18:30:24.227165Z.
-*
-*   WARNING: Do not put your credentials directly in this file.
-*
-*/
+ *   This file was generated automatically by the 'createModuleBuild' task.
+ *   Created at: 2023-10-11T18:30:24.227165Z.
+ *
+ *   WARNING: Do not put your credentials directly in this file.
+ *
+ */
 
 group          = "com.etendoerp"
 version        = "1.0.1"
@@ -20,9 +20,9 @@ publishing {
     publications {
         "com.etendoerp.copilot"(MavenPublication) {
             from components.java
-            groupId    = group
+            groupId = group
             artifactId = artifact
-            version    = version
+            version = version
         }
     }
     repositories {
@@ -40,9 +40,9 @@ repositories {
 }
 
 /**
-* Declare Java dependencies using 'implementation'
-* Ex: implementation "com.sun.mail:javax.mail:1.6.2"
-*/
-dependencies {
-
-}
+ * Declare Java dependencies using 'implementation'
+ * Ex: implementation "com.sun.mail:javax.mail:1.6.2"
+ */
+ dependencies {
+ }
+ 
