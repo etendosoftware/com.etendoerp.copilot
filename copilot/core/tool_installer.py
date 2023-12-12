@@ -9,6 +9,12 @@ from .tool_dependencies import Dependencies, Dependency
 from .utils import SUCCESS_CODE, print_green, print_red, print_yellow
 
 
+def _pip_uninstall(package: str):
+    """Uninstall the provided package via pip install from code."""
+    print_yellow(f"Running pip uninstall {package}")
+    pip_main(["uninstall", package])
+
+
 def _pip_install(package: str):
     """Install the provided package via pip install from code."""
     print_yellow(f"Running pip install {package}")
