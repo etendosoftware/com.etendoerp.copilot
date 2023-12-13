@@ -1,0 +1,10 @@
+.navBarButton {
+    background-color: #202452;
+    border-radius: 8px;
+}
+
+.windowBody {
+    border: 1.5px solid transparent !important;
+    border-radius: 20px;
+    background-color: white;
+}
