@@ -4,7 +4,7 @@
 }
 
 .windowBody {
-    border: 1.5px solid transparent !important;
+    border: 1.5px solid #666666 !important;
     border-radius: 20px;
     background-color: white;
 }

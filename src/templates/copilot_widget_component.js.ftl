@@ -81,10 +81,10 @@ isc.Button.create({
                       <body>
                         <div class="container-header">
                             <div class="content-header">
-                                <img class="copilot-logotype" src="/etendo/web/images/copilot.png" alt="Logo Copilot">
+                                <img class="copilot-logotype" src="web/images/copilot.png" alt="Logo Copilot">
                                 <span class="copilot-title">Copilot</span>
                             </div>
-                            <img class="close-button" onclick="window.parent.myWindow.close()" src="/etendo/web/images/Close.png" alt="Botón Cerrar">
+                            <img class="close-button" onclick="window.parent.myWindow.close()" src="web/images/Close.png" alt="Botón Cerrar">
                         </div>
                         <iframe width="100%" height="91%" src="https://www.youtube.com/embed/m-2ZMUKVboE?si=ZGsXhMnM8Pg0yLco" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                       </body>
