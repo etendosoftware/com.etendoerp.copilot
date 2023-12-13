@@ -10,11 +10,12 @@ from langchain.chat_models.base import BaseChatModel
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools.render import format_tool_to_openai_function
 
+from . import utils
 from .exceptions import OpenAIApiKeyNotFound, SystemPromptNotFound
 from .tool_loader import LangChainTools, ToolLoader
 
 OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
-SYSTEM_PROMPT: Final[str] = os.getenv("SYSTEM_PROMPT", "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.")
+SYSTEM_PROMPT: Final[str] = utils.read_optional_env_var("SYSTEM_PROMPT", "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.")
 OPENAI_MODEL: Final[str] = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 
 

@@ -8,7 +8,7 @@ import toml
 
 from tools import *  # noqa: F403
 
-from . import tool_installer
+from . import tool_installer, utils
 
 # tools need to be imported so they can be inferred from globals
 # ruff: noqa: F401
@@ -30,8 +30,8 @@ LangChainTools: TypeAlias = List[ToolWrapper]
 NATIVE_TOOL_IMPLEMENTATION: Final[str] = "copilot"
 NATIVE_TOOLS_NODE_NAME: Final[str] = "native_tools"
 THIRD_PARTY_TOOLS_NODE_NAME: Final[str] = "third_party_tools"
-CONFIGURED_TOOLS_FILENAME: Optional[str] = os.getenv("CONFIGURED_TOOLS_FILENAME", "tools_config.json")
-DEPENDENCIES_TOOLS_FILENAME: Optional[str] = os.getenv("DEPENDENCIES_TOOLS_FILENAME", "tools_deps.toml")
+CONFIGURED_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var("CONFIGURED_TOOLS_FILENAME", "tools_config.json")
+DEPENDENCIES_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var("DEPENDENCIES_TOOLS_FILENAME", "tools_deps.toml")
 
 
 class ToolLoader:
