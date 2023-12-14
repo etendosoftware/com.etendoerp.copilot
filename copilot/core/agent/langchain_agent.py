@@ -9,12 +9,13 @@ from langchain.chat_models.base import BaseChatModel
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools.render import format_tool_to_openai_function
 
+from .. import utils
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, CopilotAgent
 
 
 class LangchainAgent(CopilotAgent):
-    OPENAI_MODEL: Final[str] = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-3.5-turbo")
     OPENAI_VERSION: Final[str] = "0.28.0"
 
     def __init__(self):
