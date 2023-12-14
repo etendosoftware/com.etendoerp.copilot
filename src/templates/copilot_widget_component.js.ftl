@@ -87,7 +87,7 @@ isc.Button.create({
                             </div>
                             <img class="close-button" onclick="window.parent.myWindow.close()" src="web/images/Close.png" alt="Botón Cerrar">
                         </div>
-                        <iframe width="100%" height="88.75%" src="web/com.etendoerp.copilot.dist" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                        <iframe width="100%" height="88.75%" src="web/com.etendoerp.copilot.dist" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                       </body>
                     </html>
                   `
