@@ -4,36 +4,39 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
-def targetDir = new File(projectDir, './')
+def jarsDir = new File(projectDir, "build${File.separator}etendo${File.separator}modules")
+def sourceDir = new File(projectDir, "modules")
 
 ext.sharedPrompt = ""
 ext.errorMsg = null
 
-fileTree(dir: targetDir).matching {
-    include '**/gradle.properties'
-}.each { file ->
-    Properties properties = new Properties()
-    file.withInputStream { stream ->
-        properties.load(stream)
-    }
-    properties.each { key, value ->
-        if (key.toString().startsWith('copilot.')) {
-            tasks.create(name: key, group: 'copilot') {
-                finalizedBy 'copilot.do'
-                doLast {
-                    sharedPrompt = value
-                    for (def i = 0; i < 10; i++) {
-                        String arg = "arg";
-                        if (i > 0) {
-                            arg = 'arg' + i
-                        }
-                        if (sharedPrompt.contains(arg)) {
-                            if (!project.hasProperty(arg)) {
-                                errorMsg = "🤖 Please provide the parameter: " + arg + " (Ex. -P" + arg + "=value)"
-                                sharedPrompt = null
-                                return
+private Iterable<File> processPropertiesFiles(File dir) {
+    fileTree(dir: dir).matching {
+        include '**/gradle.properties'
+    }.each { file ->
+        Properties properties = new Properties()
+        file.withInputStream { stream ->
+            properties.load(stream)
+        }
+        properties.each { key, value ->
+            if (key.toString().startsWith('copilot.')) {
+                tasks.create(name: key, group: 'copilot') {
+                    finalizedBy 'copilot.do'
+                    doLast {
+                        sharedPrompt = value
+                        for (def i = 0; i < 10; i++) {
+                            String arg = "arg";
+                            if (i > 0) {
+                                arg = 'arg' + i
                             }
-                            sharedPrompt = value.replace('{' + arg + '}', project.findProperty(arg))
+                            if (sharedPrompt.contains(arg)) {
+                                if (!project.hasProperty(arg)) {
+                                    errorMsg = "🤖 Please provide the parameter: " + arg + " (Ex. -P" + arg + "=value)"
+                                    sharedPrompt = null
+                                    return
+                                }
+                                sharedPrompt = value.replace('{' + arg + '}', project.findProperty(arg))
+                            }
                         }
                     }
                 }
@@ -41,6 +44,9 @@ fileTree(dir: targetDir).matching {
         }
     }
 }
+
+processPropertiesFiles(jarsDir)
+processPropertiesFiles(sourceDir)
 
 task 'copilot.do' {
     doLast {
