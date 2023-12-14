@@ -20,3 +20,4 @@ def read_optional_env_var(env_var_name: str, default_value: str) -> str:
     value = os.getenv(env_var_name, default_value)
     if not value:
         return default_value
+    return value
