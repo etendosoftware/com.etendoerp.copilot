@@ -4,8 +4,8 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
-def jarsDir = new File(projectDir, './build/etendo/modules')
-def sourceDir = new File(projectDir, './modules')
+def jarsDir = new File(projectDir, "build${File.separator}etendo${File.separator}modules")
+def sourceDir = new File(projectDir, "modules")
 
 ext.sharedPrompt = ""
 ext.errorMsg = null
