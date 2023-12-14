@@ -1,13 +1,14 @@
 import os
 from typing import Final
 
+from .. import utils
 from ...core.utils import print_green
 from ..exceptions import UnsupportedAgent
 from .agent import AgentEnum, AgentResponse
 from .assistant_agent import AssistantAgent
 from .langchain_agent import LangchainAgent
 
-AGENT_TYPE: Final[str] = os.getenv("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
+AGENT_TYPE: Final[str] = utils.read_optional_env_var("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
 
 
 def _get_agent_executor():
