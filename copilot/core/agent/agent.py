@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Final, Union
 
-from .. import tool_installer
+from .. import tool_installer, utils
 from ..exceptions import (
     OpenAIApiKeyNotFound,
     SystemPromptNotFound,
@@ -37,7 +37,7 @@ class CopilotAgent:
     """Copilot Agent interface."""
 
     OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
-    SYSTEM_PROMPT: Final[str] = os.getenv("SYSTEM_PROMPT", "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.")
+    SYSTEM_PROMPT: Final[str] = utils.read_optional_env_var("SYSTEM_PROMPT", "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.")
 
     def __init__(self):
         self._configured_tools: LangChainTools = ToolLoader().load_configured_tools()

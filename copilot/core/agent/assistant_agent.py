@@ -6,6 +6,7 @@ from typing import Final
 
 from langchain.tools.render import format_tool_to_openai_function
 
+from .. import utils
 from ..exceptions import AssistantIdNotFound, AssistantTimeout
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
@@ -14,7 +15,7 @@ from .agent import AgentResponse, AssistantResponse, CopilotAgent
 class AssistantAgent(CopilotAgent):
     """OpenAI Assistant Agent implementation."""
 
-    OPENAI_MODEL: Final[str] = os.getenv("OPENAI_MODEL", "gpt-4-1106-preview")
+    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-1106-preview")
     ASSISTANT_NAME: Final[str] = "Copilot [LOCAL]"
     OPENAI_VERSION: Final[str] = "1.2.4"
 
