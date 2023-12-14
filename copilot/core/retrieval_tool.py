@@ -29,13 +29,10 @@ class RetrievalTool(ToolWrapper):
         "a vector database, requires another tool which elaborates an answer."
     )
 
-    inputs = ["question"]
-    outputs = ["answer"]
-
-    def __call__(self, question, *args, **kwargs):
+    def run(self, query: str, *args, **kwargs) -> str:
         url = "http://localhost:8085/query"
 
-        payload = json.dumps({"queries": [{"query": question, "top_k": 5}]})
+        payload = json.dumps({"queries": [{"query": query, "top_k": 5}]})
         headers = {
             "Authorization": "Bearer rzf9wcg53cy3r815pw29",
             "Content-Type": "application/json",

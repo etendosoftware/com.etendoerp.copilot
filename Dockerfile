@@ -1,19 +1,16 @@
+FROM python:3.10-slim-buster as requirements-stage
+WORKDIR /tmp
+RUN pip install poetry
+COPY ./pyproject.toml ./poetry.lock* /tmp/
+RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
+# Second stage, copy over the requirements and install them
 FROM python:3.10-slim-buster
-
 WORKDIR /app
-
-ENV USE_CUDA=0
-
-COPY pyproject.toml /app/pyproject.toml
+COPY --from=requirements-stage /tmp/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 COPY ./copilot /app/copilot
 COPY ./tools /app/tools
 COPY ./run.py /app/run.py
 COPY ./tools_config.json /app/tools_config.json
 COPY README.md /app/README.md
-
-RUN pip install --upgrade pip \
-  && pip install poetry==1.5.1 \
-  && poetry config virtualenvs.create false \
-  && poetry install --no-interaction --no-ansi --without dev
-
-CMD poetry run python run.py
+CMD python run.py

@@ -1,6 +1,6 @@
 # Copilot
 
-Copilot helps users answer questions and assignments through different tools.
+Copilot helps users answer questions and assignments through different tools. So far, copilot supports two agents types: `Langchain Agent` and `OpenAI Assistant Agent`.
 
 # How to use Copilot as user
 * Make sure [docker](https://docs.docker.com/get-docker/) is installed
@@ -72,6 +72,8 @@ poetry run python
 	- `poetry run python run.py`
 
 * Using docker, make sure `.env` is created and all the variables are set, only then run `docker run --env-file .env -p 5001:5001 etendo/chatbot_etendo`. You can set the port that you want, just be sure to set the same port in the image from `.env` if not, the api will never be reached.
+
+* The `AGENT_TYPE` environment variable should be used to set the agent type. There are two available agent: `langchain` and `openai-assistant`. By default copilot will be executed for `langchain`.
 
 * Mount code as volume: `docker run --env-file .env -p 5001:5001 -v $(pwd)/copilot:/app/copilot etendo/chatbot_etendo`.
 
@@ -160,3 +162,20 @@ from .hello_world import MyTool
 ```
 
 6- Restart the copilot container loading the project root folder through a volume: `docker run --env-file .env -p 5001:5001 -v $(pwd)/tools:/app/tools -v $(pwd)/tools_config.json:/app/tools_config.json etendo/chatbot_etendo`
+
+## Third Party Tools dependencies
+Formats:
+* `pandas`                => Installing latest version
+* `pandas==1.3.3`         => Installing a specific version
+* `pandas>=1.0.3`         => Greater than or equal to a certain version
+* `pandas<=1.2.4`         => Less than or equal to a certain version
+* `pandas>1.0.0`          => Greater than a certain version
+* `pandas<2.0.0`          => Less than a certain version
+* `pandas>=1.0.0,<=2.0.0` => Using version ranges
+* `pandas~=1.0.0`         => Tilde operator (~) for installing compatible versions
+* `pandas^1.0.0`          => Caret operator (^) for installing compatible versions
+
+# Resources
+* [Langchain Agents](https://python.langchain.com/docs/modules/agents/)
+* [Assistants API](https://platform.openai.com/docs/assistants/overview)
+* [How Assistants work](https://platform.openai.com/docs/assistants/how-it-works)

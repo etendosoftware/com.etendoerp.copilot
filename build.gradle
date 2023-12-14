@@ -1,16 +1,16 @@
 /**
-*   This file was generated automatically by the 'createModuleBuild' task.
-*   Created at: 2023-10-11T18:30:24.227165Z.
-*
-*   WARNING: Do not put your credentials directly in this file.
-*
-*/
+ *   This file was generated automatically by the 'createModuleBuild' task.
+ *   Created at: 2023-10-11T18:30:24.227165Z.
+ *
+ *   WARNING: Do not put your credentials directly in this file.
+ *
+ */
 
 group          = "com.etendoerp"
-version        = "1.0.1"
+version        = "1.2.0"
 description    = "Etendo Copilot is a platform for developers that optimises development time with AI-enabled tools to reduce development time and improve development quality."
 ext.artifact   = "copilot"
-ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
 
 configurations {
     moduleDependencyContainer
@@ -20,14 +20,14 @@ publishing {
     publications {
         "com.etendoerp.copilot"(MavenPublication) {
             from components.java
-            groupId    = group
+            groupId = group
             artifactId = artifact
-            version    = version
+            version = version
         }
     }
     repositories {
         maven {
-            url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+            url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
         }
     }
 }
@@ -35,14 +35,14 @@ publishing {
 repositories {
     mavenCentral()
     maven {
-        url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+        url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
     }
 }
 
 /**
-* Declare Java dependencies using 'implementation'
-* Ex: implementation "com.sun.mail:javax.mail:1.6.2"
-*/
-dependencies {
-
-}
+ * Declare Java dependencies using 'implementation'
+ * Ex: implementation "com.sun.mail:javax.mail:1.6.2"
+ */
+ dependencies {
+ }
+ 
