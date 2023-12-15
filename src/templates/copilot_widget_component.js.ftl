@@ -19,6 +19,14 @@ isc.Button.create({
 
   // Event handler for button click
   click: function() {
+        // Define a function to adjust the window position
+        function adjustWindowPosition() {
+            var newLeft = Math.max(0, isc.Page.getWidth() - WINDOW_WIDTH);
+            var newTop = Math.max(0, isc.Page.getHeight() - WINDOW_HEIGHT);
+            myWindow.setLeft(newLeft);
+            myWindow.setTop(newTop);
+        }
+
         // Define constants for commonly used values
         WHITE_COLOR = "#FFFFFF"
         GRAY_COLOR = "#666666"
@@ -30,7 +38,7 @@ isc.Button.create({
         // Create a new window for Copilot
         myWindow = isc.Window.create({
         width: WINDOW_WIDTH,
-        baseStyle: 'widgetContainer',
+        styleName: 'widgetContainer',
         height: WINDOW_HEIGHT,
         left: isc.Page.getWidth() - WINDOW_WIDTH,
         top: isc.Page.getHeight() - WINDOW_HEIGHT,
@@ -39,7 +47,6 @@ isc.Button.create({
             height: "0px",
         },
         backgroundColor: WHITE_COLOR,
-        borderRadius: "20px",
         items: [
                 isc.HTMLPane.create({
                   width: "100%",
@@ -93,6 +100,9 @@ isc.Button.create({
                 })
               ],
     })
+
+    isc.Page.setEvent("resize", adjustWindowPosition);
+    adjustWindowPosition();
     myWindow.show();
   }
 })

@@ -1,10 +1,10 @@
 .navBarButton {
-    background-color: #202452;
-    border-radius: 8px;
+  background-color: #202452;
+  border-radius: 8px;
 }
 
-.windowBody {
-    border: 1.5px solid #666666 !important;
-    border-radius: 20px;
-    background-color: white;
+.widgetContainer {
+  border: 1px solid #666666 !important;
+  border-top-left-radius: 20px !important;
+  border-top-right-radius: 20px !important;
 }
