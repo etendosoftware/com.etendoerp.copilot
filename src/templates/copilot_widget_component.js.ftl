@@ -22,14 +22,15 @@ isc.Button.create({
         // Define constants for commonly used values
         WHITE_COLOR = "#FFFFFF"
         GRAY_COLOR = "#666666"
+        LIGHT_GRAY_COLOR = "#F2F5F9"
         BUTTON_WIDTH = 80
         BUTTON_HEIGHT = 30
-        WINDOW_WIDTH = 380
-        WINDOW_HEIGHT = 450
+        WINDOW_WIDTH = 425
+        WINDOW_HEIGHT = 650
 
         // Create a new window for Copilot
         myWindow = isc.Window.create({
-        width: WINDOW_WIDTH,
+        width: WINDOW_WIDTH - 10,
         baseStyle: 'widgetContainer',
         height: WINDOW_HEIGHT,
         left: isc.Page.getWidth() - WINDOW_WIDTH,
@@ -38,7 +39,7 @@ isc.Button.create({
         headerProperties: {
             height: "0px",
         },
-        backgroundColor: WHITE_COLOR,
+        backgroundColor: LIGHT_GRAY_COLOR,
         borderRadius: "20px",
         items: [
                 isc.HTMLPane.create({
@@ -50,19 +51,30 @@ isc.Button.create({
                         <style>
                             .close-button {
                               cursor: pointer;
-                              width: 1.3rem;
-                              height: 1.3rem;
+                              width: 1.4rem;
+                              height: 1.4rem;
+                              border-radius: 0.5rem;
+                            }
+                            .close-button-container {
+                                padding: 0.3rem;
+                                display: flex;
+                                justify-content: center;
+                                aling-items: center;
+                                border-radius: 0.5rem;
+                            }
+                            .close-button-container:hover {
+                              background-color: #EFF1F7;
                             }
                             .copilot-logotype {
-                              width: 2.5rem;
-                              height: 2.5rem;
+                              width: 3rem;
+                              height: 3rem;
                             }
                             .container-header {
                                 display: flex;
                                 justify-content: space-between;
-                                margin: 0 12px;
+                                padding: 6px 12px;
                                 align-items: center;
-                                background-color: WHITE_COLOR;
+                                background-color: white;
                             }
                             .content-header {
                                 display: flex;
@@ -74,10 +86,9 @@ isc.Button.create({
                             .copilot-title {
                                 font-size: 1.3rem;
                                 font-weight: bold;
-                                color: GRAY_COLOR;
+                                color: #666666;
                             }
                          </style>
-                         <script src="web/js/copilot.js"></script>
                       </head>
                       <body>
                         <div class="container-header">
@@ -85,9 +96,11 @@ isc.Button.create({
                                 <img class="copilot-logotype" src="web/images/copilot.png" alt="Logo Copilot">
                                 <span class="copilot-title">Copilot</span>
                             </div>
-                            <img class="close-button" onclick="window.parent.myWindow.close()" src="web/images/Close.png" alt="Botón Cerrar">
+                            <div class="close-button-container">
+                                <img class="close-button" onclick="window.parent.myWindow.close()" src="web/images/Close.png" alt="Close button">
+                            </div>
                         </div>
-                        <iframe width="100%" height="88.75%" src="web/com.etendoerp.copilot.dist" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                        <iframe width="100%" height="575px" src="web/com.etendoerp.copilot.dist" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                       </body>
                     </html>
                   `
