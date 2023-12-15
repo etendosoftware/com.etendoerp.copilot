@@ -19,6 +19,14 @@ isc.Button.create({
 
   // Event handler for button click
   click: function() {
+        // Define a function to adjust the window position
+        function adjustWindowPosition() {
+            var newLeft = Math.max(0, isc.Page.getWidth() - WINDOW_WIDTH);
+            var newTop = Math.max(0, isc.Page.getHeight() - WINDOW_HEIGHT);
+            myWindow.setLeft(newLeft);
+            myWindow.setTop(newTop);
+        }
+
         // Define constants for commonly used values
         WHITE_COLOR = "#FFFFFF"
         GRAY_COLOR = "#666666"
@@ -107,6 +115,9 @@ isc.Button.create({
                 })
               ],
     })
+
+    isc.Page.setEvent("resize", adjustWindowPosition);
+    adjustWindowPosition();
     myWindow.show();
   }
 })
