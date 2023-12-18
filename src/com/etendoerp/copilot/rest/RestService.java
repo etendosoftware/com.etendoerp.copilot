@@ -7,6 +7,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -25,7 +26,7 @@ public class RestService extends HttpSecureAppServlet {
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
     String path = request.getPathInfo();
-    if (path.equals(GET_ASSISTANTS)) {
+    if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
       handleAssistants(response);
       return;
     }
@@ -36,7 +37,7 @@ public class RestService extends HttpSecureAppServlet {
   @Override
   public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
     String path = request.getPathInfo();
-    if (path.equals(QUESTION)) {
+    if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
       try {
         handleQuestion(request, response);
       } catch (JSONException e) {
@@ -61,9 +62,9 @@ public class RestService extends HttpSecureAppServlet {
     //get the question
     JSONObject jsonresponse = new JSONObject();
     //check id assistant is set and is some of the valid assistants IDIDID1, IDIDID2, IDIDID3
-    if (jsonrequest.has(ASSISTANT_ID) && (jsonrequest.getString(ASSISTANT_ID).equals(
-        "IDIDID1") || jsonrequest.getString(ASSISTANT_ID).equals("IDIDID2") || jsonrequest.getString(
-        ASSISTANT_ID).equals("IDIDID3"))) {
+    if (jsonrequest.has(ASSISTANT_ID) && (StringUtils.equalsIgnoreCase(jsonrequest.getString(ASSISTANT_ID),
+        "IDIDID1") || StringUtils.equalsIgnoreCase(jsonrequest.getString(ASSISTANT_ID),
+        "IDIDID2") || StringUtils.equalsIgnoreCase(jsonrequest.getString(ASSISTANT_ID), "IDIDID3"))) {
       jsonresponse.put(ASSISTANT_ID, jsonrequest.getString(ASSISTANT_ID));
     } else {
       jsonresponse.put("error", "Invalid assistant_id");
@@ -82,7 +83,8 @@ public class RestService extends HttpSecureAppServlet {
 
 
   private void handleAssistants(HttpServletResponse response) {
-    try {    //enviar json de assistants
+    try {
+      //send json of assistants
       JSONArray assistants = new JSONArray();
       JSONObject assistant = new JSONObject();
       //first assistant
