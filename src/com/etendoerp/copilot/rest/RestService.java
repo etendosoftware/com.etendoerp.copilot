@@ -62,7 +62,7 @@ public class RestService extends HttpSecureAppServlet {
     //get the question
     JSONObject jsonresponse = new JSONObject();
     //check id assistant is set and is some of the valid assistants IDIDID1, IDIDID2, IDIDID3
-    String jsonAssistanID = jsonrequest.getString(ASSISTANT_ID);
+    String jsonAssistanID = jsonrequest.optString(ASSISTANT_ID);
     if (jsonrequest.has(ASSISTANT_ID) && (StringUtils.equalsIgnoreCase(jsonAssistanID,
         "IDIDID1") || StringUtils.equalsIgnoreCase(jsonAssistanID, "IDIDID2") || StringUtils.equalsIgnoreCase(
         jsonAssistanID, "IDIDID3"))) {
