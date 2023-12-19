@@ -73,6 +73,8 @@ public class RestService extends HttpSecureAppServlet {
       return;
     }
     jsonresponse.put("answer", "This is the answer to your question: 42");
+    //add timestamp
+    jsonresponse.put("timestamp", System.currentTimeMillis());
     //if the conversation_id is not set, set it random uuid . if it is set, use it
     if (!jsonrequest.has(CONVERSATION_ID)) {
       jsonresponse.put(CONVERSATION_ID, java.util.UUID.randomUUID().toString());
