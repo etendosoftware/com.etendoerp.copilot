@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETCOP_APP_SOURCE">
-    <table name="ETCOP_APP_SOURCE" primaryKey="ETCOP_APP_SOURCE_KEY">
-      <column name="ETCOP_APP_SOURCE_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETCOP_FILE">
+    <table name="ETCOP_FILE" primaryKey="ETCOP_FILE_KEY">
+      <column name="ETCOP_FILE_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -37,26 +37,24 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="ETCOP_APP_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="DESCRIPTION" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="ETCOP_FILE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="TYPE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <foreign-key foreignTable="AD_CLIENT" name="ETCOP_APP_SOURCE_CLI_FK">
+      <column name="OPENAI_ID_FILE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="AD_CLIENT" name="ETCOP_FILE_CLI_FK">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="ETCOP_FILE" name="ETCOP_APP_SOURCE_FILE_FK">
-        <reference local="ETCOP_FILE_ID" foreign="ETCOP_FILE_ID"/>
-      </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETCOP_APP_SOURCE_ORG_FK">
+      <foreign-key foreignTable="AD_ORG" name="ETCOP_FILE_ORG_FK">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_APP_SRC_FK">
-        <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
-      </foreign-key>
-      <check name="ETCOP_APP_SOURCE_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETCOP_FILE_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>

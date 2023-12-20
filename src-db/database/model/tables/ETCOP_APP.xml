@@ -49,7 +49,19 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="APPTYPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="APPTYPE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="SYNC_OPENAI_ASSISTANT" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CODE_INTERPRETER" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="MODEL" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -59,6 +71,7 @@
       <foreign-key foreignTable="AD_ORG" name="ETCOP_APP_ORG_FK">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
+      <check name="ETCOP_APP_CODE_INTERP_CHK"><![CDATA[CODE_INTERPRETER IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
