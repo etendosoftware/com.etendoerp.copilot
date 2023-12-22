@@ -42,7 +42,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       JSONArray selecterRecords = request.optJSONArray("recordIds");
       int totalRecords = (selecterRecords == null) ? 0 : selecterRecords.length();
       if (totalRecords == 0) {
-        throw new OBException(OBMessageUtils.messageBD("ETCOP_NoSelectedRecords")); //TODO: msg
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_NoSelectedRecords"));
       }
       int syncCount = 0;
       //print the current folder of this class
@@ -50,13 +50,14 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       File file = new File(filePath + "../../gradle.properties");
       //read the file "gradle.properties" in the current folder
       String configs;
+      StringBuilder sb = new StringBuilder();
       try (FileReader filereader = new FileReader(file)) {
         int j;
-        configs = "";
         while ((j = filereader.read()) != -1) {
-          configs += (char) j;
+          sb.append((char) j);
         }
       }
+      configs = sb.toString();
       //convert the string to a properties object
       Properties properties = new Properties();
       properties.load(new java.io.StringReader(configs));
@@ -64,13 +65,13 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
 
       String openaiApiKey = properties.getProperty(OPENAI_API_KEY);
 
-      List<CopilotApp> appList = new ArrayList<CopilotApp>();
+      List<CopilotApp> appList = new ArrayList<>();
 
       for (int i = 0; i < totalRecords; i++) {
         CopilotApp app = OBDal.getInstance().get(CopilotApp.class, selecterRecords.getString(i));
         appList.add(app);
       }
-      Set<CopilotFile> filesToSync = new HashSet<CopilotFile>();
+      Set<CopilotFile> filesToSync = new HashSet<>();
       for (CopilotApp app : appList) {
         filesToSync.addAll(
             app.getETCOPAppSourceList().stream().map(CopilotAppSource::getFile).collect(Collectors.toList()));
@@ -98,17 +99,19 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         errorMessage.put("text", message);
         result.put("message", errorMessage);
       } catch (Exception ignore) {
+        log.error("Error in process", ignore);
       }
     }
     return result;
   }
 
-  private int callSync(int syncCount, String openai_api_key, CopilotApp app) {
+  private int callSync(int syncCount, String openaiApiKey, CopilotApp app) {
     try {
-      OpenAIUtils.syncAssistant(openai_api_key, app);
+      OpenAIUtils.syncAssistant(openaiApiKey, app);
       syncCount++;
     } catch (Exception e) {
       log.error(" Error in syncAssistant", e);
+
     }
     return syncCount;
   }
@@ -122,7 +125,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
     showMsgInProcessView.put("msgType", "success");
     showMsgInProcessView.put("msgTitle", OBMessageUtils.messageBD("Success"));
     showMsgInProcessView.put("msgText",
-        String.format(OBMessageUtils.messageBD("a"), syncCount, totalRecords - syncCount)); //TODO: msg
+        String.format(String.format(OBMessageUtils.messageBD("ETCOP_SuccessSync"), syncCount, totalRecords)));
     showMsgInProcessView.put("wait", true);
     JSONObject showMsgInProcessViewAction = new JSONObject();
     showMsgInProcessViewAction.put("showMsgInProcessView", showMsgInProcessView);
