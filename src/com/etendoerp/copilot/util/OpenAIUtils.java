@@ -4,10 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.Date;
 
 import org.apache.commons.lang.StringUtils;
@@ -28,20 +24,27 @@ import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 
+import kong.unirest.HttpResponse;
 import kong.unirest.MimeTypes;
 import kong.unirest.Unirest;
+import kong.unirest.UnirestException;
 
 public class OpenAIUtils {
   private static final Logger log = LogManager.getLogger(OpenAIUtils.class);
   public static final String BASE_URL = "https://api.openai.com/v1";
   public static final String METHOD_DELETE = "DELETE";
+  public static final String HEADER_AUTHORIZATION = "Authorization";
+  public static final String HEADER_CONTENT_TYPE = "Content-Type";
+  public static final String HEADER_OPEN_AI_BETA = "OpenAI-Beta";
+  public static final String CONTENT_TYPE_JSON = "application/json";
+  public static final String HEADER_BEARER = "Bearer ";
+  public static final String HEADER_ASSISTANTS_V_1 = "assistants=v1";
 
   private OpenAIUtils() {
     throw new IllegalStateException("Utility class");
   }
 
-  public static void syncAssistant(String openaiApiKey,
-      CopilotApp app) throws JSONException, IOException, InterruptedException {
+  public static void syncAssistant(String openaiApiKey, CopilotApp app) throws JSONException {
     //first we need to get the assistant
     //if the app not has a assistant, we need to create it
     if (StringUtils.isEmpty(app.getOpenaiIdAssistant())) {
@@ -56,8 +59,7 @@ public class OpenAIUtils {
 
   }
 
-  private static void updateAssistant(CopilotApp app,
-      String openaiApiKey) throws JSONException, IOException, InterruptedException {
+  private static void updateAssistant(CopilotApp app, String openaiApiKey) throws JSONException {
     //almost the same as createAssistant, but we need to update the assistant
 
     String endpoint = "/assistants/" + app.getOpenaiIdAssistant();
@@ -76,7 +78,7 @@ public class OpenAIUtils {
 
   }
 
-  private static void listAssistants(String openaiApiKey) throws JSONException, IOException, InterruptedException {
+  private static void listAssistants(String openaiApiKey) throws JSONException {
     String endpoint = "/assistants";
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, "GET", "?order=desc&limit=100"
     );
@@ -97,15 +99,13 @@ public class OpenAIUtils {
     }
   }
 
-  private static void deleteAssistant(String openaiAssistantId,
-      String openaiApiKey) throws IOException, InterruptedException, JSONException {
+  private static void deleteAssistant(String openaiAssistantId, String openaiApiKey) throws JSONException {
     String endpoint = "/assistants/" + openaiAssistantId;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, METHOD_DELETE, null);
     logIfDebug(json.toString());
   }
 
-  private static String createAssistant(CopilotApp app,
-      String openaiApiKey) throws JSONException, IOException, InterruptedException {
+  private static String createAssistant(CopilotApp app, String openaiApiKey) throws JSONException {
     //recreate the following curl commandç
 
     String endpoint = "/assistants";
@@ -138,8 +138,8 @@ public class OpenAIUtils {
   }
 
 
-  private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint,
-      String purpose, String filename,
+  private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint, String purpose,
+      String filename,
       ByteArrayOutputStream file) throws IOException, JSONException {
     //save os to temp file
     //create a temp file
@@ -155,7 +155,7 @@ public class OpenAIUtils {
     //write ByteArrayOutputStream to tempFile
     file.writeTo(new FileOutputStream(tempFile));
     kong.unirest.HttpResponse<String> response = Unirest.post(BASE_URL + endpoint)
-        .header("Authorization", String.format("Bearer %s", openaiApiKey))
+        .header(HEADER_AUTHORIZATION, String.format("Bearer %s", openaiApiKey))
         .field("purpose", purpose)
         .field("file", tempFile, MimeTypes.EXE).asString();
     return new JSONObject(response.getBody());
@@ -163,33 +163,46 @@ public class OpenAIUtils {
 
 
   private static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
-      JSONObject body, String method, String queryParams) throws IOException, JSONException {
-    HttpClient client = HttpClient.newHttpClient();
+      JSONObject body, String method, String queryParams) throws UnirestException, JSONException {
     String url = BASE_URL + endpoint + ((queryParams != null) ? queryParams : "");
-    HttpRequest.Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(url));
-    requestBuilder.header("Content-Type", "application/json");
-    requestBuilder.header("Authorization", "Bearer " + openaiApiKey)
-        .header("OpenAI-Beta", "assistants=v1");
+    HttpResponse<String> response;
     switch (method) {
       case "GET":
-        requestBuilder.GET();
+        response = Unirest.get(url)
+            .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
+            .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
+            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .asString();
         break;
       case "POST":
-        requestBuilder.POST(HttpRequest.BodyPublishers.ofString(body != null ? body.toString() : ""));
+        response = Unirest.post(url)
+            .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
+            .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
+            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .body(body != null ? body.toString() : "")
+            .asString();
         break;
       case "PUT":
-        requestBuilder.PUT(HttpRequest.BodyPublishers.ofString(body != null ? body.toString() : ""));
+        response = Unirest.put(url)
+            .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
+            .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
+            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .body(body != null ? body.toString() : "")
+            .asString();
         break;
       case METHOD_DELETE:
-        requestBuilder.DELETE();
+        response = Unirest.delete(url)
+            .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
+            .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
+            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .asString();
         break;
       default:
-        break;
+        throw new IllegalArgumentException("Invalid method: " + method);
     }
-    HttpRequest request = requestBuilder.build();
-    String response = client.send(request, HttpResponse.BodyHandlers.ofString()).body();
-    return new JSONObject(response);
+    return new JSONObject(response.getBody());
   }
+
   private static JSONArray buildToolsArray(boolean codeInterpreter, boolean retrieval,
       JSONArray toolSet) throws JSONException {
     JSONArray result = (toolSet != null) ? toolSet : new JSONArray();
@@ -207,7 +220,7 @@ public class OpenAIUtils {
   }
 
   public static void syncFile(CopilotFile fileToSync,
-      String openaiApiKey) throws JSONException, IOException, InterruptedException {
+      String openaiApiKey) throws JSONException, IOException {
     //first we need to get the file
     //if the file not has a id, we need to create it
     logIfDebug("Syncing file " + fileToSync.getName());
@@ -259,8 +272,7 @@ public class OpenAIUtils {
     return updatedAtt.after(lastSyncDate);
   }
 
-  private static void deleteFile(String openaiIdFile,
-      String openaiApiKey) throws JSONException, IOException, InterruptedException {
+  private static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
     JSONObject response = makeRequestToOpenAI(openaiApiKey, "/files/" + openaiIdFile, null, METHOD_DELETE, null);
     logIfDebug(response.toString());
   }
