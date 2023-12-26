@@ -1,0 +1,10 @@
+.navBarButton {
+  background-color: #202452;
+  border-radius: 8px;
+}
+
+.widgetContainer {
+  border: 1px solid #666666 !important;
+  border-top-left-radius: 20px !important;
+  border-top-right-radius: 20px !important;
+}
