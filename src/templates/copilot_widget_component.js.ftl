@@ -54,7 +54,6 @@ isc.Button.create({
             height: "0px",
         },
         backgroundColor: LIGHT_GRAY_COLOR,
-        borderRadius: "20px",
         items: [
                 isc.HTMLPane.create({
                   width: "100%",
