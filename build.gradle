@@ -7,10 +7,10 @@
  */
 
 group          = "com.etendoerp"
-version        = "1.0.1"
+version        = "1.2.2"
 description    = "Etendo Copilot is a platform for developers that optimises development time with AI-enabled tools to reduce development time and improve development quality."
 ext.artifact   = "copilot"
-ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
 
 configurations {
     moduleDependencyContainer
@@ -27,7 +27,7 @@ publishing {
     }
     repositories {
         maven {
-            url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+            url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
         }
     }
 }
@@ -35,7 +35,7 @@ publishing {
 repositories {
     mavenCentral()
     maven {
-        url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.platform.extensions"
+        url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
     }
 }
 
