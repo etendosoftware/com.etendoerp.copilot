@@ -7,7 +7,7 @@ export const EXAMPLE_CONVERSATIONS = [
 
 // Tools Models
 export const MODEL_OPTIONS = [
-  { key: "XML Translation Tool" },
-  { key: "Invoice Generator" },
-  { key: "Window Creation" },
+  "XML Translation Tool",
+  "Invoice Generator",
+  "Window Creation",
 ];

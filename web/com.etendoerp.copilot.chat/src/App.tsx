@@ -11,7 +11,7 @@ function App() {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>("");
   const [selectedOption, setSelectedOption] = useState<string>(
-    MODEL_OPTIONS[0].key
+    MODEL_OPTIONS[0]
   );
 
   // Handles the sending of a message
@@ -80,6 +80,10 @@ function App() {
     setInputValue(conversation);
   };
 
+  const handleOptionSelected = async ({ value }: any) => {
+    setSelectedOption(value);
+  };
+
   return (
     <div className="h-screen w-screen pt-2 pb-1 px-[12px] bg-gray-200 flex flex-col justify-end">
       {/* Chat display area */}
@@ -90,11 +94,11 @@ function App() {
             <div className="w-full mb-2">
               <Input
                 value={selectedOption}
-                dataPicker={MODEL_OPTIONS}
+                dataPicker={MODEL_OPTIONS.map((data) => ({ value: data }))}
                 typeField={"picker"}
                 titleLabel="Select a Model"
-                displayKey="key"
-                onChangeText={(value) => setSelectedOption(value)}
+                displayKey="value"
+                onOptionSelected={(option: any) => handleOptionSelected(option)}
               />
             </div>
             <div className="bg-white-900 p-5 rounded-lg text-blue-900 font-medium">
@@ -139,14 +143,14 @@ function App() {
             )}
             {message.sender !== "interpreting" && (
               <p
-                className={`inline-flex p-2 rounded-lg ${
+                className={`inline-flex flex-col p-2 rounded-lg ${
                   message.sender === "user"
                     ? "bg-gray-400 text-gray-600 rounded-tr-none"
-                    : "bg-white-900 text-black-900 rounded-tl-none"
-                }`}
+                    : "bg-white-900 text-black rounded-tl-none"
+                } break-words overflow-hidden max-w-[90%]`}
               >
                 {message.text}
-                <span className="text-[0.7rem] mt-3 ml-2 text-gray-600">
+                <span className="text-xs mt-1 text-gray-600">
                   {message.timestamp}
                 </span>
               </p>

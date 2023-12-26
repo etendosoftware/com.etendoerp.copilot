@@ -8,15 +8,10 @@
   background-color: #242d93;
 }
 
-.windowBody {
-  border: 1.5px solid #666666 !important;
-  border-radius: 20px;
-  box-shadow: rgba(0, 0, 0, 0.1) 0px 10px 15px -3px,
-    rgba(0, 0, 0, 0.05) 0px 4px 6px -2px;
-}
-
 .widgetContainer {
   border: 1px solid #666666 !important;
   border-top-left-radius: 20px !important;
   border-top-right-radius: 20px !important;
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 10px 15px -3px,
+    rgba(0, 0, 0, 0.05) 0px 4px 6px -2px;
 }

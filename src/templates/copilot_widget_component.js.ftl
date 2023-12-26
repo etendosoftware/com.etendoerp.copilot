@@ -45,7 +45,7 @@ isc.Button.create({
         // Create a new window for Copilot
         myWindow = isc.Window.create({
         width: WINDOW_WIDTH - 10,
-        baseStyle: 'widgetContainer',
+        styleName: 'widgetContainer',
         height: WINDOW_HEIGHT,
         left: isc.Page.getWidth() - WINDOW_WIDTH,
         top: isc.Page.getHeight() - WINDOW_HEIGHT,
@@ -63,7 +63,6 @@ isc.Button.create({
                       <head>
                         <style>
                             .close-button {
-                              cursor: pointer;
                               width: 1.4rem;
                               height: 1.4rem;
                               border-radius: 0.5rem;
@@ -74,6 +73,7 @@ isc.Button.create({
                                 justify-content: center;
                                 aling-items: center;
                                 border-radius: 0.5rem;
+                                cursor: pointer;
                             }
                             .close-button-container:hover {
                               background-color: #EFF1F7;
@@ -106,11 +106,11 @@ isc.Button.create({
                       <body>
                         <div class="container-header">
                             <div class="content-header">
-                                <img class="copilot-logotype" src="web/images/copilot.png" alt="Logo Copilot">
+                                <img class="copilot-logotype" src="web/images/copilot.png" alt="Copilot Logotype">
                                 <span class="copilot-title">Copilot</span>
                             </div>
-                            <div class="close-button-container">
-                                <img class="close-button" onclick="window.parent.myWindow.close()" src="web/images/Close.png" alt="Close button">
+                            <div class="close-button-container" onclick="window.parent.myWindow.close()">
+                                <img class="close-button" src="web/images/Close.png" alt="Close button">
                             </div>
                         </div>
                         <iframe width="100%" height="575px" src="web/com.etendoerp.copilot.dist" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
