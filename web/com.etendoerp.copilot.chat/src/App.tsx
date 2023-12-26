@@ -1,24 +1,25 @@
-import "./App.css";
-import { IMessage } from "./interfaces";
+import { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import { IMessage } from "./interfaces/IMessage";
+import { useAssistants } from "./hooks/useAssistants";
+import { formatTime } from "./utils/functions";
+import { EXAMPLE_CONVERSATIONS } from "./utils/constants";
+import Input from "etendo-ui-library/dist-web/components/input/Input";
 import enterIcon from "./assets/enter.svg";
 import botcitoIcon from "./assets/botcito.svg";
-import { formatTime } from "./utils/functions";
-import { useEffect, useState, FormEvent, ChangeEvent } from "react";
-import { Input } from "etendo-ui-library/dist-web/components/input/";
-import { EXAMPLE_CONVERSATIONS, MODEL_OPTIONS } from "./utils/constants";
+import "./App.css";
 
 function App() {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>("");
-  const [selectedOption, setSelectedOption] = useState<string>(
-    MODEL_OPTIONS[0]
-  );
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const { selectedOption, assistants, getAssistants, handleOptionSelected } = useAssistants();
 
-  // Handles the sending of a message
-  const handleSendMessage = (event: FormEvent) => {
+  // Function to handle sending a message
+  const handleSendMessage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!inputValue.trim()) return;
 
+    // Constructing the user's message
     const userMessage: IMessage = {
       text: inputValue,
       sender: "user",
@@ -30,23 +31,37 @@ function App() {
       sender: "interpreting",
     };
 
-    setMessages((currentMessages) => [
-      ...currentMessages,
-      userMessage,
-      interpretingMessage,
-    ]);
+    setMessages((currentMessages) => [...currentMessages, userMessage, interpretingMessage]);
 
-    setTimeout(() => {
+    const question = {
+      question: inputValue,
+      assistant_id: selectedOption?.assistant_id,
+      ...(conversationId && { conversation_id: conversationId }),
+    };
+
+    const requestOptions = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(question),
+    };
+
+    try {
+      const response = await fetch("../../copilot/question", requestOptions);
+      const data = await response.json();
+
+      if (!conversationId) setConversationId(data.conversation_id);
       setMessages((currentMessages) => [
         ...currentMessages.filter((msg) => msg.sender !== "interpreting"),
-        { text: "", sender: "bot", timestamp: formatTime(new Date()) },
+        { text: data.answer, sender: "bot", timestamp: formatTime(new Date()) },
       ]);
-    }, 2500);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
 
     setInputValue("");
   };
 
-  // Effect to handle typing animation for bot messages
+  // Effect to simulate typing animation for bot messages
   useEffect(() => {
     const lastMessageIndex = messages.length - 1;
     if (
@@ -58,30 +73,31 @@ function App() {
     }
   }, [messages]);
 
-  // Simulates typing effect for messages
+  // Function to simulate typing effect for messages
   const typeMessage = (text: string, messageIndex: number) => {
     let i = 0;
-    let typingEffect = setInterval(() => {
-      if (i < text.length - 1) {
+    const typingEffect = setInterval(() => {
+      if (i < text.length) {
         setMessages((currentMessages) =>
-          currentMessages.map((msg, index: number) =>
-            index === messageIndex ? { ...msg, text: msg.text + text[i] } : msg
+          currentMessages.map((msg, index) =>
+            index === messageIndex ? { ...msg, text: msg.text + text[i++] } : msg
           )
         );
-        i++;
       } else {
         clearInterval(typingEffect);
       }
     }, 20);
   };
 
-  // Handles clicking on predefined conversations
+  // Effect to get assistants on initial component mount
+  useEffect(() => {
+    getAssistants();
+  }, []);
+
+
+  // Function to handle conversation selection
   const handleConversationClick = (conversation: string) => {
     setInputValue(conversation);
-  };
-
-  const handleOptionSelected = async ({ value }: any) => {
-    setSelectedOption(value);
   };
 
   return (
@@ -92,14 +108,13 @@ function App() {
         {messages.length === 0 && (
           <div>
             <div className="w-full mb-2">
-              <Input
-                value={selectedOption}
-                dataPicker={MODEL_OPTIONS.map((data) => ({ value: data }))}
+              {assistants && <Input
+                value={selectedOption?.name}
+                dataPicker={assistants}
                 typeField={"picker"}
-                titleLabel="Select a Model"
-                displayKey="value"
+                displayKey="name"
                 onOptionSelected={(option: any) => handleOptionSelected(option)}
-              />
+              />}
             </div>
             <div className="bg-white-900 p-5 rounded-lg text-blue-900 font-medium">
               <div className="mb-2 text-xl font-semibold">
@@ -143,11 +158,10 @@ function App() {
             )}
             {message.sender !== "interpreting" && (
               <p
-                className={`inline-flex flex-col p-2 rounded-lg ${
-                  message.sender === "user"
-                    ? "bg-gray-400 text-gray-600 rounded-tr-none"
-                    : "bg-white-900 text-black rounded-tl-none"
-                } break-words overflow-hidden max-w-[90%]`}
+                className={`inline-flex flex-col p-2 rounded-lg ${message.sender === "user"
+                  ? "bg-gray-400 text-gray-600 rounded-tr-none"
+                  : "bg-white-900 text-black rounded-tl-none"
+                  } break-words overflow-hidden max-w-[90%]`}
               >
                 {message.text}
                 <span className="text-xs mt-1 text-gray-600">
