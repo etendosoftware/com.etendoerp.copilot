@@ -19,6 +19,12 @@ isc.Button.create({
 
   // Event handler for button click
   click: function() {
+        // Check if the window is already open
+        if (window.myWindow && window.myWindow.isVisible()) {
+            // If it is already open, simply return without doing anything
+            return;
+        }
+
         // Define a function to adjust the window position
         function adjustWindowPosition() {
             var newLeft = Math.max(0, isc.Page.getWidth() - WINDOW_WIDTH);
