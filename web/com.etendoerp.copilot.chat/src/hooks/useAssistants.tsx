@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { IAssistant } from "../interfaces/IAssistant";
 
-export const useAssistants = () => {
+export const useAssistants = (shouldHideInitialMessage: () => boolean) => {
     const [selectedOption, setSelectedOption] = useState<IAssistant | null>(null);
     const [assistants, setAssistants] = useState<IAssistant[]>([]);
+    const [showInitialMessage, setShowInitialMessage] = useState(true);
 
     // Fetch assistants data
     const getAssistants = async () => {
-        const requestOptions: any = {
+        const requestOptions = {
             method: 'GET',
         }
 
@@ -20,8 +21,16 @@ export const useAssistants = () => {
     };
 
     // Handle option selection
-    const handleOptionSelected = (value: any) => {
+    const handleOptionSelected = (value: IAssistant | null) => {
         setSelectedOption(value);
+        if (shouldHideInitialMessage()) {
+            setShowInitialMessage(false);
+        }
+    };
+
+    // Function to hide initial introduction
+    const hideInitialMessage = () => {
+        setShowInitialMessage(false);
     };
 
     return {
@@ -29,5 +38,7 @@ export const useAssistants = () => {
         assistants,
         getAssistants,
         handleOptionSelected,
+        showInitialMessage,
+        hideInitialMessage
     };
 };
