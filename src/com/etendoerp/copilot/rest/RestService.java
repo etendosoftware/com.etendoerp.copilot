@@ -69,8 +69,8 @@ public class RestService extends HttpSecureAppServlet {
       sb.append(line);
     }
     HttpResponse<String> jsonresponse = null;
+    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     try {
-      var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
       HttpClient client = HttpClient.newBuilder().build();
       HttpRequest copilotRequest = HttpRequest.newBuilder()
           .uri(new URI("http://localhost:" + properties.getProperty("COPILOT_PORT") + "/question"))
@@ -83,17 +83,23 @@ public class RestService extends HttpSecureAppServlet {
       log4j.error(e);
       throw new OBException("Cannot connect to Copilot service");
     }
-    JSONObject responseJson = new JSONObject(jsonresponse.body());
-    JSONObject response2 = new JSONObject();
-    response2.put("assistant_id", ((JSONObject) responseJson.get("answer")).get("assistant_id"));
-    response2.put("conversation_id", ((JSONObject) responseJson.get("answer")).get("conversation_id"));
-    response2.put("answer", ((JSONObject) responseJson.get("answer")).get("message"));
-    Date date = new Date();
-    //getting the object of the Timestamp class
-    Timestamp tms = new Timestamp(date.getTime());
-    response2.put("timestamp", tms.toString());
+    if(!StringUtils.isEmpty(properties.getProperty("AGENT_TYPE")) && StringUtils.equals( properties.getProperty("AGENT_TYPE"), "openai-assistant")) {
+      JSONObject responseJson = new JSONObject(jsonresponse.body());
+      JSONObject response2 = new JSONObject();
+      response2.put("assistant_id", ((JSONObject) responseJson.get("answer")).get("assistant_id"));
+      response2.put("conversation_id",
+          ((JSONObject) responseJson.get("answer")).get("conversation_id"));
+      response2.put("answer", ((JSONObject) responseJson.get("answer")).get("message"));
+      Date date = new Date();
+      //getting the object of the Timestamp class
+      Timestamp tms = new Timestamp(date.getTime());
+      response2.put("timestamp", tms.toString());
+      response.getWriter().write(response2.toString());
+    } else {
+      JSONObject responseJson = new JSONObject(jsonresponse.body());
+      response.getWriter().write(responseJson.toString());
+    }
 
-    response.getWriter().write(response2.toString());
   }
 
 
