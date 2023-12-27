@@ -38,8 +38,14 @@ function App() {
       timestamp: formatTime(new Date()),
     };
     setMessages(currentMessages => [...currentMessages, userMessage]);
-    scrollToBottom();
 
+    const interpretingMessage: IMessage = {
+      text: "Interpreting request...",
+      sender: "interpreting",
+      timestamp: formatTime(new Date())
+    };
+
+    setMessages(currentMessages => [...currentMessages, interpretingMessage]);
 
     const requestOptions = {
       method: 'POST',
@@ -52,7 +58,13 @@ function App() {
       const data = await response.json();
       if (!conversationId) setConversationId(data.conversation_id);
 
-      typeMessage(data.answer);
+      setTimeout(() => {
+        setMessages(currentMessages => [
+          ...currentMessages.filter(message => message !== interpretingMessage),
+          { text: data.answer, sender: "bot", timestamp: formatTime(new Date()) }
+        ]);
+        scrollToBottom();
+      }, 2000);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -60,32 +72,12 @@ function App() {
     setInputValue("");
   };
 
-  // Function to simulate typing effect for messages
-  const typeMessage = (text: string) => {
-    let i = 0;
-    const typingSpeed = 20;
-
-    setMessages(currentMessages => [
-      ...currentMessages,
-      { text: "", sender: "bot", timestamp: formatTime(new Date()) }
-    ]);
-
-    const typingEffect = setInterval(() => {
-      if (i <= text.length) {
-        setMessages(currentMessages => {
-          const newMessages = [...currentMessages];
-          const lastMessageIndex = newMessages.length - 1;
-          newMessages[lastMessageIndex] = {
-            ...newMessages[lastMessageIndex],
-            text: text.substring(0, i++)
-          };
-          return newMessages;
-        });
-      } else {
-        clearInterval(typingEffect);
-      }
-    }, typingSpeed);
-  };
+  // Scroll bottom effect
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages]);
 
   // Effect to get assistants on initial component mount
   useEffect(() => {
