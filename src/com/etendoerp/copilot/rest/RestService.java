@@ -7,11 +7,14 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.Timestamp;
+import java.util.Date;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.etendoerp.copilot.data.CopilotApp;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
@@ -19,6 +22,7 @@ import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.dal.service.OBDal;
 
 public class RestService extends HttpSecureAppServlet {
 
@@ -79,7 +83,17 @@ public class RestService extends HttpSecureAppServlet {
       log4j.error(e);
       throw new OBException("Cannot connect to Copilot service");
     }
-    response.getWriter().write(jsonresponse.body());
+    JSONObject responseJson = new JSONObject(jsonresponse.body());
+    JSONObject response2 = new JSONObject();
+    response2.put("assistant_id", ((JSONObject) responseJson.get("answer")).get("assistant_id"));
+    response2.put("conversation_id", ((JSONObject) responseJson.get("answer")).get("conversation_id"));
+    response2.put("answer", ((JSONObject) responseJson.get("answer")).get("message"));
+    Date date = new Date();
+    //getting the object of the Timestamp class
+    Timestamp tms = new Timestamp(date.getTime());
+    response2.put("timestamp", tms.toString());
+
+    response.getWriter().write(response2.toString());
   }
 
 
@@ -87,26 +101,13 @@ public class RestService extends HttpSecureAppServlet {
     try {
       //send json of assistants
       JSONArray assistants = new JSONArray();
-      JSONObject assistant = new JSONObject();
-      //first assistant
-      assistant.put(ASSISTANT_ID, "IDIDID1");
-      assistant.put("name", "Assistant 1 ");
-      assistant.put(IMAGE_BASE_64, IMAGE_EXAMPLE);
-      assistants.put(assistant);
-      //create another assistant
-      assistant = new JSONObject();
-      assistant.put(ASSISTANT_ID, "IDIDID2");
-      assistant.put("name", "Assistant example 2");
-      assistant.put(IMAGE_BASE_64, IMAGE_EXAMPLE);
-      assistants.put(assistant);
-      //create another assistant
-      assistant = new JSONObject();
-      assistant.put(ASSISTANT_ID, "IDIDID3");
-      assistant.put("name", "Assistant example NR3");
-      assistant.put(IMAGE_BASE_64, IMAGE_EXAMPLE);
-      assistants.put(assistant);
+      for (CopilotApp copilotApp : OBDal.getInstance().createQuery(CopilotApp.class, "").list()) {
+        JSONObject assistantJson = new JSONObject();
+        assistantJson.put(ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
+        assistantJson.put("name", copilotApp.getName());
+        assistants.put(assistantJson);
+      }
       response.getWriter().write(assistants.toString());
-
     } catch (Exception e) {
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
