@@ -1,59 +1,58 @@
-import { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import { useState, useEffect, ChangeEvent, FormEvent, useRef } from "react";
 import { IMessage } from "./interfaces/IMessage";
 import { useAssistants } from "./hooks/useAssistants";
 import { formatTime } from "./utils/functions";
 import { EXAMPLE_CONVERSATIONS } from "./utils/constants";
 import Input from "etendo-ui-library/dist-web/components/input/Input";
 import enterIcon from "./assets/enter.svg";
-import botcitoIcon from "./assets/botcito.svg";
+import botIcon from "./assets/botcito.svg";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import "./App.css";
+import { CodeComponent } from "./components/CodeComponent";
 
 function App() {
+  const messagesEndRef = useRef<any>(null);
+  const hasMessagesSent = () => messages.length > 0;
+
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>("");
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const { selectedOption, assistants, getAssistants, handleOptionSelected } = useAssistants();
+  const { selectedOption, assistants, getAssistants, handleOptionSelected, showInitialMessage, hideInitialMessage } = useAssistants(hasMessagesSent);
+
+  // Reference
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   // Function to handle sending a message
   const handleSendMessage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!inputValue.trim()) return;
 
-    // Constructing the user's message
+    hideInitialMessage();
+
     const userMessage: IMessage = {
       text: inputValue,
       sender: "user",
       timestamp: formatTime(new Date()),
     };
+    setMessages(currentMessages => [...currentMessages, userMessage]);
+    scrollToBottom();
 
-    const interpretingMessage: IMessage = {
-      text: "Interpreting request...",
-      sender: "interpreting",
-    };
-
-    setMessages((currentMessages) => [...currentMessages, userMessage, interpretingMessage]);
-
-    const question = {
-      question: inputValue,
-      assistant_id: selectedOption?.assistant_id,
-      ...(conversationId && { conversation_id: conversationId }),
-    };
 
     const requestOptions = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(question),
+      body: JSON.stringify({ question: inputValue, assistant_id: selectedOption?.assistant_id })
     };
 
     try {
       const response = await fetch("../../copilot/question", requestOptions);
       const data = await response.json();
-
       if (!conversationId) setConversationId(data.conversation_id);
-      setMessages((currentMessages) => [
-        ...currentMessages.filter((msg) => msg.sender !== "interpreting"),
-        { text: data.answer, sender: "bot", timestamp: formatTime(new Date()) },
-      ]);
+
+      typeMessage(data.answer);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -61,38 +60,43 @@ function App() {
     setInputValue("");
   };
 
-  // Effect to simulate typing animation for bot messages
-  useEffect(() => {
-    const lastMessageIndex = messages.length - 1;
-    if (
-      messages.length > 0 &&
-      messages[lastMessageIndex].sender === "bot" &&
-      messages[lastMessageIndex].text === ""
-    ) {
-      typeMessage("¡Hola! Soy un chatbot.", lastMessageIndex);
-    }
-  }, [messages]);
-
   // Function to simulate typing effect for messages
-  const typeMessage = (text: string, messageIndex: number) => {
+  const typeMessage = (text: string) => {
     let i = 0;
+    const typingSpeed = 20;
+
+    setMessages(currentMessages => [
+      ...currentMessages,
+      { text: "", sender: "bot", timestamp: formatTime(new Date()) }
+    ]);
+
     const typingEffect = setInterval(() => {
-      if (i < text.length) {
-        setMessages((currentMessages) =>
-          currentMessages.map((msg, index) =>
-            index === messageIndex ? { ...msg, text: msg.text + text[i++] } : msg
-          )
-        );
+      if (i <= text.length) {
+        setMessages(currentMessages => {
+          const newMessages = [...currentMessages];
+          const lastMessageIndex = newMessages.length - 1;
+          newMessages[lastMessageIndex] = {
+            ...newMessages[lastMessageIndex],
+            text: text.substring(0, i++)
+          };
+          return newMessages;
+        });
       } else {
         clearInterval(typingEffect);
       }
-    }, 20);
+    }, typingSpeed);
   };
 
   // Effect to get assistants on initial component mount
   useEffect(() => {
     getAssistants();
   }, []);
+
+  // Reset the conversation when a new attendee is selected
+  useEffect(() => {
+    setMessages([]);
+    setConversationId(null);
+  }, [selectedOption]);
 
 
   // Function to handle conversation selection
@@ -101,53 +105,53 @@ function App() {
   };
 
   return (
-    <div className="h-screen w-screen pt-2 pb-1 px-[12px] bg-gray-200 flex flex-col justify-end">
+    <div className="h-screen w-screen flex flex-col">
+      {/* Initial message and model selection */}
+      <div className="w-full border-b py-[0.35rem] px-2 border-gray-600">
+        {assistants &&
+          <Input
+            value={selectedOption?.name}
+            dataPicker={assistants}
+            typeField={"picker"}
+            displayKey="name"
+            onOptionSelected={(option: any) => handleOptionSelected(option)}
+            height={33}
+          />}
+      </div>
+
       {/* Chat display area */}
-      <div className="flex-1 overflow-y-auto text-sm hide-scrollbar">
-        {/* Initial message and model selection */}
-        {messages.length === 0 && (
-          <div>
-            <div className="w-full mb-2">
-              {assistants && <Input
-                value={selectedOption?.name}
-                dataPicker={assistants}
-                typeField={"picker"}
-                displayKey="name"
-                onOptionSelected={(option: any) => handleOptionSelected(option)}
-              />}
+      <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pt-2 pb-1 bg-gray-200">
+        {showInitialMessage &&
+          <div className="bg-white-900 p-5 rounded-lg text-blue-900 font-medium">
+            <div className="mb-2 text-xl font-semibold">
+              <p>Hi admin 👋</p>
+              <span> How can we help?</span>
             </div>
-            <div className="bg-white-900 p-5 rounded-lg text-blue-900 font-medium">
-              <div className="mb-2 text-xl font-semibold">
-                <p>Hi admin 👋</p>
-                <span> How can we help?</span>
-              </div>
-              <div>
-                {EXAMPLE_CONVERSATIONS.map((conversation, index) => (
-                  <div
-                    key={index}
-                    className="rounded-lg mt-4 text-gray-600 bg-gray-400 p-4 text-sm font-medium cursor-pointer hover:text-blue-900 transition duration-300 ease-in-out"
-                    onClick={() =>
-                      handleConversationClick(conversation.conversation)
-                    }
-                  >
-                    {conversation.conversation} →
-                  </div>
-                ))}
-              </div>
+            <div>
+              {EXAMPLE_CONVERSATIONS.map((conversation, index) => (
+                <div
+                  key={index}
+                  className="rounded-lg mt-4 text-gray-600 bg-gray-400 p-4 text-sm font-medium cursor-pointer hover:text-blue-900 transition duration-300 ease-in-out"
+                  onClick={() =>
+                    handleConversationClick(conversation.conversation)
+                  }
+                >
+                  {conversation.conversation} →
+                </div>
+              ))}
             </div>
-          </div>
-        )}
+          </div>}
 
         {/* Displaying messages */}
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`p-2 ${message.sender === "user" ? "text-right" : ""}`}
+            className={`p-2 text-sm ${message.sender === "user" ? "text-right" : ""}`}
           >
             {message.sender === "interpreting" && (
               <div className="flex items-center">
                 <img
-                  src={botcitoIcon}
+                  src={botIcon}
                   alt="Interpreting"
                   className="w-8 h-8 slow-bounce"
                 />
@@ -163,7 +167,17 @@ function App() {
                   : "bg-white-900 text-black rounded-tl-none"
                   } break-words overflow-hidden max-w-[90%]`}
               >
-                {message.text}
+                {message.sender === "bot" ? (
+                  <ReactMarkdown
+                    children={message.text}
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code: CodeComponent,
+                    }}
+                  />
+                ) : (
+                  <p>{message.text}</p>
+                )}
                 <span className="text-xs mt-1 text-gray-600">
                   {message.timestamp}
                 </span>
@@ -171,10 +185,11 @@ function App() {
             )}
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Message input area */}
-      <div className="bg-white-900 rounded-lg">
+      <div className="bg-white-900 rounded-lg mx-[12px]">
         <form
           onSubmit={handleSendMessage}
           className="flex w-full bg-white-900 rounded-lg px-2"
