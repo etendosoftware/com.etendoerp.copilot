@@ -60,6 +60,7 @@ public class RestService extends HttpSecureAppServlet {
     //parse the json
     JSONObject jsonrequest = new JSONObject(sb.toString());
     //get the question
+    response.setContentType("application/json; charset=UTF-8");
     JSONObject jsonresponse = new JSONObject();
     //check id assistant is set and is some of the valid assistants IDIDID1, IDIDID2, IDIDID3
     String jsonAssistanID = jsonrequest.optString(ASSISTANT_ID);

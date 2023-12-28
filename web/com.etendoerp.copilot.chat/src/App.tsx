@@ -109,7 +109,7 @@ function App() {
           <Input
             value={selectedOption?.name}
             dataPicker={assistants}
-            typeField="picker"
+            typeField="pressableText"
             displayKey="name"
             onOptionSelected={(option: any) => handleOptionSelected(option)}
             height={33}
