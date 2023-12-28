@@ -94,9 +94,11 @@ public class RestService extends HttpSecureAppServlet {
       //getting the object of the Timestamp class
       Timestamp tms = new Timestamp(date.getTime());
       response2.put("timestamp", tms.toString());
+      response.setContentType("application/json;charset=UTF-8");
       response.getWriter().write(response2.toString());
     } else {
       JSONObject responseJson = new JSONObject(jsonresponse.body());
+      response.setContentType("application/json;charset=UTF-8");
       response.getWriter().write(responseJson.toString());
     }
 
