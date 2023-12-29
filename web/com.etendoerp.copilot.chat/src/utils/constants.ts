@@ -11,3 +11,15 @@ export const MODEL_OPTIONS = [
   "Invoice Generator",
   "Window Creation",
 ];
+
+export const LOADING_MESSAGES = [
+  "Processing...",
+  "Analyzing request...",
+  "Formulating response...",
+  "Compiling data...",
+  "Synthesizing information...",
+  "Evaluating options...",
+  "Executing algorithms...",
+  "Optimizing performance...",
+  "Verifying results...",
+];

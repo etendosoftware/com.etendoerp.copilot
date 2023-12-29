@@ -2,24 +2,27 @@ import { useState, useEffect, ChangeEvent, FormEvent, useRef } from "react";
 import { IMessage } from "./interfaces/IMessage";
 import { useAssistants } from "./hooks/useAssistants";
 import { formatTime } from "./utils/functions";
-import Input from "etendo-ui-library/dist-web/components/input/Input";
 import enterIcon from "./assets/enter.svg";
 import purpleEnterIcon from "./assets/purple_enter.svg";
 import botIcon from "./assets/botcito.svg";
+import responseSent from "./assets/response-sent.svg";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import "./App.css";
 import { CodeComponent } from "./components/CodeComponent";
+import { LOADING_MESSAGES } from "./utils/constants";
 
 function App() {
   const hasMessagesSent = () => messages.length > 0;
+  const [statusIcon, setStatusIcon] = useState(enterIcon);
   const [sendIcon, setSendIcon] = useState(enterIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>("");
+  const [lastQuestion, setLastQuestion] = useState<string>("");
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const { selectedOption, assistants, getAssistants, handleOptionSelected, showInitialMessage, hideInitialMessage } = useAssistants(hasMessagesSent);
+  const { selectedOption, getAssistants, showInitialMessage, hideInitialMessage } = useAssistants(hasMessagesSent);
 
   // References
   const messagesEndRef = useRef<any>(null);
@@ -30,14 +33,34 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Function to update the bot interpretation message
+  const updateInterpretingMessage = () => {
+    const randomIndex = Math.floor(Math.random() * LOADING_MESSAGES.length);
+    const newMessage = LOADING_MESSAGES[randomIndex];
+
+    setMessages(currentMessages => {
+      const lastInterpretingIndex = currentMessages.findIndex(message => message.sender === "interpreting");
+      if (lastInterpretingIndex !== -1) {
+        return [
+          ...currentMessages.slice(0, lastInterpretingIndex),
+          { ...currentMessages[lastInterpretingIndex], text: newMessage }
+        ];
+      }
+      return currentMessages;
+    });
+  };
+
   // Function to handle sending a message
   const handleSendMessage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsBotLoading(true);
 
     if (!isBotLoading) {
-      if (!inputValue.trim()) return;
+      const question = inputValue.trim();
+      setInputValue("");
+      if (!question) return;
       hideInitialMessage();
+      setLastQuestion(question);
 
       const userMessage: IMessage = {
         text: inputValue,
@@ -53,6 +76,7 @@ function App() {
       };
 
       setMessages(currentMessages => [...currentMessages, interpretingMessage]);
+      setStatusIcon(botIcon);
 
       const requestOptions = {
         method: 'POST',
@@ -66,21 +90,55 @@ function App() {
         if (!conversationId) setConversationId(data.conversation_id);
 
         setTimeout(() => {
-          setMessages(currentMessages => [
-            ...currentMessages.filter(message => message !== interpretingMessage),
-            { text: data.answer, sender: "bot", timestamp: formatTime(new Date()) }
-          ]);
-          scrollToBottom();
-          setIsBotLoading(false);
-        }, 2000);
+          setMessages(currentMessages => currentMessages.map(message =>
+            message.sender === "interpreting" ?
+              { ...message, text: "Ready! Generating response..." } :
+              message
+          ));
+          setStatusIcon(responseSent);
+
+          setTimeout(() => {
+            setMessages(currentMessages => [
+              ...currentMessages.filter(message => message.sender !== "interpreting"),
+              { text: data.answer, sender: "bot", timestamp: formatTime(new Date()) }
+            ]);
+            scrollToBottom();
+            setIsBotLoading(false);
+            setStatusIcon(botIcon);
+          }, 2000);
+        }, 7000);
+
       } catch (error) {
         console.error('Error fetching data:', error);
+        setMessages(currentMessages => [
+          ...currentMessages.filter(message => message.sender !== "interpreting"),
+          { text: "We're sorry, but we couldn't generate a response. Please try again.", sender: "error", timestamp: formatTime(new Date()) }
+        ]);
         setIsBotLoading(false);
       }
-
-      setInputValue("");
     }
   };
+
+  // Effect to update the loading message
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const updateInterpretingMessageRandomly = () => {
+      // Every 5 and 10 second intervals the bot's response upload message is updated
+      const randomDelay = Math.random() * (10000 - 5000) + 5000;
+      updateInterpretingMessage();
+      intervalId = setTimeout(updateInterpretingMessageRandomly, randomDelay);
+    };
+
+    if (isBotLoading && statusIcon !== responseSent) {
+      updateInterpretingMessageRandomly();
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isBotLoading, statusIcon]);
+
 
   // Scroll bottom effect
   useEffect(() => {
@@ -89,7 +147,7 @@ function App() {
     }
   }, [messages]);
 
-  // Effect to get assistants on initial component mount
+  // Effect to retrieve assistants and set focus on the text input when the page first loads
   useEffect(() => {
     inputRef.current.focus();
     getAssistants();
@@ -103,20 +161,6 @@ function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col">
-      {/* Initial message and assistants selection */}
-      <div className="w-full assistants-shadow border-b py-[0.35rem] px-2 border-gray-600">
-        {assistants &&
-          <Input
-            value={selectedOption?.name}
-            dataPicker={assistants}
-            typeField="pressableText"
-            displayKey="name"
-            onOptionSelected={(option: any) => handleOptionSelected(option)}
-            height={33}
-          />
-        }
-      </div>
-
       {/* Chat display area */}
       <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pt-2 pb-1 bg-gray-200">
         {showInitialMessage &&
@@ -131,23 +175,28 @@ function App() {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`p-2 text-sm ${message.sender === "user" ? "text-right" : ""}`}
+            className={`p-2 text-sm ${message.sender === "user"
+              ? "text-right user-message slide-up-fade-in"
+              : message.sender === "interpreting"
+                ? ""
+                : "message-animation"
+              }`}
           >
             {message.sender === "interpreting" && (
-              <div className="flex items-center">
+              <div className={`flex items-center`}>
                 <img
-                  src={botIcon}
-                  alt="Interpreting"
-                  className="w-8 h-8 slow-bounce"
+                  src={statusIcon}
+                  alt="Status Icon"
+                  className={statusIcon === responseSent ? "w-5 h-5 mr-1" : "w-8 h-8 slow-bounce"}
                 />
-                <span className="text-sm ml-1 font-normal text-gray-700">
+                <span className={`text-sm ml-1 font-normal text-gray-700`}>
                   {message.text}
                 </span>
               </div>
             )}
             {message.sender !== "interpreting" && (
               <p
-                className={`inline-flex flex-col p-2 rounded-lg ${message.sender === "user"
+                className={`slide-up-fade-in inline-flex flex-col p-2 rounded-lg ${message.sender === "user"
                   ? "bg-gray-400 text-gray-600 rounded-tr-none"
                   : "bg-white-900 text-black rounded-tl-none"
                   } break-words overflow-hidden max-w-[90%]`}
@@ -167,6 +216,15 @@ function App() {
                   {message.timestamp}
                 </span>
               </p>
+            )}
+
+            {message.sender === "error" && (
+              <div className="bg-red-500 text-white p-3 rounded">
+                <p>{message.text}</p>
+                <button onClick={() => setInputValue(lastQuestion)} className="bg-white text-red-500 p-2 mt-2 rounded">
+                  Retry Last Question
+                </button>
+              </div>
             )}
           </div>
         ))}
