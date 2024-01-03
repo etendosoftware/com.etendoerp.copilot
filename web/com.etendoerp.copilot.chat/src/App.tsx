@@ -1,4 +1,5 @@
 import { useState, useEffect, ChangeEvent, FormEvent, useRef } from "react";
+import Input from "etendo-ui-library/dist-web/components/input/Input";
 import { IMessage } from "./interfaces/IMessage";
 import { useAssistants } from "./hooks/useAssistants";
 import { formatTime } from "./utils/functions";
@@ -13,7 +14,11 @@ import { CodeComponent } from "./components/CodeComponent";
 import { LOADING_MESSAGES } from "./utils/constants";
 
 function App() {
+  // Constants
   const hasMessagesSent = () => messages.length > 0;
+  const isShowAssistants = import.meta.env.VITE_SHOW_ASSISTANTS === 'Y';
+
+  // States
   const [statusIcon, setStatusIcon] = useState(enterIcon);
   const [sendIcon, setSendIcon] = useState(enterIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
@@ -22,7 +27,7 @@ function App() {
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const { selectedOption, getAssistants, showInitialMessage, hideInitialMessage } = useAssistants(hasMessagesSent);
+  const { selectedOption, assistants, getAssistants, handleOptionSelected, showInitialMessage, hideInitialMessage } = useAssistants(hasMessagesSent);
 
   // References
   const messagesEndRef = useRef<any>(null);
@@ -161,6 +166,20 @@ function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col">
+      {/* Initial message and assistants selection */}
+      {isShowAssistants && assistants &&
+        <div className="w-full assistants-shadow border-b py-[0.35rem] px-2 border-gray-600">
+          <Input
+            value={selectedOption?.name}
+            dataPicker={assistants}
+            typeField="picker"
+            displayKey="name"
+            onOptionSelected={(option: any) => handleOptionSelected(option)}
+            height={33}
+          />
+        </div>
+      }
+
       {/* Chat display area */}
       <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pt-2 pb-1 bg-gray-200">
         {showInitialMessage &&
