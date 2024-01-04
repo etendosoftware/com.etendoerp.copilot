@@ -22,7 +22,7 @@ class AgentEnum(str, Enum):
 
 @dataclass
 class AssistantResponse:
-    message: str
+    response: str
     assistant_id: str
     conversation_id: str
 
