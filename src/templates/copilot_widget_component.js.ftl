@@ -24,23 +24,33 @@ isc.Button.create({
       // If it is already open, simply return without doing anything
       return;
     }
-    
-    // Define a function to adjust the window position
-    function adjustWindowPosition() {
-      var newLeft = Math.max(0, isc.Page.getWidth() - WINDOW_WIDTH);
-      var newTop = Math.max(0, isc.Page.getHeight() - WINDOW_HEIGHT);
-      myWindow.setLeft(newLeft);
-      myWindow.setTop(newTop);
-    }
 
     // Define constants for commonly used values
-    WHITE_COLOR = "#FFFFFF"
+    WHITE_COLOR ="#FFFFFF"
     GRAY_COLOR = "#666666"
     LIGHT_GRAY_COLOR = "#F2F5F9"
+    LIGHT_GRAY_COLOR_200 = "#EFF1F7"
     BUTTON_WIDTH = 80
     BUTTON_HEIGHT = 30
     WINDOW_WIDTH = 425
     WINDOW_HEIGHT = 650
+    
+    // Define a function to adjust the window position
+    function adjustWindowPosition() {
+      if (window.maximizeCopilotWindow) {
+        var newLeftMax = Math.max(0, isc.Page.getWidth() - WINDOW_WIDTH);
+        var newTopMax = Math.max(0, isc.Page.getHeight() - WINDOW_HEIGHT);
+        window.maximizeCopilotWindow.setLeft(newLeftMax);
+        window.maximizeCopilotWindow.setTop(newTopMax);
+      }
+
+      if (window.minimizeCopilotWindow) {
+        var newLeftMin = Math.max(0, isc.Page.getWidth() - WINDOW_WIDTH);
+        var newTopMin = Math.max(0, isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT);
+        window.minimizeCopilotWindow.setLeft(newLeftMin);
+        window.minimizeCopilotWindow.setTop(newTopMin);
+      }
+    }
     
     // Adjust Window Position Function
     adjustWindowPosition = function(win) {
@@ -99,7 +109,7 @@ isc.Button.create({
           cursor: pointer;
       }
       .close-button-container:hover {
-        background-color: #EFF1F7;
+        background-color: LIGHT_GRAY_COLOR_200;
       }
       .copilot-logotype {
         width: 3rem;
@@ -122,7 +132,7 @@ isc.Button.create({
       .copilot-title {
           font-size: 1.3rem;
           font-weight: bold;
-          color: #666666;
+          color: GRAY_COLOR;
       }
       </style>
     </head>
@@ -133,11 +143,11 @@ isc.Button.create({
           <span class="copilot-title">Copilot</span>
         </div>
         <div class="action-buttons-container">
-          <img class="icon-button" onclick='window.toggleWindows()' src="web/images/minimize.svg" alt="Botón Cerrar">
-          <img class="icon-button" onclick="window.maximizeCopilotWindow.hide()" src="web/images/Close.png" alt="Botón Cerrar">
+          <img class="icon-button" onclick='window.toggleWindows()' src="web/images/minimize.svg" alt="Minimize button">
+          <img class="icon-button" onclick="window.maximizeCopilotWindow.hide()" src="web/images/Close.png" alt="Close button">
         </div>
       </div>
-      <iframe width="100%" height="575px" src="web/com.etendoerp.copilot.dist" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      <iframe width="100%" height="585px" src="web/com.etendoerp.copilot.dist" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
     </body>
 
     </html>
@@ -154,7 +164,7 @@ isc.Button.create({
       title: "Window 2",
       width: WINDOW_WIDTH,
       styleName: 'widgetContainer',
-      height: 50,
+      height: 50.5,
       canDragReposition: true,
       canDragResize: true,
       headerProperties: {
@@ -184,7 +194,7 @@ isc.Button.create({
             cursor: pointer;
         }
         .close-button-container:hover {
-          background-color: #EFF1F7;
+          background-color: LIGHT_GRAY_COLOR_200;
         }
         .copilot-logotype {
           width: 3rem;
@@ -207,7 +217,7 @@ isc.Button.create({
         .copilot-title {
             font-size: 1.3rem;
             font-weight: bold;
-            color: #666666;
+            color: GRAY_COLOR;
         }
         </style>
       </head>
@@ -218,8 +228,8 @@ isc.Button.create({
             <span class="copilot-title">Copilot</span>
           </div>
           <div class="action-buttons-container">
-            <img class="icon-button" onclick='window.toggleWindows()' src="web/images/maximize.svg" alt="Botón Cerrar">
-            <img class="icon-button" onclick="window.minimizeCopilotWindow.hide()" src="web/images/Close.png" alt="Botón Cerrar">
+            <img class="icon-button" onclick='window.toggleWindows()' src="web/images/maximize.svg" alt="Maximize button">
+            <img class="icon-button" onclick="window.minimizeCopilotWindow.hide()" src="web/images/Close.png" alt="Close button">
           </div>
         </div>
       </body>
@@ -239,6 +249,5 @@ isc.Button.create({
 
     isc.Page.setEvent("resize", adjustWindowPosition);
     adjustWindowPosition();
-    myWindow.show();
   }
 })
