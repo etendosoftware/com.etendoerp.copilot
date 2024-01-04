@@ -67,8 +67,6 @@ class AssistantAgent(CopilotAgent):
     def execute(self, question: QuestionSchema) -> AgentResponse:
         from openai import NotFoundError, APIConnectionError, APITimeoutError
         try:
-            if question.assistant_id:
-                self._update_assistant(assistant_id=question.assistant_id)
 
             # If no conversation_id is provided, create a new conversation thread.
             thread_id = question.conversation_id
@@ -128,7 +126,7 @@ class AssistantAgent(CopilotAgent):
             return AgentResponse(
                 input=question.model_dump_json(),
                 output=AssistantResponse(
-                    message=message, assistant_id=question.assistant_id, conversation_id=thread_id
+                    response=message, assistant_id=question.assistant_id, conversation_id=thread_id
                 ),
             )
         except (APIConnectionError, APITimeoutError) as ex:
