@@ -16,13 +16,12 @@ import { IS_SHOW_ASSISTANTS, LOADING_MESSAGES } from "./utils/constants";
 function App() {
   // Constants
   const hasMessagesSent = () => messages.length > 0;
-  
+
   // States
   const [statusIcon, setStatusIcon] = useState(enterIcon);
   const [sendIcon, setSendIcon] = useState(enterIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>("");
-  const [lastQuestion, setLastQuestion] = useState<string>("");
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -64,7 +63,6 @@ function App() {
       setInputValue("");
       if (!question) return;
       hideInitialMessage();
-      setLastQuestion(question);
 
       const userMessage: IMessage = {
         text: inputValue,
@@ -114,10 +112,6 @@ function App() {
 
       } catch (error) {
         console.error('Error fetching data:', error);
-        setMessages(currentMessages => [
-          ...currentMessages.filter(message => message.sender !== "interpreting"),
-          { text: "We're sorry, but we couldn't generate a response. Please try again.", sender: "error", timestamp: formatTime(new Date()) }
-        ]);
         setIsBotLoading(false);
       }
     }
@@ -166,7 +160,7 @@ function App() {
   return (
     <div className="h-screen w-screen flex flex-col">
       {/* Initial message and assistants selection */}
-      {IS_SHOW_ASSISTANTS && assistants &&
+      {IS_SHOW_ASSISTANTS.yes && assistants &&
         <div className="w-full assistants-shadow border-b py-[0.35rem] px-2 border-gray-600">
           <Input
             value={selectedOption?.name}
@@ -234,15 +228,6 @@ function App() {
                   {message.timestamp}
                 </span>
               </p>
-            )}
-
-            {message.sender === "error" && (
-              <div className="bg-red-500 text-white p-3 rounded">
-                <p>{message.text}</p>
-                <button onClick={() => setInputValue(lastQuestion)} className="bg-white text-red-500 p-2 mt-2 rounded">
-                  Retry Last Question
-                </button>
-              </div>
             )}
           </div>
         ))}

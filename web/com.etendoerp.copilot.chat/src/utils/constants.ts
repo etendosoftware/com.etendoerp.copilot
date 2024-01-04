@@ -26,4 +26,7 @@ export const LOADING_MESSAGES = [
 ];
 
 // Constant to show the assistants
-export const IS_SHOW_ASSISTANTS = import.meta.env.VITE_SHOW_ASSISTANTS === 'Y';
+export const IS_SHOW_ASSISTANTS = {
+  yes: "Y",
+  no: "N"
+};
