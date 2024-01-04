@@ -9,6 +9,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.sql.Timestamp;
 import java.util.Date;
+import java.util.List;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -20,11 +21,18 @@ import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.module.Module;
+import org.openbravo.model.ad.system.Language;
+import org.openbravo.model.ad.ui.Message;
+import org.openbravo.model.ad.ui.MessageTrl;
 
 public class RestService extends HttpSecureAppServlet {
 
@@ -39,6 +47,7 @@ public class RestService extends HttpSecureAppServlet {
   public static final String PROP_CONVERSATION_ID = "conversation_id";
   public static final String PROP_QUESTION = "question";
   public static final String PROP_TYPE = "type";
+  public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
 
 
   @Override
@@ -47,9 +56,57 @@ public class RestService extends HttpSecureAppServlet {
     if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
       handleAssistants(response);
       return;
+
+    }  // add /labels to get the labels of the module
+    else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
+      response.setContentType("application/json;charset=UTF-8");
+      response.getWriter().write(getJSONLabels().toString());
+      return;
     }
     //if not a valid path, throw a error status
     response.sendError(HttpServletResponse.SC_NOT_FOUND);
+  }
+
+  private JSONObject getJSONLabels() {
+    try {
+      OBContext.setAdminMode(false);
+      Language lang = OBContext.getOBContext().getLanguage();
+      Module module = OBDal.getInstance().get(Module.class, COPILOT_MODULE_ID);
+      JSONObject jsonLabels = new JSONObject();
+
+      if (StringUtils.equals(module.getLanguage().getId(), lang.getId())) {
+        OBCriteria<Message> msgCrit = OBDal.getInstance().createCriteria(Message.class);
+        msgCrit.add(Restrictions.eq(Message.PROPERTY_MODULE, module));
+        List<Message> msgList = msgCrit.list();
+        for (Message msg : msgList) {
+          try {
+            jsonLabels.put(msg.getIdentifier(), msg.getMessageText());
+          } catch (JSONException e) {
+            log4j.error(e);
+          }
+        }
+        return jsonLabels;
+      } else {
+        OBCriteria<MessageTrl> msgTrlCrit = OBDal.getInstance().createCriteria(MessageTrl.class);
+        msgTrlCrit.add(Restrictions.eq(MessageTrl.PROPERTY_LANGUAGE, lang));
+        msgTrlCrit.createAlias(MessageTrl.PROPERTY_MESSAGE, "msg");
+        msgTrlCrit.add(Restrictions.eq("msg." + Message.PROPERTY_MODULE, module));
+        List<MessageTrl> msgTrlList = msgTrlCrit.list();
+        for (MessageTrl msgTrl : msgTrlList) {
+          try {
+            jsonLabels.put(msgTrl.getMessage().getIdentifier(), msgTrl.getMessageText());
+          } catch (JSONException e) {
+            log4j.error(e);
+          }
+        }
+        return jsonLabels;
+      }
+
+
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+
   }
 
   @Override
