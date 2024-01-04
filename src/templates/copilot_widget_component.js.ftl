@@ -53,14 +53,8 @@ isc.Button.create({
     window.toggleWindows = function() {
     if (window.maximizeCopilotWindow && window.maximizeCopilotWindow.isVisible()) {
       window.maximizeCopilotWindow.hide();
-      if (!window.minimizeCopilotWindow) {
-        createWindow2();
-      }
       window.minimizeCopilotWindow.show();
       } else {
-        if (!window.maximizeCopilotWindow) {
-          createWindow1();
-        }
         window.maximizeCopilotWindow.show();
         if (window.minimizeCopilotWindow) {
           window.minimizeCopilotWindow.hide();
@@ -226,9 +220,6 @@ isc.Button.create({
     }
 
     // Initial Toggle Logic
-    if (!window.maximizeCopilotWindow) {
-        createWindow1();
-    }
     window.maximizeCopilotWindow.show();
     if (window.minimizeCopilotWindow && window.minimizeCopilotWindow.isVisible()) {
         window.minimizeCopilotWindow.hide();
