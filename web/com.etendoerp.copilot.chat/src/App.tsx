@@ -11,7 +11,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import "./App.css";
 import { CodeComponent } from "./components/CodeComponent";
-import { IS_SHOW_ASSISTANTS, LOADING_MESSAGES } from "./utils/constants";
+import { LOADING_MESSAGES } from "./utils/constants";
 
 function App() {
   // Constants
@@ -160,7 +160,7 @@ function App() {
   return (
     <div className="h-screen w-screen flex flex-col">
       {/* Initial message and assistants selection */}
-      {IS_SHOW_ASSISTANTS.yes && assistants &&
+      {assistants &&
         <div className="w-full assistants-shadow border-b py-[0.35rem] px-2 border-gray-600">
           <Input
             value={selectedOption?.name}
