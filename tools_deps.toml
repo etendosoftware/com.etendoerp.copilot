@@ -1,3 +1,2 @@
 [HelloWorldTool]
-matplotlib = "*"  # latest
 pytz = "==2021.3"
