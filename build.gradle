@@ -44,5 +44,6 @@ repositories {
  * Ex: implementation "com.sun.mail:javax.mail:1.6.2"
  */
  dependencies {
+    implementation group: 'com.konghq', name: 'unirest-java', version: '3.14.5'
  }
  
