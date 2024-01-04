@@ -51,26 +51,26 @@ isc.Button.create({
       
     // Define toggleWindows function globally
     window.toggleWindows = function() {
-    if (window.myWindow1 && window.myWindow1.isVisible()) {
-      window.myWindow1.hide();
-      if (!window.myWindow2) {
+    if (window.maximizeCopilotWindow && window.maximizeCopilotWindow.isVisible()) {
+      window.maximizeCopilotWindow.hide();
+      if (!window.minimizeCopilotWindow) {
         createWindow2();
       }
-      window.myWindow2.show();
+      window.minimizeCopilotWindow.show();
       } else {
-        if (!window.myWindow1) {
+        if (!window.maximizeCopilotWindow) {
           createWindow1();
         }
-        window.myWindow1.show();
-        if (window.myWindow2) {
-          window.myWindow2.hide();
+        window.maximizeCopilotWindow.show();
+        if (window.minimizeCopilotWindow) {
+          window.minimizeCopilotWindow.hide();
         }
     º}
     };
 
     // Create window for Copilot
-    if (!window.myWindow1) {
-    window.myWindow1 = isc.Window.create({
+    if (!window.maximizeCopilotWindow) {
+    window.maximizeCopilotWindow = isc.Window.create({
     width: WINDOW_WIDTH,
     styleName: 'widgetContainer',
     height: WINDOW_HEIGHT,
@@ -133,7 +133,7 @@ isc.Button.create({
         </div>
         <div class="action-buttons-container">
           <img class="close-button" onclick='window.toggleWindows()' src="web/images/minimize.svg" alt="Botón Cerrar">
-          <img class="close-button" onclick="window.parent.myWindow.close()" src="web/images/Close.png" alt="Botón Cerrar">
+          <img class="close-button" onclick="window.maximizeCopilotWindow.hide()" src="web/images/Close.png" alt="Botón Cerrar">
         </div>
       </div>
       <iframe width="100%" height="88.75%" src="https://www.youtube.com/embed/m-2ZMUKVboE?si=ZGsXhMnM8Pg0yLco" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
@@ -144,12 +144,12 @@ isc.Button.create({
     })],
     });
     
-    adjustWindowPosition(window.myWindow1);
+    adjustWindowPosition(window.maximizeCopilotWindow);
     }
 
     // Create a window when Copilot is minimized
-    if (!window.myWindow2) {
-      window.myWindow2 = isc.Window.create({
+    if (!window.minimizeCopilotWindow) {
+      window.minimizeCopilotWindow = isc.Window.create({
       title: "Window 2",
       width: WINDOW_WIDTH,
       styleName: 'widgetContainer',
@@ -213,7 +213,7 @@ isc.Button.create({
           </div>
           <div class="action-buttons-container">
             <img class="close-button" onclick='window.toggleWindows()' src="web/images/maximize.svg" alt="Botón Cerrar">
-            <img class="close-button" onclick="window.parent.myWindow.close()" src="web/images/Close.png" alt="Botón Cerrar">
+            <img class="close-button" onclick="window.minimizeCopilotWindow.hide()" src="web/images/Close.png" alt="Botón Cerrar">
           </div>
         </div>
       </body>
@@ -222,16 +222,16 @@ isc.Button.create({
       })
       ]
       });
-      adjustWindowPosition(window.myWindow2);
+      adjustWindowPosition(window.minimizeCopilotWindow);
     }
 
     // Initial Toggle Logic
-    if (!window.myWindow1) {
+    if (!window.maximizeCopilotWindow) {
         createWindow1();
     }
-    window.myWindow1.show();
-    if (window.myWindow2 && window.myWindow2.isVisible()) {
-        window.myWindow2.hide();
+    window.maximizeCopilotWindow.show();
+    if (window.minimizeCopilotWindow && window.minimizeCopilotWindow.isVisible()) {
+        window.minimizeCopilotWindow.hide();
     }
   }
 })
