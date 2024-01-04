@@ -11,13 +11,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import "./App.css";
 import { CodeComponent } from "./components/CodeComponent";
-import { LOADING_MESSAGES } from "./utils/constants";
+import { IS_SHOW_ASSISTANTS, LOADING_MESSAGES } from "./utils/constants";
 
 function App() {
   // Constants
   const hasMessagesSent = () => messages.length > 0;
-  const isShowAssistants = import.meta.env.VITE_SHOW_ASSISTANTS === 'Y';
-
+  
   // States
   const [statusIcon, setStatusIcon] = useState(enterIcon);
   const [sendIcon, setSendIcon] = useState(enterIcon);
@@ -167,7 +166,7 @@ function App() {
   return (
     <div className="h-screen w-screen flex flex-col">
       {/* Initial message and assistants selection */}
-      {isShowAssistants && assistants &&
+      {IS_SHOW_ASSISTANTS && assistants &&
         <div className="w-full assistants-shadow border-b py-[0.35rem] px-2 border-gray-600">
           <Input
             value={selectedOption?.name}

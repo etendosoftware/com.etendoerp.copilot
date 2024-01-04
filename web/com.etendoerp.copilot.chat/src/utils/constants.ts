@@ -12,6 +12,7 @@ export const MODEL_OPTIONS = [
   "Window Creation",
 ];
 
+// Loading messages while Copilot searches for the correct answer
 export const LOADING_MESSAGES = [
   "Processing...",
   "Analyzing request...",
@@ -23,3 +24,6 @@ export const LOADING_MESSAGES = [
   "Optimizing performance...",
   "Verifying results...",
 ];
+
+// Constant to show the assistants
+export const IS_SHOW_ASSISTANTS = import.meta.env.VITE_SHOW_ASSISTANTS === 'Y';
