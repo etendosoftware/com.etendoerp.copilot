@@ -176,14 +176,18 @@ function App() {
   useEffect(() => {
     getLabels();
     getAssistants();
-    inputRef.current.focus();
   }, []);
-
+  
   // Reset the conversation when a new attendee is selected
   useEffect(() => {
     setMessages([]);
     setConversationId(null);
   }, [selectedOption]);
+
+  // Effect to position focus on input
+  useEffect(()=> {
+    inputRef.current.focus();
+  }, [assistants, selectedOption])
 
   return (
     <div className="h-screen w-screen flex flex-col">
