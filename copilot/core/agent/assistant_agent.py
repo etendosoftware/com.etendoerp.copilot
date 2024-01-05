@@ -17,12 +17,10 @@ class AssistantAgent(CopilotAgent):
 
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-1106-preview")
     ASSISTANT_NAME: Final[str] = "Copilot [LOCAL]"
-    OPENAI_VERSION: Final[str] = "1.2.4"
 
     def __init__(self):
         # https://platform.openai.com/docs/assistants/overview/agents
         super().__init__()
-        self._assert_openai_is_installed(version=self.OPENAI_VERSION)
         self._client = None
         self._formated_tools_openai = None
         self._assistant = self._get_openai_assistant()
