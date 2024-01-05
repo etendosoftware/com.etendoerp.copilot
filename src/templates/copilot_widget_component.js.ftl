@@ -34,44 +34,58 @@ isc.Button.create({
     BUTTON_HEIGHT = 30
     WINDOW_WIDTH = 425
     WINDOW_HEIGHT = 650
+    MINIMIZED_WINDOW_HEIGHT = 50.5
     
-    // Define a function to adjust the window position
+    // Function to adjust window position
     function adjustWindowPosition() {
+      // Maximized window adjust
       if (window.maximizeCopilotWindow) {
-        var newLeftMax = Math.max(0, isc.Page.getWidth() - WINDOW_WIDTH);
-        var newTopMax = Math.max(0, isc.Page.getHeight() - WINDOW_HEIGHT);
-        window.maximizeCopilotWindow.setLeft(newLeftMax);
-        window.maximizeCopilotWindow.setTop(newTopMax);
+        newLeft = Math.max(0, isc.Page.getWidth() - WINDOW_WIDTH);
+        newTop = Math.max(0, isc.Page.getHeight() - WINDOW_HEIGHT);
+        window.maximizeCopilotWindow.setLeft(newLeft);
+        window.maximizeCopilotWindow.setTop(newTop);
       }
 
+      // Minimized window adjust
       if (window.minimizeCopilotWindow) {
-        var newLeftMin = Math.max(0, isc.Page.getWidth() - WINDOW_WIDTH);
-        var newTopMin = Math.max(0, isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT);
-        window.minimizeCopilotWindow.setLeft(newLeftMin);
-        window.minimizeCopilotWindow.setTop(newTopMin);
+        newLeft = isc.Page.getWidth() - WINDOW_WIDTH;
+        newTop = isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT;
+        window.minimizeCopilotWindow.setLeft(newLeft);
+        window.minimizeCopilotWindow.setTop(newTop);
       }
     }
-    
-    // Adjust Window Position Function
-    adjustWindowPosition = function(win) {
-      var newLeft = Math.max(0, isc.Page.getWidth() - win.getWidth());
-      var newTop = Math.max(0, isc.Page.getHeight() - win.getHeight());
-      win.setLeft(newLeft);
-      win.setTop(newTop);
-    };
-      
-    // Define toggleWindows function globally
-    window.toggleWindows = function() {
+
+  // Function to toggle between maximized and minimized window
+  window.toggleWindows = function() {
     if (window.maximizeCopilotWindow && window.maximizeCopilotWindow.isVisible()) {
       window.maximizeCopilotWindow.hide();
-      window.minimizeCopilotWindow.show();
-      } else {
-        window.maximizeCopilotWindow.show();
-        if (window.minimizeCopilotWindow) {
-          window.minimizeCopilotWindow.hide();
-        }
+      if (window.minimizeCopilotWindow) {
+        window.minimizeCopilotWindow.show();
+        adjustWindowPosition();
       }
-    };
+    } else {
+      window.maximizeCopilotWindow.show();
+      if (window.minimizeCopilotWindow) {
+        window.minimizeCopilotWindow.hide();
+      }
+    }
+  };
+
+  // Browser resize event to adjust window position
+  window.addEventListener('resize', adjustWindowPosition);
+
+    // Function to close Copilot windows
+    window.closeCopilotWindow = function() {
+        if (window.maximizeCopilotWindow) {
+            window.maximizeCopilotWindow.destroy();
+            window.maximizeCopilotWindow = null;
+        }
+
+        if (window.minimizeCopilotWindow) {
+            window.minimizeCopilotWindow.destroy();
+            window.minimizeCopilotWindow = null;
+        }
+    }
 
     // Create window for Copilot
     if (!window.maximizeCopilotWindow) {
@@ -144,7 +158,7 @@ isc.Button.create({
         </div>
         <div class="action-buttons-container">
           <img class="icon-button" onclick='window.toggleWindows()' src="web/images/minimize.svg" alt="Minimize button">
-          <img class="icon-button" onclick="window.maximizeCopilotWindow.hide()" src="web/images/Close.png" alt="Close button">
+          <img class="icon-button" onclick="window.closeCopilotWindow()" src="web/images/Close.png" alt="Close button">
         </div>
       </div>
       <iframe width="100%" height="585px" src="web/com.etendoerp.copilot.dist" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
@@ -154,8 +168,6 @@ isc.Button.create({
     `
     })],
     });
-    
-    adjustWindowPosition(window.maximizeCopilotWindow);
     }
 
     // Create a window when Copilot is minimized
@@ -229,7 +241,7 @@ isc.Button.create({
           </div>
           <div class="action-buttons-container">
             <img class="icon-button" onclick='window.toggleWindows()' src="web/images/maximize.svg" alt="Maximize button">
-            <img class="icon-button" onclick="window.minimizeCopilotWindow.hide()" src="web/images/Close.png" alt="Close button">
+            <img class="icon-button" onclick="window.closeCopilotWindow()" src="web/images/Close.png" alt="Close button">
           </div>
         </div>
       </body>
@@ -238,7 +250,6 @@ isc.Button.create({
       })
       ]
       });
-      adjustWindowPosition(window.minimizeCopilotWindow);
     }
 
     // Initial Toggle Logic
