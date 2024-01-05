@@ -16,6 +16,7 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -45,23 +46,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         throw new OBException(OBMessageUtils.messageBD("ETCOP_NoSelectedRecords"));
       }
       int syncCount = 0;
-      //print the current folder of this class
-      String filePath = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
-      File file = new File(filePath + "../../gradle.properties");
-      //read the file "gradle.properties" in the current folder
-      String configs;
-      StringBuilder sb = new StringBuilder();
-      try (FileReader filereader = new FileReader(file)) {
-        int j;
-        while ((j = filereader.read()) != -1) {
-          sb.append((char) j);
-        }
-      }
-      configs = sb.toString();
-      //convert the string to a properties object
-      Properties properties = new Properties();
-      properties.load(new java.io.StringReader(configs));
-      //get the value of the property "openaiApiKey"
+      Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
 
       String openaiApiKey = properties.getProperty(OPENAI_API_KEY);
 
