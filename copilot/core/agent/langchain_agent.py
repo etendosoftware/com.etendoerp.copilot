@@ -52,17 +52,18 @@ class LangchainAgent(CopilotAgent):
         )
 
         agent = (
-            {
-                "input": lambda x: x["input"],
-                "copilot_agent_scratchpad": lambda x: format_to_openai_functions(x["intermediate_steps"]),
-            }
-            | prompt
-            | llm_with_tools
-            | OpenAIFunctionsAgentOutputParser()
+                {
+                    "input": lambda x: x["input"],
+                    "copilot_agent_scratchpad": lambda x: format_to_openai_functions(x["intermediate_steps"]),
+                }
+                | prompt
+                | llm_with_tools
+                | OpenAIFunctionsAgentOutputParser()
         )
 
         return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True)
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
         langchain_respose: Dict = self._langchain_agent_executor.invoke({"input": question.question})
-        return AgentResponse(**langchain_respose)
+        output_answer = {"response": langchain_respose["output"]}
+        return AgentResponse(input=langchain_respose["input"], output=output_answer)
