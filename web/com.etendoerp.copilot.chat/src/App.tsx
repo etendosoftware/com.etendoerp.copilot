@@ -2,7 +2,7 @@ import { useState, useEffect, ChangeEvent, FormEvent, useRef } from "react";
 import Input from "etendo-ui-library/dist-web/components/input/Input";
 import { IMessage } from "./interfaces/IMessage";
 import { useAssistants } from "./hooks/useAssistants";
-import { formatTime } from "./utils/functions";
+import { formatTime, formatTimeNewDate } from "./utils/functions";
 import enterIcon from "./assets/enter.svg";
 import purpleEnterIcon from "./assets/purple_enter.svg";
 import botIcon from "./assets/bot.svg";
@@ -47,10 +47,9 @@ function App() {
     setMessages(currentMessages => {
       const lastInterpretingIndex = currentMessages.findIndex(message => message.sender === "interpreting");
       if (lastInterpretingIndex !== -1) {
-        return [
-          ...currentMessages.slice(0, lastInterpretingIndex),
-          { ...currentMessages[lastInterpretingIndex], text: newMessage }
-        ];
+        const updatedMessages = [...currentMessages];
+        updatedMessages[lastInterpretingIndex] = { ...updatedMessages[lastInterpretingIndex], text: newMessage };
+        return updatedMessages;
       }
       return currentMessages;
     });
@@ -82,26 +81,38 @@ function App() {
       // Delete previous error messages if they exist
       let updatedMessages = messages.filter(message => message.sender !== "error" && message.sender !== "interpreting");
 
+      // Add user message
       const userMessage: IMessage = {
         text: question,
         sender: "user",
-        timestamp: formatTime(new Date()),
+        timestamp: formatTimeNewDate(new Date()),
       };
 
-      // If the last message is from the user, replace it, if not, add a new one
-      if (updatedMessages.length > 0 && updatedMessages[updatedMessages.length - 1].sender === "user") {
-        updatedMessages[updatedMessages.length - 1] = userMessage;
-      } else {
-        updatedMessages.push(userMessage);
-      }
+      // Add interpreting message
+      const interpretingMessage: IMessage = {
+        text: "Interpreting request...",
+        sender: "interpreting",
+        timestamp: formatTimeNewDate(new Date())
+      };
+
+      updatedMessages.push(userMessage, interpretingMessage);
 
       setMessages(updatedMessages);
       setStatusIcon(botIcon);
 
+      // Prepare request body
+      const requestBody: any = {
+        question: inputValue,
+        app_id: selectedOption?.app_id
+      };
+      if (conversationId) {
+        requestBody.conversation_id = conversationId;
+      }
+
       const requestOptions = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: inputValue, app_id: selectedOption?.app_id })
+        body: JSON.stringify(requestBody)
       };
 
       try {
@@ -109,24 +120,23 @@ function App() {
         const data = await response.json();
         if (!conversationId) setConversationId(data.conversation_id);
 
-        setTimeout(() => {
-          setMessages((currentMessages: any) => currentMessages.map((message: IMessage) =>
-            message.sender === "interpreting" ?
-              { ...message, text: labels.ETCOP_Generated_Response } :
-              message
-          ));
-          setStatusIcon(responseSent);
+        // Update messages after response
+        setMessages((currentMessages: any) => currentMessages.map((message: IMessage) =>
+          message.sender === "interpreting" ?
+            { ...message, text: labels.ETCOP_Generated_Response } :
+            message
+        ));
+        setStatusIcon(responseSent);
 
-          setTimeout(() => {
-            setMessages(currentMessages => [
-              ...currentMessages.filter(message => message.sender !== "interpreting"),
-              { text: data.answer, sender: "bot", timestamp: formatTime(new Date()) }
-            ]);
-            scrollToBottom();
-            setIsBotLoading(false);
-            setStatusIcon(botIcon);
-          }, 2000);
-        }, 7000);
+        setTimeout(() => {
+          setMessages(currentMessages => [
+            ...currentMessages.filter(message => message.sender !== "interpreting"),
+            { text: data.response, sender: "bot", timestamp: formatTime(data.timestamp) }
+          ]);
+          scrollToBottom();
+          setIsBotLoading(false);
+          setStatusIcon(botIcon);
+        }, 2000);
 
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -136,7 +146,7 @@ function App() {
           {
             text: labels.ETCOP_ConectionError,
             sender: "error",
-            timestamp: formatTime(new Date())
+            timestamp: formatTimeNewDate(new Date())
           }
         ]);
         scrollToBottom();
@@ -146,24 +156,17 @@ function App() {
 
   // Effect to update the loading message
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-
-    const updateInterpretingMessageRandomly = () => {
-      // Every 5 and 10 second intervals the bot's response upload message is updated
-      const randomDelay = Math.random() * (10000 - 5000) + 5000;
-      updateInterpretingMessage();
-      intervalId = setTimeout(updateInterpretingMessageRandomly, randomDelay);
-    };
+    let intervalId: NodeJS.Timeout;
 
     if (isBotLoading && statusIcon !== responseSent) {
-      updateInterpretingMessageRandomly();
+      const randomDelay = Math.random() * (10000 - 5000) + 5000;
+      intervalId = setTimeout(updateInterpretingMessage, randomDelay);
     }
 
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
   }, [isBotLoading, statusIcon]);
-
 
   // Scroll bottom effect
   useEffect(() => {
@@ -177,7 +180,7 @@ function App() {
     getLabels();
     getAssistants();
   }, []);
-  
+
   // Reset the conversation when a new attendee is selected
   useEffect(() => {
     setMessages([]);
@@ -185,9 +188,9 @@ function App() {
   }, [selectedOption]);
 
   // Effect to position focus on input
-  useEffect(()=> {
+  useEffect(() => {
     inputRef.current.focus();
-  }, [assistants, selectedOption])
+  }, [assistants])
 
   return (
     <div className="h-screen w-screen flex flex-col">
@@ -210,7 +213,7 @@ function App() {
       }
 
       {/* Chat display area */}
-      <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pt-2 pb-1 bg-gray-200">
+      <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200">
         {messages.length === 0 && (
           <div className="bg-white-900 inline-flex p-5 py-3 rounded-lg text-blue-900 font-medium">
             <div className="font-semibold">
@@ -230,13 +233,13 @@ function App() {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`p-2 text-sm ${message.sender === "user"
+            className={`mt-[12px] text-sm ${message.sender === "user"
               ? "text-right user-message slide-up-fade-in"
               : message.sender === "interpreting"
                 ? ""
                 : message.sender === "error"
-                  ? "bg-red-100 text-red-900 p-2 rounded-lg"
-                  : "bg-white text-black p-2 rounded-lg"
+                  ? "bg-red-100 text-red-900 rounded-lg"
+                  : "bg-white text-black rounded-lg"
               }`}
           >
             {message.sender === "interpreting" && (
@@ -259,7 +262,7 @@ function App() {
                   } break-words overflow-hidden max-w-[90%]`}
               >
                 {message.sender === "error" ? (
-                  <div className="flex items-center gap-2">
+                  <div className="inline-flex items-center gap-2">
                     <div className="flex items-center justify-center w-4 h-4 bg-red-700 text-white rounded-full">
                       <img src={errorIcon} className="w-2 h-2" />
                     </div>
