@@ -2,16 +2,27 @@ package com.etendoerp.copilot.rest;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.sql.Timestamp;
+import java.util.Date;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.etendoerp.copilot.data.CopilotApp;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
+import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.dal.service.OBDal;
 
 public class RestService extends HttpSecureAppServlet {
 
@@ -57,31 +68,40 @@ public class RestService extends HttpSecureAppServlet {
     for (String line; (line = reader.readLine()) != null; ) {
       sb.append(line);
     }
-    //parse the json
-    JSONObject jsonrequest = new JSONObject(sb.toString());
-    //get the question
-    JSONObject jsonresponse = new JSONObject();
-    //check id assistant is set and is some of the valid assistants IDIDID1, IDIDID2, IDIDID3
-    String jsonAssistanID = jsonrequest.optString(ASSISTANT_ID);
-    if (jsonrequest.has(ASSISTANT_ID) && (StringUtils.equalsIgnoreCase(jsonAssistanID,
-        "IDIDID1") || StringUtils.equalsIgnoreCase(jsonAssistanID, "IDIDID2") || StringUtils.equalsIgnoreCase(
-        jsonAssistanID, "IDIDID3"))) {
-      jsonresponse.put(ASSISTANT_ID, jsonAssistanID);
-    } else {
-      jsonresponse.put("error", "Invalid assistant_id");
-      response.getWriter().write(jsonresponse.toString());
-      return;
+    HttpResponse<String> jsonresponse = null;
+    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    try {
+      HttpClient client = HttpClient.newBuilder().build();
+      HttpRequest copilotRequest = HttpRequest.newBuilder()
+          .uri(new URI("http://localhost:" + properties.getProperty("COPILOT_PORT") + "/question"))
+          .headers("Content-Type", "application/json;charset=UTF-8")
+          .POST(HttpRequest.BodyPublishers.ofString(sb.toString()))
+          .build();
+
+      jsonresponse = client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
+    } catch (URISyntaxException | InterruptedException e) {
+      log4j.error(e);
+      throw new OBException("Cannot connect to Copilot service");
     }
-    jsonresponse.put("answer", "This is the answer to your question: 42");
-    //add timestamp
-    jsonresponse.put("timestamp", System.currentTimeMillis());
-    //if the conversation_id is not set, set it random uuid . if it is set, use it
-    if (!jsonrequest.has(CONVERSATION_ID)) {
-      jsonresponse.put(CONVERSATION_ID, java.util.UUID.randomUUID().toString());
+    if(!StringUtils.isEmpty(properties.getProperty("AGENT_TYPE")) && StringUtils.equals( properties.getProperty("AGENT_TYPE"), "openai-assistant")) {
+      JSONObject responseJson = new JSONObject(jsonresponse.body());
+      JSONObject response2 = new JSONObject();
+      response2.put("assistant_id", ((JSONObject) responseJson.get("answer")).get("assistant_id"));
+      response2.put("conversation_id",
+          ((JSONObject) responseJson.get("answer")).get("conversation_id"));
+      response2.put("answer", ((JSONObject) responseJson.get("answer")).get("message"));
+      Date date = new Date();
+      //getting the object of the Timestamp class
+      Timestamp tms = new Timestamp(date.getTime());
+      response2.put("timestamp", tms.toString());
+      response.setContentType("application/json;charset=UTF-8");
+      response.getWriter().write(response2.toString());
     } else {
-      jsonresponse.put(CONVERSATION_ID, jsonrequest.getString(CONVERSATION_ID));
+      JSONObject responseJson = new JSONObject(jsonresponse.body());
+      response.setContentType("application/json;charset=UTF-8");
+      response.getWriter().write(responseJson.toString());
     }
-    response.getWriter().write(jsonresponse.toString());
+
   }
 
 
@@ -89,26 +109,13 @@ public class RestService extends HttpSecureAppServlet {
     try {
       //send json of assistants
       JSONArray assistants = new JSONArray();
-      JSONObject assistant = new JSONObject();
-      //first assistant
-      assistant.put(ASSISTANT_ID, "IDIDID1");
-      assistant.put("name", "Assistant 1 ");
-      assistant.put(IMAGE_BASE_64, IMAGE_EXAMPLE);
-      assistants.put(assistant);
-      //create another assistant
-      assistant = new JSONObject();
-      assistant.put(ASSISTANT_ID, "IDIDID2");
-      assistant.put("name", "Assistant example 2");
-      assistant.put(IMAGE_BASE_64, IMAGE_EXAMPLE);
-      assistants.put(assistant);
-      //create another assistant
-      assistant = new JSONObject();
-      assistant.put(ASSISTANT_ID, "IDIDID3");
-      assistant.put("name", "Assistant example NR3");
-      assistant.put(IMAGE_BASE_64, IMAGE_EXAMPLE);
-      assistants.put(assistant);
+      for (CopilotApp copilotApp : OBDal.getInstance().createQuery(CopilotApp.class, "").list()) {
+        JSONObject assistantJson = new JSONObject();
+        assistantJson.put(ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
+        assistantJson.put("name", copilotApp.getName());
+        assistants.put(assistantJson);
+      }
       response.getWriter().write(assistants.toString());
-
     } catch (Exception e) {
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
