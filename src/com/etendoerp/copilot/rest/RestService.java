@@ -9,29 +9,45 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.sql.Timestamp;
 import java.util.Date;
+import java.util.List;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.etendoerp.copilot.data.CopilotApp;
+
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.module.Module;
+import org.openbravo.model.ad.system.Language;
+import org.openbravo.model.ad.ui.Message;
+import org.openbravo.model.ad.ui.MessageTrl;
 
 public class RestService extends HttpSecureAppServlet {
 
   public static final String QUESTION = "/question";
   public static final String GET_ASSISTANTS = "/assistants";
-  public static final String CONVERSATION_ID = "conversation_id";
-  public static final String ASSISTANT_ID = "assistant_id";
-  public static final String IMAGE_BASE_64 = "image-base64";
-  public static final String IMAGE_EXAMPLE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFwAAABcCAMAAADUMSJqAAAApVBMVEX/zE3///9mRQD/zk7/ykT/y0lbOgD/0U//1FH/yT3/4qX/z1r//PZkQwBfPgD/8dXWrD7/yDb/9uT/78//5Kz/13//6bv/4J//1HD/+ezNpDpWNQD/1ndeOQD1xkpSMQBXLgBSJgDjtkNtSwx/XRa/lzSkfymRbSCwiS6bdiW4kDGGZBmDbE6XhXDf2tO6r6h1WjppSRuyppaHcFnMxLvv7OmdjH1TXNZ1AAAE50lEQVRogdWZa3eiMBCG0QgBgaj10q6WiEAVrddW+/9/2oarJhmQipyz+35qDTzMmUwmk4nSalDKvwC3XoaTUZdpNBm+WM+DW73u2DQGhtGJZbA/zXG3V+EL9+DW5L1jdFRV4aSq7Mf3yT1+OXw4HhgC9+YLxmA8fBg+MYvJGd+cPASfqPfQCV4txhfBe6Zxn5zIMHu/glvjQQWrc+sHY3hqQfhQ6VRHR+oo4MxC8NffmJ0Z/1oN/lbZ27cy3irALfOXLsnUMSXHi/A/4mKsLlX9Uw6vwQboPNyqw47oVgncrMVmdLMY/vbgXF7VeSuCvz4Ug7yMVxg+HNRnK8pgCMEtpabDE6mKBcDHtR2eqDOW4b2nOCXSoCfB60bhVdd4zOCTJ0RKJmMiwJ9mdySVhz/T8KvpSpnHEdZ1HSOYUDKYeT2BD0HDEV36mh9SEIBoyAaX8KAxvIGPQcOpTey2TXwIgKgfD9oUNH18hVtgjOsBaUciKx0YXKWDATDIYt3K4eB0IjpvJ5orkulIyQdBxyRTGsPfIa+gqZa+r/VleL9kkEl9z+AWmFWqwqfglHasFN6DY6UW3Oil8G4TlndTOByI9eBxMCrFy7Me3EzgFpxXUH+Wvj/zZLiXD4LRwpxuxfCXgm0CZ+9rGBjMLJ8Bg5EGLzEcTizs/TChzzYQfJMOhgXwKL0oJekWr2eEkNkafB0vSwaVZI0y+KhwZ9a9TbjxwORxZ5DF4iiGw2EeC2FclM7vDMaBXg6vof8eXjyhteCj4lAsnqmKD6ehKC8ihD2PFu/7/KM6pp4nP5ouImn5IxpoGvFXmymNwg0jJNrGfkhG6HSz8ommBdJmly5/KXFhP9p8bZtocxKsw2nfozSuUlIxJvX603AdkLlGbDvap31xpaaJS0y513QafYIQbabZvu8HwefnavX5GQTsH5v9SIh9fU5My1nKFTcLHMaGtznZnISxyHQhgeWbhRDoeMng9nbhOkTEiGKuc9zFlj1Fljw83+aEDTqGk11rf9gdT47rOCz78V9hTEIcNnQ67g771o7I8HyDFkoLvInc4h7iWuyyP3/97L6PJ+IuUrnkdPze/Xyd95e4rjq4kVuEpJ+XFkJRlE6oe25JsoCmzdkFJvRaFAlrFNFkk1kcZJKswyLZkfhAvynnhEJUDxIPu7v77J2bzIJQj94UokIw5kWFcwJcw7nk5KRhzhcYtyW0kF6Q4mdh4X7vi9H7bzcLIp9PEFzxLyxS/JGvUeIeDxeIfDkcFyRfnx9crPDHFjHtIv8a17bjbL/O3Acu56+t49w8ImQW4cAlHBWvBVXGdxen7e6Habc9sbXrcItKLMmEo6JoOg61tqBoVcaSUoIWwoYXHs+zM08FiWcm+XguNhYQCirSSYB4pwCNBaklUpHO2Px7UEtEbubgleR3WdpK2ILgZo7UhkKszL2Xz1mRKxgOt6GABpre90uN1/y+WIgWNdCA1h9C4bzQ82QeInHPL279AacjhOmaaIBzbI2sqVStlDUtoXYr0unGn/MrxyZzf0N1qRAqb7fCjWKMaVL6JIrKJYqBE8WdRnFhGzou2qYfTFOPsn+gZ+62uMua8yir7WBVaM63Gr1WaDV7IdLsVU6zl1CtRq/PIjV48Rfjm7uyjNTgZWukBq+JEzV2wZ2pqav5x9Uo/C8XwGOZ82ZPZAAAAABJRU5ErkJggg==";
+  public static final String APP_ID = "app_id";
+  public static final String PROP_ASSISTANT_ID = "assistant_id";
+  private static final String APP_TYPE_LANGCHAIN = "langchain";
+  private static final String APP_TYPE_OPENAI = "openai-assistant";
+  public static final String PROP_RESPONSE = "response";
+
+  public static final String PROP_CONVERSATION_ID = "conversation_id";
+  public static final String PROP_QUESTION = "question";
+  public static final String PROP_TYPE = "type";
+  public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
 
 
   @Override
@@ -40,9 +56,57 @@ public class RestService extends HttpSecureAppServlet {
     if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
       handleAssistants(response);
       return;
+
+    }  // add /labels to get the labels of the module
+    else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
+      response.setContentType("application/json;charset=UTF-8");
+      response.getWriter().write(getJSONLabels().toString());
+      return;
     }
     //if not a valid path, throw a error status
     response.sendError(HttpServletResponse.SC_NOT_FOUND);
+  }
+
+  private JSONObject getJSONLabels() {
+    try {
+      OBContext.setAdminMode(false);
+      Language lang = OBContext.getOBContext().getLanguage();
+      Module module = OBDal.getInstance().get(Module.class, COPILOT_MODULE_ID);
+      JSONObject jsonLabels = new JSONObject();
+
+      if (StringUtils.equals(module.getLanguage().getId(), lang.getId())) {
+        OBCriteria<Message> msgCrit = OBDal.getInstance().createCriteria(Message.class);
+        msgCrit.add(Restrictions.eq(Message.PROPERTY_MODULE, module));
+        List<Message> msgList = msgCrit.list();
+        for (Message msg : msgList) {
+          try {
+            jsonLabels.put(msg.getIdentifier(), msg.getMessageText());
+          } catch (JSONException e) {
+            log4j.error(e);
+          }
+        }
+        return jsonLabels;
+      } else {
+        OBCriteria<MessageTrl> msgTrlCrit = OBDal.getInstance().createCriteria(MessageTrl.class);
+        msgTrlCrit.add(Restrictions.eq(MessageTrl.PROPERTY_LANGUAGE, lang));
+        msgTrlCrit.createAlias(MessageTrl.PROPERTY_MESSAGE, "msg");
+        msgTrlCrit.add(Restrictions.eq("msg." + Message.PROPERTY_MODULE, module));
+        List<MessageTrl> msgTrlList = msgTrlCrit.list();
+        for (MessageTrl msgTrl : msgTrlList) {
+          try {
+            jsonLabels.put(msgTrl.getMessage().getIdentifier(), msgTrl.getMessageText());
+          } catch (JSONException e) {
+            log4j.error(e);
+          }
+        }
+        return jsonLabels;
+      }
+
+
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+
   }
 
   @Override
@@ -68,40 +132,68 @@ public class RestService extends HttpSecureAppServlet {
     for (String line; (line = reader.readLine()) != null; ) {
       sb.append(line);
     }
-    HttpResponse<String> jsonresponse = null;
+    HttpResponse<String> responseFromCopilot = null;
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String appType;
+    String appId;
     try {
       HttpClient client = HttpClient.newBuilder().build();
+      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
+      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      String jsonRequestStr = sb.toString();
+      JSONObject jsonRequestOriginal = new JSONObject(jsonRequestStr);
+      JSONObject jsonRequestForCopilot = new JSONObject();
+      jsonRequestForCopilot.put(PROP_QUESTION, jsonRequestOriginal.get(PROP_QUESTION));
+      String conversationId = jsonRequestOriginal.optString(PROP_CONVERSATION_ID);
+      if (StringUtils.isNotEmpty(conversationId)) {
+        jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
+      }
+      //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
+      // and we need to add the type of the assistant (openai or langchain)
+      appId = jsonRequestOriginal.getString(APP_ID);
+      CopilotApp copilotApp = OBDal.getInstance().get(CopilotApp.class, appId);
+      if (copilotApp == null) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
+      }
+      appType = copilotApp.getAppType();
+      if (StringUtils.equalsIgnoreCase(appType, APP_TYPE_LANGCHAIN)) {
+        jsonRequestForCopilot.put(PROP_TYPE, APP_TYPE_LANGCHAIN);
+      } else if (StringUtils.equalsIgnoreCase(appType, APP_TYPE_OPENAI)) {
+        jsonRequestForCopilot.put(PROP_TYPE, APP_TYPE_OPENAI);
+        jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
+      } else {
+        throw new OBException(
+            String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
+      }
+      String bodyReq = jsonRequestForCopilot.toString();
       HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI("http://localhost:" + properties.getProperty("COPILOT_PORT") + "/question"))
+          .uri(new URI(String.format("http://%s:%s/question", copilotHost, copilotPort)))
           .headers("Content-Type", "application/json;charset=UTF-8")
-          .POST(HttpRequest.BodyPublishers.ofString(sb.toString()))
+          .version(HttpClient.Version.HTTP_1_1)
+          .POST(HttpRequest.BodyPublishers.ofString(bodyReq))
           .build();
 
-      jsonresponse = client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
+      responseFromCopilot = client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
     } catch (URISyntaxException | InterruptedException e) {
       log4j.error(e);
-      throw new OBException("Cannot connect to Copilot service");
+      Thread.currentThread().interrupt();
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
-    if(!StringUtils.isEmpty(properties.getProperty("AGENT_TYPE")) && StringUtils.equals( properties.getProperty("AGENT_TYPE"), "openai-assistant")) {
-      JSONObject responseJson = new JSONObject(jsonresponse.body());
-      JSONObject response2 = new JSONObject();
-      response2.put("assistant_id", ((JSONObject) responseJson.get("answer")).get("assistant_id"));
-      response2.put("conversation_id",
-          ((JSONObject) responseJson.get("answer")).get("conversation_id"));
-      response2.put("answer", ((JSONObject) responseJson.get("answer")).get("message"));
-      Date date = new Date();
-      //getting the object of the Timestamp class
-      Timestamp tms = new Timestamp(date.getTime());
-      response2.put("timestamp", tms.toString());
-      response.setContentType("application/json;charset=UTF-8");
-      response.getWriter().write(response2.toString());
-    } else {
-      JSONObject responseJson = new JSONObject(jsonresponse.body());
-      response.setContentType("application/json;charset=UTF-8");
-      response.getWriter().write(responseJson.toString());
+    JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
+    JSONObject responseOriginal = new JSONObject();
+    responseOriginal.put(APP_ID, appId);
+    JSONObject answer = (JSONObject) responseJsonFromCopilot.get("answer");
+    String conversationId = answer.optString(PROP_CONVERSATION_ID);
+    if (StringUtils.isNotEmpty(conversationId)) {
+      responseOriginal.put(PROP_CONVERSATION_ID, conversationId);
     }
-
+    responseOriginal.put(PROP_RESPONSE, answer.get(PROP_RESPONSE));
+    Date date = new Date();
+    //getting the object of the Timestamp class
+    Timestamp tms = new Timestamp(date.getTime());
+    responseOriginal.put("timestamp", tms.toString());
+    response.setContentType("application/json;charset=UTF-8");
+    response.getWriter().write(responseOriginal.toString());
   }
 
 
@@ -111,7 +203,7 @@ public class RestService extends HttpSecureAppServlet {
       JSONArray assistants = new JSONArray();
       for (CopilotApp copilotApp : OBDal.getInstance().createQuery(CopilotApp.class, "").list()) {
         JSONObject assistantJson = new JSONObject();
-        assistantJson.put(ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
+        assistantJson.put(APP_ID, copilotApp.getId());
         assistantJson.put("name", copilotApp.getName());
         assistants.put(assistantJson);
       }

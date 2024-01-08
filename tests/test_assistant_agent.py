@@ -18,7 +18,7 @@ if os.getenv("AGENT_TYPE") != "openai-assistant":
 @pytest.fixture
 def assistant_agent() -> AssistantAgent:
     from copilot.core import agent
-    agent.AGENT_TYPE = agent.AgentEnum.OPENAI_ASSISTANT.value
+    agent.AGENT_TYPE_ENVAR = agent.AgentEnum.OPENAI_ASSISTANT.value
     agent.agent.CopilotAgent.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     return AssistantAgent()
 
