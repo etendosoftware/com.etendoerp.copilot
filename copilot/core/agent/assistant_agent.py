@@ -1,5 +1,6 @@
 import json
 import os
+import time
 
 from time import sleep
 from typing import Final
@@ -12,6 +13,11 @@ from ..schemas import QuestionSchema
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
 
 
+def _get_openai_client():
+    from openai import OpenAI
+    return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
 class AssistantAgent(CopilotAgent):
     """OpenAI Assistant Agent implementation."""
 
@@ -21,9 +27,9 @@ class AssistantAgent(CopilotAgent):
     def __init__(self):
         # https://platform.openai.com/docs/assistants/overview/agents
         super().__init__()
-        self._client = None
+        self._client = _get_openai_client()
         self._formated_tools_openai = None
-        self._assistant = self._get_openai_assistant()
+        self._assistant = None  # self._get_openai_assistant()
 
     def _get_openai_assistant(self):
         """Creates an assistant. An Assistant represents an entity that can be
@@ -38,8 +44,10 @@ class AssistantAgent(CopilotAgent):
         # Convert configured tools into a format compatible with OpenAI functions.
         tools = [format_tool_to_openai_function(tool) for tool in self._configured_tools]
         self._formated_tools_openai = [{"type": "function", "function": tool} for tool in tools]
+        # name with timestamp to avoid name conflicts
+        name = self.ASSISTANT_NAME + " " + str(int(time.time()))
         assistant = self._client.beta.assistants.create(
-            name=self.ASSISTANT_NAME,
+            name=name,
             instructions=self.SYSTEM_PROMPT,
             tools=self._formated_tools_openai,
             model=self.OPENAI_MODEL,
@@ -70,14 +78,13 @@ class AssistantAgent(CopilotAgent):
             thread_id = question.conversation_id
             if not thread_id:
                 thread_id = self._client.beta.threads.create().id
-
-            # Create a message in the conversation thread with the user's question.
-            message = self._client.beta.threads.messages.create(
-                thread_id=thread_id, role="user", content=question.question
-            )
-
-            # Start processing the conversation thread with the assistant.
             try:
+                # Create a message in the conversation thread with the user's question.
+                message = self._client.beta.threads.messages.create(
+                    thread_id=thread_id, role="user", content=question.question
+                )
+
+                # Start processing the conversation thread with the assistant.
                 run = self._client.beta.threads.runs.create(
                     thread_id=thread_id, assistant_id=question.assistant_id
                 )
