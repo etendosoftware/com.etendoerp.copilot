@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { IAssistant } from "../interfaces/IAssistant";
 
-export const useAssistants = (shouldHideInitialMessage: () => boolean) => {
+export const useAssistants = () => {
     const [selectedOption, setSelectedOption] = useState<IAssistant | null>(null);
     const [assistants, setAssistants] = useState<IAssistant[]>([]);
     const [showInitialMessage, setShowInitialMessage] = useState(true);
@@ -20,12 +20,15 @@ export const useAssistants = (shouldHideInitialMessage: () => boolean) => {
         }
     };
 
+    // Function to reset messages
+    const resetMessages = () => {
+        setShowInitialMessage(true);
+    };
+
     // Handle option selection
     const handleOptionSelected = (value: IAssistant | null) => {
         setSelectedOption(value);
-        if (shouldHideInitialMessage()) {
-            setShowInitialMessage(false);
-        }
+        resetMessages();
     };
 
     // Function to hide initial introduction
@@ -39,6 +42,7 @@ export const useAssistants = (shouldHideInitialMessage: () => boolean) => {
         getAssistants,
         handleOptionSelected,
         showInitialMessage,
-        hideInitialMessage
+        hideInitialMessage,
+        resetMessages
     };
 };
