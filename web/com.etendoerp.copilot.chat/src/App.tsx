@@ -196,7 +196,7 @@ function App() {
     <div className="h-screen w-screen flex flex-col">
       {/* Initial message and assistants selection */}
       {assistants.length > 0 &&
-        <div className="w-full assistants-shadow border-b py-[0.35rem] px-2 border-gray-600">
+        <div className="w-full assistants-shadow border-b py-1 px-2 border-gray-600">
           <Input
             value={selectedOption?.name}
             dataPicker={assistants}
@@ -215,7 +215,7 @@ function App() {
       {/* Chat display area */}
       <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200">
         {messages.length === 0 && (
-          <div className="bg-white-900 inline-flex p-5 py-3 rounded-lg text-blue-900 font-medium">
+          <div className="bg-white-900 inline-flex mt-[12px] p-5 py-3 rounded-lg text-blue-900 font-medium">
             <div className="font-semibold">
               {noAssistants ? (
                 <p className="text-lg">{labels.ETCOP_NoAssistant}</p>
