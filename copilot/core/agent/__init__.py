@@ -17,7 +17,7 @@ def _get_agent_executors():
     }
 
     # create a Dict with the class name as key and the class as value
-    # recorremos el diccionario de agentes y creamos una instancia de la clase que corresponda
+    # we go through the agents dictionary and create an instance of the corresponding class
     agents_classes = {}
     for agent in _agents.keys():
         print_green(f"Loading Copilot Agent: {agent}")
