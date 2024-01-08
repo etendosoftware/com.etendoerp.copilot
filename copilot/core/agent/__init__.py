@@ -8,20 +8,22 @@ from .agent import AgentEnum, AgentResponse
 from .assistant_agent import AssistantAgent
 from .langchain_agent import LangchainAgent
 
-AGENT_TYPE: Final[str] = utils.read_optional_env_var("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
 
 
-def _get_agent_executor():
+def _get_agent_executors():
     _agents = {
         AgentEnum.OPENAI_ASSISTANT.value: AssistantAgent.__name__,
         AgentEnum.LANGCHAIN.value: LangchainAgent.__name__,
     }
-    if AGENT_TYPE not in _agents:
-        raise UnsupportedAgent()
 
-    print_green(f"Copilot Agent: {AGENT_TYPE}")
-    class_name = globals()[_agents.get(AGENT_TYPE)]
-    return class_name()
+    # create a Dict with the class name as key and the class as value
+    # we go through the agents dictionary and create an instance of the corresponding class
+    agents_classes = {}
+    for agent in _agents.keys():
+        print_green(f"Loading Copilot Agent: {agent}")
+        class_name = globals()[_agents.get(agent)]
+        agents_classes[agent] = class_name()
+    return agents_classes
 
 
-copilot_agent = _get_agent_executor()
+copilot_agents = _get_agent_executors()

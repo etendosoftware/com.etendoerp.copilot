@@ -16,11 +16,9 @@ from .agent import AgentResponse, CopilotAgent
 
 class LangchainAgent(CopilotAgent):
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-3.5-turbo")
-    OPENAI_VERSION: Final[str] = "0.28.0"
 
     def __init__(self):
         super().__init__()
-        self._assert_openai_is_installed(version=self.OPENAI_VERSION)
         self._langchain_agent_executor: Final[BaseChatModel] = self._get_langchain_agent_executor(
             open_ai_model=self.OPENAI_MODEL
         )
