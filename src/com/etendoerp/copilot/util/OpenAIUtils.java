@@ -13,10 +13,12 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
+import org.openbravo.base.exception.OBException;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -44,9 +46,10 @@ public class OpenAIUtils {
     throw new IllegalStateException("Utility class");
   }
 
-  public static void syncAssistant(String openaiApiKey, CopilotApp app) throws JSONException {
+  public static void syncAssistant(String openaiApiKey, CopilotApp app) throws OBException {
     //first we need to get the assistant
     //if the app not has a assistant, we need to create it
+
     if (StringUtils.isEmpty(app.getOpenaiIdAssistant())) {
       String assistantId = OpenAIUtils.createAssistant(app, openaiApiKey);
       app.setOpenaiIdAssistant(assistantId);
@@ -54,12 +57,21 @@ public class OpenAIUtils {
       OBDal.getInstance().flush();
     } else {
       //we will update the assistant
-      OpenAIUtils.updateAssistant(app, openaiApiKey);
+      try {
+        JSONObject response = OpenAIUtils.updateAssistant(app, openaiApiKey);
+        if (response.has("error")) {
+          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
+              response.getJSONObject("error").getString("message")));
+        }
+      } catch (JSONException e) {
+        throw new OBException(e.getMessage());
+      }
     }
+
 
   }
 
-  private static void updateAssistant(CopilotApp app, String openaiApiKey) throws JSONException {
+  private static JSONObject updateAssistant(CopilotApp app, String openaiApiKey) throws JSONException {
     //almost the same as createAssistant, but we need to update the assistant
 
     String endpoint = "/assistants/" + app.getOpenaiIdAssistant();
@@ -71,25 +83,27 @@ public class OpenAIUtils {
       body.put("file_ids", files);
     }
     body.put("tools", buildToolsArray(app.isCodeInterpreter(), files.length() > 0, new JSONArray()));
-    body.put("model", app.getModel());
+    body.put("model", app.getModel().getSearchkey());
     //make the request to openai
     JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
     logIfDebug(jsonResponse.toString());
-
+    return jsonResponse;
   }
 
-  private static void listAssistants(String openaiApiKey) throws JSONException {
+  private static JSONArray listAssistants(String openaiApiKey) throws JSONException {
     String endpoint = "/assistants";
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, "GET", "?order=desc&limit=100"
     );
-    for (int i = 0; i < json.getJSONArray("data").length(); i++) {
-      JSONObject assistant = json.getJSONArray("data").getJSONObject(i);
+    JSONArray data = json.getJSONArray("data");
+    for (int i = 0; i < data.length(); i++) {
+      JSONObject assistant = data.getJSONObject(i);
       String created = assistant.getString(
           "created_at"); // convert the date to a timestamp. the created is in The Unix timestamp (in seconds) for when the assistant file was created.
       Date date = new Date(Long.parseLong(created) * 1000);
       logIfDebug(
           String.format("%s - %s - %s", assistant.getString("id"), assistant.getString("name"), date.toString()));
     }
+    return data;
 
   }
 
@@ -105,25 +119,32 @@ public class OpenAIUtils {
     logIfDebug(json.toString());
   }
 
-  private static String createAssistant(CopilotApp app, String openaiApiKey) throws JSONException {
+  private static String createAssistant(CopilotApp app, String openaiApiKey) throws OBException {
     //recreate the following curl commandç
+    try {
 
-    String endpoint = "/assistants";
-    JSONObject body = new JSONObject();
-    body.put("instructions", app.getPrompt());
-    body.put("name", app.getName());
-    JSONArray files = getArrayFiles(app);
-    if (files.length() > 0) {
-      body.put("file_ids", files);
+      String endpoint = "/assistants";
+      JSONObject body = new JSONObject();
+      body.put("instructions", app.getPrompt());
+      body.put("name", app.getName());
+      JSONArray files = getArrayFiles(app);
+      if (files.length() > 0) {
+        body.put("file_ids", files);
+      }
+      body.put("tools", buildToolsArray(app.isCodeInterpreter(), files.length() > 0, new JSONArray()
+          //TODO: add the tools of the tools tab
+      ));
+      body.put("model", app.getModel().getSearchkey());
+      //make the request to openai
+      JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
+      if (jsonResponse.has("error")) {
+          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
+              jsonResponse.getJSONObject("error").getString("message")));
+        }
+      return jsonResponse.getString("id");
+    } catch (JSONException e) {
+      throw new OBException(e.getMessage());
     }
-    body.put("tools", buildToolsArray(app.isCodeInterpreter(), files.length() > 0, new JSONArray()
-        //TODO: add the tools of the tools tab
-    ));
-    body.put("model", app.getModel());
-    //make the request to openai
-    JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
-    return jsonResponse.getString("id");
-
 
   }
 
@@ -290,7 +311,40 @@ public class OpenAIUtils {
     aim.download(attach.getId(), os);
     jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, endpoint, "assistants",
         attach.getName(), os);
+    if(jsonResponse.has("error")){
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSync.getName(),
+          jsonResponse.getJSONObject("error").getString("message")));
+    }
     return jsonResponse.getString("id");
   }
+
+  public static JSONArray getModelList(String openaiApiKey) {
+    try {
+      JSONObject list = makeRequestToOpenAI(openaiApiKey, "/models", null, "GET", null);
+
+      return new JSONArray(list.getString("data"));
+    } catch (JSONException e) {
+      throw new OBException(e.getMessage());
+    }
+  }
+
+  public static void deleteLocalAssistants(String openaiApiKey) {
+    try {
+      JSONArray assistants = listAssistants(openaiApiKey);
+      for (int i = 0; i < assistants.length(); i++) {
+        JSONObject assistant = assistants.getJSONObject(i);
+        if (assistant.getString("name").startsWith("Copilot [LOCAL]")) {
+          deleteAssistant(assistant.getString("id"), openaiApiKey);
+        }
+
+      }
+    } catch (JSONException e) {
+      throw new RuntimeException(e);
+    }
+
+
+  }
+
+
 }
 
