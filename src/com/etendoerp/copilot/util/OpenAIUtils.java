@@ -138,9 +138,9 @@ public class OpenAIUtils {
       //make the request to openai
       JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
       if (jsonResponse.has("error")) {
-          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
-              jsonResponse.getJSONObject("error").getString("message")));
-        }
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
+            jsonResponse.getJSONObject("error").getString("message")));
+      }
       return jsonResponse.getString("id");
     } catch (JSONException e) {
       throw new OBException(e.getMessage());
@@ -307,11 +307,15 @@ public class OpenAIUtils {
     OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
     Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
+    if (attach == null) {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"), fileToSync.getName()));
+    }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);
     jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, endpoint, "assistants",
         attach.getName(), os);
-    if(jsonResponse.has("error")){
+    if (jsonResponse.has("error")) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSync.getName(),
           jsonResponse.getJSONObject("error").getString("message")));
     }
@@ -336,15 +340,11 @@ public class OpenAIUtils {
         if (assistant.getString("name").startsWith("Copilot [LOCAL]")) {
           deleteAssistant(assistant.getString("id"), openaiApiKey);
         }
-
       }
     } catch (JSONException e) {
       throw new RuntimeException(e);
     }
-
-
   }
-
 
 }
 
