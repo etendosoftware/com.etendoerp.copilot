@@ -61,7 +61,7 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
-      <column name="MODEL" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="MODEL" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
