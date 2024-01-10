@@ -16,6 +16,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.CopilotRoleApp;
 
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
@@ -40,8 +41,8 @@ public class RestService extends HttpSecureAppServlet {
   public static final String GET_ASSISTANTS = "/assistants";
   public static final String APP_ID = "app_id";
   public static final String PROP_ASSISTANT_ID = "assistant_id";
-  private static final String APP_TYPE_LANGCHAIN = "langchain";
-  private static final String APP_TYPE_OPENAI = "openai-assistant";
+  public static final String APP_TYPE_LANGCHAIN = "langchain";
+  public static final String APP_TYPE_OPENAI = "openai-assistant";
   public static final String PROP_RESPONSE = "response";
 
   public static final String PROP_CONVERSATION_ID = "conversation_id";
@@ -56,7 +57,7 @@ public class RestService extends HttpSecureAppServlet {
     if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
       handleAssistants(response);
       return;
-
+      
     }  // add /labels to get the labels of the module
     else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
       response.setContentType("application/json;charset=UTF-8");
@@ -201,10 +202,13 @@ public class RestService extends HttpSecureAppServlet {
     try {
       //send json of assistants
       JSONArray assistants = new JSONArray();
-      for (CopilotApp copilotApp : OBDal.getInstance().createQuery(CopilotApp.class, "").list()) {
+      List<CopilotRoleApp> appList = OBDal.getInstance().createCriteria(CopilotRoleApp.class)
+          .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, OBContext.getOBContext().getRole()))
+          .list();
+      for (CopilotRoleApp roleApp : appList) {
         JSONObject assistantJson = new JSONObject();
-        assistantJson.put(APP_ID, copilotApp.getId());
-        assistantJson.put("name", copilotApp.getName());
+        assistantJson.put(APP_ID, roleApp.getCopilotApp().getId());
+        assistantJson.put("name", roleApp.getCopilotApp().getName());
         assistants.put(assistantJson);
       }
       response.getWriter().write(assistants.toString());

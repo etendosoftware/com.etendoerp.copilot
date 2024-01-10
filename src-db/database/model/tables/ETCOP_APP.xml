@@ -33,7 +33,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="NAME" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="NAME" primaryKey="false" required="true" type="VARCHAR" size="256" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -61,7 +61,7 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
-      <column name="MODEL" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="ETCOP_OPENAI_MODEL_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -70,6 +70,9 @@
       </foreign-key>
       <foreign-key foreignTable="AD_ORG" name="ETCOP_APP_ORG_FK">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="ETCOP_OPENAI_MODEL" name="ETCOP_MODEL_FK">
+        <reference local="ETCOP_OPENAI_MODEL_ID" foreign="ETCOP_OPENAI_MODEL_ID"/>
       </foreign-key>
       <check name="ETCOP_APP_CODE_INTERP_CHK"><![CDATA[CODE_INTERPRETER IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
