@@ -1,28 +1,34 @@
 import { useState, useEffect, ChangeEvent, FormEvent, useRef } from "react";
+import Input from "etendo-ui-library/dist-web/components/input/Input";
 import { IMessage } from "./interfaces/IMessage";
 import { useAssistants } from "./hooks/useAssistants";
-import { formatTime } from "./utils/functions";
+import { formatTime, formatTimeNewDate } from "./utils/functions";
 import enterIcon from "./assets/enter.svg";
 import purpleEnterIcon from "./assets/purple_enter.svg";
-import botIcon from "./assets/botcito.svg";
+import botIcon from "./assets/bot.svg";
+import errorIcon from "./assets/error.svg";
 import responseSent from "./assets/response-sent.svg";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import "./App.css";
 import { CodeComponent } from "./components/CodeComponent";
 import { LOADING_MESSAGES } from "./utils/constants";
+import { ILabels } from "./interfaces";
 
 function App() {
-  const hasMessagesSent = () => messages.length > 0;
-  const [statusIcon, setStatusIcon] = useState(enterIcon);
+  // States
+  const [labels, setLabels] = useState<ILabels>({});
   const [sendIcon, setSendIcon] = useState(enterIcon);
+  const [statusIcon, setStatusIcon] = useState(enterIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>("");
-  const [lastQuestion, setLastQuestion] = useState<string>("");
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const { selectedOption, getAssistants, showInitialMessage, hideInitialMessage } = useAssistants(hasMessagesSent);
+  const { selectedOption, assistants, getAssistants, handleOptionSelected } = useAssistants();
+
+  // Constants
+  const noAssistants = assistants.length === 0;
 
   // References
   const messagesEndRef = useRef<any>(null);
@@ -41,13 +47,25 @@ function App() {
     setMessages(currentMessages => {
       const lastInterpretingIndex = currentMessages.findIndex(message => message.sender === "interpreting");
       if (lastInterpretingIndex !== -1) {
-        return [
-          ...currentMessages.slice(0, lastInterpretingIndex),
-          { ...currentMessages[lastInterpretingIndex], text: newMessage }
-        ];
+        const updatedMessages = [...currentMessages];
+        updatedMessages[lastInterpretingIndex] = { ...updatedMessages[lastInterpretingIndex], text: newMessage };
+        return updatedMessages;
       }
       return currentMessages;
     });
+  };
+
+  // Fetch labels data
+  const getLabels = async () => {
+    const requestOptions = {
+      method: 'GET',
+    }
+
+    const response = await fetch("../../copilot/labels", requestOptions);
+    const data = await response.json();
+    if (data) {
+      setLabels(data);
+    }
   };
 
   // Function to handle sending a message
@@ -59,29 +77,42 @@ function App() {
       const question = inputValue.trim();
       setInputValue("");
       if (!question) return;
-      hideInitialMessage();
-      setLastQuestion(question);
 
+      // Delete previous error messages if they exist
+      let updatedMessages = messages.filter(message => message.sender !== "error" && message.sender !== "interpreting");
+
+      // Add user message
       const userMessage: IMessage = {
-        text: inputValue,
+        text: question,
         sender: "user",
-        timestamp: formatTime(new Date()),
+        timestamp: formatTimeNewDate(new Date()),
       };
-      setMessages(currentMessages => [...currentMessages, userMessage]);
 
+      // Add interpreting message
       const interpretingMessage: IMessage = {
         text: "Interpreting request...",
         sender: "interpreting",
-        timestamp: formatTime(new Date())
+        timestamp: formatTimeNewDate(new Date())
       };
 
-      setMessages(currentMessages => [...currentMessages, interpretingMessage]);
+      updatedMessages.push(userMessage, interpretingMessage);
+
+      setMessages(updatedMessages);
       setStatusIcon(botIcon);
+
+      // Prepare request body
+      const requestBody: any = {
+        question: inputValue,
+        app_id: selectedOption?.app_id
+      };
+      if (conversationId) {
+        requestBody.conversation_id = conversationId;
+      }
 
       const requestOptions = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: inputValue, assistant_id: selectedOption?.assistant_id })
+        body: JSON.stringify(requestBody)
       };
 
       try {
@@ -89,56 +120,53 @@ function App() {
         const data = await response.json();
         if (!conversationId) setConversationId(data.conversation_id);
 
-        setTimeout(() => {
-          setMessages(currentMessages => currentMessages.map(message =>
-            message.sender === "interpreting" ?
-              { ...message, text: "Ready! Generating response..." } :
-              message
-          ));
-          setStatusIcon(responseSent);
+        // Update messages after response
+        setMessages((currentMessages: any) => currentMessages.map((message: IMessage) =>
+          message.sender === "interpreting" ?
+            { ...message, text: labels.ETCOP_Generated_Response } :
+            message
+        ));
+        setStatusIcon(responseSent);
 
-          setTimeout(() => {
-            setMessages(currentMessages => [
-              ...currentMessages.filter(message => message.sender !== "interpreting"),
-              { text: data.answer, sender: "bot", timestamp: formatTime(new Date()) }
-            ]);
-            scrollToBottom();
-            setIsBotLoading(false);
-            setStatusIcon(botIcon);
-          }, 2000);
-        }, 7000);
+        setTimeout(() => {
+          setMessages(currentMessages => [
+            ...currentMessages.filter(message => message.sender !== "interpreting"),
+            { text: data.response, sender: "bot", timestamp: formatTime(data.timestamp) }
+          ]);
+          scrollToBottom();
+          setIsBotLoading(false);
+          setStatusIcon(botIcon);
+        }, 2000);
 
       } catch (error) {
         console.error('Error fetching data:', error);
-        setMessages(currentMessages => [
-          ...currentMessages.filter(message => message.sender !== "interpreting"),
-          { text: "We're sorry, but we couldn't generate a response. Please try again.", sender: "error", timestamp: formatTime(new Date()) }
-        ]);
         setIsBotLoading(false);
+        setMessages((currentMessages: any) => [
+          ...currentMessages.filter((message: IMessage) => message.sender !== "interpreting"),
+          {
+            text: labels.ETCOP_ConectionError,
+            sender: "error",
+            timestamp: formatTimeNewDate(new Date())
+          }
+        ]);
+        scrollToBottom();
       }
     }
   };
 
   // Effect to update the loading message
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-
-    const updateInterpretingMessageRandomly = () => {
-      // Every 5 and 10 second intervals the bot's response upload message is updated
-      const randomDelay = Math.random() * (10000 - 5000) + 5000;
-      updateInterpretingMessage();
-      intervalId = setTimeout(updateInterpretingMessageRandomly, randomDelay);
-    };
+    let intervalId: NodeJS.Timeout;
 
     if (isBotLoading && statusIcon !== responseSent) {
-      updateInterpretingMessageRandomly();
+      const randomDelay = Math.random() * (10000 - 5000) + 5000;
+      intervalId = setTimeout(updateInterpretingMessage, randomDelay);
     }
 
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
   }, [isBotLoading, statusIcon]);
-
 
   // Scroll bottom effect
   useEffect(() => {
@@ -149,7 +177,7 @@ function App() {
 
   // Effect to retrieve assistants and set focus on the text input when the page first loads
   useEffect(() => {
-    inputRef.current.focus();
+    getLabels();
     getAssistants();
   }, []);
 
@@ -159,27 +187,59 @@ function App() {
     setConversationId(null);
   }, [selectedOption]);
 
+  // Effect to position focus on input
+  useEffect(() => {
+    inputRef.current.focus();
+  }, [assistants])
+
   return (
     <div className="h-screen w-screen flex flex-col">
+      {/* Initial message and assistants selection */}
+      {assistants.length > 0 &&
+        <div className="w-full assistants-shadow border-b py-1 px-2 border-gray-600">
+          <Input
+            value={selectedOption?.name}
+            dataPicker={assistants}
+            typeField="picker"
+            displayKey="name"
+            onOptionSelected={(option: any) => {
+              handleOptionSelected(option);
+              setMessages([]);
+              setConversationId(null);
+            }}
+            height={33}
+          />
+        </div>
+      }
+
       {/* Chat display area */}
-      <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pt-2 pb-1 bg-gray-200">
-        {showInitialMessage &&
-          <div className="bg-white-900 inline-flex p-5 py-3 rounded-lg text-blue-900 font-medium">
-            <div className="text-xl font-semibold">
-              <p>Hi 👋</p>
-              <span>How can we help?</span>
+      <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200">
+        {messages.length === 0 && (
+          <div className="bg-white-900 inline-flex mt-[12px] p-5 py-3 rounded-lg text-blue-900 font-medium">
+            <div className="font-semibold">
+              {noAssistants ? (
+                <p className="text-lg">{labels.ETCOP_NoAssistant}</p>
+              ) : (
+                <div className="text-xl">
+                  <p>{labels.ETCOP_Welcome_Greeting}</p>
+                  <span>{labels.ETCOP_Welcome_Message}</span>
+                </div>
+              )}
             </div>
-          </div>}
+          </div>
+        )}
 
         {/* Displaying messages */}
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`p-2 text-sm ${message.sender === "user"
+            className={`mt-[12px] text-sm ${message.sender === "user"
               ? "text-right user-message slide-up-fade-in"
               : message.sender === "interpreting"
                 ? ""
-                : "message-animation"
+                : message.sender === "error"
+                  ? "bg-red-100 text-red-900 rounded-lg"
+                  : "bg-white text-black rounded-lg"
               }`}
           >
             {message.sender === "interpreting" && (
@@ -198,33 +258,34 @@ function App() {
               <p
                 className={`slide-up-fade-in inline-flex flex-col p-2 rounded-lg ${message.sender === "user"
                   ? "bg-gray-400 text-gray-600 rounded-tr-none"
-                  : "bg-white-900 text-black rounded-tl-none"
+                  : message.sender === "error" ? "rounded-tl-none" : "bg-white-900 text-black rounded-tl-none"
                   } break-words overflow-hidden max-w-[90%]`}
               >
-                {message.sender === "bot" ? (
-                  <ReactMarkdown
-                    children={message.text}
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code: CodeComponent,
-                    }}
-                  />
+                {message.sender === "error" ? (
+                  <div className="inline-flex items-center gap-2">
+                    <div className="flex items-center justify-center w-4 h-4 bg-red-700 text-white rounded-full">
+                      <img src={errorIcon} className="w-2 h-2" />
+                    </div>
+                    <p>{message.text}</p>
+                  </div>
                 ) : (
-                  <p>{message.text}</p>
+                  // Normal message with Copilot's response
+                  message.sender === "bot" ? (
+                    <ReactMarkdown
+                      children={message.text}
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code: CodeComponent,
+                      }}
+                    />
+                  ) : (
+                    <p>{message.text}</p>
+                  )
                 )}
-                <span className="text-xs mt-1 text-gray-600">
+                <span className={`text-xs mt-1 ${message.sender === "error" ? "text-red-900" : "text-gray-600"}`}>
                   {message.timestamp}
                 </span>
               </p>
-            )}
-
-            {message.sender === "error" && (
-              <div className="bg-red-500 text-white p-3 rounded">
-                <p>{message.text}</p>
-                <button onClick={() => setInputValue(lastQuestion)} className="bg-white text-red-500 p-2 mt-2 rounded">
-                  Retry Last Question
-                </button>
-              </div>
             )}
           </div>
         ))}
@@ -232,7 +293,7 @@ function App() {
       </div>
 
       {/* Message input area */}
-      <div className={`bg-white-900 rounded-lg mx-[12px] border ${isInputFocused ? ' border-blue-900' : 'border-transparent'}`}>
+      <div className={`bg-white-900 rounded-lg mx-[12px] border ${isInputFocused ? ' border-blue-900' : 'border-transparent'} ${noAssistants && 'opacity-50'}`}>
         <form
           onSubmit={handleSendMessage}
           className="flex w-full bg-white-900 rounded-lg px-2"
@@ -240,28 +301,28 @@ function App() {
           <input
             type="text"
             ref={inputRef}
-            placeholder="Message..."
+            placeholder={labels.ETCOP_Message_Placeholder}
             className="flex-1 text-sm p-2 py-3 bg-transparent placeholder:text-gray-600 focus:outline-none"
             value={inputValue}
+            disabled={noAssistants}
             onChange={(event: ChangeEvent<HTMLInputElement>) =>
               setInputValue(event.target.value)
             }
             onFocus={() => setIsInputFocused(true)}
             onBlur={() => setIsInputFocused(false)}
             required
-            title="Please enter a message before sending."
           />
 
           <button
             type="submit"
             className="p-2 py-3 text-gray-600 hover:text-blue-500"
-            disabled={isBotLoading}
+            disabled={isBotLoading || noAssistants}
             onMouseOver={() => setSendIcon(purpleEnterIcon)}
             onMouseOut={() => setSendIcon(enterIcon)}
           >
             <div className={`flex items-center gap-2 ${isBotLoading && 'opacity-50'}`}>
               <img src={sendIcon} className="w-3 h-3" alt="Enter" />
-              <p className="text-xs">Send</p>
+              <p className="text-xs">{labels.ETCOP_Send}</p>
             </div>
           </button>
         </form>
