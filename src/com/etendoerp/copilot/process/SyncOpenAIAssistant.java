@@ -10,6 +10,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
@@ -103,7 +104,11 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
     List<String> modelIds = new ArrayList<>();
     for (int i = 0; i < modelJSONArray.length(); i++) {
       try {
-        modelIds.add(modelJSONArray.getJSONObject(i).getString("id"));
+        JSONObject modelObj = modelJSONArray.getJSONObject(i);
+        if (!StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
+            !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
+          modelIds.add(modelObj.getString("id"));
+        }
       } catch (JSONException e) {
         log.error("Error in syncOpenaiModels", e);
       }
@@ -147,8 +152,8 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
   }
 
   private int callSync(int syncCount, String openaiApiKey, CopilotApp app) {
-      OpenAIUtils.syncAssistant(openaiApiKey, app);
-      syncCount++;
+    OpenAIUtils.syncAssistant(openaiApiKey, app);
+    syncCount++;
 
     return syncCount;
   }
