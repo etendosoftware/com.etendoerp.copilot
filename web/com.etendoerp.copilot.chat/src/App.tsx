@@ -112,7 +112,8 @@ function App() {
       const requestOptions = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: new AbortController().signal
       };
 
       try {
