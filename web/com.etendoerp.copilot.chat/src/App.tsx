@@ -7,7 +7,7 @@ import enterIcon from "./assets/enter.svg";
 import purpleEnterIcon from "./assets/purple_enter.svg";
 import botIcon from "./assets/bot.svg";
 import responseSent from "./assets/response-sent.svg";
-import { LOADING_MESSAGES } from "./utils/constants";
+import { PRIMARY_100, DANGER_900, LOADING_MESSAGES } from "./utils/constants";
 import { ILabels } from "./interfaces";
 import { IMessage } from "./interfaces/IMessage";
 import "./App.css";
@@ -212,15 +212,22 @@ function App() {
       {/* Chat display area */}
       <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200">
         {messages.length === 0 && (
-          <div className="bg-white-900 inline-flex mt-[12px] p-5 py-3 rounded-lg text-blue-900 font-medium">
+          <div className="bg-white-900 inline-flex mt-[12px] rounded-lg text-blue-900 font-medium">
             <div className="font-semibold">
               {noAssistants ? (
-                <p className="text-lg">{labels.ETCOP_NoAssistant}</p>
+                <TextMessage
+                  title={`${labels.ETCOP_NoAssistant}`}
+                  type={"left-user"}
+                  text={""}
+                  titleStyle={{ fontSize: 18, color: DANGER_900 }}
+                />
               ) : (
-                <div className="text-xl">
-                  <p>{labels.ETCOP_Welcome_Greeting}</p>
-                  <span>{labels.ETCOP_Welcome_Message}</span>
-                </div>
+                <TextMessage
+                  title={`${labels.ETCOP_Welcome_Greeting}\n${labels.ETCOP_Welcome_Message}`}
+                  type={"left-user"}
+                  text={""}
+                  titleStyle={{ fontSize: 18, color: PRIMARY_100 }}
+                />
               )}
             </div>
           </div>

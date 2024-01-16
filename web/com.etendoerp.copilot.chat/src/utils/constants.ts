@@ -30,3 +30,7 @@ export const IS_SHOW_ASSISTANTS = {
   yes: "Y",
   no: "N"
 };
+
+// Colors
+export const PRIMARY_100 = "#202452";
+export const DANGER_900 = '#74122E';
