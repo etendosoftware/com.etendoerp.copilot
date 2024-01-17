@@ -220,7 +220,7 @@ function App() {
                 <TextMessage
                   title={`${labels.ETCOP_NoAssistant}`}
                   type={"error"}
-                  text={""}
+                  text={`${labels.ETCOP_CheckSettings}`}
                 />
               ) : (
                 <TextMessage
