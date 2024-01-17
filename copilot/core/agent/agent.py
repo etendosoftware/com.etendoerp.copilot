@@ -3,6 +3,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Final, Union
+from pydantic import BaseModel
 
 from .. import tool_installer, utils
 from ..exceptions import (
@@ -18,6 +19,7 @@ from ..tool_loader import LangChainTools, ToolLoader
 class AgentEnum(str, Enum):
     OPENAI_ASSISTANT = "openai-assistant"
     LANGCHAIN = "langchain"
+    OPENAPI_SPEC = 'openapi-spec'
 
 
 @dataclass
@@ -60,5 +62,5 @@ class CopilotAgent:
             tool_installer._pip_install(package=dependency.fullname())
 
     @abstractmethod
-    def execute(self, question: QuestionSchema) -> AgentResponse:
+    def execute(self, question: BaseModel) -> AgentResponse:
         raise NotImplementedError

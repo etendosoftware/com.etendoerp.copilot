@@ -8,3 +8,4 @@ class QuestionSchema(BaseModel):
     type: Optional[str] = None
     assistant_id: Optional[str] = None
     conversation_id: Optional[str] = None
+    api_spec_file: Optional[str] = None

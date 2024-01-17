@@ -25,6 +25,7 @@ def serve_question(question: QuestionSchema):
     agent_type = question.type
     if agent_type is None:
         agent_type = utils.read_optional_env_var("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
+
     copilot_agent = select_copilot_agent(agent_type)
     copilot_debug("  Current agent loaded: " + copilot_agent.__class__.__name__)
     copilot_debug("/question endpoint):")
@@ -32,8 +33,11 @@ def serve_question(question: QuestionSchema):
     copilot_debug("  agent_type: " + str(agent_type))
     copilot_debug("  assistant_id: " + str(question.assistant_id))
     copilot_debug("  conversation_id: " + str(question.conversation_id))
+
     agent_response: AgentResponse = copilot_agent.execute(question)
-    local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
+
+    # TODO: deprecate history records
+    # local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
 
     return {"answer": agent_response.output}
 

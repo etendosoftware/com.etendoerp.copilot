@@ -73,7 +73,7 @@ poetry run python
 
 * Using docker, make sure `.env` is created and all the variables are set, only then run `docker run --env-file .env -p 5001:5001 etendo/chatbot_etendo`. You can set the port that you want, just be sure to set the same port in the image from `.env` if not, the api will never be reached.
 
-* The `AGENT_TYPE` environment variable should be used to set the agent type. There are two available agent: `langchain` and `openai-assistant`. By default copilot will be executed for `langchain`.
+* The `AGENT_TYPE` environment variable should be used to set the agent type. There are three available agent: `langchain`, `openai-assistant` and `openapi`. By default copilot will be executed for `langchain`.
 
 * Mount code as volume: `docker run --env-file .env -p 5001:5001 -v $(pwd)/copilot:/app/copilot etendo/chatbot_etendo`.
 
@@ -175,7 +175,28 @@ Formats:
 * `pandas~=1.0.0`         => Tilde operator (~) for installing compatible versions
 * `pandas^1.0.0`          => Caret operator (^) for installing compatible versions
 
+# OpenAPI Agent sample
+1- Download [petstore](https://github.com/OAI/OpenAPI-Specification/blob/main/examples/v3.0/petstore.yaml) yaml spec sample
+
+2- `POST http://0.0.0.0:5001/question` with:
+```
+{
+    "question": "fetch me the pet with id 10 and give me the raw json response",
+    "api_spec_file": "petstore.yaml"
+}
+```
+
+Agent response:
+```
+{
+    "answer": "{'id': 10, 'name': 'doggie', 'category': {'id': 1, 'name': 'Dogs'}, 'status': 'available', 'photoUrls': ['string'], 'tags': [{'id': 0, 'name': 'string'}]}"
+}
+```
+
+
 # Resources
 * [Langchain Agents](https://python.langchain.com/docs/modules/agents/)
 * [Assistants API](https://platform.openai.com/docs/assistants/overview)
 * [How Assistants work](https://platform.openai.com/docs/assistants/how-it-works)
+* [Interacting with APIs](https://python.langchain.com/docs/use_cases/apis)
+* [Langchain OpenAPI](https://python.langchain.com/docs/integrations/toolkits/openapi)

@@ -7,13 +7,14 @@ from ..exceptions import UnsupportedAgent
 from .agent import AgentEnum, AgentResponse
 from .assistant_agent import AssistantAgent
 from .langchain_agent import LangchainAgent
-
+from .openapi_consumer_agent import OpenApiSpecConsumerAgent
 
 
 def _get_agent_executors():
     _agents = {
         AgentEnum.OPENAI_ASSISTANT.value: AssistantAgent.__name__,
         AgentEnum.LANGCHAIN.value: LangchainAgent.__name__,
+        AgentEnum.OPENAPI_SPEC.value: OpenApiSpecConsumerAgent.__name__,
     }
 
     # create a Dict with the class name as key and the class as value
