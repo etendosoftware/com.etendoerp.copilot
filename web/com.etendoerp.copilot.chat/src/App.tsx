@@ -7,7 +7,7 @@ import enterIcon from "./assets/enter.svg";
 import purpleEnterIcon from "./assets/purple_enter.svg";
 import botIcon from "./assets/bot.svg";
 import responseSent from "./assets/response-sent.svg";
-import { PRIMARY_100, DANGER_900, LOADING_MESSAGES } from "./utils/constants";
+import { LOADING_MESSAGES } from "./utils/constants";
 import { ILabels } from "./interfaces";
 import { IMessage } from "./interfaces/IMessage";
 import "./App.css";
@@ -21,6 +21,7 @@ function App() {
   const [inputValue, setInputValue] = useState<string>("");
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
+  const [areLabelsLoaded, setAreLabelsLoaded] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const { selectedOption, assistants, getAssistants, handleOptionSelected } = useAssistants();
 
@@ -62,6 +63,7 @@ function App() {
     const data = await response.json();
     if (data) {
       setLabels(data);
+      setAreLabelsLoaded(true);
     }
   };
 
@@ -212,24 +214,22 @@ function App() {
       {/* Chat display area */}
       <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200">
         {messages.length === 0 && (
-          <div className="bg-white-900 inline-flex mt-[12px] rounded-lg text-blue-900 font-medium">
-            <div className="font-semibold">
-              {noAssistants ? (
+          <div className="inline-flex mt-[12px] rounded-lg text-blue-900 font-medium">
+            {areLabelsLoaded && (
+              noAssistants ? (
                 <TextMessage
                   title={`${labels.ETCOP_NoAssistant}`}
-                  type={"left-user"}
+                  type={"error"}
                   text={""}
-                  titleStyle={{ fontSize: 18, color: DANGER_900 }}
                 />
               ) : (
                 <TextMessage
                   title={`${labels.ETCOP_Welcome_Greeting}\n${labels.ETCOP_Welcome_Message}`}
                   type={"left-user"}
                   text={""}
-                  titleStyle={{ fontSize: 18, color: PRIMARY_100 }}
                 />
-              )}
-            </div>
+              )
+            )}
           </div>
         )}
 
@@ -237,13 +237,13 @@ function App() {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`mt-[12px] text-sm ${message.sender === "user"
+            className={`text-sm mt-[12px] ${message.sender === "user"
               ? "text-right user-message slide-up-fade-in"
               : message.sender === "interpreting"
                 ? ""
                 : message.sender === "error"
-                  ? "bg-red-100 text-red-900 rounded-lg"
-                  : "bg-white text-black rounded-lg"
+                  ? "text-red-900 rounded-lg"
+                  : "text-black rounded-lg"
               }`}
           >
             {message.sender === "interpreting" && (
