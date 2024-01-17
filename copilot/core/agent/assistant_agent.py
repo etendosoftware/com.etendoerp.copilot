@@ -29,7 +29,7 @@ class AssistantAgent(CopilotAgent):
         super().__init__()
         self._client = _get_openai_client()
         self._formated_tools_openai = None
-        self._assistant = None  # self._get_openai_assistant()
+        self._assistant = self._get_openai_assistant()
 
     def _get_openai_assistant(self):
         """Creates an assistant. An Assistant represents an entity that can be
@@ -106,7 +106,8 @@ class AssistantAgent(CopilotAgent):
                     args = json.loads(tool_call.function.arguments)
                     for tool in self._configured_tools:
                         if tool.name == tool_call.function.name:
-                            output = tool.run("", **args)
+                            #output = tool.run(query=question, args=args.question)
+                            output = tool.run("", args=question)
                             break
 
                     # Submit the output of the tool.
