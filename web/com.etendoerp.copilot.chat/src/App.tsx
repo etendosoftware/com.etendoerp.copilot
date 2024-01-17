@@ -2,7 +2,7 @@ import { useState, useEffect, ChangeEvent, FormEvent, useRef } from "react";
 import Input from "etendo-ui-library/dist-web/components/input/Input";
 import TextMessage from "etendo-ui-library/dist-web/components/text-message/TextMessage";
 import { useAssistants } from "./hooks/useAssistants";
-import { formatTime, formatTimeNewDate } from "./utils/functions";
+import { formatTime, formatTimeNewDate, getMessageType } from "./utils/functions";
 import enterIcon from "./assets/enter.svg";
 import purpleEnterIcon from "./assets/purple_enter.svg";
 import botIcon from "./assets/bot.svg";
@@ -270,7 +270,7 @@ function App() {
                     key={index}
                     text={message.text}
                     time={message.timestamp}
-                    type={message.sender === "error" ? "error" : message.sender === "user" ? "right-user" : "left-user"}
+                    type={getMessageType(message.sender)}
                   />
                 ) : (
                   // Normal message with Copilot's response

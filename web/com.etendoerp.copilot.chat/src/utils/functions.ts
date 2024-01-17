@@ -16,3 +16,14 @@ export const formatTimeNewDate = (date: Date): string => {
   let minutesStr = minutes < 10 ? "0" + minutes : minutes;
   return `${hoursStr}:${minutesStr}`;
 };
+
+// Retrieve styles from the TextMessage Component based on the sender type
+export const getMessageType = (sender: string) => {
+  if (sender === "error") {
+    return "error";
+  } else if (sender === "user") {
+    return "right-user";
+  } else {
+    return "left-user";
+  }
+};
