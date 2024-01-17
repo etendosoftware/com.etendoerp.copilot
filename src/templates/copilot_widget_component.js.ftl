@@ -101,8 +101,8 @@ contents: `
 <head>
   <style>
   .icon-button {
-    width: 1.4rem;
-    height: 1.4rem;
+    width: 1.5rem;
+    height: 1.5rem;
     cursor: pointer;
     border-radius: 0.5rem;
   }
@@ -157,7 +157,7 @@ contents: `
     </div>
     <div class="action-buttons-container">
       <img class="icon-button" onclick='window.toggleWindows()' src="web/images/minimize.svg" alt="Minimize button">
-      <img class="icon-button" onclick="window.closeCopilotWindow()" src="web/images/Close.png" alt="Close button">
+      <img class="icon-button" onclick="window.closeCopilotWindow()" src="web/images/close.svg" alt="Close button">
     </div>
   </div>
   <iframe width="100%" height="585px" src="web/com.etendoerp.copilot.dist" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
@@ -192,8 +192,8 @@ contents: `
 <head>
   <style>
   .icon-button {
-    width: 1.4rem;
-    height: 1.4rem;
+    width: 1.5rem;
+    height: 1.5rem;
     cursor: pointer;
     border-radius: 0.5rem;
   }
@@ -248,7 +248,7 @@ contents: `
     </div>
     <div class="action-buttons-container">
       <img class="icon-button" onclick='window.toggleWindows()' src="web/images/maximize.svg" alt="Maximize button">
-      <img class="icon-button" onclick="window.closeCopilotWindow()" src="web/images/Close.png" alt="Close button">
+      <img class="icon-button" onclick="window.closeCopilotWindow()" src="web/images/close.svg" alt="Close button">
     </div>
   </div>
 </body>
