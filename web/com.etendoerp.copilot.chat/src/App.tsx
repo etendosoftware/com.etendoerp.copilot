@@ -218,9 +218,8 @@ function App() {
             {areLabelsLoaded && (
               noAssistants ? (
                 <TextMessage
-                  title={`${labels.ETCOP_NoAssistant}`}
                   type={"error"}
-                  text={`${labels.ETCOP_CheckSettings}`}
+                  text={`${labels.ETCOP_NoAssistant}`}
                 />
               ) : (
                 <TextMessage
