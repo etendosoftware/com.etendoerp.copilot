@@ -9,3 +9,4 @@ class QuestionSchema(BaseModel):
     assistant_id: Optional[str] = None
     conversation_id: Optional[str] = None
     api_spec_file: Optional[str] = None
+    access_token: Optional[str] = None

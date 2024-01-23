@@ -1,6 +1,6 @@
 import yaml
 
-from typing import Final, Optional
+from typing import Dict, Final, Optional
 
 from langchain.agents.agent import AgentExecutor
 from langchain.chat_models import ChatOpenAI
@@ -50,9 +50,18 @@ class OpenApiSpecConsumerAgent(CopilotAgent):
         )
         return openapi_agent_executor
 
+    def _get_headers(self, access_token: Optional[str]) -> Dict:
+        headers = {}
+
+        if access_token:
+            headers["Authorization"] = f"Bearer {access_token}"
+
+        return headers
+
+
     def execute(self, api_consumer_schema: QuestionSchema) -> AgentResponse:
-        # TODO: handle api auth
-        requests_wrapper = RequestsWrapper()
+        headers: Dict = self._get_headers(api_consumer_schema.access_token)
+        requests_wrapper = RequestsWrapper(headers=headers)
 
         agent_executor_need_to_be_updated: bool = (
             (self._openapi_yaml and self._openapi_yaml != api_consumer_schema.api_spec_file)
