@@ -7,8 +7,8 @@
  */
 
 group          = "com.etendoerp"
-version        = "1.2.2"
-description    = "Etendo Copilot is a platform for developers that optimises development time with AI-enabled tools to reduce development time and improve development quality."
+version        = "1.2.3"
+description    = "Etendo Copilot is a platform that optimises development time with AI-enabled tools to reduce development time and improve development quality."
 ext.artifact   = "copilot"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
 
@@ -44,5 +44,6 @@ repositories {
  * Ex: implementation "com.sun.mail:javax.mail:1.6.2"
  */
  dependencies {
+    implementation group: 'com.konghq', name: 'unirest-java', version: '3.14.5'
  }
  

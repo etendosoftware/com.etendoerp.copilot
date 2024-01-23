@@ -15,12 +15,10 @@ from .agent import AgentResponse, CopilotAgent
 
 
 class LangchainAgent(CopilotAgent):
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-3.5-turbo")
-    OPENAI_VERSION: Final[str] = "0.28.0"
+    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-1106-preview")
 
     def __init__(self):
         super().__init__()
-        self._assert_openai_is_installed(version=self.OPENAI_VERSION)
         self._langchain_agent_executor: Final[BaseChatModel] = self._get_langchain_agent_executor(
             open_ai_model=self.OPENAI_MODEL
         )
@@ -52,17 +50,18 @@ class LangchainAgent(CopilotAgent):
         )
 
         agent = (
-            {
-                "input": lambda x: x["input"],
-                "copilot_agent_scratchpad": lambda x: format_to_openai_functions(x["intermediate_steps"]),
-            }
-            | prompt
-            | llm_with_tools
-            | OpenAIFunctionsAgentOutputParser()
+                {
+                    "input": lambda x: x["input"],
+                    "copilot_agent_scratchpad": lambda x: format_to_openai_functions(x["intermediate_steps"]),
+                }
+                | prompt
+                | llm_with_tools
+                | OpenAIFunctionsAgentOutputParser()
         )
 
         return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True)
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
         langchain_respose: Dict = self._langchain_agent_executor.invoke({"input": question.question})
-        return AgentResponse(**langchain_respose)
+        output_answer = {"response": langchain_respose["output"]}
+        return AgentResponse(input=langchain_respose["input"], output=output_answer)
