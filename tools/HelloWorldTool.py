@@ -15,7 +15,7 @@ class HelloWorldTool(ToolWrapper):
         description (str): A brief description of the tool.
     """
 
-    name = "hello_world_tool"
+    name = "HelloWorldTool"
     description = "This is the classic HelloWorld tool implementation."
     args_schema: Type[BaseModel] = DummyInput
     return_direct: bool = True

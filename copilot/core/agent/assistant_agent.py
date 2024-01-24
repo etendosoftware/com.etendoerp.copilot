@@ -11,6 +11,7 @@ from .. import utils
 from ..exceptions import AssistantIdNotFound, AssistantTimeout
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
+from ..utils import print_blue, print_yellow
 
 
 def _get_openai_client():
@@ -106,7 +107,12 @@ class AssistantAgent(CopilotAgent):
                     args = json.loads(tool_call.function.arguments)
                     for tool in self._configured_tools:
                         if tool.name == tool_call.function.name:
-                            output = tool.run("", **args)
+                            # If args has only one key called "query", replace args with that value
+                            if len(args) == 1 and "query" in args:
+                                args = args["query"]
+                            print_blue("Calling tool: " + tool.name + " with args: " + str(args))
+                            output = tool.run(args, {}, None)
+                            print_yellow("Tool output: " + str(output))
                             break
 
                     # Submit the output of the tool.

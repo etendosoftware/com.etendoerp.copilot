@@ -10,7 +10,7 @@ class CalculatorInput(BaseModel):
 
 
 class CustomHelloWorldMultiArgsTool(ToolWrapper):
-    name = "custom_hello_world_multi_tool"
+    name = "CustomHelloWorldMultiArgsTool"
     description = "This is the CustomHelloWorldMultiArgsTool tool implementation."
 
     args_schema: Type[BaseModel] = CalculatorInput
