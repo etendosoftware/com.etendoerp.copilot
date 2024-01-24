@@ -7,13 +7,21 @@
  */
 
 group          = "com.etendoerp"
-version        = "1.2.3"
+version        = "1.2.4"
 description    = "Etendo Copilot is a platform that optimises development time with AI-enabled tools to reduce development time and improve development quality."
 ext.artifact   = "copilot"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
 
 configurations {
     moduleDependencyContainer
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDirs("etendo-resources")
+        }
+    }
 }
 
 publishing {
