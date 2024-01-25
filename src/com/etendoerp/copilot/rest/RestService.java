@@ -1,6 +1,5 @@
 package com.etendoerp.copilot.rest;
 
-import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,7 +14,6 @@ import java.util.Date;
 import java.util.List;
 
 import javax.servlet.ServletException;
-import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
