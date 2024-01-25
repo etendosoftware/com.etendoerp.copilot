@@ -69,14 +69,19 @@ class OpenApiSpecConsumerAgent(CopilotAgent):
         )
         if agent_executor_need_to_be_updated:
             with open(api_consumer_schema.api_spec_file) as yaml_spec:
-                raw_spotify_api_spec = yaml.load(yaml_spec, Loader=yaml.Loader)
+                raw_api_spec = yaml.load(yaml_spec, Loader=yaml.Loader)
 
-            reduced_openapi_spec = reduce_openapi_spec(raw_spotify_api_spec)
+            reduced_openapi_spec = reduce_openapi_spec(raw_api_spec, dereference=False)
             self._openapi_agent_executor = self._get_openapi_agent_executor(
                 reduced_openapi_spec=reduced_openapi_spec,
                 requests_wrapper=requests_wrapper,
                 open_ai_model=self.OPENAI_MODEL_FOR_OPENAPI
             )
 
-        output = self._openapi_agent_executor.run(api_consumer_schema.question)
+        prompt = api_consumer_schema.question
+        if api_consumer_schema.access_token:
+            prompt_to_avoid_login_call = " Do not call any endpoint for login, instead set the access_token provided as authentication header"
+            prompt += prompt_to_avoid_login_call
+
+        output = self._openapi_agent_executor.run(prompt)
         return AgentResponse(input=api_consumer_schema.question, output=output)
