@@ -37,16 +37,6 @@
     <etcopApp id="E9C4AC129D96492CA16EFC986201E178" entity-name="ETCOP_App" identifier="Bastian"/>
     <file id="E7C3908288644D9A95CD99E2E2A478CA" entity-name="ETCOP_File" identifier="Etendo Wiki"/>
   </ETCOP_App_Source>
-  <etcop_openai_model id="94DEC5D771DB41CEB60B96A7D2F324AC" identifier="gpt-4-1106-preview">
-    <id>94DEC5D771DB41CEB60B96A7D2F324AC</id>
-    <active>true</active>
-    <creationDate transient="true">2024-01-10T14:26:42.179Z</creationDate>
-    <createdBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
-    <updated transient="true">2024-01-10T14:26:42.179Z</updated>
-    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
-    <searchkey>gpt-4-1106-preview</searchkey>
-    <name>gpt-4-1106-preview</name>
-  </etcop_openai_model>
   <ETCOP_File id="E7C3908288644D9A95CD99E2E2A478CA" identifier="Etendo Wiki">
     <id>E7C3908288644D9A95CD99E2E2A478CA</id>
     <active>true</active>
