@@ -119,8 +119,6 @@ class AssistantAgent(CopilotAgent):
                         tool_outputs=[{"tool_call_id": tool_call.id, "output": json.dumps(output)}],
                     )
                     run = self.wait_while_status(run.id, thread_id, "queued", SLEEP_SECONDS)
-
-                    print("status luego de queued: " + run.status)
                     run = self.wait_while_status(run.id, thread_id, "in_progress", SLEEP_SECONDS)
 
 
