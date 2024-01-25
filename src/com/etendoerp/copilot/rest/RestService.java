@@ -243,6 +243,15 @@ public class RestService extends HttpSecureAppServlet {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
       }
+      String questionAttachedFileName = jsonRequestOriginal.optString("file");
+      if (StringUtils.isNotEmpty(questionAttachedFileName)) {
+        //check if the file exists in the temp folder
+        File f = new File(System.getProperty("java.io.tmpdir"), questionAttachedFileName);
+        if (!f.exists()) {
+          throw new OBException(
+              String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"), questionAttachedFileName)); //TODO:error message
+        }
+      }
       String bodyReq = jsonRequestForCopilot.toString();
       HttpRequest copilotRequest = HttpRequest.newBuilder()
           .uri(new URI(String.format("http://%s:%s/question", copilotHost, copilotPort)))
