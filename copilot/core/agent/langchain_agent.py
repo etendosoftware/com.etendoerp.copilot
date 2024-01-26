@@ -15,7 +15,7 @@ from .agent import AgentResponse, CopilotAgent
 
 
 class LangchainAgent(CopilotAgent):
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-3.5-turbo")
+    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-1106-preview")
 
     def __init__(self):
         super().__init__()

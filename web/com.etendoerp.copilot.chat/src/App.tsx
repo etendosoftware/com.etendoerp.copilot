@@ -1,19 +1,16 @@
 import { useState, useEffect, ChangeEvent, FormEvent, useRef } from "react";
 import Input from "etendo-ui-library/dist-web/components/input/Input";
-import { IMessage } from "./interfaces/IMessage";
+import TextMessage from "etendo-ui-library/dist-web/components/text-message/TextMessage";
 import { useAssistants } from "./hooks/useAssistants";
-import { formatTime, formatTimeNewDate } from "./utils/functions";
+import { formatTime, formatTimeNewDate, getMessageType } from "./utils/functions";
 import enterIcon from "./assets/enter.svg";
 import purpleEnterIcon from "./assets/purple_enter.svg";
 import botIcon from "./assets/bot.svg";
-import errorIcon from "./assets/error.svg";
 import responseSent from "./assets/response-sent.svg";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import "./App.css";
-import { CodeComponent } from "./components/CodeComponent";
 import { LOADING_MESSAGES } from "./utils/constants";
 import { ILabels } from "./interfaces";
+import { IMessage } from "./interfaces/IMessage";
+import "./App.css";
 
 function App() {
   // States
@@ -24,6 +21,7 @@ function App() {
   const [inputValue, setInputValue] = useState<string>("");
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
+  const [areLabelsLoaded, setAreLabelsLoaded] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const { selectedOption, assistants, getAssistants, handleOptionSelected } = useAssistants();
 
@@ -65,6 +63,7 @@ function App() {
     const data = await response.json();
     if (data) {
       setLabels(data);
+      setAreLabelsLoaded(true);
     }
   };
 
@@ -216,17 +215,21 @@ function App() {
       {/* Chat display area */}
       <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200">
         {messages.length === 0 && (
-          <div className="bg-white-900 inline-flex mt-[12px] p-5 py-3 rounded-lg text-blue-900 font-medium">
-            <div className="font-semibold">
-              {noAssistants ? (
-                <p className="text-lg">{labels.ETCOP_NoAssistant}</p>
+          <div className="inline-flex mt-[12px] rounded-lg text-blue-900 font-medium">
+            {areLabelsLoaded && (
+              noAssistants ? (
+                <TextMessage
+                  type={"error"}
+                  text={`${labels.ETCOP_NoAssistant}`}
+                />
               ) : (
-                <div className="text-xl">
-                  <p>{labels.ETCOP_Welcome_Greeting}</p>
-                  <span>{labels.ETCOP_Welcome_Message}</span>
-                </div>
-              )}
-            </div>
+                <TextMessage
+                  title={`${labels.ETCOP_Welcome_Greeting}\n${labels.ETCOP_Welcome_Message}`}
+                  type={"left-user"}
+                  text={""}
+                />
+              )
+            )}
           </div>
         )}
 
@@ -234,13 +237,13 @@ function App() {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`mt-[12px] text-sm ${message.sender === "user"
+            className={`text-sm mt-[12px] ${message.sender === "user"
               ? "text-right user-message slide-up-fade-in"
               : message.sender === "interpreting"
                 ? ""
                 : message.sender === "error"
-                  ? "bg-red-100 text-red-900 rounded-lg"
-                  : "bg-white text-black rounded-lg"
+                  ? "text-red-900 rounded-lg"
+                  : "text-black rounded-lg"
               }`}
           >
             {message.sender === "interpreting" && (
@@ -257,35 +260,36 @@ function App() {
             )}
             {message.sender !== "interpreting" && (
               <p
-                className={`slide-up-fade-in inline-flex flex-col p-2 rounded-lg ${message.sender === "user"
-                  ? "bg-gray-400 text-gray-600 rounded-tr-none"
-                  : message.sender === "error" ? "rounded-tl-none" : "bg-white-900 text-black rounded-tl-none"
+                className={`slide-up-fade-in inline-flex flex-col rounded-lg ${message.sender === "user"
+                  ? "text-gray-600 rounded-tr-none"
+                  : message.sender === "error" ? "rounded-tl-none" : "text-black rounded-tl-none"
                   } break-words overflow-hidden max-w-[90%]`}
               >
                 {message.sender === "error" ? (
-                  <div className="inline-flex items-center gap-2">
-                    <div className="flex items-center justify-center w-4 h-4 bg-red-700 text-white rounded-full">
-                      <img src={errorIcon} className="w-2 h-2" />
-                    </div>
-                    <p>{message.text}</p>
-                  </div>
+                  <TextMessage
+                    key={index}
+                    text={message.text}
+                    time={message.timestamp}
+                    type={getMessageType(message.sender)}
+                  />
                 ) : (
                   // Normal message with Copilot's response
                   message.sender === "bot" ? (
-                    <ReactMarkdown
-                      children={message.text}
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        code: CodeComponent,
-                      }}
+                    <TextMessage
+                      key={index}
+                      text={message.text}
+                      time={message.timestamp}
+                      type="left-user"
                     />
                   ) : (
-                    <p>{message.text}</p>
+                    <TextMessage
+                      key={index}
+                      text={message.text}
+                      time={message.timestamp}
+                      type="right-user"
+                    />
                   )
                 )}
-                <span className={`text-xs mt-1 ${message.sender === "error" ? "text-red-900" : "text-gray-600"}`}>
-                  {message.timestamp}
-                </span>
               </p>
             )}
           </div>
