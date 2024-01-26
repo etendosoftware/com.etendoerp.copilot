@@ -4,7 +4,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import java.util.Date;
+import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -14,6 +19,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
@@ -23,7 +29,9 @@ import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotTool;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 
 import kong.unirest.HttpResponse;
@@ -82,7 +90,7 @@ public class OpenAIUtils {
     if (files.length() > 0) {
       body.put("file_ids", files);
     }
-    body.put("tools", buildToolsArray(app.isCodeInterpreter(), files.length() > 0, new JSONArray()));
+    body.put("tools", buildToolsArray(app, files.length() > 0));
     body.put("model", app.getModel().getSearchkey());
     //make the request to openai
     JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
@@ -131,9 +139,7 @@ public class OpenAIUtils {
       if (files.length() > 0) {
         body.put("file_ids", files);
       }
-      body.put("tools", buildToolsArray(app.isCodeInterpreter(), files.length() > 0, new JSONArray()
-          //TODO: add the tools of the tools tab
-      ));
+      body.put("tools", buildToolsArray(app, files.length() > 0));
       body.put("model", app.getModel().getSearchkey());
       //make the request to openai
       JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
@@ -147,6 +153,63 @@ public class OpenAIUtils {
     }
 
   }
+
+  private static JSONArray getToolSet(CopilotApp app) throws OBException {
+    // we will read from /copilot the tools if we can
+    JSONArray result = new JSONArray();
+    OBCriteria<CopilotAppTool> appToolCrit = OBDal.getInstance().createCriteria(CopilotAppTool.class);
+    appToolCrit.add(Restrictions.eq(CopilotAppTool.PROPERTY_COPILOTAPP, app));
+    List<CopilotAppTool> appToolsList = appToolCrit.list();
+    if (appToolsList.isEmpty()) {
+      return result;
+    }
+    //make petition to /copilot
+    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    JSONObject responseJsonFromCopilot;
+    try {
+      HttpClient client = HttpClient.newBuilder().build();
+      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
+      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      HttpRequest copilotRequest = HttpRequest.newBuilder()
+          .uri(new URI(String.format("http://%s:%s/tools", copilotHost, copilotPort)))
+          .headers(HEADER_CONTENT_TYPE, "application/json;charset=UTF-8")
+          .version(HttpClient.Version.HTTP_1_1)
+          .GET()
+          .build();
+      java.net.http.HttpResponse<String> responseFromCopilot = client.send(copilotRequest,
+          java.net.http.HttpResponse.BodyHandlers.ofString());
+      responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
+      logIfDebug(responseJsonFromCopilot.toString());
+
+      for (CopilotAppTool appTool : appToolsList) {
+        CopilotTool erpTool = appTool.getCopilotTool();
+        JSONObject toolInfo = responseJsonFromCopilot.optJSONObject("answer").optJSONObject(erpTool.getValue());
+        if (toolInfo != null) {
+          JSONObject toolSetItem = new JSONObject();
+          toolSetItem.put("type", "function");
+          JSONObject funtionJson = new JSONObject();
+          funtionJson.put("name", erpTool.getValue());
+          funtionJson.put("description", toolInfo.get("description"));
+          funtionJson.put("parameters", wrappWithJSONSchema(toolInfo.getJSONObject("parameters")));
+          toolSetItem.put("function", funtionJson);
+          result.put(toolSetItem);
+
+        }
+      }
+    } catch (JSONException | URISyntaxException | IOException e) {
+      throw new OBException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new OBException(e);
+    }
+
+    return result;
+  }
+
+  private static JSONObject wrappWithJSONSchema(JSONObject parameters) throws JSONException {
+    return new JSONObject().put("type", "object").put("properties", parameters);
+  }
+
 
   private static JSONArray getArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
@@ -224,20 +287,19 @@ public class OpenAIUtils {
     return new JSONObject(response.getBody());
   }
 
-  private static JSONArray buildToolsArray(boolean codeInterpreter, boolean retrieval,
-      JSONArray toolSet) throws JSONException {
-    JSONArray result = (toolSet != null) ? toolSet : new JSONArray();
+  private static JSONArray buildToolsArray(CopilotApp app, boolean retrieval) throws JSONException {
+    JSONArray toolSet = getToolSet(app);
     JSONObject tool = new JSONObject();
-    if (codeInterpreter) {
+    if (Boolean.TRUE.equals(app.isCodeInterpreter())) {
       tool.put("type", "code_interpreter");
-      result.put(tool);
+      toolSet.put(tool);
     }
     if (retrieval) {
       tool = new JSONObject();
       tool.put("type", "retrieval");
-      result.put(tool);
+      toolSet.put(tool);
     }
-    return result;
+    return toolSet;
   }
 
   public static void syncFile(CopilotFile fileToSync,
@@ -342,7 +404,7 @@ public class OpenAIUtils {
         }
       }
     } catch (JSONException e) {
-      throw new RuntimeException(e);
+      throw new OBException(e);
     }
   }
 

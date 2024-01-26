@@ -65,3 +65,6 @@ class LangchainAgent(CopilotAgent):
         langchain_respose: Dict = self._langchain_agent_executor.invoke({"input": question.question})
         output_answer = {"response": langchain_respose["output"]}
         return AgentResponse(input=langchain_respose["input"], output=output_answer)
+
+    def get_tools(self):
+        return self._configured_tools
