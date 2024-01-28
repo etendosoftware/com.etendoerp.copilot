@@ -16,7 +16,7 @@ from .tool_loader import LangChainTools, ToolLoader
 
 OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
 SYSTEM_PROMPT: Final[str] = utils.read_optional_env_var("SYSTEM_PROMPT", "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.")
-OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-3.5-turbo")
+OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-1106-preview")
 
 
 @dataclass

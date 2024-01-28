@@ -15,7 +15,7 @@ from .agent import AgentResponse, CopilotAgent
 
 
 class LangchainAgent(CopilotAgent):
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-3.5-turbo")
+    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-1106-preview")
 
     def __init__(self):
         super().__init__()
@@ -65,3 +65,6 @@ class LangchainAgent(CopilotAgent):
         langchain_respose: Dict = self._langchain_agent_executor.invoke({"input": question.question})
         output_answer = {"response": langchain_respose["output"]}
         return AgentResponse(input=langchain_respose["input"], output=output_answer)
+
+    def get_tools(self):
+        return self._configured_tools

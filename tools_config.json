@@ -3,6 +3,9 @@
 
     },
     "third_party_tools": {
-        "OcrAssistentTool": true
+        "OcrAssistentTool": true,
+        "HelloWorldTool": true,
+        "BastianFetcher": true,
+        "CustomHelloWorldMultiArgsTool": true
     }
 }

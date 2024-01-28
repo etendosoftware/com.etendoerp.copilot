@@ -1,2 +1,6 @@
 [HelloWorldTool]
 pytz = "==2021.3"
+
+[OcrAssistentTool]
+filetype = "==1.2.0"
+pdf2image = "==1.17.0"
