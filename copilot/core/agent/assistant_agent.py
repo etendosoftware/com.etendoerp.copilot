@@ -81,7 +81,7 @@ class AssistantAgent(CopilotAgent):
             try:
                 # Create a message in the conversation thread with the user's question.
                 message = self._client.beta.threads.messages.create(
-                    thread_id=thread_id, role="user", content=question.question
+                    thread_id=thread_id, role="user", content=question.question, file_ids=(question.file_ids or [])
                 )
 
                 # Start processing the conversation thread with the assistant.
@@ -125,6 +125,7 @@ class AssistantAgent(CopilotAgent):
             messages = self._client.beta.threads.messages.list(thread_id=thread_id)
 
             # Extract the content of the first message as the response.
+
             message = messages.data[0].content[0].text.value
 
             # Return the response along with the assistant and conversation IDs.
