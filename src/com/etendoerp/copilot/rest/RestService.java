@@ -1,6 +1,8 @@
 package com.etendoerp.copilot.rest;
 
+
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -15,15 +17,18 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.etendoerp.copilot.data.CopilotApp;
-import com.etendoerp.copilot.data.CopilotRoleApp;
-
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.FileItemFactory;
+import org.apache.commons.fileupload.disk.DiskFileItem;
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
@@ -34,6 +39,11 @@ import org.openbravo.model.ad.module.Module;
 import org.openbravo.model.ad.system.Language;
 import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
+
+import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotRoleApp;
+import com.etendoerp.copilot.util.OpenAIUtils;
 
 public class RestService extends HttpSecureAppServlet {
 
@@ -49,23 +59,36 @@ public class RestService extends HttpSecureAppServlet {
   public static final String PROP_QUESTION = "question";
   public static final String PROP_TYPE = "type";
   public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
+  public static final String APPLICATION_JSON_CHARSET_UTF_8 = "application/json;charset=UTF-8";
 
 
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
     String path = request.getPathInfo();
-    if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
-      handleAssistants(response);
-      return;
-      
-    }  // add /labels to get the labels of the module
-    else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
-      response.setContentType("application/json;charset=UTF-8");
-      response.getWriter().write(getJSONLabels().toString());
-      return;
+    try {
+      if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
+        handleAssistants(response);
+        return;
+
+      }  // add /labels to get the labels of the module
+      else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
+        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+        response.getWriter().write(getJSONLabels().toString());
+        return;
+      }
+      //if not a valid path, throw a error status
+      response.sendError(HttpServletResponse.SC_NOT_FOUND);
+    } catch (Exception e) {
+      log4j.error(e);
+      try {
+
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+
+      } catch (IOException ioException) {
+        log4j.error(ioException);
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+      }
     }
-    //if not a valid path, throw a error status
-    response.sendError(HttpServletResponse.SC_NOT_FOUND);
   }
 
   private JSONObject getJSONLabels() {
@@ -113,16 +136,84 @@ public class RestService extends HttpSecureAppServlet {
   @Override
   public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
     String path = request.getPathInfo();
-    if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
-      try {
+    try {
+      if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
         handleQuestion(request, response);
-      } catch (JSONException e) {
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+        return;
+      } else if (StringUtils.equalsIgnoreCase(path, "/file")) {
+        handleFile(request, response);
+        return;
       }
-      return;
+      //if not a valid path, throw a error status
+      response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+    } catch (Exception e) {
+      log4j.error(e);
+      try {
+        sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+      } catch (Exception e2) {
+        log4j.error(e2);
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e2.getMessage());
+      }
     }
-    //if not a valid path, throw a error status
-    response.sendError(HttpServletResponse.SC_NOT_FOUND);
+  }
+
+  private void sendErrorResponse(HttpServletResponse response, int status,
+      String message) throws IOException, JSONException {
+    response.setStatus(status);
+    JSONObject answer = new JSONObject();
+    JSONObject error = new JSONObject();
+    error.put("error", message);
+    answer.put("answer", error);
+    response.getWriter().write(answer.toString());
+  }
+
+  private void handleFile(HttpServletRequest request,
+      HttpServletResponse response) throws Exception {
+    logIfDebug("handleFile");
+    //En la request nos enviaran un form-data con  el campo file con el archivo
+
+    boolean isMultipart = ServletFileUpload.isMultipartContent(request);
+    logIfDebug(String.format("isMultipart: %s", isMultipart));
+    FileItemFactory factory = new DiskFileItemFactory();
+
+    ServletFileUpload upload = new ServletFileUpload(factory);
+    List<FileItem> items = upload.parseRequest(request);
+    logIfDebug(String.format("items: %d", items.size()));
+    JSONObject responseJson = new JSONObject();
+
+    for (FileItem item : items) {
+      if (item.isFormField()) {
+        continue;
+      }
+      DiskFileItem itemDisk = (DiskFileItem) item;
+      String originalFileName = item.getName();
+      String extension = originalFileName.substring(originalFileName.lastIndexOf("."));
+      String filenameWithoutExt = originalFileName.substring(0, originalFileName.lastIndexOf("."));
+      //check if the file is in memory or in disk and create a temp file,
+      File f = File.createTempFile(filenameWithoutExt + "_", extension);
+      if (itemDisk.isInMemory()) {
+        //if the file is in memory, write it to the temp file
+        itemDisk.write(f);
+      } else {
+        //if the file is in disk, copy it to the temp file
+        boolean successRename = itemDisk.getStoreLocation().renameTo(f);
+        if (!successRename) {
+          throw new OBException(
+              String.format(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"), item.getName()));
+        }
+      }
+      String fileId = OpenAIUtils.uploadFileToOpenAI(OpenAIUtils.getOpenaiApiKey(), f);
+      saveFileTemp(f, fileId);
+      responseJson.put(item.getFieldName(), fileId);
+    }
+    response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+    response.getWriter().write(responseJson.toString());
+  }
+
+  private void logIfDebug(String msg) {
+    if (log4j.isDebugEnabled()) {
+      log4j.debug(msg);
+    }
   }
 
   private void handleQuestion(HttpServletRequest request,
@@ -166,10 +257,24 @@ public class RestService extends HttpSecureAppServlet {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
       }
+      String questionAttachedFileId = jsonRequestOriginal.optString("file");
+      if (StringUtils.isNotEmpty(questionAttachedFileId)) {
+        //check if the file exists in the temp folder
+        CopilotFile copilotFile = (CopilotFile) OBDal.getInstance().createCriteria(CopilotFile.class)
+            .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
+            .setMaxResults(1)
+            .uniqueResult();
+        if (copilotFile == null) {
+          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"), questionAttachedFileId));
+        }
+        // send the files to OpenAI and  replace the "file names" with the file_ids returned by OpenAI
+        logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
+        jsonRequestForCopilot.put("file_ids", new JSONArray().put(questionAttachedFileId));
+      }
       String bodyReq = jsonRequestForCopilot.toString();
       HttpRequest copilotRequest = HttpRequest.newBuilder()
           .uri(new URI(String.format("http://%s:%s/question", copilotHost, copilotPort)))
-          .headers("Content-Type", "application/json;charset=UTF-8")
+          .headers("Content-Type", APPLICATION_JSON_CHARSET_UTF_8)
           .version(HttpClient.Version.HTTP_1_1)
           .POST(HttpRequest.BodyPublishers.ofString(bodyReq))
           .build();
@@ -193,8 +298,25 @@ public class RestService extends HttpSecureAppServlet {
     //getting the object of the Timestamp class
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
-    response.setContentType("application/json;charset=UTF-8");
+    response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
     response.getWriter().write(responseOriginal.toString());
+  }
+
+  private void saveFileTemp(File f, String fileId) {
+    CopilotFile fileCop = OBProvider.getInstance().get(CopilotFile.class);
+    fileCop.setOpenaiIdFile(fileId);
+    OBContext contxt = OBContext.getOBContext();
+    fileCop.setName(f.getName());
+    fileCop.setCreatedBy(contxt.getUser());
+    fileCop.setUpdatedBy(contxt.getUser());
+    fileCop.setCreationDate(new Date());
+    fileCop.setUpdated(new Date());
+    fileCop.setClient(contxt.getCurrentClient());
+    fileCop.setOrganization(contxt.getCurrentOrganization());
+    fileCop.setType("F");
+    fileCop.setTemp(true);
+    OBDal.getInstance().save(fileCop);
+    OBDal.getInstance().flush();
   }
 
 
