@@ -38,6 +38,20 @@ def serve_question(question: QuestionSchema):
     return {"answer": agent_response.output}
 
 
+@core_router.get("/tools")
+def serve_tools():
+    """Show tools available, with their information."""
+    langchain_agent = select_copilot_agent(AgentEnum.LANGCHAIN.value)
+    tool_list = langchain_agent.get_tools()
+    tool_dict = {}
+    for tool in tool_list:
+        tool_dict[tool.name] = {
+            "description": tool.description,
+            "parameters": tool.args,
+        }
+    return {"answer": tool_dict}
+
+
 @core_router.get("/history")
 def get_chat_history():
     chat_history: ChatHistory = local_history_recorder.get_chat_history()

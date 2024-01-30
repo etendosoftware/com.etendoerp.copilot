@@ -11,6 +11,8 @@ def print_red(message):
 def print_green(message):
     print("\033[92m {}\033[00m".format(message))
 
+def print_blue(message):
+    print("\033[94m {}\033[00m".format(message))
 
 def print_yellow(message):
     print("\033[93m {}\033[00m".format(message))
