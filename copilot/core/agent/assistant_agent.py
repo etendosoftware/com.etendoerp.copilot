@@ -11,6 +11,9 @@ from .. import utils
 from ..exceptions import AssistantIdNotFound, AssistantTimeout
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
+from ..utils import print_blue, print_yellow
+
+SLEEP_SECONDS = 0.05
 
 
 def _get_openai_client():
@@ -81,7 +84,7 @@ class AssistantAgent(CopilotAgent):
             try:
                 # Create a message in the conversation thread with the user's question.
                 message = self._client.beta.threads.messages.create(
-                    thread_id=thread_id, role="user", content=question.question
+                    thread_id=thread_id, role="user", content=question.question, file_ids=(question.file_ids or [])
                 )
 
                 # Start processing the conversation thread with the assistant.
@@ -92,21 +95,21 @@ class AssistantAgent(CopilotAgent):
                 raise AssistantIdNotFound(assistant_id=question.assistant_id) from ex
 
             # Retrieve the current status of the processing run.
-            run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-
             # Wait for the run to complete.
-            while run.status == "in_progress":
-                run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-                sleep(0.05)
-
+            run = self.wait_while_status(run.id, thread_id, "in_progress", SLEEP_SECONDS)
             # If the run requires action, process the required tool outputs.
-            if run.required_action:
+            while run.status == "requires_action":
                 for tool_call in run.required_action.submit_tool_outputs.tool_calls:
                     # Parse arguments for the tool call.
                     args = json.loads(tool_call.function.arguments)
                     for tool in self._configured_tools:
                         if tool.name == tool_call.function.name:
-                            output = tool.run("", **args)
+                            # If args has only one key called "query", replace args with that value
+                            if len(args) == 1 and "query" in args:
+                                args = args["query"]
+                            print_blue("Calling tool: " + tool.name + " with args: " + str(args))
+                            output = tool.run(args, {}, None)
+                            print_yellow("Tool output: " + str(output))
                             break
 
                     # Submit the output of the tool.
@@ -115,16 +118,18 @@ class AssistantAgent(CopilotAgent):
                         run_id=run.id,
                         tool_outputs=[{"tool_call_id": tool_call.id, "output": json.dumps(output)}],
                     )
+                    run = self.wait_while_status(run.id, thread_id, "queued", SLEEP_SECONDS)
+                    run = self.wait_while_status(run.id, thread_id, "in_progress", SLEEP_SECONDS)
+
 
             # Wait until the run status is completed.
-            while run.status != "completed":
-                run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-                sleep(0.05)
+            self.wait_while_not_status(run.id, thread_id, "completed", SLEEP_SECONDS)
 
             # Retrieve all messages from the thread.
             messages = self._client.beta.threads.messages.list(thread_id=thread_id)
 
             # Extract the content of the first message as the response.
+
             message = messages.data[0].content[0].text.value
 
             # Return the response along with the assistant and conversation IDs.
@@ -136,3 +141,20 @@ class AssistantAgent(CopilotAgent):
             )
         except (APIConnectionError, APITimeoutError) as ex:
             raise AssistantTimeout() from ex
+
+    def wait_while_status(self, run_id, thread_id, status, seconds):
+        run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
+        while run.status == status:
+            run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
+            sleep(seconds)
+        return run
+
+    def wait_while_not_status(self, run_id, thread_id, status, seconds):
+        run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
+        while run.status != status:
+            run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
+            sleep(seconds)
+        return run
+
+    def get_run_status(self, thread_id, run_id):
+        return self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id).status

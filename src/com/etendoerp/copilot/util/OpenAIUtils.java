@@ -1,10 +1,18 @@
 package com.etendoerp.copilot.util;
 
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLConnection;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import java.util.Date;
+import java.util.List;
+import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -14,6 +22,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
@@ -23,11 +32,12 @@ import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotTool;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 
 import kong.unirest.HttpResponse;
-import kong.unirest.MimeTypes;
 import kong.unirest.Unirest;
 import kong.unirest.UnirestException;
 
@@ -41,6 +51,8 @@ public class OpenAIUtils {
   public static final String CONTENT_TYPE_JSON = "application/json";
   public static final String HEADER_BEARER = "Bearer ";
   public static final String HEADER_ASSISTANTS_V_1 = "assistants=v1";
+  public static final String OPENAI_API_KEY = "OPENAI_API_KEY";
+
 
   private OpenAIUtils() {
     throw new IllegalStateException("Utility class");
@@ -48,7 +60,7 @@ public class OpenAIUtils {
 
   public static void syncAssistant(String openaiApiKey, CopilotApp app) throws OBException {
     //first we need to get the assistant
-    //if the app not has a assistant, we need to create it
+    //if the app not has an assistant, we need to create it
 
     if (StringUtils.isEmpty(app.getOpenaiIdAssistant())) {
       String assistantId = OpenAIUtils.createAssistant(app, openaiApiKey);
@@ -82,7 +94,7 @@ public class OpenAIUtils {
     if (files.length() > 0) {
       body.put("file_ids", files);
     }
-    body.put("tools", buildToolsArray(app.isCodeInterpreter(), files.length() > 0, new JSONArray()));
+    body.put("tools", buildToolsArray(app, files.length() > 0));
     body.put("model", app.getModel().getSearchkey());
     //make the request to openai
     JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
@@ -101,7 +113,7 @@ public class OpenAIUtils {
           "created_at"); // convert the date to a timestamp. the created is in The Unix timestamp (in seconds) for when the assistant file was created.
       Date date = new Date(Long.parseLong(created) * 1000);
       logIfDebug(
-          String.format("%s - %s - %s", assistant.getString("id"), assistant.getString("name"), date.toString()));
+          String.format("%s - %s - %s", assistant.getString("id"), assistant.getString("name"), date));
     }
     return data;
 
@@ -120,7 +132,7 @@ public class OpenAIUtils {
   }
 
   private static String createAssistant(CopilotApp app, String openaiApiKey) throws OBException {
-    //recreate the following curl commandç
+    //recreate the following curl command
     try {
 
       String endpoint = "/assistants";
@@ -131,9 +143,7 @@ public class OpenAIUtils {
       if (files.length() > 0) {
         body.put("file_ids", files);
       }
-      body.put("tools", buildToolsArray(app.isCodeInterpreter(), files.length() > 0, new JSONArray()
-          //TODO: add the tools of the tools tab
-      ));
+      body.put("tools", buildToolsArray(app, files.length() > 0));
       body.put("model", app.getModel().getSearchkey());
       //make the request to openai
       JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
@@ -148,6 +158,63 @@ public class OpenAIUtils {
 
   }
 
+  private static JSONArray getToolSet(CopilotApp app) throws OBException {
+    // we will read from /copilot the tools if we can
+    JSONArray result = new JSONArray();
+    OBCriteria<CopilotAppTool> appToolCrit = OBDal.getInstance().createCriteria(CopilotAppTool.class);
+    appToolCrit.add(Restrictions.eq(CopilotAppTool.PROPERTY_COPILOTAPP, app));
+    List<CopilotAppTool> appToolsList = appToolCrit.list();
+    if (appToolsList.isEmpty()) {
+      return result;
+    }
+    //make petition to /copilot
+    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    JSONObject responseJsonFromCopilot;
+    try {
+      HttpClient client = HttpClient.newBuilder().build();
+      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
+      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      HttpRequest copilotRequest = HttpRequest.newBuilder()
+          .uri(new URI(String.format("http://%s:%s/tools", copilotHost, copilotPort)))
+          .headers(HEADER_CONTENT_TYPE, "application/json;charset=UTF-8")
+          .version(HttpClient.Version.HTTP_1_1)
+          .GET()
+          .build();
+      java.net.http.HttpResponse<String> responseFromCopilot = client.send(copilotRequest,
+          java.net.http.HttpResponse.BodyHandlers.ofString());
+      responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
+      logIfDebug(responseJsonFromCopilot.toString());
+
+      for (CopilotAppTool appTool : appToolsList) {
+        CopilotTool erpTool = appTool.getCopilotTool();
+        JSONObject toolInfo = responseJsonFromCopilot.optJSONObject("answer").optJSONObject(erpTool.getValue());
+        if (toolInfo != null) {
+          JSONObject toolSetItem = new JSONObject();
+          toolSetItem.put("type", "function");
+          JSONObject funtionJson = new JSONObject();
+          funtionJson.put("name", erpTool.getValue());
+          funtionJson.put("description", toolInfo.get("description"));
+          funtionJson.put("parameters", wrappWithJSONSchema(toolInfo.getJSONObject("parameters")));
+          toolSetItem.put("function", funtionJson);
+          result.put(toolSetItem);
+
+        }
+      }
+    } catch (JSONException | URISyntaxException | IOException e) {
+      throw new OBException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new OBException(e);
+    }
+
+    return result;
+  }
+
+  private static JSONObject wrappWithJSONSchema(JSONObject parameters) throws JSONException {
+    return new JSONObject().put("type", "object").put("properties", parameters);
+  }
+
+
   private static JSONArray getArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
@@ -160,25 +227,12 @@ public class OpenAIUtils {
 
 
   private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint, String purpose,
-      String filename,
-      ByteArrayOutputStream file) throws IOException, JSONException {
-    //save os to temp file
-    //create a temp file
-    String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
-    String extension = filename.substring(filename.lastIndexOf(".") + 1);
-    File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
-    //write ByteArrayOutputStream to tempFile
-    boolean setW = tempFile.setWritable(true);
-    if (!setW) {
-      logIfDebug("The temp file is not writable");
-    }
-    tempFile.deleteOnExit();
-    //write ByteArrayOutputStream to tempFile
-    file.writeTo(new FileOutputStream(tempFile));
+      File fileToSend) throws  JSONException {
+    String mimeType = URLConnection.guessContentTypeFromName(fileToSend.getName());
     kong.unirest.HttpResponse<String> response = Unirest.post(BASE_URL + endpoint)
         .header(HEADER_AUTHORIZATION, String.format("Bearer %s", openaiApiKey))
         .field("purpose", purpose)
-        .field("file", tempFile, MimeTypes.EXE).asString();
+        .field("file", fileToSend, mimeType).asString();
     return new JSONObject(response.getBody());
   }
 
@@ -224,26 +278,25 @@ public class OpenAIUtils {
     return new JSONObject(response.getBody());
   }
 
-  private static JSONArray buildToolsArray(boolean codeInterpreter, boolean retrieval,
-      JSONArray toolSet) throws JSONException {
-    JSONArray result = (toolSet != null) ? toolSet : new JSONArray();
+  private static JSONArray buildToolsArray(CopilotApp app, boolean retrieval) throws JSONException {
+    JSONArray toolSet = getToolSet(app);
     JSONObject tool = new JSONObject();
-    if (codeInterpreter) {
+    if (Boolean.TRUE.equals(app.isCodeInterpreter())) {
       tool.put("type", "code_interpreter");
-      result.put(tool);
+      toolSet.put(tool);
     }
     if (retrieval) {
       tool = new JSONObject();
       tool.put("type", "retrieval");
-      result.put(tool);
+      toolSet.put(tool);
     }
-    return result;
+    return toolSet;
   }
 
   public static void syncFile(CopilotFile fileToSync,
       String openaiApiKey) throws JSONException, IOException {
     //first we need to get the file
-    //if the file not has a id, we need to create it
+    //if the file not has an id, we need to create it
     logIfDebug("Syncing file " + fileToSync.getName());
     WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
         .executeHooks(fileToSync);
@@ -257,7 +310,7 @@ public class OpenAIUtils {
       deleteFile(fileToSync.getOpenaiIdFile(), openaiApiKey);
     }
     logIfDebug("Uploading file " + fileToSync.getName());
-    String fileId = OpenAIUtils.uploadFile(fileToSync, openaiApiKey);
+    String fileId = OpenAIUtils.downloadAttachmentAndUploadFile(fileToSync, openaiApiKey);
     fileToSync.setOpenaiIdFile(fileId);
     fileToSync.setLastSync(new Date());
     fileToSync.setUpdated(new Date());
@@ -298,11 +351,14 @@ public class OpenAIUtils {
     logIfDebug(response.toString());
   }
 
-  private static String uploadFile(CopilotFile fileToSync, String openaiApiKey) throws JSONException, IOException {
-    //recreate the following curl command with HttpRequests
-    String endpoint = "/files";
+  private static String downloadAttachmentAndUploadFile(CopilotFile fileToSync,
+      String openaiApiKey) throws JSONException, IOException {
     //make the request to openai
-    JSONObject jsonResponse = null;
+    File tempFile = getFileFromCopilotFile(fileToSync);
+    return uploadFileToOpenAI(openaiApiKey, tempFile);
+  }
+
+  private static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
     OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
@@ -313,10 +369,28 @@ public class OpenAIUtils {
     }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);
-    jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, endpoint, "assistants",
-        attach.getName(), os);
+    //save os to temp file
+    //create a temp file
+    String filename = attach.getName();
+    String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
+    String extension = filename.substring(filename.lastIndexOf(".") + 1);
+    File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
+    boolean setW = tempFile.setWritable(true);
+    if (!setW) {
+      logIfDebug("The temp file is not writable");
+    }
+    tempFile.deleteOnExit();
+    os.writeTo(new FileOutputStream(tempFile));
+    return tempFile;
+  }
+
+  public static String uploadFileToOpenAI(String openaiApiKey,
+      File fileToSend) throws JSONException {
+    JSONObject jsonResponse;
+    String endpoint = "/files";
+    jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, endpoint, "assistants", fileToSend);
     if (jsonResponse.has("error")) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSync.getName(),
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSend.getName(),
           jsonResponse.getJSONObject("error").getString("message")));
     }
     return jsonResponse.getString("id");
@@ -332,6 +406,11 @@ public class OpenAIUtils {
     }
   }
 
+  public static String getOpenaiApiKey() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return properties.getProperty(OPENAI_API_KEY);
+  }
+
   public static void deleteLocalAssistants(String openaiApiKey) {
     try {
       JSONArray assistants = listAssistants(openaiApiKey);
@@ -342,7 +421,7 @@ public class OpenAIUtils {
         }
       }
     } catch (JSONException e) {
-      throw new RuntimeException(e);
+      throw new OBException(e);
     }
   }
 

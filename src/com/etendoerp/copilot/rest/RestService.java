@@ -9,7 +9,9 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -28,6 +30,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
@@ -40,7 +43,9 @@ import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
+import com.etendoerp.copilot.util.OpenAIUtils;
 
 public class RestService extends HttpSecureAppServlet {
 
@@ -142,16 +147,26 @@ public class RestService extends HttpSecureAppServlet {
         return;
       }
       //if not a valid path, throw a error status
-      response.sendError(HttpServletResponse.SC_NOT_FOUND);
+      response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     } catch (Exception e) {
       log4j.error(e);
       try {
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-      } catch (IOException ioException) {
-        log4j.error(ioException);
-        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+        sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+      } catch (Exception e2) {
+        log4j.error(e2);
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e2.getMessage());
       }
     }
+  }
+
+  private void sendErrorResponse(HttpServletResponse response, int status,
+      String message) throws IOException, JSONException {
+    response.setStatus(status);
+    JSONObject answer = new JSONObject();
+    JSONObject error = new JSONObject();
+    error.put("error", message);
+    answer.put("answer", error);
+    response.getWriter().write(answer.toString());
   }
 
   private void handleFile(HttpServletRequest request,
@@ -167,33 +182,57 @@ public class RestService extends HttpSecureAppServlet {
     List<FileItem> items = upload.parseRequest(request);
     logIfDebug(String.format("items: %d", items.size()));
     JSONObject responseJson = new JSONObject();
+    //create a list of files, for delete them later when the process finish
+    ArrayList<File> fileListToDelete = new ArrayList<>();
 
     for (FileItem item : items) {
-      if (!item.isFormField()) {
-        DiskFileItem itemDisk = (DiskFileItem) item;
-        String originalFileName = item.getName();
-        String extension = originalFileName.substring(originalFileName.lastIndexOf("."));
-        String filenameWithoutExt = originalFileName.substring(0, originalFileName.lastIndexOf("."));
-        //check if the file is in memory or in disk and create a temp file,
-        File f = File.createTempFile(filenameWithoutExt + "_", extension);
-        if (itemDisk.isInMemory()) {
-          //if the file is in memory, write it to the temp file
-          itemDisk.write(f);
-        } else {
-          //if the file is in disk, copy it to the temp file
-          boolean successRename = itemDisk.getStoreLocation().renameTo(f);
-          if (!successRename) {
-            throw new OBException(
-                String.format(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"), item.getName()));
-          }
+      if (item.isFormField()) {
+        continue;
+      }
+      DiskFileItem itemDisk = (DiskFileItem) item;
+      String originalFileName = item.getName();
+      String extension = originalFileName.substring(originalFileName.lastIndexOf("."));
+      String filenameWithoutExt = originalFileName.substring(0, originalFileName.lastIndexOf("."));
+      //check if the file is in memory or in disk and create a temp file,
+      File f = File.createTempFile(filenameWithoutExt + "_", extension);
+      f.deleteOnExit();
+      if (itemDisk.isInMemory()) {
+        //if the file is in memory, write it to the temp file
+        itemDisk.write(f);
+      } else {
+        //if the file is in disk, copy it to the temp file
+        boolean successRename = itemDisk.getStoreLocation().renameTo(f);
+        if (!successRename) {
+          throw new OBException(
+              String.format(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"), item.getName()));
         }
-        responseJson.put(item.getFieldName(), f.getName());
-
+      }
+      checkSizeFile(f);
+      String fileId = OpenAIUtils.uploadFileToOpenAI(OpenAIUtils.getOpenaiApiKey(), f);
+      saveFileTemp(f, fileId);
+      fileListToDelete.add(f);
+      responseJson.put(item.getFieldName(), fileId);
+    }
+    //delete the temp files
+    for (File f : fileListToDelete) {
+      try {
+        logIfDebug(String.format("deleting file: %s", f.getName()));
+        Files.deleteIfExists(f.toPath());
+      } catch (Exception e) {
+        log4j.error(e);
       }
     }
     response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
     response.getWriter().write(responseJson.toString());
+  }
 
+  private void checkSizeFile(File f) {
+   //check the size of the file: must be max 512mb
+    long size = f.length();
+    if (size > 512 * 1024 * 1024) {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_FileTooBig"), f.getName()));
+    }
   }
 
   private void logIfDebug(String msg) {
@@ -243,14 +282,19 @@ public class RestService extends HttpSecureAppServlet {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
       }
-      String questionAttachedFileName = jsonRequestOriginal.optString("file");
-      if (StringUtils.isNotEmpty(questionAttachedFileName)) {
+      String questionAttachedFileId = jsonRequestOriginal.optString("file");
+      if (StringUtils.isNotEmpty(questionAttachedFileId)) {
         //check if the file exists in the temp folder
-        File f = new File(System.getProperty("java.io.tmpdir"), questionAttachedFileName);
-        if (!f.exists()) {
-          throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"), questionAttachedFileName)); //TODO:error message
+        CopilotFile copilotFile = (CopilotFile) OBDal.getInstance().createCriteria(CopilotFile.class)
+            .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
+            .setMaxResults(1)
+            .uniqueResult();
+        if (copilotFile == null) {
+          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"), questionAttachedFileId));
         }
+        // send the files to OpenAI and  replace the "file names" with the file_ids returned by OpenAI
+        logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
+        jsonRequestForCopilot.put("file_ids", new JSONArray().put(questionAttachedFileId));
       }
       String bodyReq = jsonRequestForCopilot.toString();
       HttpRequest copilotRequest = HttpRequest.newBuilder()
@@ -281,6 +325,23 @@ public class RestService extends HttpSecureAppServlet {
     responseOriginal.put("timestamp", tms.toString());
     response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
     response.getWriter().write(responseOriginal.toString());
+  }
+
+  private void saveFileTemp(File f, String fileId) {
+    CopilotFile fileCop = OBProvider.getInstance().get(CopilotFile.class);
+    fileCop.setOpenaiIdFile(fileId);
+    OBContext contxt = OBContext.getOBContext();
+    fileCop.setName(f.getName());
+    fileCop.setCreatedBy(contxt.getUser());
+    fileCop.setUpdatedBy(contxt.getUser());
+    fileCop.setCreationDate(new Date());
+    fileCop.setUpdated(new Date());
+    fileCop.setClient(contxt.getCurrentClient());
+    fileCop.setOrganization(contxt.getCurrentOrganization());
+    fileCop.setType("F");
+    fileCop.setTemp(true);
+    OBDal.getInstance().save(fileCop);
+    OBDal.getInstance().flush();
   }
 
 
