@@ -4,10 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.util.Date;
 import java.util.List;
 
@@ -19,7 +15,6 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
@@ -90,7 +85,7 @@ public class OpenAIUtils {
     if (files.length() > 0) {
       body.put("file_ids", files);
     }
-    body.put("tools", buildToolsArray(app, files.length() > 0));
+    body.put("tools", buildToolsArray(app));
     body.put("model", app.getModel().getSearchkey());
     //make the request to openai
     JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
@@ -139,7 +134,7 @@ public class OpenAIUtils {
       if (files.length() > 0) {
         body.put("file_ids", files);
       }
-      body.put("tools", buildToolsArray(app, files.length() > 0));
+      body.put("tools", buildToolsArray(app));
       body.put("model", app.getModel().getSearchkey());
       //make the request to openai
       JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
@@ -257,14 +252,14 @@ public class OpenAIUtils {
     return new JSONObject(response.getBody());
   }
 
-  private static JSONArray buildToolsArray(CopilotApp app, boolean retrieval) throws JSONException {
+  private static JSONArray buildToolsArray(CopilotApp app) throws JSONException {
     JSONArray toolSet = getToolSet(app);
     JSONObject tool = new JSONObject();
     if (Boolean.TRUE.equals(app.isCodeInterpreter())) {
       tool.put("type", "code_interpreter");
       toolSet.put(tool);
     }
-    if (retrieval) {
+    if (Boolean.TRUE.equals(app.isRetrieval())) {
       tool = new JSONObject();
       tool.put("type", "retrieval");
       toolSet.put(tool);

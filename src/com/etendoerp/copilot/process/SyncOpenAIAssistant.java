@@ -16,6 +16,7 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
@@ -101,13 +102,13 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
     //ask to openai for the list of models
     JSONArray modelJSONArray = OpenAIUtils.getModelList(openaiApiKey);
     //transfer ids of json array to a list of strings
-    List<String> modelIds = new ArrayList<>();
+    List<JSONObject> modelIds = new ArrayList<>();
     for (int i = 0; i < modelJSONArray.length(); i++) {
       try {
         JSONObject modelObj = modelJSONArray.getJSONObject(i);
         if (!StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
             !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
-          modelIds.add(modelObj.getString("id"));
+          modelIds.add(modelObj);
         }
       } catch (JSONException e) {
         log.error("Error in syncOpenaiModels", e);
@@ -126,11 +127,14 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       }
     }
     //the models that are not in the database, we will create them,
-    for (String modelId : modelIds) {
+    for (JSONObject modelData : modelIds) {
       CopilotOpenAIModel model = OBProvider.getInstance().get(CopilotOpenAIModel.class);
-      model.setSearchkey(modelId);
-      model.setName(modelId);
+      model.setSearchkey(modelData.optString("id"));
+      model.setName(modelData.optString("id"));
       model.setActive(true);
+      //get the date in The Unix timestamp (in seconds) when the model was created. Convert to date
+      long creationDate = modelData.optLong("created"); // Unix timestamp (in seconds) when the model was created
+      model.setCreationDate(new java.util.Date(creationDate * 1000L));
       OBDal.getInstance().save(model);
     }
     OBDal.getInstance().flush();
@@ -140,9 +144,10 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         .add(Restrictions.eq(CopilotApp.PROPERTY_APPTYPE, RestService.APP_TYPE_OPENAI))
         .list();
 
-    CopilotOpenAIModel defaultModel = (CopilotOpenAIModel) OBDal.getInstance().createCriteria(CopilotOpenAIModel.class)
-        .add(Restrictions.eq(CopilotOpenAIModel.PROPERTY_SEARCHKEY, "gpt-4-1106-preview")).setMaxResults(1)
-        .uniqueResult();
+    CopilotOpenAIModel defaultModel = (CopilotOpenAIModel) OBDal.getInstance().createCriteria(
+        CopilotOpenAIModel.class).addOrder(Order.desc(CopilotOpenAIModel.PROPERTY_CREATIONDATE))
+        .setMaxResults(
+        1).uniqueResult();
     for (CopilotApp app : appsWithoutModel) {
       app.setModel(defaultModel);
       OBDal.getInstance().save(app);
