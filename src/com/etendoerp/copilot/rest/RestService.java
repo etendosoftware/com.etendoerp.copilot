@@ -9,7 +9,9 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -180,6 +182,8 @@ public class RestService extends HttpSecureAppServlet {
     List<FileItem> items = upload.parseRequest(request);
     logIfDebug(String.format("items: %d", items.size()));
     JSONObject responseJson = new JSONObject();
+    //create a list of files, for delete them later when the process finish
+    ArrayList<File> fileListToDelete = new ArrayList<>();
 
     for (FileItem item : items) {
       if (item.isFormField()) {
@@ -191,6 +195,7 @@ public class RestService extends HttpSecureAppServlet {
       String filenameWithoutExt = originalFileName.substring(0, originalFileName.lastIndexOf("."));
       //check if the file is in memory or in disk and create a temp file,
       File f = File.createTempFile(filenameWithoutExt + "_", extension);
+      f.deleteOnExit();
       if (itemDisk.isInMemory()) {
         //if the file is in memory, write it to the temp file
         itemDisk.write(f);
@@ -202,12 +207,32 @@ public class RestService extends HttpSecureAppServlet {
               String.format(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"), item.getName()));
         }
       }
+      checkSizeFile(f);
       String fileId = OpenAIUtils.uploadFileToOpenAI(OpenAIUtils.getOpenaiApiKey(), f);
       saveFileTemp(f, fileId);
+      fileListToDelete.add(f);
       responseJson.put(item.getFieldName(), fileId);
+    }
+    //delete the temp files
+    for (File f : fileListToDelete) {
+      try {
+        logIfDebug(String.format("deleting file: %s", f.getName()));
+        Files.deleteIfExists(f.toPath());
+      } catch (Exception e) {
+        log4j.error(e);
+      }
     }
     response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
     response.getWriter().write(responseJson.toString());
+  }
+
+  private void checkSizeFile(File f) {
+   //check the size of the file: must be max 512mb
+    long size = f.length();
+    if (size > 512 * 1024 * 1024) {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_FileTooBig"), f.getName()));
+    }
   }
 
   private void logIfDebug(String msg) {

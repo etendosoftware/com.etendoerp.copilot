@@ -25,7 +25,6 @@
     <appType>openai-assistant</appType>
     <syncOpenaiAssistant>true</syncOpenaiAssistant>
     <codeInterpreter>false</codeInterpreter>
-    <model id="94DEC5D771DB41CEB60B96A7D2F324AC" entity-name="etcop_openai_model" identifier="gpt-4-1106-preview"/>
   </ETCOP_App>
   <ETCOP_App_Source id="2CC66BE55B6E4279B6DBE6A45747AC84" identifier="Bastian - Etendo Wiki">
     <id>2CC66BE55B6E4279B6DBE6A45747AC84</id>
