@@ -24,7 +24,8 @@ and rp.etcop_app_id = etcop_app.etcop_app_id and rp.etcop_role_app_id <> coalesc
     SELECT 1 FROM etcop_app_source ap 
     WHERE ap.etcop_app_id= @Etcop_App_ID@ 
      and ap.etcop_file_id = etcop_file.etcop_file_id  
-     and (ap.etcop_app_source_id <> coalesce(@Etcop_App_Source_ID@,'')))]]></CODE>
+     and (ap.etcop_app_source_id <> coalesce(@Etcop_App_Source_ID@,'')))
+and etcop_file.istemp='N']]></CODE>
 <!--650BF66A4B3B46599D4F22BEFF152785-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--650BF66A4B3B46599D4F22BEFF152785--></AD_VAL_RULE>
 
