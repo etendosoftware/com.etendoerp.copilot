@@ -3,6 +3,7 @@ package com.etendoerp.copilot.process;
 import static com.etendoerp.copilot.util.OpenAIUtils.HEADER_CONTENT_TYPE;
 import static com.etendoerp.copilot.util.OpenAIUtils.wrappWithJSONSchema;
 
+import java.net.ConnectException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -97,19 +98,23 @@ public class SyncToolStructure extends BaseProcessActionHandler {
       OBDal.getInstance().flush();
       returnSuccessMsg(result, syncCount, totalRecords);
 
-    }catch (InterruptedException e){
+    } catch (InterruptedException e) {
       log.error(e);
       Thread.currentThread().interrupt();
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
       log.error("Error in process", e);
       try {
         OBDal.getInstance().getConnection().rollback();
         result = new JSONObject();
         JSONObject errorMessage = new JSONObject();
         Throwable ex = DbUtility.getUnderlyingSQLException(e);
-        String message = OBMessageUtils.translateError(ex.getMessage()).getMessage();
+        String message;
+        if (e instanceof ConnectException) {
+          message = OBMessageUtils.messageBD("ETCOP_ConnCopilotError");
+        } else {
+          message = OBMessageUtils.translateError(ex.getMessage()).getMessage();
+        }
         errorMessage.put("severity", "error");
         errorMessage.put("title", OBMessageUtils.messageBD("Error"));
         errorMessage.put("text", message);
