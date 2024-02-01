@@ -62,6 +62,7 @@ public class RestService extends HttpSecureAppServlet {
   public static final String PROP_TYPE = "type";
   public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
   public static final String APPLICATION_JSON_CHARSET_UTF_8 = "application/json;charset=UTF-8";
+  public static final String FILE = "/file";
 
 
   @Override
@@ -72,7 +73,7 @@ public class RestService extends HttpSecureAppServlet {
         handleAssistants(response);
         return;
 
-      }  // add /labels to get the labels of the module
+      }  //  /labels to get the labels of the module
       else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         response.getWriter().write(getJSONLabels().toString());
@@ -142,7 +143,7 @@ public class RestService extends HttpSecureAppServlet {
       if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
         handleQuestion(request, response);
         return;
-      } else if (StringUtils.equalsIgnoreCase(path, "/file")) {
+      } else if (StringUtils.equalsIgnoreCase(path, FILE)) {
         handleFile(request, response);
         return;
       }
@@ -172,7 +173,7 @@ public class RestService extends HttpSecureAppServlet {
   private void handleFile(HttpServletRequest request,
       HttpServletResponse response) throws Exception {
     logIfDebug("handleFile");
-    //En la request nos enviaran un form-data con  el campo file con el archivo
+    // in the request we will receive a form-data with the field file with the file
 
     boolean isMultipart = ServletFileUpload.isMultipartContent(request);
     logIfDebug(String.format("isMultipart: %s", isMultipart));
@@ -213,6 +214,7 @@ public class RestService extends HttpSecureAppServlet {
       fileListToDelete.add(f);
       responseJson.put(item.getFieldName(), fileId);
     }
+    OBDal.getInstance().flush();
     //delete the temp files
     for (File f : fileListToDelete) {
       try {
@@ -341,7 +343,6 @@ public class RestService extends HttpSecureAppServlet {
     fileCop.setType("F");
     fileCop.setTemp(true);
     OBDal.getInstance().save(fileCop);
-    OBDal.getInstance().flush();
   }
 
 
