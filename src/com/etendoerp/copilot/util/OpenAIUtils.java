@@ -48,6 +48,9 @@ public class OpenAIUtils {
   public static final String HEADER_BEARER = "Bearer ";
   public static final String HEADER_ASSISTANTS_V_1 = "assistants=v1";
   public static final String OPENAI_API_KEY = "OPENAI_API_KEY";
+  public static final String ENDPOINT_FILES = "/files";
+  public static final String ENDPOINT_MODELS = "/models";
+  public static final String ENDPOINT_ASSISTANTS = "/assistants";
 
 
   private OpenAIUtils() {
@@ -82,7 +85,7 @@ public class OpenAIUtils {
   private static JSONObject updateAssistant(CopilotApp app, String openaiApiKey) throws JSONException {
     //almost the same as createAssistant, but we need to update the assistant
 
-    String endpoint = "/assistants/" + app.getOpenaiIdAssistant();
+    String endpoint = ENDPOINT_ASSISTANTS +"/" + app.getOpenaiIdAssistant();
     JSONObject body = new JSONObject();
     body.put("instructions", app.getPrompt());
     body.put("name", app.getName());
@@ -99,7 +102,7 @@ public class OpenAIUtils {
   }
 
   private static JSONArray listAssistants(String openaiApiKey) throws JSONException {
-    String endpoint = "/assistants";
+    String endpoint = ENDPOINT_ASSISTANTS;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, "GET", "?order=desc&limit=100"
     );
     JSONArray data = json.getJSONArray("data");
@@ -122,7 +125,7 @@ public class OpenAIUtils {
   }
 
   private static void deleteAssistant(String openaiAssistantId, String openaiApiKey) throws JSONException {
-    String endpoint = "/assistants/" + openaiAssistantId;
+    String endpoint = ENDPOINT_ASSISTANTS+"/" + openaiAssistantId;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, METHOD_DELETE, null);
     logIfDebug(json.toString());
   }
@@ -131,7 +134,7 @@ public class OpenAIUtils {
     //recreate the following curl command
     try {
 
-      String endpoint = "/assistants";
+      String endpoint = ENDPOINT_ASSISTANTS;
       JSONObject body = new JSONObject();
       body.put("instructions", app.getPrompt());
       body.put("name", app.getName());
@@ -313,7 +316,7 @@ public class OpenAIUtils {
   }
 
   private static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
-    JSONObject response = makeRequestToOpenAI(openaiApiKey, "/files/" + openaiIdFile, null, METHOD_DELETE, null);
+    JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES +"/" + openaiIdFile, null, METHOD_DELETE, null);
     logIfDebug(response.toString());
   }
 
@@ -353,7 +356,7 @@ public class OpenAIUtils {
   public static String uploadFileToOpenAI(String openaiApiKey,
       File fileToSend) throws JSONException {
     JSONObject jsonResponse;
-    String endpoint = "/files";
+    String endpoint = ENDPOINT_FILES;
     jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, endpoint, "assistants", fileToSend);
     if (jsonResponse.has("error")) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSend.getName(),
@@ -364,7 +367,7 @@ public class OpenAIUtils {
 
   public static JSONArray getModelList(String openaiApiKey) {
     try {
-      JSONObject list = makeRequestToOpenAI(openaiApiKey, "/models", null, "GET", null);
+      JSONObject list = makeRequestToOpenAI(openaiApiKey, ENDPOINT_MODELS, null, "GET", null);
 
       return new JSONArray(list.getString("data"));
     } catch (JSONException e) {
