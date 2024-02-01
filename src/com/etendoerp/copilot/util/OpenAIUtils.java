@@ -1,11 +1,14 @@
 package com.etendoerp.copilot.util;
 
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URLConnection;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -15,6 +18,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
@@ -30,7 +34,6 @@ import com.etendoerp.copilot.data.CopilotTool;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 
 import kong.unirest.HttpResponse;
-import kong.unirest.MimeTypes;
 import kong.unirest.Unirest;
 import kong.unirest.UnirestException;
 
@@ -44,6 +47,11 @@ public class OpenAIUtils {
   public static final String CONTENT_TYPE_JSON = "application/json";
   public static final String HEADER_BEARER = "Bearer ";
   public static final String HEADER_ASSISTANTS_V_1 = "assistants=v1";
+  public static final String OPENAI_API_KEY = "OPENAI_API_KEY";
+  public static final String ENDPOINT_FILES = "/files";
+  public static final String ENDPOINT_MODELS = "/models";
+  public static final String ENDPOINT_ASSISTANTS = "/assistants";
+
 
   private OpenAIUtils() {
     throw new IllegalStateException("Utility class");
@@ -51,7 +59,7 @@ public class OpenAIUtils {
 
   public static void syncAssistant(String openaiApiKey, CopilotApp app) throws OBException {
     //first we need to get the assistant
-    //if the app not has a assistant, we need to create it
+    //if the app not has an assistant, we need to create it
 
     if (StringUtils.isEmpty(app.getOpenaiIdAssistant())) {
       String assistantId = OpenAIUtils.createAssistant(app, openaiApiKey);
@@ -77,7 +85,7 @@ public class OpenAIUtils {
   private static JSONObject updateAssistant(CopilotApp app, String openaiApiKey) throws JSONException {
     //almost the same as createAssistant, but we need to update the assistant
 
-    String endpoint = "/assistants/" + app.getOpenaiIdAssistant();
+    String endpoint = ENDPOINT_ASSISTANTS +"/" + app.getOpenaiIdAssistant();
     JSONObject body = new JSONObject();
     body.put("instructions", app.getPrompt());
     body.put("name", app.getName());
@@ -94,7 +102,7 @@ public class OpenAIUtils {
   }
 
   private static JSONArray listAssistants(String openaiApiKey) throws JSONException {
-    String endpoint = "/assistants";
+    String endpoint = ENDPOINT_ASSISTANTS;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, "GET", "?order=desc&limit=100"
     );
     JSONArray data = json.getJSONArray("data");
@@ -104,7 +112,7 @@ public class OpenAIUtils {
           "created_at"); // convert the date to a timestamp. the created is in The Unix timestamp (in seconds) for when the assistant file was created.
       Date date = new Date(Long.parseLong(created) * 1000);
       logIfDebug(
-          String.format("%s - %s - %s", assistant.getString("id"), assistant.getString("name"), date.toString()));
+          String.format("%s - %s - %s", assistant.getString("id"), assistant.getString("name"), date));
     }
     return data;
 
@@ -117,16 +125,16 @@ public class OpenAIUtils {
   }
 
   private static void deleteAssistant(String openaiAssistantId, String openaiApiKey) throws JSONException {
-    String endpoint = "/assistants/" + openaiAssistantId;
+    String endpoint = ENDPOINT_ASSISTANTS+"/" + openaiAssistantId;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, METHOD_DELETE, null);
     logIfDebug(json.toString());
   }
 
   private static String createAssistant(CopilotApp app, String openaiApiKey) throws OBException {
-    //recreate the following curl commandç
+    //recreate the following curl command
     try {
 
-      String endpoint = "/assistants";
+      String endpoint = ENDPOINT_ASSISTANTS;
       JSONObject body = new JSONObject();
       body.put("instructions", app.getPrompt());
       body.put("name", app.getName());
@@ -188,25 +196,12 @@ public class OpenAIUtils {
 
 
   private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint, String purpose,
-      String filename,
-      ByteArrayOutputStream file) throws IOException, JSONException {
-    //save os to temp file
-    //create a temp file
-    String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
-    String extension = filename.substring(filename.lastIndexOf(".") + 1);
-    File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
-    //write ByteArrayOutputStream to tempFile
-    boolean setW = tempFile.setWritable(true);
-    if (!setW) {
-      logIfDebug("The temp file is not writable");
-    }
-    tempFile.deleteOnExit();
-    //write ByteArrayOutputStream to tempFile
-    file.writeTo(new FileOutputStream(tempFile));
+      File fileToSend) throws  JSONException {
+    String mimeType = URLConnection.guessContentTypeFromName(fileToSend.getName());
     kong.unirest.HttpResponse<String> response = Unirest.post(BASE_URL + endpoint)
         .header(HEADER_AUTHORIZATION, String.format("Bearer %s", openaiApiKey))
         .field("purpose", purpose)
-        .field("file", tempFile, MimeTypes.EXE).asString();
+        .field("file", fileToSend, mimeType).asString();
     return new JSONObject(response.getBody());
   }
 
@@ -270,7 +265,7 @@ public class OpenAIUtils {
   public static void syncFile(CopilotFile fileToSync,
       String openaiApiKey) throws JSONException, IOException {
     //first we need to get the file
-    //if the file not has a id, we need to create it
+    //if the file not has an id, we need to create it
     logIfDebug("Syncing file " + fileToSync.getName());
     WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
         .executeHooks(fileToSync);
@@ -284,7 +279,7 @@ public class OpenAIUtils {
       deleteFile(fileToSync.getOpenaiIdFile(), openaiApiKey);
     }
     logIfDebug("Uploading file " + fileToSync.getName());
-    String fileId = OpenAIUtils.uploadFile(fileToSync, openaiApiKey);
+    String fileId = OpenAIUtils.downloadAttachmentAndUploadFile(fileToSync, openaiApiKey);
     fileToSync.setOpenaiIdFile(fileId);
     fileToSync.setLastSync(new Date());
     fileToSync.setUpdated(new Date());
@@ -321,15 +316,18 @@ public class OpenAIUtils {
   }
 
   private static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
-    JSONObject response = makeRequestToOpenAI(openaiApiKey, "/files/" + openaiIdFile, null, METHOD_DELETE, null);
+    JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES +"/" + openaiIdFile, null, METHOD_DELETE, null);
     logIfDebug(response.toString());
   }
 
-  private static String uploadFile(CopilotFile fileToSync, String openaiApiKey) throws JSONException, IOException {
-    //recreate the following curl command with HttpRequests
-    String endpoint = "/files";
+  private static String downloadAttachmentAndUploadFile(CopilotFile fileToSync,
+      String openaiApiKey) throws JSONException, IOException {
     //make the request to openai
-    JSONObject jsonResponse = null;
+    File tempFile = getFileFromCopilotFile(fileToSync);
+    return uploadFileToOpenAI(openaiApiKey, tempFile);
+  }
+
+  private static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
     OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
@@ -340,10 +338,28 @@ public class OpenAIUtils {
     }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);
-    jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, endpoint, "assistants",
-        attach.getName(), os);
+    //save os to temp file
+    //create a temp file
+    String filename = attach.getName();
+    String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
+    String extension = filename.substring(filename.lastIndexOf(".") + 1);
+    File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
+    boolean setW = tempFile.setWritable(true);
+    if (!setW) {
+      logIfDebug("The temp file is not writable");
+    }
+    tempFile.deleteOnExit();
+    os.writeTo(new FileOutputStream(tempFile));
+    return tempFile;
+  }
+
+  public static String uploadFileToOpenAI(String openaiApiKey,
+      File fileToSend) throws JSONException {
+    JSONObject jsonResponse;
+    String endpoint = ENDPOINT_FILES;
+    jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, endpoint, "assistants", fileToSend);
     if (jsonResponse.has("error")) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSync.getName(),
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSend.getName(),
           jsonResponse.getJSONObject("error").getString("message")));
     }
     return jsonResponse.getString("id");
@@ -351,12 +367,17 @@ public class OpenAIUtils {
 
   public static JSONArray getModelList(String openaiApiKey) {
     try {
-      JSONObject list = makeRequestToOpenAI(openaiApiKey, "/models", null, "GET", null);
+      JSONObject list = makeRequestToOpenAI(openaiApiKey, ENDPOINT_MODELS, null, "GET", null);
 
       return new JSONArray(list.getString("data"));
     } catch (JSONException e) {
       throw new OBException(e.getMessage());
     }
+  }
+
+  public static String getOpenaiApiKey() {
+    Properties properties =   OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return properties.getProperty(OPENAI_API_KEY);
   }
 
   public static void deleteLocalAssistants(String openaiApiKey) {

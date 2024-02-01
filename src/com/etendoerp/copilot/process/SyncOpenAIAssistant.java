@@ -36,7 +36,6 @@ import com.etendoerp.copilot.util.OpenAIUtils;
 
 public class SyncOpenAIAssistant extends BaseProcessActionHandler {
   private static final Logger log = LogManager.getLogger(SyncOpenAIAssistant.class);
-  public static final String OPENAI_API_KEY = "OPENAI_API_KEY";
 
   @Override
   protected JSONObject doExecute(Map<String, Object> parameters, String content) {
@@ -53,9 +52,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         throw new OBException(OBMessageUtils.messageBD("ETCOP_NoSelectedRecords"));
       }
       int syncCount = 0;
-      Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-
-      String openaiApiKey = properties.getProperty(OPENAI_API_KEY);
+      String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
 
       syncOpenaiModels(openaiApiKey);
       List<CopilotApp> appList = new ArrayList<>();

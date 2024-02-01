@@ -38,7 +38,8 @@ public class OpenAIUConstants {
     EXTENSION_TO_MIMETYPE.put(".zip", "application/zip");
   }
 
-  public static String getMimeType(String extension) {
+  public static String getMimeType(String fileName) {
+    String extension = fileName.substring(fileName.lastIndexOf("."));
     return EXTENSION_TO_MIMETYPE.get(extension.toLowerCase());
   }
 }
