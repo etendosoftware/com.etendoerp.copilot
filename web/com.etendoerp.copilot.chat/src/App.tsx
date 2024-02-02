@@ -192,7 +192,7 @@ function App() {
 
   const uploadConfig = {
     file: file,
-    url: "http://localhost:8080/etendo/copilot/file",
+    url: "../../copilot/file",
     method: "POST",
   }
 
