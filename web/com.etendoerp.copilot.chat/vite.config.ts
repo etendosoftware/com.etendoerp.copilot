@@ -7,5 +7,8 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: "../com.etendoerp.copilot.dist",
-  },
+    rollupOptions: {
+      external: "react-native-document-picker"
+    }
+  }
 });
