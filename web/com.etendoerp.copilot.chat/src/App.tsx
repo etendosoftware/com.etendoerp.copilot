@@ -1,10 +1,10 @@
-import { useState, useEffect, ChangeEvent, FormEvent, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Input from "etendo-ui-library/dist-web/components/input/Input";
 import TextMessage from "etendo-ui-library/dist-web/components/text-message/TextMessage";
+import FileSearchInput from "etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput";
 import { useAssistants } from "./hooks/useAssistants";
 import { formatTime, formatTimeNewDate, getMessageType } from "./utils/functions";
 import enterIcon from "./assets/enter.svg";
-import purpleEnterIcon from "./assets/purple_enter.svg";
 import botIcon from "./assets/bot.svg";
 import responseSent from "./assets/response-sent.svg";
 import { LOADING_MESSAGES } from "./utils/constants";
@@ -14,13 +14,12 @@ import "./App.css";
 
 function App() {
   // States
+  const [file, setFile] = useState('');
   const [labels, setLabels] = useState<ILabels>({});
-  const [sendIcon, setSendIcon] = useState(enterIcon);
   const [statusIcon, setStatusIcon] = useState(enterIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>("");
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
-  const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
   const [areLabelsLoaded, setAreLabelsLoaded] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const { selectedOption, assistants, getAssistants, handleOptionSelected } = useAssistants();
@@ -68,8 +67,7 @@ function App() {
   };
 
   // Function to handle sending a message
-  const handleSendMessage = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSendMessage = async () => {
     setIsBotLoading(true);
 
     if (!isBotLoading) {
@@ -192,6 +190,12 @@ function App() {
     inputRef.current.focus();
   }, [assistants])
 
+  const uploadConfig = {
+    file: file,
+    url: "http://localhost:8080/etendo/copilot/file",
+    method: "POST",
+  }
+
   return (
     <div className="h-screen w-screen flex flex-col">
       {/* Initial message and assistants selection */}
@@ -298,39 +302,16 @@ function App() {
       </div>
 
       {/* Message input area */}
-      <div className={`bg-white-900 rounded-lg mx-[12px] border ${isInputFocused ? ' border-blue-900' : 'border-transparent'} ${noAssistants && 'opacity-50'}`}>
-        <form
+      <div className="mx-[12px]" ref={inputRef}>
+        <FileSearchInput
+          value={inputValue}
+          placeholder="Message..."
+          onChangeText={text => setInputValue(text)}
           onSubmit={handleSendMessage}
-          className="flex w-full bg-white-900 rounded-lg px-2"
-        >
-          <input
-            type="text"
-            ref={inputRef}
-            placeholder={labels.ETCOP_Message_Placeholder}
-            className="flex-1 text-sm p-2 py-3 bg-transparent placeholder:text-gray-600 focus:outline-none"
-            value={inputValue}
-            disabled={noAssistants}
-            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-              setInputValue(event.target.value)
-            }
-            onFocus={() => setIsInputFocused(true)}
-            onBlur={() => setIsInputFocused(false)}
-            required
-          />
-
-          <button
-            type="submit"
-            className="p-2 py-3 text-gray-600 hover:text-blue-500"
-            disabled={isBotLoading || noAssistants}
-            onMouseOver={() => setSendIcon(purpleEnterIcon)}
-            onMouseOut={() => setSendIcon(enterIcon)}
-          >
-            <div className={`flex items-center gap-2 ${isBotLoading && 'opacity-50'}`}>
-              <img src={sendIcon} className="w-3 h-3" alt="Enter" />
-              <p className="text-xs">{labels.ETCOP_Send}</p>
-            </div>
-          </button>
-        </form>
+          setFile={setFile}
+          uploadConfig={uploadConfig}
+          isDisabled={noAssistants}
+        />
       </div>
     </div>
   );
