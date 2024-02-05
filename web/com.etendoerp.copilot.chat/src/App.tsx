@@ -3,11 +3,11 @@ import Input from "etendo-ui-library/dist-web/components/input/Input";
 import TextMessage from "etendo-ui-library/dist-web/components/text-message/TextMessage";
 import FileSearchInput from "etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput";
 import { useAssistants } from "./hooks/useAssistants";
-import { formatTime, formatTimeNewDate, getMessageType } from "./utils/functions";
+import { formatTimeNewDate, getMessageType } from "./utils/functions";
 import enterIcon from "./assets/enter.svg";
 import botIcon from "./assets/bot.svg";
 import responseSent from "./assets/response-sent.svg";
-import { LOADING_MESSAGES } from "./utils/constants";
+import { LOADING_MESSAGES, SUPPORTED_MIME_TYPES } from "./utils/constants";
 import { ILabels } from "./interfaces";
 import { IMessage } from "./interfaces/IMessage";
 import { References } from "./utils/references";
@@ -126,32 +126,38 @@ function App() {
         const data = await response.json();
         if (!conversationId) setConversationId(data.conversation_id);
 
-        // Update messages after response
-        setMessages((currentMessages: any) => currentMessages.map((message: IMessage) =>
-          message.sender === "interpreting" ?
-            { ...message, text: labels.ETCOP_Generated_Response } :
-            message
-        ));
+        if (!(data.answer && Object.keys(data.answer).length === 0)) {
+          setMessages((currentMessages: any) => currentMessages.map((message: IMessage) =>
+            message.sender === "interpreting" ?
+              { ...message, text: labels.ETCOP_Generated_Response } :
+              message
+          ));
+        }
+
         setStatusIcon(responseSent);
+        scrollToBottom();
 
         setTimeout(() => {
-          setMessages(currentMessages => [
-            ...currentMessages.filter(message => message.sender !== "interpreting"),
-            { text: data.response, sender: "bot", timestamp: formatTime(data.timestamp) }
-          ]);
-          scrollToBottom();
+          if (data.answer && Object.keys(data.answer).length !== 0) {
+            setMessages(currentMessages => [
+              ...currentMessages.filter(message => message.sender !== "interpreting"),
+              { text: data.response, sender: "bot", timestamp: formatTimeNewDate(new Date()) }
+            ]);
+          } else {
+            showErrorMessage();
+          }
           setIsBotLoading(false);
           setStatusIcon(botIcon);
           setFile('');
+          scrollToBottom();
           setFileId(null);
         }, 2000);
-
       } catch (error) {
         console.error('Error fetching data:', error);
         setIsBotLoading(false);
         showErrorMessage();
       }
-    }
+    };
   };
 
   // Function to show error message if bot does not respond
@@ -185,6 +191,19 @@ function App() {
       if (intervalId) clearInterval(intervalId);
     };
   }, [isBotLoading, statusIcon]);
+
+  useEffect(() => {
+    if (file && !(SUPPORTED_MIME_TYPES.includes(file.type))) {
+      const errorMessage = {
+        text: labels.ETCOP_FileTypeError,
+        sender: "error",
+        timestamp: formatTimeNewDate(new Date())
+      };
+      setMessages((currentMessages: any) => [...currentMessages, errorMessage]);
+      setFile(null);
+    }
+    scrollToBottom();
+  }, [file]);
 
   // Scroll bottom effect
   useEffect(() => {
@@ -237,7 +256,7 @@ function App() {
       }
 
       {/* Chat display area */}
-      <div className="flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200">
+      <div className={`${file ? 'h-[428px]' : 'h-[452px]'} flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200`}>
         {messages.length === 0 && (
           <div className="inline-flex mt-[12px] rounded-lg text-blue-900 font-medium">
             {areLabelsLoaded && (
@@ -323,7 +342,7 @@ function App() {
       </div>
 
       {/* Message input area */}
-      <div className="mx-[12px]" ref={inputRef}>
+      <div className={`mx-[12px]`} ref={inputRef}>
         <FileSearchInput
           value={inputValue}
           placeholder={labels.ETCOP_Message_Placeholder!}
