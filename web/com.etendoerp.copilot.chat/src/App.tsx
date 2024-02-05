@@ -10,6 +10,7 @@ import responseSent from "./assets/response-sent.svg";
 import { LOADING_MESSAGES } from "./utils/constants";
 import { ILabels } from "./interfaces";
 import { IMessage } from "./interfaces/IMessage";
+import { References } from "./utils/references";
 import "./App.css";
 
 function App() {
@@ -59,7 +60,7 @@ function App() {
       method: 'GET',
     }
 
-    const response = await fetch("../../copilot/labels", requestOptions);
+    const response = await fetch(References.url.GET_LABELS, requestOptions);
     const data = await response.json();
     if (data) {
       setLabels(data);
@@ -114,14 +115,14 @@ function App() {
       }
 
       const requestOptions = {
-        method: 'POST',
+        method: References.method.POST,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
         signal: new AbortController().signal
       };
 
       try {
-        const response = await fetch("../../copilot/question", requestOptions);
+        const response = await fetch(References.url.SEND_QUESTION, requestOptions);
         const data = await response.json();
         if (!conversationId) setConversationId(data.conversation_id);
 
@@ -211,8 +212,8 @@ function App() {
 
   const uploadConfig = {
     file: file,
-    url: "../../copilot/file",
-    method: "POST",
+    url: References.url.UPLOAD_FILE,
+    method: References.method.POST,
   }
 
   return (
@@ -325,7 +326,7 @@ function App() {
       <div className="mx-[12px]" ref={inputRef}>
         <FileSearchInput
           value={inputValue}
-          placeholder="Message..."
+          placeholder={labels.ETCOP_Message_Placeholder!}
           onChangeText={text => setInputValue(text)}
           onSubmit={handleSendMessage}
           setFile={setFile}
