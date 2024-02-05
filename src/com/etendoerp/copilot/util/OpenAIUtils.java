@@ -5,11 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URLConnection;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -52,6 +48,9 @@ public class OpenAIUtils {
   public static final String HEADER_BEARER = "Bearer ";
   public static final String HEADER_ASSISTANTS_V_1 = "assistants=v1";
   public static final String OPENAI_API_KEY = "OPENAI_API_KEY";
+  public static final String ENDPOINT_FILES = "/files";
+  public static final String ENDPOINT_MODELS = "/models";
+  public static final String ENDPOINT_ASSISTANTS = "/assistants";
 
 
   private OpenAIUtils() {
@@ -86,7 +85,7 @@ public class OpenAIUtils {
   private static JSONObject updateAssistant(CopilotApp app, String openaiApiKey) throws JSONException {
     //almost the same as createAssistant, but we need to update the assistant
 
-    String endpoint = "/assistants/" + app.getOpenaiIdAssistant();
+    String endpoint = ENDPOINT_ASSISTANTS +"/" + app.getOpenaiIdAssistant();
     JSONObject body = new JSONObject();
     body.put("instructions", app.getPrompt());
     body.put("name", app.getName());
@@ -94,7 +93,7 @@ public class OpenAIUtils {
     if (files.length() > 0) {
       body.put("file_ids", files);
     }
-    body.put("tools", buildToolsArray(app, files.length() > 0));
+    body.put("tools", buildToolsArray(app));
     body.put("model", app.getModel().getSearchkey());
     //make the request to openai
     JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
@@ -103,7 +102,7 @@ public class OpenAIUtils {
   }
 
   private static JSONArray listAssistants(String openaiApiKey) throws JSONException {
-    String endpoint = "/assistants";
+    String endpoint = ENDPOINT_ASSISTANTS;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, "GET", "?order=desc&limit=100"
     );
     JSONArray data = json.getJSONArray("data");
@@ -126,7 +125,7 @@ public class OpenAIUtils {
   }
 
   private static void deleteAssistant(String openaiAssistantId, String openaiApiKey) throws JSONException {
-    String endpoint = "/assistants/" + openaiAssistantId;
+    String endpoint = ENDPOINT_ASSISTANTS+"/" + openaiAssistantId;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, METHOD_DELETE, null);
     logIfDebug(json.toString());
   }
@@ -135,7 +134,7 @@ public class OpenAIUtils {
     //recreate the following curl command
     try {
 
-      String endpoint = "/assistants";
+      String endpoint = ENDPOINT_ASSISTANTS;
       JSONObject body = new JSONObject();
       body.put("instructions", app.getPrompt());
       body.put("name", app.getName());
@@ -143,7 +142,7 @@ public class OpenAIUtils {
       if (files.length() > 0) {
         body.put("file_ids", files);
       }
-      body.put("tools", buildToolsArray(app, files.length() > 0));
+      body.put("tools", buildToolsArray(app));
       body.put("model", app.getModel().getSearchkey());
       //make the request to openai
       JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
@@ -158,7 +157,7 @@ public class OpenAIUtils {
 
   }
 
-  private static JSONArray getToolSet(CopilotApp app) throws OBException {
+  private static JSONArray getToolSet(CopilotApp app) throws OBException, JSONException {
     // we will read from /copilot the tools if we can
     JSONArray result = new JSONArray();
     OBCriteria<CopilotAppTool> appToolCrit = OBDal.getInstance().createCriteria(CopilotAppTool.class);
@@ -168,49 +167,19 @@ public class OpenAIUtils {
       return result;
     }
     //make petition to /copilot
-    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    JSONObject responseJsonFromCopilot;
-    try {
-      HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
-      HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s/tools", copilotHost, copilotPort)))
-          .headers(HEADER_CONTENT_TYPE, "application/json;charset=UTF-8")
-          .version(HttpClient.Version.HTTP_1_1)
-          .GET()
-          .build();
-      java.net.http.HttpResponse<String> responseFromCopilot = client.send(copilotRequest,
-          java.net.http.HttpResponse.BodyHandlers.ofString());
-      responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
-      logIfDebug(responseJsonFromCopilot.toString());
+    for (CopilotAppTool appTool : appToolsList) {
+      CopilotTool erpTool = appTool.getCopilotTool();
+      String toolInfo = erpTool.getJsonStructure();
+      if (toolInfo != null) {
 
-      for (CopilotAppTool appTool : appToolsList) {
-        CopilotTool erpTool = appTool.getCopilotTool();
-        JSONObject toolInfo = responseJsonFromCopilot.optJSONObject("answer").optJSONObject(erpTool.getValue());
-        if (toolInfo != null) {
-          JSONObject toolSetItem = new JSONObject();
-          toolSetItem.put("type", "function");
-          JSONObject funtionJson = new JSONObject();
-          funtionJson.put("name", erpTool.getValue());
-          funtionJson.put("description", toolInfo.get("description"));
-          funtionJson.put("parameters", wrappWithJSONSchema(toolInfo.getJSONObject("parameters")));
-          toolSetItem.put("function", funtionJson);
-          result.put(toolSetItem);
-
-        }
+        result.put(new JSONObject(toolInfo));
       }
-    } catch (JSONException | URISyntaxException | IOException e) {
-      throw new OBException(e);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new OBException(e);
     }
 
     return result;
   }
 
-  private static JSONObject wrappWithJSONSchema(JSONObject parameters) throws JSONException {
+  public static JSONObject wrappWithJSONSchema(JSONObject parameters) throws JSONException {
     return new JSONObject().put("type", "object").put("properties", parameters);
   }
 
@@ -278,14 +247,14 @@ public class OpenAIUtils {
     return new JSONObject(response.getBody());
   }
 
-  private static JSONArray buildToolsArray(CopilotApp app, boolean retrieval) throws JSONException {
+  private static JSONArray buildToolsArray(CopilotApp app) throws JSONException {
     JSONArray toolSet = getToolSet(app);
     JSONObject tool = new JSONObject();
     if (Boolean.TRUE.equals(app.isCodeInterpreter())) {
       tool.put("type", "code_interpreter");
       toolSet.put(tool);
     }
-    if (retrieval) {
+    if (Boolean.TRUE.equals(app.isRetrieval())) {
       tool = new JSONObject();
       tool.put("type", "retrieval");
       toolSet.put(tool);
@@ -347,7 +316,7 @@ public class OpenAIUtils {
   }
 
   private static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
-    JSONObject response = makeRequestToOpenAI(openaiApiKey, "/files/" + openaiIdFile, null, METHOD_DELETE, null);
+    JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES +"/" + openaiIdFile, null, METHOD_DELETE, null);
     logIfDebug(response.toString());
   }
 
@@ -387,7 +356,7 @@ public class OpenAIUtils {
   public static String uploadFileToOpenAI(String openaiApiKey,
       File fileToSend) throws JSONException {
     JSONObject jsonResponse;
-    String endpoint = "/files";
+    String endpoint = ENDPOINT_FILES;
     jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, endpoint, "assistants", fileToSend);
     if (jsonResponse.has("error")) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSend.getName(),
@@ -398,7 +367,7 @@ public class OpenAIUtils {
 
   public static JSONArray getModelList(String openaiApiKey) {
     try {
-      JSONObject list = makeRequestToOpenAI(openaiApiKey, "/models", null, "GET", null);
+      JSONObject list = makeRequestToOpenAI(openaiApiKey, ENDPOINT_MODELS, null, "GET", null);
 
       return new JSONArray(list.getString("data"));
     } catch (JSONException e) {
@@ -407,7 +376,7 @@ public class OpenAIUtils {
   }
 
   public static String getOpenaiApiKey() {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    Properties properties =   OBPropertiesProvider.getInstance().getOpenbravoProperties();
     return properties.getProperty(OPENAI_API_KEY);
   }
 
