@@ -101,8 +101,8 @@ contents: `
 <head>
   <style>
   .icon-button {
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 2rem;
+    height: 2rem;
     cursor: pointer;
     border-radius: 0.5rem;
   }
@@ -192,8 +192,8 @@ contents: `
 <head>
   <style>
   .icon-button {
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 2rem;
+    height: 2rem;
     cursor: pointer;
     border-radius: 0.5rem;
   }
