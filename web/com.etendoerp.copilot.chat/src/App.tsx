@@ -14,7 +14,8 @@ import "./App.css";
 
 function App() {
   // States
-  const [file, setFile] = useState('');
+  const [file, setFile] = useState<any>(null);
+  const [fileId, setFileId] = useState<string | null>(null);
   const [labels, setLabels] = useState<ILabels>({});
   const [statusIcon, setStatusIcon] = useState(enterIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
@@ -84,6 +85,9 @@ function App() {
         sender: "user",
         timestamp: formatTimeNewDate(new Date()),
       };
+      if (file) {
+        userMessage.file = file.name;
+      }
 
       // Add interpreting message
       const interpretingMessage: IMessage = {
@@ -104,6 +108,9 @@ function App() {
       };
       if (conversationId) {
         requestBody.conversation_id = conversationId;
+      }
+      if (fileId) {
+        requestBody.file = fileId;
       }
 
       const requestOptions = {
@@ -134,22 +141,34 @@ function App() {
           scrollToBottom();
           setIsBotLoading(false);
           setStatusIcon(botIcon);
+          setFile('');
+          setFileId(null);
         }, 2000);
 
       } catch (error) {
         console.error('Error fetching data:', error);
         setIsBotLoading(false);
-        setMessages((currentMessages: any) => [
-          ...currentMessages.filter((message: IMessage) => message.sender !== "interpreting"),
-          {
-            text: labels.ETCOP_ConectionError,
-            sender: "error",
-            timestamp: formatTimeNewDate(new Date())
-          }
-        ]);
-        scrollToBottom();
+        showErrorMessage();
       }
     }
+  };
+
+  // Function to show error message if bot does not respond
+  const showErrorMessage = () => {
+    setMessages((currentMessages: any) => [
+      ...currentMessages.filter((message: IMessage) => message.sender !== "interpreting"),
+      {
+        text: labels.ETCOP_ConectionError || "Error: The bot did not respond.",
+        sender: "error",
+        timestamp: formatTimeNewDate(new Date())
+      }
+    ]);
+    scrollToBottom();
+  };
+
+  // Handles ID received from file uploaded in the server
+  const handleFileId = (uploadedFile: any) => {
+    setFileId(uploadedFile.file);
   };
 
   // Effect to update the loading message
@@ -291,6 +310,7 @@ function App() {
                       text={message.text}
                       time={message.timestamp}
                       type="right-user"
+                      file={message.file}
                     />
                   )
                 )}
@@ -311,6 +331,7 @@ function App() {
           setFile={setFile}
           uploadConfig={uploadConfig}
           isDisabled={noAssistants}
+          onFileUploaded={handleFileId}
         />
       </div>
     </div>
