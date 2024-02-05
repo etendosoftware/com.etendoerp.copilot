@@ -376,7 +376,7 @@ public class OpenAIUtils {
   }
 
   public static String getOpenaiApiKey() {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    Properties properties =   OBPropertiesProvider.getInstance().getOpenbravoProperties();
     return properties.getProperty(OPENAI_API_KEY);
   }
 
