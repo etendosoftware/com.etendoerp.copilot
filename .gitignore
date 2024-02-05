@@ -60,3 +60,4 @@ __pycache__
 
 build/
 etendo.artifact.properties
+copilotTempFiles/*

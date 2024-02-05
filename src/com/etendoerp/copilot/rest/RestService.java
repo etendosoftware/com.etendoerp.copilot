@@ -14,6 +14,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -37,10 +38,13 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.erpCommon.utility.SystemInfo;
 import org.openbravo.model.ad.module.Module;
 import org.openbravo.model.ad.system.Language;
+import org.openbravo.model.ad.system.SystemInformation;
 import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
+import org.openbravo.service.db.DalConnectionProvider;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotFile;
@@ -63,6 +67,7 @@ public class RestService extends HttpSecureAppServlet {
   public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
   public static final String APPLICATION_JSON_CHARSET_UTF_8 = "application/json;charset=UTF-8";
   public static final String FILE = "/file";
+  public static final String TEMP_FILES_PATH_TEMPLATE = "%s/copilotTempFiles/%s/%s";
 
 
   @Override
@@ -212,6 +217,26 @@ public class RestService extends HttpSecureAppServlet {
       String fileId = OpenAIUtils.uploadFileToOpenAI(OpenAIUtils.getOpenaiApiKey(), f);
       saveFileTemp(f, fileId);
       fileListToDelete.add(f);
+      //print the current directory of the class
+      String sourcePath = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("source.path");
+      String buildCopilotPath = sourcePath + "/build/copilot";
+
+      String modulePath = sourcePath + "/modules/com.etendoerp.copilot";
+      // copy the file to the buildCopilotPath folder, in a subfolder with the name of the file_id
+      String pathForStandardCopy = String.format(TEMP_FILES_PATH_TEMPLATE, buildCopilotPath, fileId, originalFileName);
+      File fileCopilotFolder = new File(
+          pathForStandardCopy);
+      fileCopilotFolder.getParentFile().mkdirs();
+      Files.copy(f.toPath(), fileCopilotFolder.toPath());
+
+      //copy the file to the module folder, for the development
+      if (isDevelopment()) {
+        String pathForDevCopy = String.format(TEMP_FILES_PATH_TEMPLATE, modulePath, fileId, originalFileName);
+        File fileModuleFolder = new File(
+            pathForDevCopy);
+        fileModuleFolder.getParentFile().mkdirs();
+        Files.copy(f.toPath(), fileModuleFolder.toPath());
+      }
       responseJson.put(item.getFieldName(), fileId);
     }
     OBDal.getInstance().flush();
@@ -228,8 +253,14 @@ public class RestService extends HttpSecureAppServlet {
     response.getWriter().write(responseJson.toString());
   }
 
+  private boolean isDevelopment() throws ServletException {
+    SystemInfo.load(new DalConnectionProvider(false));
+    String purpose = SystemInfo.getSystemInfo().getProperty("instancePurpose");
+    return StringUtils.equalsIgnoreCase("D", purpose);
+  }
+
   private void checkSizeFile(File f) {
-   //check the size of the file: must be max 512mb
+    //check the size of the file: must be max 512mb
     long size = f.length();
     if (size > 512 * 1024 * 1024) {
       throw new OBException(
@@ -238,7 +269,7 @@ public class RestService extends HttpSecureAppServlet {
   }
 
   private void logIfDebug(String msg) {
-    if (log4j.isDebugEnabled()) {
+    if (true) {
       log4j.debug(msg);
     }
   }

@@ -15,11 +15,11 @@ from .agent import AgentResponse, CopilotAgent
 
 
 class LangchainAgent(CopilotAgent):
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-1106-preview")
+    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-turbo-preview")
 
     def __init__(self):
         super().__init__()
-        self._langchain_agent_executor: Final[BaseChatModel] = self._get_langchain_agent_executor(
+        self._langchain_agent_executor: Final[AgentExecutor] = self._get_langchain_agent_executor(
             open_ai_model=self.OPENAI_MODEL
         )
 
@@ -61,8 +61,18 @@ class LangchainAgent(CopilotAgent):
 
         return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True)
 
+    def _get_full_question(self, question: QuestionSchema) -> str:
+        if question.file_ids == None:
+            return question.question
+        result = question.question
+        result += "\n" + "OpenAI Files Context:"
+        for file_id in question.file_ids:
+            result += "\n - " + file_id
+        return result
+
     def execute(self, question: QuestionSchema) -> AgentResponse:
-        langchain_respose: Dict = self._langchain_agent_executor.invoke({"input": question.question})
+        full_question = self._get_full_question(question)
+        langchain_respose: Dict = self._langchain_agent_executor.invoke({"input": full_question})
         output_answer = {"response": langchain_respose["output"]}
         return AgentResponse(input=langchain_respose["input"], output=output_answer)
 
