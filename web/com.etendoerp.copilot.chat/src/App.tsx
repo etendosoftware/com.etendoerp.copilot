@@ -98,9 +98,9 @@ function App() {
       };
 
       updatedMessages.push(userMessage, interpretingMessage);
-
       setMessages(updatedMessages);
       setStatusIcon(botIcon);
+      scrollToBottom();
 
       // Prepare request body
       const requestBody: any = {
@@ -138,10 +138,10 @@ function App() {
           setMessages(updatedMessages);
           setStatusIcon(responseSent);
           scrollToBottom();
-        } else if (data.answer && data.answer.error) {
+        } else if (data.error || data.answer && data.answer.error) {
           updatedMessages = updatedMessages.filter(message => message.sender !== "interpreting");
           const errorMessage: IMessage = {
-            text: data.answer.error,
+            text: data.error || data.answer && data.answer.error,
             sender: "error",
             timestamp: formatTimeNewDate(new Date())
           };
@@ -189,13 +189,19 @@ function App() {
   };
 
   // Manage error 
-  const handleOnError = (error: Error) => {
-    const errorMsg = error.message;
+  const handleOnError = (errorResponse: any) => {
+    let errorMessage = "";
+
+    if (errorResponse) {
+      errorMessage = errorResponse.error || errorResponse.answer.error;
+    } else if (typeof errorResponse === 'string') {
+      errorMessage = errorResponse;
+    }
 
     setMessages(currentMessages => [
       ...currentMessages,
       {
-        text: errorMsg,
+        text: errorMessage,
         sender: "error",
         timestamp: formatTimeNewDate(new Date()),
       }
@@ -220,9 +226,7 @@ function App() {
 
   // Scroll bottom effect
   useEffect(() => {
-    if (messages.length > 0) {
-      scrollToBottom();
-    }
+    scrollToBottom();
   }, [messages]);
 
   // Effect to retrieve assistants and set focus on the text input when the page first loads
