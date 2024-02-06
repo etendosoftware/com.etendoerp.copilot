@@ -17,7 +17,6 @@ function App() {
   // States
   const [file, setFile] = useState<any>(null);
   const [labels, setLabels] = useState<ILabels>({});
-  const [errorMessage, setErrorMessage] = useState('')
   const [statusIcon, setStatusIcon] = useState(enterIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>("");
@@ -161,6 +160,13 @@ function App() {
     };
   };
 
+  // Modify setFile to reset the error state when a new file is selected
+  const handleSetFile = (newFile: any) => {
+    if (newFile !== file) {
+      setFile(newFile);
+    }
+  };
+
   // Function to show error message if bot does not respond
   const showErrorMessage = () => {
     setMessages((currentMessages: any) => [
@@ -181,9 +187,19 @@ function App() {
 
   // Manage error 
   const handleOnError = (error: Error) => {
-    setErrorMessage(error.message);
+    const errorMsg = error.message;
+
+    setMessages(currentMessages => [
+      ...currentMessages,
+      {
+        text: errorMsg,
+        sender: "error",
+        timestamp: formatTimeNewDate(new Date()),
+      }
+    ]);
     setFile(null);
-  }
+    scrollToBottom();
+  };
 
   // Effect to update the loading message
   useEffect(() => {
@@ -198,17 +214,6 @@ function App() {
       if (intervalId) clearInterval(intervalId);
     };
   }, [isBotLoading, statusIcon]);
-
-  useEffect(() => {
-    const error = {
-      text: errorMessage,
-      sender: "error",
-      timestamp: formatTimeNewDate(new Date())
-    };
-    setMessages((currentMessages: any) => [...currentMessages, error]);
-    setFile(null);
-    scrollToBottom();
-  }, [errorMessage]);
 
   // Scroll bottom effect
   useEffect(() => {
@@ -353,7 +358,7 @@ function App() {
           placeholder={labels.ETCOP_Message_Placeholder!}
           onChangeText={text => setInputValue(text)}
           onSubmit={handleSendMessage}
-          setFile={setFile}
+          setFile={handleSetFile}
           uploadConfig={uploadConfig}
           isDisabled={noAssistants}
           onFileUploaded={handleFileId}
