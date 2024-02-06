@@ -1,9 +1,6 @@
 export interface ILabels {
     ETCOP_AppNotFound?: string;
     ETCOP_CheckSettings?: string;
-    ETCOP_ConectionError?: string;
-    ETCOP_ConnError?: string;
-    ETCOP_FileTypeError?: string;
     ETCOP_Generated_Response?: string;
     ETCOP_Message_Placeholder?: string;
     ETCOP_Message?: string;

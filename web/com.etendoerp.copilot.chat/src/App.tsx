@@ -124,38 +124,41 @@ function App() {
       try {
         const response = await fetch(References.url.SEND_QUESTION, requestOptions);
         const data = await response.json();
-        if (!conversationId) setConversationId(data.conversation_id);
 
-        if (!(data.answer && Object.keys(data.answer).length === 0)) {
-          setMessages((currentMessages: any) => currentMessages.map((message: IMessage) =>
-            message.sender === "interpreting" ?
-              { ...message, text: labels.ETCOP_Generated_Response } :
-              message
-          ));
+        if (!conversationId) setConversationId(data.conversation_id);
+        updatedMessages = updatedMessages.filter(message => message.sender !== "interpreting");
+
+        if (data.response) {
+          const botMessage: IMessage = {
+            text: data.response,
+            sender: "bot",
+            timestamp: formatTimeNewDate(new Date())
+          };
+          updatedMessages.push(botMessage);
+          setMessages(updatedMessages);
+          setStatusIcon(responseSent);
+          scrollToBottom();
+        } else if (data.answer && data.answer.error) {
+          updatedMessages = updatedMessages.filter(message => message.sender !== "interpreting");
+          const errorMessage: IMessage = {
+            text: data.answer.error,
+            sender: "error",
+            timestamp: formatTimeNewDate(new Date())
+          };
+          updatedMessages.push(errorMessage);
+          setMessages(updatedMessages);
+          setStatusIcon(responseSent);
+          scrollToBottom();
         }
 
-        setStatusIcon(responseSent);
-        scrollToBottom();
-
-        setTimeout(() => {
-          if (data.answer && Object.keys(data.answer).length !== 0) {
-            setMessages(currentMessages => [
-              ...currentMessages.filter(message => message.sender !== "interpreting"),
-              { text: data.response, sender: "bot", timestamp: formatTimeNewDate(new Date()) }
-            ]);
-          } else {
-            showErrorMessage();
-          }
-          setIsBotLoading(false);
-          setStatusIcon(botIcon);
-          setFile('');
-          scrollToBottom();
-          setFileId(null);
-        }, 2000);
-      } catch (error) {
-        console.error('Error fetching data:', error);
         setIsBotLoading(false);
-        showErrorMessage();
+        setStatusIcon(botIcon);
+        setFile('');
+        setFileId(null);
+      } catch (error: any) {
+        console.error('Error fetching data: ', error);
+        setIsBotLoading(false);
+        showErrorMessage(error?.message);
       }
     };
   };
@@ -168,11 +171,11 @@ function App() {
   };
 
   // Function to show error message if bot does not respond
-  const showErrorMessage = () => {
+  const showErrorMessage = (errorMessage: string) => {
     setMessages((currentMessages: any) => [
       ...currentMessages.filter((message: IMessage) => message.sender !== "interpreting"),
       {
-        text: labels.ETCOP_ConectionError || "Error: The bot did not respond.",
+        text: errorMessage,
         sender: "error",
         timestamp: formatTimeNewDate(new Date())
       }
@@ -233,6 +236,11 @@ function App() {
     setMessages([]);
     setConversationId(null);
   }, [selectedOption]);
+
+  // Scroll bottom when loading a new file
+  useEffect(() => {
+    scrollToBottom();
+  }, [file]);
 
   // Effect to position focus on input
   useEffect(() => {
