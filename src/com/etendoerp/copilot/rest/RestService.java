@@ -163,11 +163,9 @@ public class RestService extends HttpSecureAppServlet {
   private void sendErrorResponse(HttpServletResponse response, int status,
       String message) throws IOException, JSONException {
     response.setStatus(status);
-    JSONObject answer = new JSONObject();
     JSONObject error = new JSONObject();
     error.put("error", message);
-    answer.put("answer", error);
-    response.getWriter().write(answer.toString());
+    response.getWriter().write(error.toString());
   }
 
   private void handleFile(HttpServletRequest request,
@@ -316,6 +314,16 @@ public class RestService extends HttpSecureAppServlet {
     JSONObject responseOriginal = new JSONObject();
     responseOriginal.put(APP_ID, appId);
     JSONObject answer = (JSONObject) responseJsonFromCopilot.get("answer");
+    if (answer.has("error")) {
+      JSONObject errorJson = answer.getJSONObject("error");
+      if (errorJson.has("code")) {
+        response.setStatus(errorJson.getInt("code"));
+      } else {
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      }
+      response.getWriter().write(new JSONObject().put("error", errorJson.getString("message")).toString());
+      return;
+    }
     String conversationId = answer.optString(PROP_CONVERSATION_ID);
     if (StringUtils.isNotEmpty(conversationId)) {
       responseOriginal.put(PROP_CONVERSATION_ID, conversationId);
