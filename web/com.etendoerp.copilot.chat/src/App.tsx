@@ -7,7 +7,7 @@ import { formatTimeNewDate, getMessageType } from "./utils/functions";
 import enterIcon from "./assets/enter.svg";
 import botIcon from "./assets/bot.svg";
 import responseSent from "./assets/response-sent.svg";
-import { LOADING_MESSAGES, SUPPORTED_MIME_TYPES } from "./utils/constants";
+import { LOADING_MESSAGES } from "./utils/constants";
 import { ILabels } from "./interfaces";
 import { IMessage } from "./interfaces/IMessage";
 import { References } from "./utils/references";
@@ -16,11 +16,12 @@ import "./App.css";
 function App() {
   // States
   const [file, setFile] = useState<any>(null);
-  const [fileId, setFileId] = useState<string | null>(null);
   const [labels, setLabels] = useState<ILabels>({});
+  const [errorMessage, setErrorMessage] = useState('')
   const [statusIcon, setStatusIcon] = useState(enterIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [inputValue, setInputValue] = useState<string>("");
+  const [fileId, setFileId] = useState<string | null>(null);
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
   const [areLabelsLoaded, setAreLabelsLoaded] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -178,6 +179,12 @@ function App() {
     setFileId(uploadedFile.file);
   };
 
+  // Manage error 
+  const handleOnError = (error: Error) => {
+    setErrorMessage(error.message);
+    setFile(null);
+  }
+
   // Effect to update the loading message
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
@@ -193,17 +200,15 @@ function App() {
   }, [isBotLoading, statusIcon]);
 
   useEffect(() => {
-    if (file && !(SUPPORTED_MIME_TYPES.includes(file.type))) {
-      const errorMessage = {
-        text: labels.ETCOP_FileTypeError,
-        sender: "error",
-        timestamp: formatTimeNewDate(new Date())
-      };
-      setMessages((currentMessages: any) => [...currentMessages, errorMessage]);
-      setFile(null);
-    }
+    const error = {
+      text: errorMessage,
+      sender: "error",
+      timestamp: formatTimeNewDate(new Date())
+    };
+    setMessages((currentMessages: any) => [...currentMessages, error]);
+    setFile(null);
     scrollToBottom();
-  }, [file]);
+  }, [errorMessage]);
 
   // Scroll bottom effect
   useEffect(() => {
@@ -352,6 +357,7 @@ function App() {
           uploadConfig={uploadConfig}
           isDisabled={noAssistants}
           onFileUploaded={handleFileId}
+          onError={handleOnError}
         />
       </div>
     </div>
