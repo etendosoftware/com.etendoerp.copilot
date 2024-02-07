@@ -5,7 +5,6 @@
     "third_party_tools": {
         "HelloWorldTool": true,
         "BastianFetcher": true,
-        "CustomHelloWorldMultiArgsTool": true,
-        "SearchFileByIdTool": true
-    }
+        "CustomHelloWorldMultiArgsTool": true
+        }
 }

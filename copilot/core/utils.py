@@ -28,7 +28,7 @@ def get_full_question(question: QuestionSchema) -> str:
     result = question.question
     result += "\n" + "Local Files Ids for Context:"
     for file_id in question.file_ids:
-        result += "\n - " + file_id
+        result += "\n - " + os.getcwd() + file_id
     return result
 
 
