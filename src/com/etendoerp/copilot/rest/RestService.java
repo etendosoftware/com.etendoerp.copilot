@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -212,7 +213,7 @@ public class RestService extends HttpSecureAppServlet {
         }
       }
       checkSizeFile(f);
-      String fileId = OpenAIUtils.uploadFileToOpenAI(OpenAIUtils.getOpenaiApiKey(), f);
+      String fileId = UUID.randomUUID().toString();
       saveFileTemp(f, fileId);
       fileListToDelete.add(f);
       //print the current directory of the class

@@ -12,21 +12,20 @@ from copilot.core.tool_wrapper import ToolWrapper
 OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
 
 
-class DownloadFileFromOpenAIToolInput(BaseModel):
-    file_openai_id: str = Field(description="OpenAI Id of the file to be downloaded")
+class SearchFileByIdToolInput(BaseModel):
+    local_file_id: str = Field(description="File Id of the file to be searched")
 
 
-class DownloadFileFromOpenAITool(ToolWrapper):
-    ''' This tool receives a File ID of OpenAI and downloads the file. The Tool return the local path of the downloaded file'''
-    name = "DownloadFileFromOpenAITool"
-    description = "This tool receives a File ID of OpenAI and downloads the file. The Tool return the local path of the downloaded file in the local file system."
-    args_schema: Type[BaseModel] = DownloadFileFromOpenAIToolInput
+class SearchFileByIdTool(ToolWrapper):
+    name = "SearchFileByIdTool"
+    description = "This tool receives a File ID and search it in the local file system. The Tool return the local path of file in the local file system."
+    args_schema: Type[BaseModel] = SearchFileByIdToolInput
 
     def run(self, input_params, *args, **kwargs):
         if not OPENAI_API_KEY:
             raise OpenAIApiKeyNotFound()
 
-        openai_file_id = input_params.get('file_openai_id')
+        openai_file_id = input_params.get('local_file_id')
 
         # use the openai library to download the file
         # imprimir un pwd de donde estas, luego hacer pwd+/copilotTempFiles/openai_file_id/ y ver que archivo hay ahi, deberia ser uno.

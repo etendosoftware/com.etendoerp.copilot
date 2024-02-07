@@ -12,6 +12,7 @@ from langchain.tools.render import format_tool_to_openai_function
 from .. import utils
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, CopilotAgent
+from ..utils import get_full_question
 
 
 class LangchainAgent(CopilotAgent):
@@ -61,17 +62,9 @@ class LangchainAgent(CopilotAgent):
 
         return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True)
 
-    def _get_full_question(self, question: QuestionSchema) -> str:
-        if question.file_ids == None:
-            return question.question
-        result = question.question
-        result += "\n" + "OpenAI Files Context:"
-        for file_id in question.file_ids:
-            result += "\n - " + file_id
-        return result
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
-        full_question = self._get_full_question(question)
+        full_question = get_full_question(question)
         langchain_respose: Dict = self._langchain_agent_executor.invoke({"input": full_question})
         output_answer = {"response": langchain_respose["output"]}
         return AgentResponse(input=langchain_respose["input"], output=output_answer)
