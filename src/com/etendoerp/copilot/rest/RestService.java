@@ -68,7 +68,6 @@ public class RestService extends HttpSecureAppServlet {
   public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
   public static final String APPLICATION_JSON_CHARSET_UTF_8 = "application/json;charset=UTF-8";
   public static final String FILE = "/file";
-  public static final String TEMP_FILES_PATH_TEMPLATE = "%s/copilotTempFiles/%s/%s";
 
 
   @Override
@@ -213,8 +212,7 @@ public class RestService extends HttpSecureAppServlet {
         }
       }
       checkSizeFile(f);
-      String fileId = UUID.randomUUID().toString();
-      saveFileTemp(f, fileId);
+      String fileUUID = UUID.randomUUID().toString();
       fileListToDelete.add(f);
       //print the current directory of the class
       String sourcePath = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("source.path");
@@ -222,21 +220,20 @@ public class RestService extends HttpSecureAppServlet {
 
       String modulePath = sourcePath + "/modules/com.etendoerp.copilot";
       // copy the file to the buildCopilotPath folder, in a subfolder with the name of the file_id
-      String pathForStandardCopy = String.format(TEMP_FILES_PATH_TEMPLATE, buildCopilotPath, fileId, originalFileName);
-      File fileCopilotFolder = new File(
-          pathForStandardCopy);
+      String filePath = String.format("/copilotTempFiles/%s/%s", fileUUID, originalFileName);
+      saveFileTemp(f, filePath);
+      String pathForStandardCopy = buildCopilotPath + filePath;
+      File fileCopilotFolder = new File(pathForStandardCopy);
       fileCopilotFolder.getParentFile().mkdirs();
       Files.copy(f.toPath(), fileCopilotFolder.toPath());
-
       //copy the file to the module folder, for the development
       if (isDevelopment()) {
-        String pathForDevCopy = String.format(TEMP_FILES_PATH_TEMPLATE, modulePath, fileId, originalFileName);
-        File fileModuleFolder = new File(
-            pathForDevCopy);
+        String pathForDevCopy = modulePath + filePath;
+        File fileModuleFolder = new File(pathForDevCopy);
         fileModuleFolder.getParentFile().mkdirs();
         Files.copy(f.toPath(), fileModuleFolder.toPath());
       }
-      responseJson.put(item.getFieldName(), fileId);
+      responseJson.put(item.getFieldName(), filePath);
     }
     OBDal.getInstance().flush();
     //delete the temp files
