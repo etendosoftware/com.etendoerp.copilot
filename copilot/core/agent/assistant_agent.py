@@ -11,7 +11,7 @@ from .. import utils
 from ..exceptions import AssistantIdNotFound, AssistantTimeout
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
-from ..utils import print_blue, print_yellow
+from ..utils import print_blue, print_yellow, get_full_question
 
 SLEEP_SECONDS = 0.05
 
@@ -84,7 +84,7 @@ class AssistantAgent(CopilotAgent):
             try:
                 # Create a message in the conversation thread with the user's question.
                 message = self._client.beta.threads.messages.create(
-                    thread_id=thread_id, role="user", content=question.question, file_ids=(question.file_ids or [])
+                    thread_id=thread_id, role="user", content=get_full_question(question)
                 )
 
                 # Start processing the conversation thread with the assistant.
@@ -99,8 +99,10 @@ class AssistantAgent(CopilotAgent):
             run = self.wait_while_status(run.id, thread_id, "in_progress", SLEEP_SECONDS)
             # If the run requires action, process the required tool outputs.
             while run.status == "requires_action":
+                tools_outputs_array = []
                 for tool_call in run.required_action.submit_tool_outputs.tool_calls:
                     # Parse arguments for the tool call.
+                    print("Tool call: " + str(tool_call))
                     args = json.loads(tool_call.function.arguments)
                     for tool in self._configured_tools:
                         if tool.name == tool_call.function.name:
@@ -110,17 +112,17 @@ class AssistantAgent(CopilotAgent):
                             print_blue("Calling tool: " + tool.name + " with args: " + str(args))
                             output = tool.run(args, {}, None)
                             print_yellow("Tool output: " + str(output))
+                            tools_outputs_array.append({"tool_call_id": tool_call.id, "output": json.dumps(output)})
                             break
 
                     # Submit the output of the tool.
-                    run = self._client.beta.threads.runs.submit_tool_outputs(
-                        thread_id=thread_id,
-                        run_id=run.id,
-                        tool_outputs=[{"tool_call_id": tool_call.id, "output": json.dumps(output)}],
-                    )
-                    run = self.wait_while_status(run.id, thread_id, "queued", SLEEP_SECONDS)
-                    run = self.wait_while_status(run.id, thread_id, "in_progress", SLEEP_SECONDS)
-
+                run = self._client.beta.threads.runs.submit_tool_outputs(
+                    thread_id=thread_id,
+                    run_id=run.id,
+                    tool_outputs=tools_outputs_array,
+                )
+                run = self.wait_while_status(run.id, thread_id, "queued", SLEEP_SECONDS)
+                run = self.wait_while_status(run.id, thread_id, "in_progress", SLEEP_SECONDS)
 
             # Wait until the run status is completed.
             self.wait_while_not_status(run.id, thread_id, "completed", SLEEP_SECONDS)

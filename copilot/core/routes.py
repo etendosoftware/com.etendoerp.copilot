@@ -33,6 +33,7 @@ def serve_question(question: QuestionSchema):
     copilot_debug("  assistant_id: " + str(question.assistant_id))
     copilot_debug("  conversation_id: " + str(question.conversation_id))
     copilot_debug("  file_ids: " + str(question.file_ids))
+    
     agent_response: AgentResponse = copilot_agent.execute(question)
     local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
 

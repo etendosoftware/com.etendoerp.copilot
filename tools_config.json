@@ -6,6 +6,6 @@
         "HelloWorldTool": true,
         "BastianFetcher": true,
         "CustomHelloWorldMultiArgsTool": true,
-        "DownloadFileFromOpenAITool": true
+        "SearchFileByIdTool": true
     }
 }
