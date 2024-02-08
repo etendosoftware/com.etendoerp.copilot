@@ -12,14 +12,15 @@ from langchain.tools.render import format_tool_to_openai_function
 from .. import utils
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, CopilotAgent
+from ..utils import get_full_question
 
 
 class LangchainAgent(CopilotAgent):
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-1106-preview")
+    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-turbo-preview")
 
     def __init__(self):
         super().__init__()
-        self._langchain_agent_executor: Final[BaseChatModel] = self._get_langchain_agent_executor(
+        self._langchain_agent_executor: Final[AgentExecutor] = self._get_langchain_agent_executor(
             open_ai_model=self.OPENAI_MODEL
         )
 
@@ -61,8 +62,10 @@ class LangchainAgent(CopilotAgent):
 
         return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True)
 
+
     def execute(self, question: QuestionSchema) -> AgentResponse:
-        langchain_respose: Dict = self._langchain_agent_executor.invoke({"input": question.question})
+        full_question = get_full_question(question)
+        langchain_respose: Dict = self._langchain_agent_executor.invoke({"input": full_question})
         output_answer = {"response": langchain_respose["output"]}
         return AgentResponse(input=langchain_respose["input"], output=output_answer)
 
