@@ -1,8 +1,6 @@
 export interface IMessage {
-    text: string;
-    sender: string;
-    timestamp?: string;
-    hasFile?: boolean;
-    fileName?: string;
-  }
-  
+  text: string;
+  sender: string;
+  timestamp?: string;
+  file?: any;
+}
