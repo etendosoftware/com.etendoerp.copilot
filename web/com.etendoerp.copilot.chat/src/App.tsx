@@ -100,7 +100,7 @@ function App() {
       updatedMessages.push(userMessage, interpretingMessage);
       setMessages(updatedMessages);
       setStatusIcon(botIcon);
-      scrollToBottom();
+      setTimeout(() => scrollToBottom(), 100);
 
       // Prepare request body
       const requestBody: any = {
@@ -138,10 +138,10 @@ function App() {
           setMessages(updatedMessages);
           setStatusIcon(responseSent);
           scrollToBottom();
-        } else if (data.error || data.answer && data.answer.error) {
+        } else if (data.error) {
           updatedMessages = updatedMessages.filter(message => message.sender !== "interpreting");
           const errorMessage: IMessage = {
-            text: data.error || data.answer && data.answer.error,
+            text: data.error,
             sender: "error",
             timestamp: formatTimeNewDate(new Date())
           };
@@ -223,11 +223,6 @@ function App() {
       if (intervalId) clearInterval(intervalId);
     };
   }, [isBotLoading, statusIcon]);
-
-  // Scroll bottom effect
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   // Effect to retrieve assistants and set focus on the text input when the page first loads
   useEffect(() => {
