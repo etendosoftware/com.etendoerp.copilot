@@ -265,7 +265,7 @@ public class RestService extends HttpSecureAppServlet {
   }
 
   private void logIfDebug(String msg) {
-    if (true) {
+    if (log4j.isDebugEnabled()) {
       log4j.debug(msg);
     }
   }

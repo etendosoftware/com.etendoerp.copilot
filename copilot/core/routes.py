@@ -35,6 +35,7 @@ def serve_question(question: QuestionSchema):
     copilot_debug("  assistant_id: " + str(question.assistant_id))
     copilot_debug("  conversation_id: " + str(question.conversation_id))
     copilot_debug("  file_ids: " + str(question.file_ids))
+
     response = None
     try:
         agent_response: AgentResponse = copilot_agent.execute(question)
