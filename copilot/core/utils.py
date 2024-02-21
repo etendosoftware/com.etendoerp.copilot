@@ -42,5 +42,5 @@ def read_optional_env_var(env_var_name: str, default_value: str) -> str:
 
 def copilot_debug(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
-    if os.getenv("COPILOT_DEBUG", False):
+    if os.getenv("COPILOT_DEBUG", 'False').lower() in "true":
         print_yellow(message)
