@@ -1,12 +1,9 @@
 package com.etendoerp.copilot.process;
 
-import java.io.File;
-import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -20,9 +17,7 @@ import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
-import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
-import org.openbravo.dal.core.SessionHandler;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.service.db.DbUtility;
@@ -31,7 +26,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotOpenAIModel;
-import com.etendoerp.copilot.rest.RestService;
+import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.OpenAIUtils;
 
 public class SyncOpenAIAssistant extends BaseProcessActionHandler {
@@ -69,6 +64,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       for (CopilotFile fileToSync : filesToSync) {
         OpenAIUtils.syncFile(fileToSync, openaiApiKey);
       }
+
 
       for (CopilotApp app : appList) {
         OBDal.getInstance().refresh(app);
@@ -138,7 +134,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
     //check for Apps that needs a model and don't have one, set the Default
     List<CopilotApp> appsWithoutModel = OBDal.getInstance().createCriteria(CopilotApp.class)
         .add(Restrictions.isNull(CopilotApp.PROPERTY_MODEL))
-        .add(Restrictions.eq(CopilotApp.PROPERTY_APPTYPE, RestService.APP_TYPE_OPENAI))
+        .add(Restrictions.eq(CopilotApp.PROPERTY_APPTYPE, CopilotConstants.APP_TYPE_OPENAI))
         .list();
 
     CopilotOpenAIModel defaultModel = (CopilotOpenAIModel) OBDal.getInstance().createCriteria(

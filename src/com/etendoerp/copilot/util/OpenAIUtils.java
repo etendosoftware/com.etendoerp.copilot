@@ -32,6 +32,7 @@ import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotTool;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
+import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
@@ -51,6 +52,7 @@ public class OpenAIUtils {
   public static final String ENDPOINT_FILES = "/files";
   public static final String ENDPOINT_MODELS = "/models";
   public static final String ENDPOINT_ASSISTANTS = "/assistants";
+  public static final int MILLIES_SOCKET_TIMEOUT = 5 * 60 * 1000;
 
 
   private OpenAIUtils() {
@@ -85,9 +87,9 @@ public class OpenAIUtils {
   private static JSONObject updateAssistant(CopilotApp app, String openaiApiKey) throws JSONException {
     //almost the same as createAssistant, but we need to update the assistant
 
-    String endpoint = ENDPOINT_ASSISTANTS +"/" + app.getOpenaiIdAssistant();
+    String endpoint = ENDPOINT_ASSISTANTS + "/" + app.getOpenaiIdAssistant();
     JSONObject body = new JSONObject();
-    body.put("instructions", app.getPrompt());
+    body.put("instructions", getAssistantPrompt(app));
     body.put("name", app.getName());
     JSONArray files = getArrayFiles(app);
     if (files.length() > 0) {
@@ -118,14 +120,14 @@ public class OpenAIUtils {
 
   }
 
-  private static void logIfDebug(String text) {
+  public static void logIfDebug(String text) {
     if (log.isDebugEnabled()) {
       log.debug(text);
     }
   }
 
   private static void deleteAssistant(String openaiAssistantId, String openaiApiKey) throws JSONException {
-    String endpoint = ENDPOINT_ASSISTANTS+"/" + openaiAssistantId;
+    String endpoint = ENDPOINT_ASSISTANTS + "/" + openaiAssistantId;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, METHOD_DELETE, null);
     logIfDebug(json.toString());
   }
@@ -136,7 +138,7 @@ public class OpenAIUtils {
 
       String endpoint = ENDPOINT_ASSISTANTS;
       JSONObject body = new JSONObject();
-      body.put("instructions", app.getPrompt());
+      body.put("instructions", getAssistantPrompt(app));
       body.put("name", app.getName());
       JSONArray files = getArrayFiles(app);
       if (files.length() > 0) {
@@ -155,6 +157,19 @@ public class OpenAIUtils {
       throw new OBException(e.getMessage());
     }
 
+  }
+
+  private static String getAssistantPrompt(CopilotApp app) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(app.getPrompt());
+    sb.append("\n");
+    try {
+      sb.append(WeldUtils.getInstanceFromStaticBeanManager(OpenAIPromptHookManager.class)
+          .executeHooks(app));
+    } catch (OBException e) {
+      log.error("Error executing hooks", e);
+    }
+    return sb.toString();
   }
 
   private static JSONArray getToolSet(CopilotApp app) throws OBException, JSONException {
@@ -196,7 +211,7 @@ public class OpenAIUtils {
 
 
   private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint, String purpose,
-      File fileToSend) throws  JSONException {
+      File fileToSend) throws JSONException {
     String mimeType = URLConnection.guessContentTypeFromName(fileToSend.getName());
     kong.unirest.HttpResponse<String> response = Unirest.post(BASE_URL + endpoint)
         .header(HEADER_AUTHORIZATION, String.format("Bearer %s", openaiApiKey))
@@ -216,6 +231,7 @@ public class OpenAIUtils {
             .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
             .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
             .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .socketTimeout(MILLIES_SOCKET_TIMEOUT)
             .asString();
         break;
       case "POST":
@@ -223,6 +239,7 @@ public class OpenAIUtils {
             .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
             .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
             .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .socketTimeout(MILLIES_SOCKET_TIMEOUT)
             .body(body != null ? body.toString() : "")
             .asString();
         break;
@@ -231,6 +248,7 @@ public class OpenAIUtils {
             .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
             .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
             .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .socketTimeout(MILLIES_SOCKET_TIMEOUT)
             .body(body != null ? body.toString() : "")
             .asString();
         break;
@@ -239,6 +257,7 @@ public class OpenAIUtils {
             .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
             .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
             .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .socketTimeout(MILLIES_SOCKET_TIMEOUT)
             .asString();
         break;
       default:
@@ -316,7 +335,8 @@ public class OpenAIUtils {
   }
 
   private static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
-    JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES +"/" + openaiIdFile, null, METHOD_DELETE, null);
+    JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiIdFile, null, METHOD_DELETE,
+        null);
     logIfDebug(response.toString());
   }
 
@@ -376,7 +396,7 @@ public class OpenAIUtils {
   }
 
   public static String getOpenaiApiKey() {
-    Properties properties =   OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     return properties.getProperty(OPENAI_API_KEY);
   }
 
