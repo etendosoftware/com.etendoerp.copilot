@@ -14,7 +14,6 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Properties;
 import java.util.UUID;
 
 import javax.servlet.ServletException;
@@ -35,6 +34,7 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
@@ -42,7 +42,6 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.erpCommon.utility.SystemInfo;
 import org.openbravo.model.ad.module.Module;
 import org.openbravo.model.ad.system.Language;
-import org.openbravo.model.ad.system.SystemInformation;
 import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
 import org.openbravo.service.db.DalConnectionProvider;
@@ -50,7 +49,8 @@ import org.openbravo.service.db.DalConnectionProvider;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
-import com.etendoerp.copilot.util.OpenAIUtils;
+import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
+import com.etendoerp.copilot.util.CopilotConstants;
 
 public class RestService extends HttpSecureAppServlet {
 
@@ -58,8 +58,6 @@ public class RestService extends HttpSecureAppServlet {
   public static final String GET_ASSISTANTS = "/assistants";
   public static final String APP_ID = "app_id";
   public static final String PROP_ASSISTANT_ID = "assistant_id";
-  public static final String APP_TYPE_LANGCHAIN = "langchain";
-  public static final String APP_TYPE_OPENAI = "openai-assistant";
   public static final String PROP_RESPONSE = "response";
 
   public static final String PROP_CONVERSATION_ID = "conversation_id";
@@ -289,7 +287,6 @@ public class RestService extends HttpSecureAppServlet {
       String jsonRequestStr = sb.toString();
       JSONObject jsonRequestOriginal = new JSONObject(jsonRequestStr);
       JSONObject jsonRequestForCopilot = new JSONObject();
-      jsonRequestForCopilot.put(PROP_QUESTION, jsonRequestOriginal.get(PROP_QUESTION));
       String conversationId = jsonRequestOriginal.optString(PROP_CONVERSATION_ID);
       if (StringUtils.isNotEmpty(conversationId)) {
         jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
@@ -302,15 +299,16 @@ public class RestService extends HttpSecureAppServlet {
         throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
       }
       appType = copilotApp.getAppType();
-      if (StringUtils.equalsIgnoreCase(appType, APP_TYPE_LANGCHAIN)) {
-        jsonRequestForCopilot.put(PROP_TYPE, APP_TYPE_LANGCHAIN);
-      } else if (StringUtils.equalsIgnoreCase(appType, APP_TYPE_OPENAI)) {
-        jsonRequestForCopilot.put(PROP_TYPE, APP_TYPE_OPENAI);
+      if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)) {
+        jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGCHAIN);
+      } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
+        jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_OPENAI);
         jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
       } else {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
       }
+      jsonRequestForCopilot.put(PROP_QUESTION, readQuestionAndAddExtraContext(copilotApp, jsonRequestOriginal));
       String questionAttachedFileId = jsonRequestOriginal.optString("file");
       if (StringUtils.isNotEmpty(questionAttachedFileId)) {
         //check if the file exists in the temp folder
@@ -364,6 +362,20 @@ public class RestService extends HttpSecureAppServlet {
     responseOriginal.put("timestamp", tms.toString());
     response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
     response.getWriter().write(responseOriginal.toString());
+  }
+
+  private Object readQuestionAndAddExtraContext(CopilotApp app, JSONObject jsonRequestOriginal) throws JSONException {
+    StringBuilder sb = new StringBuilder();
+    sb.append(jsonRequestOriginal.get(PROP_QUESTION));
+    sb.append("\n");
+    //execute the hooks
+    try {
+      sb.append(WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class)
+          .executeHooks(app));
+    } catch (OBException e) {
+      log4j.error("Error executing hooks", e);
+    }
+    return sb.toString();
   }
 
   private void saveFileTemp(File f, String fileId) {
