@@ -40,8 +40,8 @@ def serve_question(question: QuestionSchema):
 
     response = None
     try:
-        copilot_debug("Thread ", threading.get_ident(), " ROUTES:el que almacena el contexto es: ",
-              ThreadContext.identifier_data())
+        copilot_debug("Thread "+ str(threading.get_ident())+ " ROUTES:el que almacena el contexto es: "+
+              str(ThreadContext.identifier_data()))
         ThreadContext.set_data('extra_info', question.extra_info)
         agent_response: AgentResponse = copilot_agent.execute(question)
         response = agent_response.output
