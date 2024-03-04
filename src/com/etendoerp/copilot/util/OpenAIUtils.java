@@ -21,6 +21,7 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
+import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -73,8 +74,22 @@ public class OpenAIUtils {
       try {
         JSONObject response = OpenAIUtils.updateAssistant(app, openaiApiKey);
         if (response.has("error")) {
-          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
-              response.getJSONObject("error").getString("message")));
+          if (response.has("error")
+              && response.getJSONObject("error").has("message")
+              && response.getJSONObject("error").getString("message").contains("No assistant found with id")) {
+            //the assistant not exists, we need to set the id to null and create it again
+            app.setOpenaiIdAssistant(null);
+            OBDal.getInstance().save(app);
+            OBDal.getInstance().flush();
+            String assistantId = OpenAIUtils.createAssistant(app, openaiApiKey);
+            app.setOpenaiIdAssistant(assistantId);
+            OBDal.getInstance().save(app);
+            OBDal.getInstance().flush();
+          }else{
+            throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
+                response.getJSONObject("error").getString("message")));
+          }
+
         }
       } catch (JSONException e) {
         throw new OBException(e.getMessage());
