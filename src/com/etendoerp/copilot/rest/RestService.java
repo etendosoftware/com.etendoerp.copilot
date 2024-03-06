@@ -149,6 +149,7 @@ public class RestService extends HttpSecureAppServlet {
   public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
     String path = request.getPathInfo();
     try {
+      OBContext.setAdminMode();
       if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
         handleQuestion(request, response);
         return;
@@ -166,6 +167,8 @@ public class RestService extends HttpSecureAppServlet {
         log4j.error(e2);
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e2.getMessage());
       }
+    }finally {
+      OBContext.restorePreviousMode();
     }
   }
 
