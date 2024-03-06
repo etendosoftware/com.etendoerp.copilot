@@ -429,6 +429,7 @@ public class RestService extends HttpSecureAppServlet {
 
   private void handleAssistants(HttpServletResponse response) {
     try {
+      OBContext.setAdminMode();
       //send json of assistants
       JSONArray assistants = new JSONArray();
       List<CopilotRoleApp> appList = OBDal.getInstance().createCriteria(CopilotRoleApp.class)
@@ -443,6 +444,8 @@ public class RestService extends HttpSecureAppServlet {
       response.getWriter().write(assistants.toString());
     } catch (Exception e) {
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    } finally {
+      OBContext.restorePreviousMode();
     }
   }
 }
