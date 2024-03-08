@@ -19,14 +19,26 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotFile;
 
+/**
+ * This class implements the CopilotFileHook interface and provides functionality
+ * for handling remote files.
+ */
 public class RemoteFileHook implements CopilotFileHook {
 
+  // Logger for this class
   private static final Logger log = LogManager.getLogger(RemoteFileHook.class);
+  // Tab ID for CopilotFile
   public static final String COPILOT_FILE_TAB_ID = "09F802E423924081BC2947A64DDB5AF5";
 
+  /**
+   * Executes the hook for a given CopilotFile.
+   *
+   * @param hookObject The CopilotFile for which to execute the hook.
+   * @throws OBException If there is an error executing the hook.
+   */
   @Override
   public void exec(CopilotFile hookObject) throws OBException {
-    if(log.isDebugEnabled()){
+    if (log.isDebugEnabled()) {
       log.debug(String.format("RemoteFileHook for file: %s executed start", hookObject.getName()));
     }
     String url = hookObject.getUrl();
@@ -46,25 +58,17 @@ public class RemoteFileHook implements CopilotFileHook {
 
   }
 
+  /**
+   * Downloads a file from a given URL and stores it in a temporary directory.
+   *
+   * @param fileUrl The URL of the file to download.
+   * @param customName The custom name for the downloaded file.
+   * @return The path of the downloaded file.
+   * @throws IOException If there is an error downloading the file.
+   */
   public static Path downloadFile(String fileUrl, String customName) throws IOException {
     URL url = new URL(fileUrl);
-    String finalName = customName;
-    String extension = "";
-
-    // Extract the extension of the original file
-    String originalFileName = url.getFile().substring(url.getFile().lastIndexOf('/') + 1);
-    int dotIndex = originalFileName.lastIndexOf('.');
-    if (dotIndex != -1) {
-      extension = originalFileName.substring(dotIndex);
-    }
-
-    // Use the original file name if no custom name is provided
-    if (finalName == null || finalName.isEmpty()) {
-      finalName = originalFileName;
-    } else if (!finalName.contains(".")) {
-      // Add the original extension to the custom name if it doesn't have one
-      finalName += extension;
-    }
+    String finalName = getFinalName(customName, url);
 
     // Create a temporary directory
     Path tempDirectory = Files.createTempDirectory("temporary_downloads");
@@ -84,6 +88,40 @@ public class RemoteFileHook implements CopilotFileHook {
 
   }
 
+  /**
+   * Determines the final name of the downloaded file.
+   *
+   * @param customName The custom name for the downloaded file.
+   * @param url The URL of the file to download.
+   * @return The final name of the downloaded file.
+   */
+  private static String getFinalName(String customName, URL url) {
+    String finalName = customName;
+    String extension = "";
+
+    // Extract the extension of the original file
+    String originalFileName = url.getFile().substring(url.getFile().lastIndexOf('/') + 1);
+    int dotIndex = originalFileName.lastIndexOf('.');
+    if (dotIndex != -1) {
+      extension = originalFileName.substring(dotIndex);
+    }
+
+    // Use the original file name if no custom name is provided
+    if (finalName == null || finalName.isEmpty()) {
+      finalName = originalFileName;
+    } else if (!finalName.contains(".")) {
+      // Add the original extension to the custom name if it doesn't have one
+      finalName += extension;
+    }
+    return finalName;
+  }
+
+  /**
+   * Checks if the hook is applicable for the given type.
+   *
+   * @param type The type to check.
+   * @return true if the hook is applicable, false otherwise.
+   */
   @Override
   public boolean typeCheck(String type) {
     return StringUtils.equals(type, "RF");

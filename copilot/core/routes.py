@@ -1,4 +1,5 @@
 import json
+import threading
 
 from fastapi import APIRouter
 
@@ -8,6 +9,7 @@ from .agent.assistant_agent import AssistantAgent
 from .exceptions import UnsupportedAgent
 from .local_history import ChatHistory, local_history_recorder
 from .schemas import QuestionSchema
+from .threadcontext import ThreadContext
 from .utils import copilot_debug
 
 core_router = APIRouter()
@@ -38,6 +40,9 @@ def serve_question(question: QuestionSchema):
 
     response = None
     try:
+        copilot_debug("Thread "+ str(threading.get_ident())+ " ROUTES:el que almacena el contexto es: "+
+              str(ThreadContext.identifier_data()))
+        ThreadContext.set_data('extra_info', question.extra_info)
         agent_response: AgentResponse = copilot_agent.execute(question)
         response = agent_response.output
         local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)

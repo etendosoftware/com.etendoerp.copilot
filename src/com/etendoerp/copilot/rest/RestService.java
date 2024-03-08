@@ -40,10 +40,15 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.erpCommon.utility.SystemInfo;
+import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.ad.access.User;
 import org.openbravo.model.ad.module.Module;
 import org.openbravo.model.ad.system.Language;
 import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
+import org.openbravo.model.common.enterprise.Organization;
+import org.openbravo.model.common.enterprise.Warehouse;
+import org.openbravo.model.common.plm.Product;
 import org.openbravo.service.db.DalConnectionProvider;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -51,6 +56,7 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 public class RestService extends HttpSecureAppServlet {
 
@@ -143,6 +149,7 @@ public class RestService extends HttpSecureAppServlet {
   public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
     String path = request.getPathInfo();
     try {
+      OBContext.setAdminMode();
       if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
         handleQuestion(request, response);
         return;
@@ -160,6 +167,8 @@ public class RestService extends HttpSecureAppServlet {
         log4j.error(e2);
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e2.getMessage());
       }
+    }finally {
+      OBContext.restorePreviousMode();
     }
   }
 
@@ -308,7 +317,8 @@ public class RestService extends HttpSecureAppServlet {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
       }
-      jsonRequestForCopilot.put(PROP_QUESTION, readQuestionAndAddExtraContext(copilotApp, jsonRequestOriginal));
+      jsonRequestForCopilot.put(PROP_QUESTION, jsonRequestOriginal.get(PROP_QUESTION));
+
       String questionAttachedFileId = jsonRequestOriginal.optString("file");
       if (StringUtils.isNotEmpty(questionAttachedFileId)) {
         //check if the file exists in the temp folder
@@ -323,6 +333,7 @@ public class RestService extends HttpSecureAppServlet {
         logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
         jsonRequestForCopilot.put("file_ids", new JSONArray().put(questionAttachedFileId));
       }
+      addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
       String bodyReq = jsonRequestForCopilot.toString();
       HttpRequest copilotRequest = HttpRequest.newBuilder()
           .uri(new URI(String.format("http://%s:%s/question", copilotHost, copilotPort)))
@@ -364,31 +375,55 @@ public class RestService extends HttpSecureAppServlet {
     response.getWriter().write(responseOriginal.toString());
   }
 
-  private Object readQuestionAndAddExtraContext(CopilotApp app, JSONObject jsonRequestOriginal) throws JSONException {
-    StringBuilder sb = new StringBuilder();
-    sb.append(jsonRequestOriginal.get(PROP_QUESTION));
-    sb.append("\n");
+  private void addExtraContextWithHooks(CopilotApp copilotApp, JSONObject jsonRequest) {
+    OBContext context = OBContext.getOBContext();
+    JSONObject jsonExtraInfo = new JSONObject();
+    Role role = context.getRole();
+    OBDal.getInstance().refresh(role);
+    if (role.isWebServiceEnabled().booleanValue()) {
+      try {
+        //Refresh to avoid LazyInitializationException
+        User user = context.getUser();
+        OBDal.getInstance().refresh(user);
+        Organization currentOrganization = context.getCurrentOrganization();
+        OBDal.getInstance().refresh(currentOrganization);
+        Warehouse warehouse = context.getWarehouse();
+        OBDal.getInstance().refresh(warehouse);
+        jsonExtraInfo.put("auth", new JSONObject().put("ETENDO_TOKEN",
+            SecureWebServicesUtils.generateToken(user, role, currentOrganization,
+                warehouse)));
+      } catch (Exception e) {
+        log4j.error("Error adding auth token to extraInfo", e);
+      }
+
+    }
+
     //execute the hooks
     try {
-      sb.append(WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class)
-          .executeHooks(app));
+      WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class).executeHooks(copilotApp,
+          jsonExtraInfo);
     } catch (OBException e) {
       log4j.error("Error executing hooks", e);
     }
-    return sb.toString();
+    try {
+      jsonRequest.put("extra_info", jsonExtraInfo);
+    } catch (JSONException e) {
+      log4j.error("Error adding extraInfo to jsonRequest", e);
+    }
+
   }
 
   private void saveFileTemp(File f, String fileId) {
     CopilotFile fileCop = OBProvider.getInstance().get(CopilotFile.class);
     fileCop.setOpenaiIdFile(fileId);
-    OBContext contxt = OBContext.getOBContext();
+    OBContext context = OBContext.getOBContext();
     fileCop.setName(f.getName());
-    fileCop.setCreatedBy(contxt.getUser());
-    fileCop.setUpdatedBy(contxt.getUser());
+    fileCop.setCreatedBy(context.getUser());
+    fileCop.setUpdatedBy(context.getUser());
     fileCop.setCreationDate(new Date());
     fileCop.setUpdated(new Date());
-    fileCop.setClient(contxt.getCurrentClient());
-    fileCop.setOrganization(contxt.getCurrentOrganization());
+    fileCop.setClient(context.getCurrentClient());
+    fileCop.setOrganization(context.getCurrentOrganization());
     fileCop.setType("F");
     fileCop.setTemp(true);
     OBDal.getInstance().save(fileCop);
@@ -397,6 +432,7 @@ public class RestService extends HttpSecureAppServlet {
 
   private void handleAssistants(HttpServletResponse response) {
     try {
+      OBContext.setAdminMode();
       //send json of assistants
       JSONArray assistants = new JSONArray();
       List<CopilotRoleApp> appList = OBDal.getInstance().createCriteria(CopilotRoleApp.class)
@@ -411,6 +447,8 @@ public class RestService extends HttpSecureAppServlet {
       response.getWriter().write(assistants.toString());
     } catch (Exception e) {
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    } finally {
+      OBContext.restorePreviousMode();
     }
   }
 }
