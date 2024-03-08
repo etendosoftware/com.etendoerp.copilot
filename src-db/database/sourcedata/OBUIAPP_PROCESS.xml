@@ -7,6 +7,8 @@
 <!--332B46F9424D4061B2B083F65874A703-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--332B46F9424D4061B2B083F65874A703-->  <VALUE><![CDATA[ETCOP_SyncOpenAIAssistant]]></VALUE>
 <!--332B46F9424D4061B2B083F65874A703-->  <NAME><![CDATA[Sync OpenAI Assistant]]></NAME>
+<!--402D175C908142B39C12E6FE287CD098-->  <DESCRIPTION><![CDATA[Update or create a new assistant, in case it does not exist]]></DESCRIPTION>
+<!--402D175C908142B39C12E6FE287CD098-->  <HELP><![CDATA[In addition to creating the wizard based on the configurations, this process initially gets or updates the list of Open AI Models, and finally gets and uploads the files used as knowledge base]]></HELP>
 <!--332B46F9424D4061B2B083F65874A703-->  <ACCESSLEVEL><![CDATA[7]]></ACCESSLEVEL>
 <!--332B46F9424D4061B2B083F65874A703-->  <CLASSNAME><![CDATA[com.etendoerp.copilot.process.SyncOpenAIAssistant]]></CLASSNAME>
 <!--332B46F9424D4061B2B083F65874A703-->  <ISBACKGROUND><![CDATA[N]]></ISBACKGROUND>
@@ -26,6 +28,8 @@
 <!--402D175C908142B39C12E6FE287CD098-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--402D175C908142B39C12E6FE287CD098-->  <VALUE><![CDATA[ETCOP_SyncToolStructure]]></VALUE>
 <!--402D175C908142B39C12E6FE287CD098-->  <NAME><![CDATA[Sync Tool Structure]]></NAME>
+<!--402D175C908142B39C12E6FE287CD098-->  <DESCRIPTION><![CDATA[Get a Tool's parameter information from its class]]></DESCRIPTION>
+<!--402D175C908142B39C12E6FE287CD098-->  <HELP><![CDATA[This process will load the Description and the JSON Info fields of the tool. This data is get from the tool class. This information is used to create the parameters in the Copilot App]]></HELP>
 <!--402D175C908142B39C12E6FE287CD098-->  <ACCESSLEVEL><![CDATA[7]]></ACCESSLEVEL>
 <!--402D175C908142B39C12E6FE287CD098-->  <CLASSNAME><![CDATA[com.etendoerp.copilot.process.SyncToolStructure]]></CLASSNAME>
 <!--402D175C908142B39C12E6FE287CD098-->  <ISBACKGROUND><![CDATA[N]]></ISBACKGROUND>
