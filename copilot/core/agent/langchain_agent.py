@@ -4,7 +4,7 @@ from typing import Dict, Final
 from langchain.agents import AgentExecutor
 from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.chat_models.base import BaseChatModel
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools.render import format_tool_to_openai_function
