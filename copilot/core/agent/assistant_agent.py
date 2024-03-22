@@ -1,3 +1,4 @@
+import functools
 import json
 import os
 import time
@@ -6,19 +7,20 @@ from time import sleep
 from typing import Final
 
 from langchain.tools.render import format_tool_to_openai_function
+from langchain_community.chat_models import ChatOpenAI
+from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_core.agents import AgentFinish
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from .. import utils
 from ..exceptions import AssistantIdNotFound, AssistantTimeout
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
-from ..utils import print_blue, print_yellow
-
-SLEEP_SECONDS = 0.05
-
-
-def _get_openai_client():
-    from openai import OpenAI
-    return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from langchain.agents.openai_assistant.base import OpenAIAssistantRunnable
+from typing import Annotated, Any, Dict, List, Optional, Sequence, TypedDict
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+import operator
+from langgraph.graph import StateGraph, END, MessageGraph
 
 
 class AssistantAgent(CopilotAgent):
@@ -28,38 +30,16 @@ class AssistantAgent(CopilotAgent):
     ASSISTANT_NAME: Final[str] = "Copilot [LOCAL]"
 
     def __init__(self):
-        # https://platform.openai.com/docs/assistants/overview/agents
         super().__init__()
-        self._client = _get_openai_client()
         self._formated_tools_openai = None
         self._assistant = None  # self._get_openai_assistant()
-
-    def _get_openai_assistant(self):
-        """Creates an assistant. An Assistant represents an entity that can be
-        configured to respond to users Messages."""
-        self._assert_open_api_key_is_set()
-        self._assert_system_prompt_is_set()
-
-        # import delayed to avoid conflict with openai version used by langchain agent
-        from openai import OpenAI
-        self._client = OpenAI(api_key=self.OPENAI_API_KEY)
-
-        # Convert configured tools into a format compatible with OpenAI functions.
-        tools = [format_tool_to_openai_function(tool) for tool in self._configured_tools]
-        self._formated_tools_openai = [{"type": "function", "function": tool} for tool in tools]
-        # name with timestamp to avoid name conflicts
-        name = self.ASSISTANT_NAME + " " + str(int(time.time()))
-        assistant = self._client.beta.assistants.create(
-            name=name,
-            instructions=self.SYSTEM_PROMPT,
-            tools=self._formated_tools_openai,
-            model=self.OPENAI_MODEL,
-        )
-        return assistant
 
     def _update_assistant(self, assistant_id: int):
         from openai import NotFoundError
         try:
+            # import delayed to avoid conflict with openai version used by langchain agent
+            from openai import OpenAI
+            self._client = OpenAI(api_key=self.OPENAI_API_KEY)
             self._assistant = self._client.beta.assistants.update(
                 assistant_id,
                 name=self.ASSISTANT_NAME,
@@ -73,88 +53,100 @@ class AssistantAgent(CopilotAgent):
     def get_assistant_id(self) -> str:
         return self._assistant.id
 
+    def agent_node(self, state, agent):
+        result = agent.invoke(state)
+        return {"messages": [AIMessage(content=result["output"], name=name)]}
+
+
+    # The agent state is the input to each node in the graph
     def execute(self, question: QuestionSchema) -> AgentResponse:
-        from openai import NotFoundError, APIConnectionError, APITimeoutError
-        try:
+        thread_id = question.conversation_id
+        _tools = self._configured_tools
+        _tools.append(TavilySearchResults(include_domains=["docs.etendo.software"]))
+        tools = [format_tool_to_openai_function(tool) for tool in _tools]
 
-            # If no conversation_id is provided, create a new conversation thread.
-            thread_id = question.conversation_id
-            if not thread_id:
-                thread_id = self._client.beta.threads.create().id
-            try:
-                # Create a message in the conversation thread with the user's question.
-                message = self._client.beta.threads.messages.create(
-                    thread_id=thread_id, role="user", content=question.question, file_ids=(question.file_ids or [])
-                )
+        def invoke_model_openai(state: List[BaseMessage], _agent):
+            response = _agent.invoke({"content": state[0].content})
+            return HumanMessage(response.return_values["output"])
 
-                # Start processing the conversation thread with the assistant.
-                run = self._client.beta.threads.runs.create(
-                    thread_id=thread_id, assistant_id=question.assistant_id
-                )
-            except NotFoundError as ex:
-                raise AssistantIdNotFound(assistant_id=question.assistant_id) from ex
+        def invoke_model_langchain(state: Sequence[BaseMessage], _agent):
+            response = _agent.invoke({"messages": state})
+            return response
 
-            # Retrieve the current status of the processing run.
-            # Wait for the run to complete.
-            run = self.wait_while_status(run.id, thread_id, "in_progress", SLEEP_SECONDS)
-            # If the run requires action, process the required tool outputs.
-            while run.status == "requires_action":
-                for tool_call in run.required_action.submit_tool_outputs.tool_calls:
-                    # Parse arguments for the tool call.
-                    args = json.loads(tool_call.function.arguments)
-                    for tool in self._configured_tools:
-                        if tool.name == tool_call.function.name:
-                            # If args has only one key called "query", replace args with that value
-                            if len(args) == 1 and "query" in args:
-                                args = args["query"]
-                            print_blue("Calling tool: " + tool.name + " with args: " + str(args))
-                            output = tool.run(args, {}, None)
-                            print_yellow("Tool output: " + str(output))
-                            break
-
-                    # Submit the output of the tool.
-                    run = self._client.beta.threads.runs.submit_tool_outputs(
-                        thread_id=thread_id,
-                        run_id=run.id,
-                        tool_outputs=[{"tool_call_id": tool_call.id, "output": json.dumps(output)}],
+        workflow = MessageGraph()
+        if question.assistants:
+            for assistant in question.assistants:
+                if assistant.type == "openai-assistant":
+                    agent = OpenAIAssistantRunnable(assistant_id=assistant.assistant_id, as_agent=True, tools=tools)
+                    agent_node = functools.partial(invoke_model_openai, _agent=agent)
+                    workflow.add_node(assistant.name, agent_node)
+                else:
+                    prompt = ChatPromptTemplate.from_messages(
+                        [
+                            (
+                                "system",
+                                assistant.system_prompt
+                            ),
+                            MessagesPlaceholder(variable_name="messages"),
+                        ]
                     )
-                    run = self.wait_while_status(run.id, thread_id, "queued", SLEEP_SECONDS)
-                    run = self.wait_while_status(run.id, thread_id, "in_progress", SLEEP_SECONDS)
+                    model = ChatOpenAI(temperature=0, streaming=False, model="gpt-4-1106-preview")
+                    agent = prompt | model
+                    model_node = functools.partial(invoke_model_langchain, _agent=agent)
+                    workflow.add_node(assistant.name, model_node)
 
+            workflow.set_entry_point(question.assistants[0].name)
+            for i in range(0, len(question.assistants) - 1):
+                workflow.add_edge(question.assistants[i].name, question.assistants[i+1].name)
 
-            # Wait until the run status is completed.
-            self.wait_while_not_status(run.id, thread_id, "completed", SLEEP_SECONDS)
+            workflow.add_edge(question.assistants[-1].name, END)
 
-            # Retrieve all messages from the thread.
-            messages = self._client.beta.threads.messages.list(thread_id=thread_id)
-
-            # Extract the content of the first message as the response.
-
-            message = messages.data[0].content[0].text.value
-
-            # Return the response along with the assistant and conversation IDs.
-            return AgentResponse(
-                input=question.model_dump_json(),
-                output=AssistantResponse(
-                    response=message, assistant_id=question.assistant_id, conversation_id=thread_id
+        """
+        model = ChatOpenAI(temperature=0)
+        reflection_prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You're a kinder garden teacher, translate for a child with a lot of emojis"
                 ),
+                MessagesPlaceholder(variable_name="messages"),
+            ]
+        )
+        teacher = reflection_prompt | model
+
+        def teacher_node(state: Sequence[BaseMessage]):
+            return teacher.invoke({"messages": state})
+
+        workflow.add_node("teacher", teacher_node)
+
+        workflow.add_edge("researcher", "teacher")
+        workflow.add_edge("teacher", END)
+        """
+
+
+        graph = workflow.compile()
+
+        #response = agent.invoke(params)
+        #response = graph.invoke({"messages": question.question})
+        response = graph.invoke(HumanMessage(question.question))
+
+        #thread_id = response.thread_id
+        final_response = response[-1].content
+        # for resp in response:
+            # if type(resp) == AIMessage:
+                # final_response = resp.content + "\n"
+
+        return AgentResponse(
+            input=question.model_dump_json(),
+            output=AssistantResponse(
+                response=final_response, assistant_id=question.assistant_id, conversation_id=thread_id
             )
-        except (APIConnectionError, APITimeoutError) as ex:
-            raise AssistantTimeout() from ex
+        )
 
-    def wait_while_status(self, run_id, thread_id, status, seconds):
-        run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
-        while run.status == status:
-            run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-            sleep(seconds)
-        return run
+class AgentState(TypedDict):
+    # The annotation tells the graph that new messages will always
+    # be added to the current states
+    messages: Annotated[Sequence[BaseMessage], operator.add]
+    # The 'next' field indicates where to route to next
+    next: str
 
-    def wait_while_not_status(self, run_id, thread_id, status, seconds):
-        run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
-        while run.status != status:
-            run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-            sleep(seconds)
-        return run
-
-    def get_run_status(self, thread_id, run_id):
-        return self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id).status
