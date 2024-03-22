@@ -9,6 +9,13 @@ class AssistantSchema(BaseModel):
    assistant_id: Optional[str] = None
    system_prompt: Optional[str] = None
 
+class AssistantStage(BaseModel):
+    name: str
+    assistants: list[str]
+
+class AssistantGraph(BaseModel):
+    stages: list[AssistantStage]
+
 class QuestionSchema(BaseModel):
     question: str
     type: Optional[str] = None
@@ -16,3 +23,4 @@ class QuestionSchema(BaseModel):
     conversation_id: Optional[str] = None
     file_ids: Optional[list[str]] = None
     assistants: Optional[list[AssistantSchema]]
+    graph: Optional[AssistantGraph] = None

@@ -9,8 +9,14 @@ from langgraph.graph import StateGraph, END
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_experimental.tools import PythonREPLTool
 
+from copilot.core.schemas import AssistantGraph
+
+
 class CopilotLangGraph:
-    def supervisor_chain(self, members):
+
+    assistant_graph: AssistantGraph
+
+    def supervisor_chain(self, members_names):
         from langchain.output_parsers.openai_functions import JsonOutputFunctionsParser
         from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
@@ -23,7 +29,6 @@ class CopilotLangGraph:
         )
         # Our team supervisor is an LLM node. It just picks the next agent to process
         # and decides when the work is completed
-        members_names = [member.name for member in members]
         options = ["FINISH"] + members_names
         # Using openai function calling can make output parsing easier for us
         function_def = {
@@ -49,7 +54,7 @@ class CopilotLangGraph:
                 MessagesPlaceholder(variable_name="messages"),
                 (
                     "system",
-                    "Given the conversation above you have some information to respond and we can FINISH or we should act?"
+                    "Given the conversation above, who should act next?"
                     " Select one of: {options}",
                 ),
             ]
@@ -66,9 +71,8 @@ class CopilotLangGraph:
         return supervisor_chain
 
 
-    def construct_graph(self, supervisor_chain, members):
+    def construct_graph(self, members, assistant_graph):
 
-        # The agent state is the input to each node in the graph
         class AgentState(TypedDict):
             # The annotation tells the graph that new messages will always
             # be added to the current states
@@ -76,21 +80,21 @@ class CopilotLangGraph:
             # The 'next' field indicates where to route to next
             next: str
 
-        #research_agent = self.create_agent(llm, [tavily_tool], "You are a web researcher.")
-        #research_node = functools.partial(agent_node, _agent=research_agent, _name="Researcher")
-
-        # NOTE: THIS PERFORMS ARBITRARY CODE EXECUTION. PROCEED WITH CAUTION
-        #code_agent = self.create_agent(
-            #llm,
-            #[python_repl_tool],
-            #"You may generate safe python code to analyze data and generate charts using matplotlib.",
-        #)
-        #code_node = functools.partial(agent_node, agent=code_agent, name="Coder")
-
         workflow = StateGraph(AgentState)
         for member in members:
             workflow.add_node(member.name, member.node)
-        workflow.add_node("supervisor", supervisor_chain)
+
+        for stage in assistant_graph.stages:
+            members_names = []
+            for assistant_name in stage.assistants:
+                members_names.append(assistant_name)
+            if len(members_names) > 1:
+                if stage is not assistant_graph.stages[-1]:
+                    # connect with next supervisor
+                    members_names.append(assistant_graph.stages[assistant_graph.stages.index(stage) + 1].name)
+                supervisor_chain = self.supervisor_chain(members_names)
+                workflow.add_node("supervisor-" + stage.name, supervisor_chain)
+
         return workflow
 
     def create_agent(self, llm: ChatOpenAI, tools: list, system_prompt: str):
@@ -109,29 +113,47 @@ class CopilotLangGraph:
         executor = AgentExecutor(agent=agent, tools=tools)
         return executor
 
-    def connect_graph(self, members, workflow):
-        for member in members:
-            # We want our workers to ALWAYS "report back" to the supervisor when done
-            workflow.add_edge(member.name, "supervisor")
-        # The supervisor populates the "next" field in the graph state
-        # which routes to a node or finishes
-        members_names = [member.name for member in members]
-        conditional_map = {k: k for k in members_names}
-        conditional_map["FINISH"] = END
-        workflow.add_conditional_edges("supervisor", lambda x: x["next"], conditional_map)
+    def connect_graph(self, assistant_graph, workflow):
+        for i in range(0, len(assistant_graph.stages)):
+            stage = assistant_graph.stages[i]
+            if len(stage.assistants) == 1:
+                for assistant_name in stage.assistants:
+                    if i < len(assistant_graph.stages) - 1:
+                        next_stage = assistant_graph.stages[i + 1]
+                        if len(next_stage.assistants) == 1:
+                            workflow.add_edge(assistant_name, next_stage.assistants[0])
+                        else:
+                            workflow.add_edge(assistant_name, "supervisor-" + assistant_graph.stages[i + 1].name)
+                    else:
+                        workflow.add_edge(assistant_name, END)
+            else:
+                members_names = []
+                for assistant_name in stage.assistants:
+                    members_names.append(assistant_name)
+                    if i < len(assistant_graph.stages) - 1:
+                        next_stage = assistant_graph.stages[i+1]
+                        if len(next_stage.assistants) == 1:
+                            workflow.add_edge(assistant_name, next_stage.assistants[0])
+                        else:
+                            workflow.add_edge(assistant_name, "supervisor-" + assistant_graph.stages[i+1].name)
+                    else:
+                        workflow.add_edge(assistant_name, END)
+                conditional_map = {k: k for k in members_names}
+                workflow.add_conditional_edges("supervisor-" + stage.name, lambda x: x["next"], conditional_map)
         # Finally, add entrypoint
-        workflow.set_entry_point("supervisor")
+        workflow.set_entry_point("supervisor-" + assistant_graph.stages[0].name)
 
-    def __init__(self, members):
-        supervisor_chain = self.supervisor_chain(members)
-        workflow = self.construct_graph(supervisor_chain, members)
-        self.connect_graph(members, workflow)
-        self.graph = workflow.compile()
-        self.graph.get_graph().print_ascii()
+    def __init__(self, members, assistant_graph):
+
+        workflow = self.construct_graph(members, assistant_graph)
+        self.connect_graph(assistant_graph, workflow)
+        self._assistant_graph = assistant_graph
+        self._graph = workflow.compile()
+        self._graph.get_graph().print_ascii()
 
     def invoke(self, question):
         message = None
-        for message in self.graph.stream(
+        for message in self._graph.stream(
                 {"messages": [HumanMessage(content=question)]},
                 {"recursion_limit": 50},
         ):

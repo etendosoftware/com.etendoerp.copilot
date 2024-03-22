@@ -89,21 +89,9 @@ class AssistantAgent(CopilotAgent):
 
                 members.append(member)
 
-        copilotLangGraph = CopilotLangGraph(members)
+        copilotLangGraph = CopilotLangGraph(members, question.graph)
 
         final_response = copilotLangGraph.invoke(question=question.question)
-
-        # graph = workflow.compile()
-
-        #response = agent.invoke(params)
-        #response = graph.invoke({"messages": question.question})
-        # response = graph.invoke(HumanMessage(question.question))
-
-        #thread_id = response.thread_id
-        # final_response = response[-1].content
-        # for resp in response:
-            # if type(resp) == AIMessage:
-                # final_response = resp.content + "\n"
 
         return AgentResponse(
             input=question.model_dump_json(),
