@@ -1,26 +1,21 @@
 import functools
-import json
-import os
-import time
 
-from time import sleep
 from typing import Final
 
 from langchain.tools.render import format_tool_to_openai_function
 from langchain_community.chat_models import ChatOpenAI
 from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain_core.agents import AgentFinish
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from .. import utils
-from ..exceptions import AssistantIdNotFound, AssistantTimeout
+from copilot.core.langgraph.copilot_langgraph import CopilotLangGraph, GraphMember
+from ..exceptions import AssistantIdNotFound
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
 from langchain.agents.openai_assistant.base import OpenAIAssistantRunnable
-from typing import Annotated, Any, Dict, List, Optional, Sequence, TypedDict
+from typing import Annotated, List, Sequence, TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-import operator
-from langgraph.graph import StateGraph, END, MessageGraph
+from langgraph.graph import END, MessageGraph
 
 
 class AssistantAgent(CopilotAgent):
@@ -53,11 +48,6 @@ class AssistantAgent(CopilotAgent):
     def get_assistant_id(self) -> str:
         return self._assistant.id
 
-    def agent_node(self, state, agent):
-        result = agent.invoke(state)
-        return {"messages": [AIMessage(content=result["output"], name=name)]}
-
-
     # The agent state is the input to each node in the graph
     def execute(self, question: QuestionSchema) -> AgentResponse:
         thread_id = question.conversation_id
@@ -65,21 +55,23 @@ class AssistantAgent(CopilotAgent):
         _tools.append(TavilySearchResults(include_domains=["docs.etendo.software"]))
         tools = [format_tool_to_openai_function(tool) for tool in _tools]
 
-        def invoke_model_openai(state: List[BaseMessage], _agent):
-            response = _agent.invoke({"content": state[0].content})
-            return HumanMessage(response.return_values["output"])
+        members = []
 
-        def invoke_model_langchain(state: Sequence[BaseMessage], _agent):
-            response = _agent.invoke({"messages": state})
-            return response
+        def invoke_model_openai(state: List[BaseMessage], _agent, _name: str):
+            response = _agent.invoke({"content": state["messages"][0].content})
+            return {"messages": [HumanMessage(content=response.return_values["output"], name=_name)]}
 
-        workflow = MessageGraph()
+        def invoke_model_langchain(state: Sequence[BaseMessage], _agent, _name: str):
+            result = _agent.invoke(state)
+            return {"messages": [HumanMessage(content=result.content, name=_name)]}
+
         if question.assistants:
             for assistant in question.assistants:
+                member = None
                 if assistant.type == "openai-assistant":
                     agent = OpenAIAssistantRunnable(assistant_id=assistant.assistant_id, as_agent=True, tools=tools)
-                    agent_node = functools.partial(invoke_model_openai, _agent=agent)
-                    workflow.add_node(assistant.name, agent_node)
+                    model_node = functools.partial(invoke_model_openai, _agent=agent, _name=assistant.name)
+                    member = GraphMember(assistant.name, model_node)
                 else:
                     prompt = ChatPromptTemplate.from_messages(
                         [
@@ -92,46 +84,23 @@ class AssistantAgent(CopilotAgent):
                     )
                     model = ChatOpenAI(temperature=0, streaming=False, model="gpt-4-1106-preview")
                     agent = prompt | model
-                    model_node = functools.partial(invoke_model_langchain, _agent=agent)
-                    workflow.add_node(assistant.name, model_node)
+                    model_node = functools.partial(invoke_model_langchain, _agent=agent, _name=assistant.name)
+                    member = GraphMember(assistant.name, model_node)
 
-            workflow.set_entry_point(question.assistants[0].name)
-            for i in range(0, len(question.assistants) - 1):
-                workflow.add_edge(question.assistants[i].name, question.assistants[i+1].name)
+                members.append(member)
 
-            workflow.add_edge(question.assistants[-1].name, END)
+        copilotLangGraph = CopilotLangGraph(members)
 
-        """
-        model = ChatOpenAI(temperature=0)
-        reflection_prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You're a kinder garden teacher, translate for a child with a lot of emojis"
-                ),
-                MessagesPlaceholder(variable_name="messages"),
-            ]
-        )
-        teacher = reflection_prompt | model
+        final_response = copilotLangGraph.invoke(question=question.question)
 
-        def teacher_node(state: Sequence[BaseMessage]):
-            return teacher.invoke({"messages": state})
-
-        workflow.add_node("teacher", teacher_node)
-
-        workflow.add_edge("researcher", "teacher")
-        workflow.add_edge("teacher", END)
-        """
-
-
-        graph = workflow.compile()
+        # graph = workflow.compile()
 
         #response = agent.invoke(params)
         #response = graph.invoke({"messages": question.question})
-        response = graph.invoke(HumanMessage(question.question))
+        # response = graph.invoke(HumanMessage(question.question))
 
         #thread_id = response.thread_id
-        final_response = response[-1].content
+        # final_response = response[-1].content
         # for resp in response:
             # if type(resp) == AIMessage:
                 # final_response = resp.content + "\n"
@@ -142,11 +111,3 @@ class AssistantAgent(CopilotAgent):
                 response=final_response, assistant_id=question.assistant_id, conversation_id=thread_id
             )
         )
-
-class AgentState(TypedDict):
-    # The annotation tells the graph that new messages will always
-    # be added to the current states
-    messages: Annotated[Sequence[BaseMessage], operator.add]
-    # The 'next' field indicates where to route to next
-    next: str
-
