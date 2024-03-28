@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import Input from "etendo-ui-library/dist-web/components/input/Input";
 import TextMessage from "etendo-ui-library/dist-web/components/text-message/TextMessage";
 import FileSearchInput from "etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput";
 import { useAssistants } from "./hooks/useAssistants";
@@ -12,6 +11,7 @@ import { ILabels } from "./interfaces";
 import { IMessage } from "./interfaces/IMessage";
 import { References } from "./utils/references";
 import "./App.css";
+import { DropdownInput } from "etendo-ui-library/dist-web/components";
 
 function App() {
   // States
@@ -246,6 +246,10 @@ function App() {
     inputRef.current.focus();
   }, [assistants])
 
+  useEffect(()=>{
+    console.log({messages})
+  },[messages])
+
   const uploadConfig = {
     file: file,
     url: References.url.UPLOAD_FILE,
@@ -257,17 +261,15 @@ function App() {
       {/* Initial message and assistants selection */}
       {assistants.length > 0 &&
         <div className="w-full assistants-shadow border-b py-1 px-2 border-gray-600">
-          <Input
+          <DropdownInput
             value={selectedOption?.name}
-            dataPicker={assistants}
-            typeField="picker"
+            staticData={assistants}
             displayKey="name"
-            onOptionSelected={(option: any) => {
+            onSelect={(option: any) => {
               handleOptionSelected(option);
               setMessages([]);
               setConversationId(null);
             }}
-            height={33}
           />
         </div>
       }
@@ -365,6 +367,7 @@ function App() {
           placeholder={labels.ETCOP_Message_Placeholder!}
           onChangeText={text => setInputValue(text)}
           onSubmit={handleSendMessage}
+          onSubmitEditing={handleSendMessage}
           setFile={handleSetFile}
           uploadConfig={uploadConfig}
           isDisabled={noAssistants}
