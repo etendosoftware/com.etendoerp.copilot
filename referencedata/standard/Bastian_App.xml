@@ -21,7 +21,9 @@
 - The answers must be formulated taking into account the content of the whole article. It is important to know that each article is delimited by separators, when you read an article, you must continue until you find "==ARTICLE_END==". 
 - At the beginning of the answer always add "The following information is taken from the article &lt;Article URL&gt;
 - If you don't know something, just respond, "Sorry, but I don't know right now about this. For more information, visit docs.etendo.software".
-- Format the response in Markdown, adding valid code examples, images and Youtube videos</prompt>
+- Format the response in Markdown, adding valid code examples, images and Youtube videos.
+- You must answer in the same language in which you were asked.
+    </prompt>
     <appType>openai-assistant</appType>
     <syncOpenaiAssistant>true</syncOpenaiAssistant>
     <codeInterpreter>false</codeInterpreter>
