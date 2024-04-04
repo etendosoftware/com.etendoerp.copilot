@@ -120,7 +120,6 @@ function App() {
         body: JSON.stringify(requestBody),
         signal: new AbortController().signal
       };
-
       try {
         const response = await fetch(References.url.SEND_QUESTION, requestOptions);
         const data = await response.json();
@@ -370,7 +369,7 @@ function App() {
           onSubmitEditing={handleSendMessage}
           setFile={handleSetFile}
           uploadConfig={uploadConfig}
-          isDisabled={noAssistants}
+          isDisabled={noAssistants || isBotLoading}
           onFileUploaded={handleFileId}
           onError={handleOnError}
         />
