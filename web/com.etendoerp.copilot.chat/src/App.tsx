@@ -245,10 +245,6 @@ function App() {
     inputRef.current.focus();
   }, [assistants])
 
-  useEffect(()=>{
-    console.log({messages})
-  },[messages])
-
   const uploadConfig = {
     file: file,
     url: References.url.UPLOAD_FILE,
