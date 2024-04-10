@@ -1,3 +1,6 @@
+import json
+import threading
+
 from fastapi import APIRouter
 
 from . import utils
@@ -6,6 +9,7 @@ from .agent.assistant_agent import AssistantAgent
 from .exceptions import UnsupportedAgent
 from .local_history import ChatHistory, local_history_recorder
 from .schemas import QuestionSchema
+from .threadcontext import ThreadContext
 from .utils import copilot_debug
 
 core_router = APIRouter()
@@ -32,10 +36,45 @@ def serve_question(question: QuestionSchema):
     copilot_debug("  agent_type: " + str(agent_type))
     copilot_debug("  assistant_id: " + str(question.assistant_id))
     copilot_debug("  conversation_id: " + str(question.conversation_id))
-    agent_response: AgentResponse = copilot_agent.execute(question)
-    local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
+    copilot_debug("  file_ids: " + str(question.file_ids))
 
-    return {"answer": agent_response.output}
+    response = None
+    try:
+        copilot_debug("Thread "+ str(threading.get_ident())+ " ROUTES:el que almacena el contexto es: "+
+              str(ThreadContext.identifier_data()))
+        ThreadContext.set_data('extra_info', question.extra_info)
+        agent_response: AgentResponse = copilot_agent.execute(question)
+        response = agent_response.output
+        local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
+    except Exception as e:
+        copilot_debug("  Exception: " + str(e))
+        if hasattr(e, "response"):
+            content = e.response.content
+            # content has the json error message
+            error_message = json.loads(content).get('error').get('message')
+        else:
+            error_message = str(e)
+
+        response = {"error": {
+            "code": e.response.status_code if hasattr(e, "response") else 500,
+            "message": error_message}
+        }
+
+    return {"answer": response}
+
+
+@core_router.get("/tools")
+def serve_tools():
+    """Show tools available, with their information."""
+    langchain_agent = select_copilot_agent(AgentEnum.LANGCHAIN.value)
+    tool_list = langchain_agent.get_tools()
+    tool_dict = {}
+    for tool in tool_list:
+        tool_dict[tool.name] = {
+            "description": tool.description,
+            "parameters": tool.args,
+        }
+    return {"answer": tool_dict}
 
 
 @core_router.get("/history")

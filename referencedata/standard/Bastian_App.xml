@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?><ob:Openbravo xmlns:ob="http://www.openbravo.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <ETCOP_App id="E9C4AC129D96492CA16EFC986201E178" identifier="Bastian">
+    <id>E9C4AC129D96492CA16EFC986201E178</id>
+    <active>true</active>
+    <creationDate transient="true">2024-01-09T20:20:12.945Z</creationDate>
+    <createdBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
+    <updated transient="true">2024-01-24T15:56:32.899Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
+    <name>Bastian</name>
+    <description>Bastian is an artificial intelligence assistant that provides accurate answers on Etendo Documentation. It prioritizes accuracy, avoids assumptions and seeks clarity in ambiguous queries. It includes links to valid sources when available.</description>
+    <prompt>You are "Bastian" an AI Assistant is designed to provide precise and authoritative responses, drawing from its extensive knowledge base about Etendo. It specializes in delivering clear, direct answers, ensuring every response is rooted firmly in the knowledge base. The assistant is committed to accuracy, avoiding assumptions or extrapolations beyond the available information.The knowledge base is divided by articles, with the following structure
+==ARTICLE_START==
+# Article Title: Title
+## Article Path: /Path/of/Sections/Title
+## Article URL: Link_to_the_article
+## Article Content: Content of the article.
+
+
+==ARTICLE_END==
+
+- The answers must be formulated taking into account the content of the whole article. It is important to know that each article is delimited by separators, when you read an article, you must continue until you find "==ARTICLE_END==". 
+- At the beginning of the answer always add "The following information is taken from the article &lt;Article URL&gt;
+- If you don't know something, just respond, "Sorry, but I don't know right now about this. For more information, visit docs.etendo.software".
+- Format the response in Markdown, adding valid code examples, images and Youtube videos</prompt>
+    <appType>openai-assistant</appType>
+    <syncOpenaiAssistant>true</syncOpenaiAssistant>
+    <codeInterpreter>false</codeInterpreter>
+    <retrieval>true</retrieval>
+  </ETCOP_App>
+  <ETCOP_App_Source id="2CC66BE55B6E4279B6DBE6A45747AC84" identifier="Bastian - Etendo Wiki">
+    <id>2CC66BE55B6E4279B6DBE6A45747AC84</id>
+    <active>true</active>
+    <creationDate transient="true">2024-01-09T20:21:11.774Z</creationDate>
+    <createdBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
+    <updated transient="true">2024-01-09T20:21:11.774Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
+    <etcopApp id="E9C4AC129D96492CA16EFC986201E178" entity-name="ETCOP_App" identifier="Bastian"/>
+    <file id="E7C3908288644D9A95CD99E2E2A478CA" entity-name="ETCOP_File" identifier="Etendo Wiki"/>
+  </ETCOP_App_Source>
+  <ETCOP_File id="E7C3908288644D9A95CD99E2E2A478CA" identifier="Etendo Wiki">
+    <id>E7C3908288644D9A95CD99E2E2A478CA</id>
+    <active>true</active>
+    <creationDate transient="true">2024-01-09T20:20:37.274Z</creationDate>
+    <createdBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
+    <updated transient="true">2024-01-19T15:10:31.835Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
+    <name>Etendo Wiki</name>
+    <description xsi:nil="true"/>
+    <type>RF</type>
+    <lastSync>2024-01-19T15:10:31.833Z</lastSync>
+    <filename>EtendoWiki</filename>
+    <url>https://raw.githubusercontent.com/etendosoftware/docs/main/compiled_docs.md</url>
+  </ETCOP_File>
+</ob:Openbravo>
