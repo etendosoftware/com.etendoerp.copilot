@@ -33,11 +33,11 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="SEARCHKEY" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="SEARCHKEY" primaryKey="false" required="true" type="VARCHAR" size="200" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="NAME" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="NAME" primaryKey="false" required="true" type="VARCHAR" size="200" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
