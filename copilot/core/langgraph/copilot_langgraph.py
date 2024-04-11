@@ -140,8 +140,11 @@ class CopilotLangGraph:
                         workflow.add_edge(assistant_name, END)
                 conditional_map = {k: k for k in members_names}
                 workflow.add_conditional_edges("supervisor-" + stage.name, lambda x: x["next"], conditional_map)
-        # Finally, add entrypoint
-        workflow.set_entry_point("supervisor-" + assistant_graph.stages[0].name)
+        if len(assistant_graph.stages) == 1:
+            workflow.set_entry_point(assistant_graph.stages[0].assistants[0])
+        else:
+            # Finally, add entrypoint
+            workflow.set_entry_point("supervisor-" + assistant_graph.stages[0].name)
 
     def __init__(self, members, assistant_graph):
 
