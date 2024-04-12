@@ -1,6 +1,5 @@
 package com.etendoerp.copilot.rest;
 
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -15,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -51,7 +51,6 @@ import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
 import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.model.common.enterprise.Warehouse;
-import org.openbravo.model.common.plm.Product;
 import org.openbravo.service.db.DalConnectionProvider;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -82,6 +81,7 @@ public class RestService extends HttpSecureAppServlet {
   private static final String PROVIDER_GEMINI = "gemini";
   public static final String PROVIDER_OPENAI_VALUE = "O";
   public static final String PROVIDER_GEMINI_VALUE = "G";
+  public static final String ERROR = "error";
 
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -147,7 +147,6 @@ public class RestService extends HttpSecureAppServlet {
         return jsonLabels;
       }
 
-
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -176,7 +175,8 @@ public class RestService extends HttpSecureAppServlet {
         log4j.error(e2);
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e2.getMessage());
       }
-    }finally {
+      Thread.currentThread().interrupt();
+    } finally {
       OBContext.restorePreviousMode();
     }
   }
@@ -185,7 +185,7 @@ public class RestService extends HttpSecureAppServlet {
       String message) throws IOException, JSONException {
     response.setStatus(status);
     JSONObject error = new JSONObject();
-    error.put("error", message);
+    error.put(ERROR, message);
     response.getWriter().write(error.toString());
   }
 
@@ -231,7 +231,9 @@ public class RestService extends HttpSecureAppServlet {
       String fileUUID = UUID.randomUUID().toString();
       fileListToDelete.add(f);
       //print the current directory of the class
-      String sourcePath = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("source.path");
+      String sourcePath = OBPropertiesProvider.getInstance()
+          .getOpenbravoProperties()
+          .getProperty("source.path");
       String buildCopilotPath = sourcePath + "/build/copilot";
 
       String modulePath = sourcePath + "/modules/com.etendoerp.copilot";
@@ -286,117 +288,136 @@ public class RestService extends HttpSecureAppServlet {
     }
   }
 
-  private void handleQuestion(HttpServletRequest request,
-      HttpServletResponse response) throws IOException, JSONException {
-    // read the json sent
+  private void handleQuestion(HttpServletRequest request, HttpServletResponse response)
+      throws IOException, JSONException, URISyntaxException, InterruptedException {
+    String requestBody = readRequestBody(request);
+    JSONObject jsonRequestOriginal = new JSONObject(requestBody);
+    JSONObject jsonRequestForCopilot = new JSONObject();
+
+    // The app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
+    // and we need to add the type of the assistant (openai or langchain)
+    String appId = jsonRequestOriginal.getString(APP_ID);
+    CopilotApp copilotApp = getCopilotApp(appId);
+
+    String conversationId = jsonRequestOriginal.optString(PROP_CONVERSATION_ID);
+    if (!conversationId.isEmpty()) {
+      jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
+    }
+
+    String appType = copilotApp.getAppType();
+    StringBuilder prompt = handleAppType(jsonRequestForCopilot, copilotApp, appType);
+
+    jsonRequestForCopilot.put(PROP_QUESTION, jsonRequestOriginal.get(PROP_QUESTION));
+
+    String questionAttachedFileId = jsonRequestOriginal.optString("file");
+    handleAttachedFileId(jsonRequestForCopilot, questionAttachedFileId, copilotApp, prompt);
+
+    addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
+
+    String bodyReq = jsonRequestForCopilot.toString();
+    HttpResponse<String> responseFromCopilot = sendCopilotRequest(bodyReq);
+
+    handleResponseFromCopilot(response, responseFromCopilot, appId);
+  }
+
+  private String readRequestBody(HttpServletRequest request) throws IOException {
     BufferedReader reader = request.getReader();
-    StringBuilder sb = new StringBuilder();
-    for (String line; (line = reader.readLine()) != null; ) {
-      sb.append(line);
+    return reader.lines().collect(Collectors.joining());
+  }
+
+  private CopilotApp getCopilotApp(String appId) {
+    CopilotApp copilotApp = OBDal.getInstance().get(CopilotApp.class, appId);
+    if (copilotApp == null) {
+      throw new IllegalArgumentException("App not found: " + appId);
     }
-    HttpResponse<String> responseFromCopilot = null;
-    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String appType;
-    String appId;
-    try {
-      HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
-      String jsonRequestStr = sb.toString();
-      JSONObject jsonRequestOriginal = new JSONObject(jsonRequestStr);
-      JSONObject jsonRequestForCopilot = new JSONObject();
-      String conversationId = jsonRequestOriginal.optString(PROP_CONVERSATION_ID);
-      if (StringUtils.isNotEmpty(conversationId)) {
-        jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
-      }
-      //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
-      // and we need to add the type of the assistant (openai or langchain)
-      appId = jsonRequestOriginal.getString(APP_ID);
-      CopilotApp copilotApp = OBDal.getInstance().get(CopilotApp.class, appId);
-      if (copilotApp == null) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
-      }
-      appType = copilotApp.getAppType();
-      StringBuilder prompt = new StringBuilder();
-      if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)) {
-        jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGCHAIN);
-        if(StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
-          jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
-        } else if(StringUtils.equals(copilotApp.getProvider(), PROVIDER_GEMINI_VALUE)) {
-          jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_GEMINI);
-          jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");
-        } else {
-          throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_MissingProvider"), copilotApp.getProvider()));
-        }
-        if(!StringUtils.isEmpty(copilotApp.getPrompt())) {
-          prompt = new StringBuilder(copilotApp.getPrompt() + "\n");
-        }
-      } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
-        jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_OPENAI);
-        jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
-      } else {
+    return copilotApp;
+  }
+
+  private StringBuilder handleAppType(JSONObject jsonRequestForCopilot, CopilotApp copilotApp,
+      String appType) throws JSONException {
+    StringBuilder prompt = new StringBuilder();
+    if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)) {
+      handleLangChainAppType(jsonRequestForCopilot, copilotApp, prompt);
+    } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
+      handleOpenAIAppType(jsonRequestForCopilot, copilotApp);
+    } else {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
+    }
+    return prompt;
+  }
+
+  private void handleLangChainAppType(JSONObject jsonRequestForCopilot, CopilotApp copilotApp,
+      StringBuilder prompt) throws JSONException {
+    jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGCHAIN);
+    if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
+      jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
+    } else if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_GEMINI_VALUE)) {
+      jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_GEMINI);
+      jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");
+    } else {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingProvider"),
+          copilotApp.getProvider()));
+    }
+    if (!StringUtils.isEmpty(copilotApp.getPrompt())) {
+      prompt.append(copilotApp.getPrompt()).append("\n");
+    }
+  }
+
+  private void handleOpenAIAppType(JSONObject jsonRequestForCopilot, CopilotApp copilotApp)
+      throws JSONException {
+    jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_OPENAI);
+    jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
+  }
+
+  private void handleAttachedFileId(JSONObject jsonRequestForCopilot, String questionAttachedFileId,
+      CopilotApp copilotApp, StringBuilder prompt) throws JSONException {
+    if (StringUtils.isNotEmpty(questionAttachedFileId)) {
+      CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
+          .createCriteria(CopilotFile.class)
+          .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
+          .setMaxResults(1)
+          .uniqueResult();
+      if (copilotFile == null) {
         throw new OBException(
-            String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
+            String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"), questionAttachedFileId));
       }
-      jsonRequestForCopilot.put(PROP_QUESTION, jsonRequestOriginal.get(PROP_QUESTION));
-
-      String questionAttachedFileId = jsonRequestOriginal.optString("file");
-      if (StringUtils.isNotEmpty(questionAttachedFileId)) {
-        //check if the file exists in the temp folder
-        CopilotFile copilotFile = (CopilotFile) OBDal.getInstance().createCriteria(CopilotFile.class)
-            .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
-            .setMaxResults(1)
-            .uniqueResult();
-        if (copilotFile == null) {
-          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"), questionAttachedFileId));
-        }
-        // send the files to OpenAI and  replace the "file names" with the file_ids returned by OpenAI
-        logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
-        jsonRequestForCopilot.put("file_ids", new JSONArray().put(questionAttachedFileId));
-      }
-      // Lookup in app sources for the prompt
-      for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
-        if (BooleanUtils.isTrue(appSource.isAppend()) && appSource.getFile() != null) {
-          try {
-            File tempFile = OpenAIUtils.getFileFromCopilotFile(appSource.getFile());
-            String content = Files.readString(tempFile.toPath());
-            prompt.append(content).append("\n");
-          } catch (IOException e) {
-            throw new OBException(e);
-          }
-        }
-      }
-      if(!StringUtils.isEmpty(prompt.toString())) {
-        jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
-      }
-      addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
-      String bodyReq = jsonRequestForCopilot.toString();
-      HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s/question", copilotHost, copilotPort)))
-          .headers("Content-Type", APPLICATION_JSON_CHARSET_UTF_8)
-          .version(HttpClient.Version.HTTP_1_1)
-          .POST(HttpRequest.BodyPublishers.ofString(bodyReq))
-          .build();
-
-      responseFromCopilot = client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
-    } catch (URISyntaxException | InterruptedException e) {
-      log4j.error(e);
-      Thread.currentThread().interrupt();
-      throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
+      logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
+      jsonRequestForCopilot.put("file_ids", new JSONArray().put(questionAttachedFileId));
     }
+    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+      if (BooleanUtils.isTrue(appSource.isAppend()) && appSource.getFile() != null) {
+        appendFileSourcesToSystemPrompt(appSource, prompt);
+      }
+    }
+    if (!StringUtils.isEmpty(prompt.toString())) {
+      jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
+    }
+  }
+
+  private HttpResponse<String> sendCopilotRequest(String bodyReq)
+      throws URISyntaxException, IOException, InterruptedException {
+    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
+    String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+    HttpClient client = HttpClient.newBuilder().build();
+    HttpRequest copilotRequest = HttpRequest.newBuilder()
+        .uri(new URI(String.format("http://%s:%s/question", copilotHost, copilotPort)))
+        .headers("Content-Type", APPLICATION_JSON_CHARSET_UTF_8)
+        .version(HttpClient.Version.HTTP_1_1)
+        .POST(HttpRequest.BodyPublishers.ofString(bodyReq))
+        .build();
+    return client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
+  }
+
+  private void handleResponseFromCopilot(HttpServletResponse response,
+      HttpResponse<String> responseFromCopilot, String appId) throws IOException, JSONException {
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
     JSONObject responseOriginal = new JSONObject();
     responseOriginal.put(APP_ID, appId);
     JSONObject answer = (JSONObject) responseJsonFromCopilot.get("answer");
-    if (answer.has("error")) {
-      JSONObject errorJson = answer.getJSONObject("error");
-      if (errorJson.has("code")) {
-        response.setStatus(errorJson.getInt("code"));
-      } else {
-        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-      }
-      response.getWriter().write(new JSONObject().put("error", errorJson.getString("message")).toString());
+    if (answer.has(ERROR)) {
+      handleErrorResponse(response, answer);
       return;
     }
     String conversationId = answer.optString(PROP_CONVERSATION_ID);
@@ -405,11 +426,33 @@ public class RestService extends HttpSecureAppServlet {
     }
     responseOriginal.put(PROP_RESPONSE, answer.get(PROP_RESPONSE));
     Date date = new Date();
-    //getting the object of the Timestamp class
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
     response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
     response.getWriter().write(responseOriginal.toString());
+  }
+
+  private void handleErrorResponse(HttpServletResponse response, JSONObject answer)
+      throws IOException, JSONException {
+    JSONObject errorJson = answer.getJSONObject(ERROR);
+    if (errorJson.has("code")) {
+      response.setStatus(errorJson.getInt("code"));
+    } else {
+      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+    response.getWriter()
+        .write(new JSONObject().put(ERROR, errorJson.getString("message")).toString());
+  }
+
+  private static void appendFileSourcesToSystemPrompt(CopilotAppSource appSource,
+      StringBuilder prompt) {
+    try {
+      File tempFile = OpenAIUtils.getFileFromCopilotFile(appSource.getFile());
+      String content = Files.readString(tempFile.toPath());
+      prompt.append(content).append("\n");
+    } catch (IOException e) {
+      throw new OBException(e);
+    }
   }
 
   private void addExtraContextWithHooks(CopilotApp copilotApp, JSONObject jsonRequest) {
@@ -417,7 +460,7 @@ public class RestService extends HttpSecureAppServlet {
     JSONObject jsonExtraInfo = new JSONObject();
     Role role = context.getRole();
     OBDal.getInstance().refresh(role);
-    if (role.isWebServiceEnabled().booleanValue()) {
+    if (role.isWebServiceEnabled()) {
       try {
         //Refresh to avoid LazyInitializationException
         User user = context.getUser();
@@ -427,8 +470,7 @@ public class RestService extends HttpSecureAppServlet {
         Warehouse warehouse = context.getWarehouse();
         OBDal.getInstance().refresh(warehouse);
         jsonExtraInfo.put("auth", new JSONObject().put("ETENDO_TOKEN",
-            SecureWebServicesUtils.generateToken(user, role, currentOrganization,
-                warehouse)));
+            SecureWebServicesUtils.generateToken(user, role, currentOrganization, warehouse)));
         jsonRequest.put("extra_info", jsonExtraInfo);
       } catch (Exception e) {
         log4j.error("Error adding auth token to extraInfo", e);
@@ -438,12 +480,11 @@ public class RestService extends HttpSecureAppServlet {
 
     //execute the hooks
     try {
-      WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class).executeHooks(copilotApp,
-          jsonRequest);
+      WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class)
+          .executeHooks(copilotApp, jsonRequest);
     } catch (OBException e) {
       log4j.error("Error executing hooks", e);
     }
-
 
   }
 
@@ -463,13 +504,13 @@ public class RestService extends HttpSecureAppServlet {
     OBDal.getInstance().save(fileCop);
   }
 
-
   private void handleAssistants(HttpServletResponse response) {
     try {
       OBContext.setAdminMode();
       //send json of assistants
       JSONArray assistants = new JSONArray();
-      List<CopilotRoleApp> appList = OBDal.getInstance().createCriteria(CopilotRoleApp.class)
+      List<CopilotRoleApp> appList = OBDal.getInstance()
+          .createCriteria(CopilotRoleApp.class)
           .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, OBContext.getOBContext().getRole()))
           .list();
       for (CopilotRoleApp roleApp : appList) {
