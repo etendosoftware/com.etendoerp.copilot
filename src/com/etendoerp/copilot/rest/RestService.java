@@ -20,12 +20,15 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.util.OpenAIUtils;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileItemFactory;
 import org.apache.commons.fileupload.disk.DiskFileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.BooleanUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -72,7 +75,13 @@ public class RestService extends HttpSecureAppServlet {
   public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
   public static final String APPLICATION_JSON_CHARSET_UTF_8 = "application/json;charset=UTF-8";
   public static final String FILE = "/file";
-
+  public static final String PROP_PROVIDER = "provider";
+  public static final String PROP_MODEL = "model";
+  public static final String PROP_SYSTEM_PROMPT = "system_prompt";
+  private static final String PROVIDER_OPENAI = "openai";
+  private static final String PROVIDER_GEMINI = "gemini";
+  public static final String PROVIDER_OPENAI_VALUE = "O";
+  public static final String PROVIDER_GEMINI_VALUE = "G";
 
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -308,8 +317,21 @@ public class RestService extends HttpSecureAppServlet {
         throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
       }
       appType = copilotApp.getAppType();
+      StringBuilder prompt = new StringBuilder();
       if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)) {
         jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGCHAIN);
+        if(StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
+          jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
+        } else if(StringUtils.equals(copilotApp.getProvider(), PROVIDER_GEMINI_VALUE)) {
+          jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_GEMINI);
+          jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");
+        } else {
+          throw new OBException(
+              String.format(OBMessageUtils.messageBD("ETCOP_MissingProvider"), copilotApp.getProvider()));
+        }
+        if(!StringUtils.isEmpty(copilotApp.getPrompt())) {
+          prompt = new StringBuilder(copilotApp.getPrompt() + "\n");
+        }
       } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
         jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_OPENAI);
         jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
@@ -332,6 +354,21 @@ public class RestService extends HttpSecureAppServlet {
         // send the files to OpenAI and  replace the "file names" with the file_ids returned by OpenAI
         logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
         jsonRequestForCopilot.put("file_ids", new JSONArray().put(questionAttachedFileId));
+      }
+      // Lookup in app sources for the prompt
+      for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+        if (BooleanUtils.isTrue(appSource.isAppend()) && appSource.getFile() != null) {
+          try {
+            File tempFile = OpenAIUtils.getFileFromCopilotFile(appSource.getFile());
+            String content = Files.readString(tempFile.toPath());
+            prompt.append(content).append("\n");
+          } catch (IOException e) {
+            throw new OBException(e);
+          }
+        }
+      }
+      if(!StringUtils.isEmpty(prompt.toString())) {
+        jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
       }
       addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
       String bodyReq = jsonRequestForCopilot.toString();
