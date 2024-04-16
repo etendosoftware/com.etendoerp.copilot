@@ -440,9 +440,8 @@ public class RestService extends HttpSecureAppServlet {
     } else {
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
-    errorJson.getString("message")
     response.getWriter()
-        .write(new JSONObject().put(ERROR, ).toString());
+        .write(new JSONObject().put(ERROR, errorJson.getString("message")).toString());
   }
 
   private static void appendFileSourcesToSystemPrompt(CopilotAppSource appSource,
