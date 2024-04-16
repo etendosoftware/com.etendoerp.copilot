@@ -35,21 +35,13 @@ public class ProcessScheduleApps extends DalBaseProcess {
   private void refreshScheduleFiles(List<ETCOPSchedule> schedules)
       throws JSONException, IOException {
     String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
-    boolean fileSended = false;
     for (ETCOPSchedule schedule : schedules) {
       for (var source : schedule.getCopilotApp().getETCOPAppSourceList()) {
-        if (source.getBehaviour() != null) {
+        if (source.getBehaviour() != null && (StringUtils.equals(source.getBehaviour(),
+            RestServiceUtil.FILE_BEHAVIOUR_ATTACH) || StringUtils.equals(source.getBehaviour(),
+            RestServiceUtil.FILE_BEHAVIOUR_QUESTION))) {
           OpenAIUtils.syncFile(source.getFile(), openaiApiKey);
-          fileSended = true;
         }
-      }
-    }
-    if(fileSended) {
-      try {
-        Thread.sleep(60000 );
-      } catch (InterruptedException e) {
-        log.error(e);
-        Thread.currentThread().interrupt();
       }
     }
   }
@@ -59,11 +51,13 @@ public class ProcessScheduleApps extends DalBaseProcess {
       try {
         List<String> fileIds = new ArrayList<>();
         for (var source : schedule.getCopilotApp().getETCOPAppSourceList()) {
-          if(StringUtils.isNotEmpty(source.getBehaviour()) && StringUtils.equals(source.getBehaviour(), RestServiceUtil.FILE_BEHAVIOUR_ATTACH)) {
+          if (StringUtils.isNotEmpty(source.getBehaviour()) && StringUtils.equals(
+              source.getBehaviour(), RestServiceUtil.FILE_BEHAVIOUR_ATTACH)) {
             fileIds.add(source.getFile().getOpenaiIdFile());
           }
         }
-        RestServiceUtil.handleQuestion(schedule.getCopilotApp(), schedule.getConversation(), schedule.getPrompt(), fileIds);
+        RestServiceUtil.handleQuestion(schedule.getCopilotApp(), schedule.getConversation(),
+            schedule.getPrompt(), fileIds);
       } catch (JSONException | IOException e) {
         // for now just log the error and continue
         log.error(e);
