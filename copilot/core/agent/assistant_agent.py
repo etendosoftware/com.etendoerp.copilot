@@ -83,9 +83,15 @@ class AssistantAgent(CopilotAgent):
                 thread_id = self._client.beta.threads.create().id
             try:
                 # Create a message in the conversation thread with the user's question.
-                message = self._client.beta.threads.messages.create(
-                    thread_id=thread_id, role="user", content=get_full_question(question)
-                )
+                if question.file_ids == None:
+                    message = self._client.beta.threads.messages.create(
+                        thread_id=thread_id, role="user", content=get_full_question(question)
+                    )
+                else:
+                    message = self._client.beta.threads.messages.create(
+                        thread_id=thread_id, role="user", content=get_full_question(question),
+                        file_ids=question.file_ids
+                    )
 
                 # Start processing the conversation thread with the assistant.
                 run = self._client.beta.threads.runs.create(
