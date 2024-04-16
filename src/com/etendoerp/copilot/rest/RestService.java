@@ -300,7 +300,7 @@ public class RestService extends HttpSecureAppServlet {
     CopilotApp copilotApp = getCopilotApp(appId);
 
     String conversationId = jsonRequestOriginal.optString(PROP_CONVERSATION_ID);
-    if (!conversationId.isEmpty()) {
+    if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
     }
 
@@ -440,8 +440,9 @@ public class RestService extends HttpSecureAppServlet {
     } else {
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
+    errorJson.getString("message")
     response.getWriter()
-        .write(new JSONObject().put(ERROR, errorJson.getString("message")).toString());
+        .write(new JSONObject().put(ERROR, ).toString());
   }
 
   private static void appendFileSourcesToSystemPrompt(CopilotAppSource appSource,
