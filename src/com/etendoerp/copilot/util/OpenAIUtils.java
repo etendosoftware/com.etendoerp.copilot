@@ -362,7 +362,7 @@ public class OpenAIUtils {
     return uploadFileToOpenAI(openaiApiKey, tempFile);
   }
 
-  private static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
+  public static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
     OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
