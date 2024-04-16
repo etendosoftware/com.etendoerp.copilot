@@ -95,7 +95,7 @@ public class RemoteFileHook implements CopilotFileHook {
    * @param url The URL of the file to download.
    * @return The final name of the downloaded file.
    */
-  private static String getFinalName(String customName, URL url) {
+  public static String getFinalName(String customName, URL url) {
     String finalName = customName;
     String extension = "";
 

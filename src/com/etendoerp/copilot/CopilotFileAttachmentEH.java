@@ -36,15 +36,17 @@ public class CopilotFileAttachmentEH  extends EntityPersistenceEventObserver {
     if(!StringUtils.equals(idTable, COPILOT_FILE_ID_TABLE)){
       return;
     }
-    //search if exists another attachment with the same record id, and table id, but diffrent id.
+    if(getAttachment(targetInstance) != null){
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_UniqueAttachment"));
+    }
+  }
+
+  public static Attachment getAttachment(Attachment targetInstance) {
     OBCriteria<Attachment> attchCriteria = OBDal.getInstance().createCriteria(
         Attachment.class);
     attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_RECORD, targetInstance.getRecord()));
     attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_TABLE, targetInstance.getTable()));
     attchCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
-    Attachment attch = (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
-    if(attch != null){
-      throw new OBException(OBMessageUtils.messageBD("ETCOP_UniqueAttachment"));
-    }
+    return (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
   }
 }
