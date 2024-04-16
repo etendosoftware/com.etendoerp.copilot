@@ -1,7 +1,7 @@
 package com.etendoerp.copilot.hook;
 
 import com.etendoerp.copilot.data.CopilotFile;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
@@ -74,10 +74,9 @@ public class HQLFileHook implements CopilotFileHook {
 
   private void removeAttachment(AttachImplementationManager aim, CopilotFile hookObject) {
     Attachment attachment = getAttachment(hookObject);
-    if (attachment == null) {
-      return;
+    if (attachment != null) {
+      aim.delete(attachment);
     }
-    aim.delete(attachment);
   }
 
   private String getHQLResult(String hql) {

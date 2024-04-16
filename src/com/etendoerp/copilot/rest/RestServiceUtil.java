@@ -79,9 +79,9 @@ public class RestServiceUtil {
   private static final String PROVIDER_GEMINI = "gemini";
   public static final String PROVIDER_OPENAI_VALUE = "O";
   public static final String PROVIDER_GEMINI_VALUE = "G";
-  public static final String FILE_BEAVIOUR_SYSTEM = "system";
-  public static final String FILE_BEAVIOUR_QUESTION = "question";
-  public static final String FILE_BEAVIOUR_ATTACH = "attach";
+  public static final String FILE_BEHAVIOUR_SYSTEM = "system";
+  public static final String FILE_BEHAVIOUR_QUESTION = "question";
+  public static final String FILE_BEHAVIOUR_ATTACH = "attach";
 
   static JSONObject getJSONLabels() {
     try {
@@ -232,7 +232,7 @@ public class RestServiceUtil {
 
   public static JSONObject handleQuestion(CopilotApp copilotApp, String conversationId, String question, List<String> questionAttachedFileIds) throws IOException, JSONException {
     if(copilotApp == null) {
-      throw new OBException("CopilotApp cannot be null");
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
     // read the json sent
     HttpResponse<String> responseFromCopilot = null;
@@ -271,11 +271,11 @@ public class RestServiceUtil {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
       }
-      question += getFileContents(copilotApp, FILE_BEAVIOUR_QUESTION);
+      question += getFileContents(copilotApp, FILE_BEHAVIOUR_QUESTION);
       jsonRequestForCopilot.put(PROP_QUESTION, question);
       handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
       // Lookup in app sources for the prompt
-      prompt.append(getFileContents(copilotApp, FILE_BEAVIOUR_SYSTEM));
+      prompt.append(getFileContents(copilotApp, FILE_BEHAVIOUR_SYSTEM));
       if (!StringUtils.isEmpty(prompt.toString())) {
         jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
       }
@@ -382,7 +382,6 @@ public class RestServiceUtil {
       } catch (Exception e) {
         log.error("Error adding auth token to extraInfo", e);
       }
-
     }
 
     //execute the hooks
@@ -398,14 +397,7 @@ public class RestServiceUtil {
   private static void saveFileTemp(File f, String fileId) {
     CopilotFile fileCop = OBProvider.getInstance().get(CopilotFile.class);
     fileCop.setOpenaiIdFile(fileId);
-    OBContext context = OBContext.getOBContext();
     fileCop.setName(f.getName());
-    fileCop.setCreatedBy(context.getUser());
-    fileCop.setUpdatedBy(context.getUser());
-    fileCop.setCreationDate(new Date());
-    fileCop.setUpdated(new Date());
-    fileCop.setClient(context.getCurrentClient());
-    fileCop.setOrganization(context.getCurrentOrganization());
     fileCop.setType("F");
     fileCop.setTemp(true);
     OBDal.getInstance().save(fileCop);

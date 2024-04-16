@@ -33,21 +33,17 @@ public class RestService extends HttpSecureAppServlet {
       if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
         handleAssistants(response);
         return;
-
-      }  //  /labels to get the labels of the module
+      }
       else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         response.getWriter().write(RestServiceUtil.getJSONLabels().toString());
         return;
       }
-      //if not a valid path, throw a error status
       response.sendError(HttpServletResponse.SC_NOT_FOUND);
     } catch (Exception e) {
       log4j.error(e);
       try {
-
         response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-
       } catch (IOException ioException) {
         log4j.error(ioException);
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
@@ -128,15 +124,13 @@ public class RestService extends HttpSecureAppServlet {
       }
     }
   }
-  private void handleAssistants(HttpServletResponse response) {
 
+  private void handleAssistants(HttpServletResponse response) {
     try {
       var assistants = RestServiceUtil.handleAssistants();
       response.getWriter().write(assistants.toString());
     } catch (Exception e) {
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-    } finally {
-      OBContext.restorePreviousMode();
     }
   }
 }

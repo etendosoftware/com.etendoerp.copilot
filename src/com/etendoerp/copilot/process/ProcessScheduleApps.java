@@ -3,6 +3,7 @@ package com.etendoerp.copilot.process;
 import com.etendoerp.copilot.data.ETCOPSchedule;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.etendoerp.copilot.util.OpenAIUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
@@ -58,7 +59,7 @@ public class ProcessScheduleApps extends DalBaseProcess {
       try {
         List<String> fileIds = new ArrayList<>();
         for (var source : schedule.getCopilotApp().getETCOPAppSourceList()) {
-          if(source.getBehaviour() != null && source.getBehaviour().equals(RestServiceUtil.FILE_BEAVIOUR_ATTACH)) {
+          if(StringUtils.isNotEmpty(source.getBehaviour()) && StringUtils.equals(source.getBehaviour(), RestServiceUtil.FILE_BEHAVIOUR_ATTACH)) {
             fileIds.add(source.getFile().getOpenaiIdFile());
           }
         }
