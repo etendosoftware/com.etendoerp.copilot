@@ -217,7 +217,7 @@ public class OpenAIUtils {
   private static JSONArray getArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
-      if (!StringUtils.isEmpty(source.getFile().getOpenaiIdFile())) {
+      if (source.getBehaviour() == null && !StringUtils.isEmpty(source.getFile().getOpenaiIdFile())) {
         result.put(source.getFile().getOpenaiIdFile());
       }
     }

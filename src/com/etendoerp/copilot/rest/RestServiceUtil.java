@@ -19,7 +19,6 @@ import com.etendoerp.copilot.util.OpenAIUtils;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItem;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.BooleanUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
@@ -56,6 +55,9 @@ import javax.servlet.ServletException;
 
 public class RestServiceUtil {
 
+  private RestServiceUtil() {
+  }
+
   private static final Logger log = LogManager.getLogger(RestServiceUtil.class);
 
   public static final String QUESTION = "/question";
@@ -77,6 +79,9 @@ public class RestServiceUtil {
   private static final String PROVIDER_GEMINI = "gemini";
   public static final String PROVIDER_OPENAI_VALUE = "O";
   public static final String PROVIDER_GEMINI_VALUE = "G";
+  public static final String FILE_BEAVIOUR_SYSTEM = "system";
+  public static final String FILE_BEAVIOUR_QUESTION = "question";
+  public static final String FILE_BEAVIOUR_ATTACH = "attach";
 
   static JSONObject getJSONLabels() {
     try {
@@ -123,7 +128,7 @@ public class RestServiceUtil {
     logIfDebug(String.format("items: %d", items.size()));
     JSONObject responseJson = new JSONObject();
     //create a list of files, for delete them later when the process finish
-    ArrayList<File> fileListToDelete = new ArrayList<>();
+    List<File> fileListToDelete = new ArrayList<>();
     for (FileItem item : items) {
       if (item.isFormField()) {
         continue;
@@ -147,30 +152,8 @@ public class RestServiceUtil {
         }
       }
       checkSizeFile(f);
-      String fileUUID = UUID.randomUUID().toString();
       fileListToDelete.add(f);
-      //print the current directory of the class
-      String sourcePath = OBPropertiesProvider.getInstance()
-          .getOpenbravoProperties()
-          .getProperty("source.path");
-      String buildCopilotPath = sourcePath + "/build/copilot";
-
-      String modulePath = sourcePath + "/modules/com.etendoerp.copilot";
-      // copy the file to the buildCopilotPath folder, in a subfolder with the name of the file_id
-      String filePath = String.format("/copilotTempFiles/%s/%s", fileUUID, originalFileName);
-      saveFileTemp(f, filePath);
-      String pathForStandardCopy = buildCopilotPath + filePath;
-      File fileCopilotFolder = new File(pathForStandardCopy);
-      fileCopilotFolder.getParentFile().mkdirs();
-      Files.copy(f.toPath(), fileCopilotFolder.toPath());
-      //copy the file to the module folder, for the development
-      if (isDevelopment()) {
-        String pathForDevCopy = modulePath + filePath;
-        File fileModuleFolder = new File(pathForDevCopy);
-        fileModuleFolder.getParentFile().mkdirs();
-        Files.copy(f.toPath(), fileModuleFolder.toPath());
-      }
-      responseJson.put(item.getFieldName(), filePath);
+      responseJson.put(item.getFieldName(), handleFile(f, originalFileName));
     }
     OBDal.getInstance().flush();
     //delete the temp files
@@ -183,6 +166,31 @@ public class RestServiceUtil {
       }
     }
     return responseJson;
+  }
+
+  private static String handleFile(File f, String originalFileName) throws IOException {
+    String fileUUID = UUID.randomUUID().toString();
+    //print the current directory of the class
+    String sourcePath = OBPropertiesProvider.getInstance()
+        .getOpenbravoProperties()
+        .getProperty("source.path");
+    String buildCopilotPath = sourcePath + "/build/copilot";
+    String modulePath = sourcePath + "/modules/com.etendoerp.copilot";
+    // copy the file to the buildCopilotPath folder, in a subfolder with the name of the file_id
+    String filePath = String.format("/copilotTempFiles/%s/%s", fileUUID, originalFileName);
+    saveFileTemp(f, filePath);
+    String pathForStandardCopy = buildCopilotPath + filePath;
+    File fileCopilotFolder = new File(pathForStandardCopy);
+    fileCopilotFolder.getParentFile().mkdirs();
+    Files.copy(f.toPath(), fileCopilotFolder.toPath());
+    //copy the file to the module folder, for the development
+    if (isDevelopment()) {
+      String pathForDevCopy = modulePath + filePath;
+      File fileModuleFolder = new File(pathForDevCopy);
+      fileModuleFolder.getParentFile().mkdirs();
+      Files.copy(f.toPath(), fileModuleFolder.toPath());
+    }
+    return filePath;
   }
 
   private static boolean isDevelopment() {
@@ -219,10 +227,10 @@ public class RestServiceUtil {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
     }
-    return handleQuestion(copilotApp, conversationId, question, questionAttachedFileId);
+    return handleQuestion(copilotApp, conversationId, question, List.of(questionAttachedFileId));
   }
 
-  static JSONObject handleQuestion(CopilotApp copilotApp, String conversationId, String question, String questionAttachedFileId) throws IOException, JSONException {
+  public static JSONObject handleQuestion(CopilotApp copilotApp, String conversationId, String question, List<String> questionAttachedFileIds) throws IOException, JSONException {
     if(copilotApp == null) {
       throw new OBException("CopilotApp cannot be null");
     }
@@ -263,35 +271,30 @@ public class RestServiceUtil {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
       }
+      question += getFileContents(copilotApp, FILE_BEAVIOUR_QUESTION);
       jsonRequestForCopilot.put(PROP_QUESTION, question);
 
-      if (StringUtils.isNotEmpty(questionAttachedFileId)) {
-        //check if the file exists in the temp folder
-        CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
-            .createCriteria(CopilotFile.class)
-            .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
-            .setMaxResults(1)
-            .uniqueResult();
-        if (copilotFile == null) {
-          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"),
-              questionAttachedFileId));
+      if (questionAttachedFileIds != null && !questionAttachedFileIds.isEmpty()) {
+        JSONArray filesIds = new JSONArray();
+        for(String questionAttachedFileId : questionAttachedFileIds) {
+          //check if the file exists in the temp folder
+          CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
+              .createCriteria(CopilotFile.class)
+              .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
+              .setMaxResults(1)
+              .uniqueResult();
+          if (copilotFile == null) {
+            throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"),
+                questionAttachedFileId));
+          }
+          logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
+          filesIds.put(questionAttachedFileId);
         }
         // send the files to OpenAI and  replace the "file names" with the file_ids returned by OpenAI
-        logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
-        jsonRequestForCopilot.put("file_ids", new JSONArray().put(questionAttachedFileId));
+        jsonRequestForCopilot.put("file_ids", filesIds);
       }
       // Lookup in app sources for the prompt
-      for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
-      if (StringUtils.equals(appSource.getBehaviour(), "system") && appSource.getFile() != null) {
-          try {
-            File tempFile = OpenAIUtils.getFileFromCopilotFile(appSource.getFile());
-            String content = Files.readString(tempFile.toPath());
-            prompt.append(content).append("\n");
-          } catch (IOException e) {
-            throw new OBException(e);
-          }
-        }
-      }
+      prompt.append(getFileContents(copilotApp, FILE_BEAVIOUR_SYSTEM));
       if (!StringUtils.isEmpty(prompt.toString())) {
         jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
       }
@@ -335,6 +338,21 @@ public class RestServiceUtil {
     return responseOriginal;
   }
 
+  private static String getFileContents(CopilotApp copilotApp, String type) {
+    StringBuilder content = new StringBuilder();
+    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+      if (StringUtils.equals(appSource.getBehaviour(), type) && appSource.getFile() != null) {
+        try {
+          File tempFile = OpenAIUtils.getFileFromCopilotFile(appSource.getFile());
+          content.append( Files.readString(tempFile.toPath())).append("\n");
+        } catch (IOException e) {
+          throw new OBException(e);
+        }
+      }
+    }
+    return content.toString();
+  }
+
   private static void addExtraContextWithHooks(CopilotApp copilotApp, JSONObject jsonRequest) {
     OBContext context = OBContext.getOBContext();
     JSONObject jsonExtraInfo = new JSONObject();
@@ -350,7 +368,9 @@ public class RestServiceUtil {
         Warehouse warehouse = context.getWarehouse();
         OBDal.getInstance().refresh(warehouse);
         jsonExtraInfo.put("auth", new JSONObject().put("ETENDO_TOKEN",
-            SecureWebServicesUtils.generateToken(user, role, currentOrganization, warehouse)));
+            SecureWebServicesUtils.generateToken(user, role, currentOrganization,
+                warehouse)));
+        jsonRequest.put("extra_info", jsonExtraInfo);
       } catch (Exception e) {
         log.error("Error adding auth token to extraInfo", e);
       }
@@ -359,15 +379,10 @@ public class RestServiceUtil {
 
     //execute the hooks
     try {
-      WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class)
-          .executeHooks(copilotApp, jsonExtraInfo);
+      WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class).executeHooks(copilotApp,
+          jsonRequest);
     } catch (OBException e) {
       log.error("Error executing hooks", e);
-    }
-    try {
-      jsonRequest.put("extra_info", jsonExtraInfo);
-    } catch (JSONException e) {
-      log.error("Error adding extraInfo to jsonRequest", e);
     }
 
   }
@@ -411,8 +426,4 @@ public class RestServiceUtil {
     }
   }
 
-  public static JSONObject handleQuestion(CopilotApp copilotApp, String prompt)
-      throws JSONException, IOException {
-    return handleQuestion(copilotApp, null, prompt, null);
-  }
 }

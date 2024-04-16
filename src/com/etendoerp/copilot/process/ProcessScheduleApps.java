@@ -14,6 +14,7 @@ import org.openbravo.scheduling.ProcessBundle;
 import org.openbravo.service.db.DalBaseProcess;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ProcessScheduleApps extends DalBaseProcess {
@@ -21,21 +22,33 @@ public class ProcessScheduleApps extends DalBaseProcess {
 
   @Override
   protected void doExecute(ProcessBundle processBundle) throws Exception {
-    ProcessRequest processRequest = OBDal.getInstance().get(ProcessRequest.class, processBundle.getProcessRequestId());
+    ProcessRequest processRequest = OBDal.getInstance()
+        .get(ProcessRequest.class, processBundle.getProcessRequestId());
     OBCriteria<ETCOPSchedule> criteria = OBDal.getInstance().createCriteria(ETCOPSchedule.class);
-    List<ETCOPSchedule> schedules = criteria.add(Restrictions.eq(ETCOPSchedule.PROPERTY_PROCESSREQUEST, processRequest)).list();
-    //refreshScheduleFiles(schedules);
-    // Wait 1 minute for the files to be synced
-    // There is an OpenAI Issue that causes the files to not be synced immediately
-    //Thread.sleep(60000);
+    List<ETCOPSchedule> schedules = criteria.add(
+        Restrictions.eq(ETCOPSchedule.PROPERTY_PROCESSREQUEST, processRequest)).list();
+    refreshScheduleFiles(schedules);
     processSchedules(schedules);
   }
 
-  private void refreshScheduleFiles(List<ETCOPSchedule> schedules) throws JSONException, IOException {
+  private void refreshScheduleFiles(List<ETCOPSchedule> schedules)
+      throws JSONException, IOException {
     String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
+    boolean fileSended = false;
     for (ETCOPSchedule schedule : schedules) {
-      for (var source :schedule.getCopilotApp().getETCOPAppSourceList()  ) {
-        OpenAIUtils.syncFile(source.getFile(), openaiApiKey);
+      for (var source : schedule.getCopilotApp().getETCOPAppSourceList()) {
+        if (source.getBehaviour() != null) {
+          OpenAIUtils.syncFile(source.getFile(), openaiApiKey);
+          fileSended = true;
+        }
+      }
+    }
+    if(fileSended) {
+      try {
+        Thread.sleep(60000 );
+      } catch (InterruptedException e) {
+        log.error(e);
+        Thread.currentThread().interrupt();
       }
     }
   }
@@ -43,7 +56,13 @@ public class ProcessScheduleApps extends DalBaseProcess {
   private void processSchedules(List<ETCOPSchedule> schedules) {
     for (ETCOPSchedule schedule : schedules) {
       try {
-        RestServiceUtil.handleQuestion(schedule.getCopilotApp(), schedule.getPrompt());
+        List<String> fileIds = new ArrayList<>();
+        for (var source : schedule.getCopilotApp().getETCOPAppSourceList()) {
+          if(source.getBehaviour() != null && source.getBehaviour().equals(RestServiceUtil.FILE_BEAVIOUR_ATTACH)) {
+            fileIds.add(source.getFile().getOpenaiIdFile());
+          }
+        }
+        RestServiceUtil.handleQuestion(schedule.getCopilotApp(), schedule.getConversation(), schedule.getPrompt(), fileIds);
       } catch (JSONException | IOException e) {
         // for now just log the error and continue
         log.error(e);
