@@ -273,26 +273,7 @@ public class RestServiceUtil {
       }
       question += getFileContents(copilotApp, FILE_BEAVIOUR_QUESTION);
       jsonRequestForCopilot.put(PROP_QUESTION, question);
-
-      if (questionAttachedFileIds != null && !questionAttachedFileIds.isEmpty()) {
-        JSONArray filesIds = new JSONArray();
-        for(String questionAttachedFileId : questionAttachedFileIds) {
-          //check if the file exists in the temp folder
-          CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
-              .createCriteria(CopilotFile.class)
-              .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
-              .setMaxResults(1)
-              .uniqueResult();
-          if (copilotFile == null) {
-            throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"),
-                questionAttachedFileId));
-          }
-          logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
-          filesIds.put(questionAttachedFileId);
-        }
-        // send the files to OpenAI and  replace the "file names" with the file_ids returned by OpenAI
-        jsonRequestForCopilot.put("file_ids", filesIds);
-      }
+      handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
       // Lookup in app sources for the prompt
       prompt.append(getFileContents(copilotApp, FILE_BEAVIOUR_SYSTEM));
       if (!StringUtils.isEmpty(prompt.toString())) {
@@ -317,15 +298,7 @@ public class RestServiceUtil {
     JSONObject responseOriginal = new JSONObject();
     responseOriginal.put(APP_ID, copilotApp.getId());
     JSONObject answer = (JSONObject) responseJsonFromCopilot.get("answer");
-    if (answer.has("error")) {
-      JSONObject errorJson = answer.getJSONObject("error");
-      String message = errorJson.getString("message");
-      if (errorJson.has("code")) {
-        throw new CopilotRestServiceException(message, errorJson.getInt("code"));
-      } else {
-        throw new CopilotRestServiceException(message);
-      }
-    }
+    handleErrorMessagesIfExists(answer);
     conversationId = answer.optString(PROP_CONVERSATION_ID);
     if (StringUtils.isNotEmpty(conversationId)) {
       responseOriginal.put(PROP_CONVERSATION_ID, conversationId);
@@ -336,6 +309,41 @@ public class RestServiceUtil {
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
     return responseOriginal;
+  }
+
+  private static void handleFileIds(List<String> questionAttachedFileIds,
+      JSONObject jsonRequestForCopilot) throws JSONException {
+    if (questionAttachedFileIds != null && !questionAttachedFileIds.isEmpty()) {
+      JSONArray filesIds = new JSONArray();
+      for (String questionAttachedFileId : questionAttachedFileIds) {
+        //check if the file exists in the temp folder
+        CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
+            .createCriteria(CopilotFile.class)
+            .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
+            .setMaxResults(1)
+            .uniqueResult();
+        if (copilotFile == null) {
+          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"),
+              questionAttachedFileId));
+        }
+        logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
+        filesIds.put(questionAttachedFileId);
+      }
+      // send the files to OpenAI and  replace the "file names" with the file_ids returned by OpenAI
+      jsonRequestForCopilot.put("file_ids", filesIds);
+    }
+  }
+
+  private static void handleErrorMessagesIfExists(JSONObject answer) throws JSONException {
+    if (answer.has("error")) {
+      JSONObject errorJson = answer.getJSONObject("error");
+      String message = errorJson.getString("message");
+      if (errorJson.has("code")) {
+        throw new CopilotRestServiceException(message, errorJson.getInt("code"));
+      } else {
+        throw new CopilotRestServiceException(message);
+      }
+    }
   }
 
   private static String getFileContents(CopilotApp copilotApp, String type) {
