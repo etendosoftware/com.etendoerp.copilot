@@ -316,18 +316,20 @@ public class RestServiceUtil {
     if (questionAttachedFileIds != null && !questionAttachedFileIds.isEmpty()) {
       JSONArray filesIds = new JSONArray();
       for (String questionAttachedFileId : questionAttachedFileIds) {
-        //check if the file exists in the temp folder
-        CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
-            .createCriteria(CopilotFile.class)
-            .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
-            .setMaxResults(1)
-            .uniqueResult();
-        if (copilotFile == null) {
-          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"),
-              questionAttachedFileId));
+        if(StringUtils.isNotEmpty(questionAttachedFileId)) {
+          //check if the file exists in the temp folder
+          CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
+              .createCriteria(CopilotFile.class)
+              .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
+              .setMaxResults(1)
+              .uniqueResult();
+          if (copilotFile == null) {
+            throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"),
+                questionAttachedFileId));
+          }
+          logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
+          filesIds.put(questionAttachedFileId);
         }
-        logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
-        filesIds.put(questionAttachedFileId);
       }
       // send the files to OpenAI and  replace the "file names" with the file_ids returned by OpenAI
       jsonRequestForCopilot.put("file_ids", filesIds);
@@ -352,8 +354,12 @@ public class RestServiceUtil {
       if (StringUtils.equals(appSource.getBehaviour(), type) && appSource.getFile() != null) {
         try {
           File tempFile = OpenAIUtils.getFileFromCopilotFile(appSource.getFile());
-          content.append( Files.readString(tempFile.toPath())).append("\n");
+          content.append("\n---\n");
+          content.append("File: ").append(appSource.getFile().getName()).append("\n");
+          content.append(Files.readString(tempFile.toPath())).append("\n");
+          content.append("\n---\n");
         } catch (IOException e) {
+          log.error(e);
           throw new OBException(e);
         }
       }
