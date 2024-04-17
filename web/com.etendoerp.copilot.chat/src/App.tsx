@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import TextMessage from "etendo-ui-library/dist-web/components/text-message/TextMessage";
 import FileSearchInput from "etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput";
 import { useAssistants } from "./hooks/useAssistants";
@@ -365,7 +365,9 @@ function App() {
           onSubmitEditing={handleSendMessage}
           setFile={handleSetFile}
           uploadConfig={uploadConfig}
-          isDisabled={noAssistants || isBotLoading}
+          isDisabled={noAssistants}
+          isSendDisable={isBotLoading}
+          isAttachDisable={isBotLoading}
           onFileUploaded={handleFileId}
           onError={handleOnError}
         />
