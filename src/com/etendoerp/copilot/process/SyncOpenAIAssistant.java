@@ -18,6 +18,7 @@ import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
+import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.service.db.DbUtility;
@@ -38,7 +39,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
     // Declare json to be returned
     JSONObject result = new JSONObject();
     try {
-
+      OBContext.setAdminMode();
       // Get request parameters
       JSONObject request = new JSONObject(content);
       JSONArray selecterRecords = request.optJSONArray("recordIds");
@@ -87,6 +88,8 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       } catch (Exception ignore) {
         log.error("Error in process", ignore);
       }
+    } finally {
+      OBContext.restorePreviousMode();
     }
     return result;
   }
