@@ -392,6 +392,7 @@ public class RestService extends HttpSecureAppServlet {
         jsonExtraInfo.put("auth", new JSONObject().put("ETENDO_TOKEN",
             SecureWebServicesUtils.generateToken(user, role, currentOrganization,
                 warehouse)));
+        jsonRequest.put("extra_info", jsonExtraInfo);
       } catch (Exception e) {
         log4j.error("Error adding auth token to extraInfo", e);
       }
@@ -401,15 +402,11 @@ public class RestService extends HttpSecureAppServlet {
     //execute the hooks
     try {
       WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class).executeHooks(copilotApp,
-          jsonExtraInfo);
+          jsonRequest);
     } catch (OBException e) {
       log4j.error("Error executing hooks", e);
     }
-    try {
-      jsonRequest.put("extra_info", jsonExtraInfo);
-    } catch (JSONException e) {
-      log4j.error("Error adding extraInfo to jsonRequest", e);
-    }
+
 
   }
 
