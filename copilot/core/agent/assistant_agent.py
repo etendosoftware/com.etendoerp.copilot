@@ -83,7 +83,7 @@ class AssistantAgent(CopilotAgent):
                 thread_id = self._client.beta.threads.create().id
             try:
                 # Create a message in the conversation thread with the user's question.
-                if question.file_ids == None:
+                if question.file_ids is None or len(question.file_ids) == 0:
                     message = self._client.beta.threads.messages.create(
                         thread_id=thread_id, role="user", content=get_full_question(question)
                     )
