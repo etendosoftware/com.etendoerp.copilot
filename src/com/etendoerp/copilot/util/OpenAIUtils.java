@@ -117,7 +117,7 @@ public class OpenAIUtils {
       toolsResources.put("code_interpreter", fileIds);
       JSONObject vectordb = new JSONObject();
       JSONArray vectorIds = new JSONArray();
-      vectorIds.put(app.getOpenaiIdVectordb());
+      vectorIds.put(app.getOpenaiVectordbID());
       vectordb.put("vector_store_ids", vectorIds);
       toolsResources.put("file_search", vectordb);
       body.put("tool_resources", toolsResources);
@@ -454,11 +454,11 @@ public class OpenAIUtils {
   }
 
   private static String getOrCreateVectorDbId(CopilotApp app) throws JSONException {
-    if (app.getOpenaiIdVectordb() != null) {
-      if(!existsVectorDb(app.getOpenaiIdVectordb())) {
+    if (app.getOpenaiVectordbID() != null) {
+      if(!existsVectorDb(app.getOpenaiVectordbID())) {
         return createVectorDbId(app);
       }
-      return app.getOpenaiIdVectordb();
+      return app.getOpenaiVectordbID();
     }
     return createVectorDbId(app);
   }
@@ -478,7 +478,7 @@ public class OpenAIUtils {
     JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(), ENDPOINT_VECTORDB, vectordb,
         "POST", null);
     String openAIVectorDbId = response.getString("id");
-    app.setOpenaiIdVectordb(openAIVectorDbId);
+    app.setOpenaiVectordbID(openAIVectorDbId);
     OBDal.getInstance().save(app);
     OBDal.getInstance().flush();
 
