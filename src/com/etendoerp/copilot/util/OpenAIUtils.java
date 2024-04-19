@@ -109,7 +109,7 @@ public class OpenAIUtils {
     JSONObject body = new JSONObject();
     body.put("instructions", getAssistantPrompt(app));
     body.put("name", app.getName());
-    JSONArray files = getArrayFiles(app);
+    JSONArray files = getKbArrayFiles(app);
     if (files.length() > 0) {
       JSONObject fileIds = new JSONObject();
       fileIds.put("file_ids", files);
@@ -169,7 +169,7 @@ public class OpenAIUtils {
       JSONObject body = new JSONObject();
       body.put("instructions", getAssistantPrompt(app));
       body.put("name", app.getName());
-      JSONArray files = getArrayFiles(app);
+      JSONArray files = getKbArrayFiles(app);
       if (files.length() > 0) {
         body.put("file_ids", files);
       }
@@ -229,10 +229,10 @@ public class OpenAIUtils {
     return new JSONObject().put("type", "object").put("properties", parameters);
   }
 
-  private static JSONArray getArrayFiles(CopilotApp app) {
+  private static JSONArray getKbArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
-      if (source.getBehaviour() == null && !StringUtils.isEmpty(
+      if (CopilotConstants.isKbBehaviour(source) && !StringUtils.isEmpty(
           source.getFile().getOpenaiIdFile())) {
         result.put(source.getFile().getOpenaiIdFile());
       }
@@ -489,7 +489,7 @@ public class OpenAIUtils {
       throws JSONException {
     List<String> updatedFiles = new ArrayList<>();
     for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
-      if (copilotAppSource.getBehaviour() == null) {
+      if (CopilotConstants.isKbBehaviour(copilotAppSource)) {
         CopilotFile file = copilotAppSource.getFile();
         if (file.getOpenaiIdFile() != null) {
           JSONObject fileSearch = new JSONObject();
