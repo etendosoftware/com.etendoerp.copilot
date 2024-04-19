@@ -234,6 +234,7 @@ public class RestServiceUtil {
     if(copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
+    refreshDynamicFiles(copilotApp);
     // read the json sent
     HttpResponse<String> responseFromCopilot = null;
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
@@ -309,6 +310,16 @@ public class RestServiceUtil {
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
     return responseOriginal;
+  }
+
+  private static void refreshDynamicFiles(CopilotApp copilotApp) throws JSONException, IOException {
+    String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
+    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+      if (appSource.getBehaviour() != null && StringUtils.equals(appSource.getBehaviour(), FILE_BEHAVIOUR_ATTACH) || StringUtils.equals(
+          appSource.getBehaviour(), FILE_BEHAVIOUR_QUESTION)) {
+        OpenAIUtils.syncFile(appSource.getFile(), openaiApiKey);
+      }
+    }
   }
 
   private static void handleFileIds(List<String> questionAttachedFileIds,

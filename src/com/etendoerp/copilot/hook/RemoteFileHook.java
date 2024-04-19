@@ -12,12 +12,19 @@ import java.util.HashMap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
+import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotFile;
+import org.openbravo.model.ad.datamodel.Table;
+import org.openbravo.model.ad.utility.Attachment;
+
+import static com.etendoerp.copilot.hook.HQLFileHook.COPILOT_FILE_AD_TABLE_ID;
 
 /**
  * This class implements the CopilotFileHook interface and provides functionality
@@ -48,6 +55,7 @@ public class RemoteFileHook implements CopilotFileHook {
     try {
       Path path = downloadFile(url, fileName);
       AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
+      removeAttachment(aim, hookObject);
       File file = new File(path.toString());
       aim.upload(new HashMap<>(), COPILOT_FILE_TAB_ID, hookObject.getId(),
           hookObject.getOrganization().getId(), file);
@@ -58,6 +66,21 @@ public class RemoteFileHook implements CopilotFileHook {
 
   }
 
+  private void removeAttachment(AttachImplementationManager aim, CopilotFile hookObject) {
+    Attachment attachment = getAttachment(hookObject);
+    if (attachment != null) {
+      aim.delete(attachment);
+    }
+  }
+
+  public static Attachment getAttachment(CopilotFile targetInstance) {
+    OBCriteria<Attachment> attchCriteria = OBDal.getInstance().createCriteria(Attachment.class);
+    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_RECORD, targetInstance.getId()));
+    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_TABLE,
+        OBDal.getInstance().get(Table.class, COPILOT_FILE_AD_TABLE_ID)));
+    attchCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
+    return (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
+  }
   /**
    * Downloads a file from a given URL and stores it in a temporary directory.
    *

@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -18,6 +17,7 @@ import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
+import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.service.db.DbUtility;
@@ -38,7 +38,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
     // Declare json to be returned
     JSONObject result = new JSONObject();
     try {
-
+      OBContext.setAdminMode();
       // Get request parameters
       JSONObject request = new JSONObject(content);
       JSONArray selecterRecords = request.optJSONArray("recordIds");
@@ -58,20 +58,23 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       }
       Set<CopilotFile> filesToSync = new HashSet<>();
       for (CopilotApp app : appList) {
-        filesToSync.addAll(
-            app.getETCOPAppSourceList().stream().map(CopilotAppSource::getFile).collect(Collectors.toList()));
+        List<CopilotFile> list = new ArrayList<>();
+        for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
+          if (copilotAppSource.getBehaviour() == null) {
+            CopilotFile file = copilotAppSource.getFile();
+            list.add(file);
+          }
+        }
+        filesToSync.addAll(list);
       }
       for (CopilotFile fileToSync : filesToSync) {
         OpenAIUtils.syncFile(fileToSync, openaiApiKey);
       }
-
-
       for (CopilotApp app : appList) {
         OBDal.getInstance().refresh(app);
         syncCount = callSync(syncCount, openaiApiKey, app);
       }
       returnSuccessMsg(result, syncCount, totalRecords);
-
     } catch (Exception e) {
       log.error("Error in process", e);
       try {
@@ -87,6 +90,8 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       } catch (Exception ignore) {
         log.error("Error in process", ignore);
       }
+    } finally {
+      OBContext.restorePreviousMode();
     }
     return result;
   }

@@ -30,7 +30,7 @@ import static com.etendoerp.copilot.hook.RemoteFileHook.COPILOT_FILE_TAB_ID;
 
 public class HQLFileHook implements CopilotFileHook {
 
-  private static final String COPILOT_FILE_AD_TABLE_ID = "6B246B1B3A6F4DE8AFC208E07DB29CE2";
+  public static final String COPILOT_FILE_AD_TABLE_ID = "6B246B1B3A6F4DE8AFC208E07DB29CE2";
   public static final String FILE_TYPE_HQL = "HQL";
 
   @Override
