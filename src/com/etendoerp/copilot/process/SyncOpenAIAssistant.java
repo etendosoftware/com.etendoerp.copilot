@@ -148,9 +148,10 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         .list();
 
     CopilotOpenAIModel defaultModel = (CopilotOpenAIModel) OBDal.getInstance().createCriteria(
-        CopilotOpenAIModel.class).addOrder(Order.desc(CopilotOpenAIModel.PROPERTY_CREATIONDATE))
-        .setMaxResults(
-        1).uniqueResult();
+            CopilotOpenAIModel.class)
+        .add(Restrictions.eq(CopilotOpenAIModel.PROPERTY_SEARCHKEY, "gpt-4-turbo-preview"))
+        .addOrder(Order.desc(CopilotOpenAIModel.PROPERTY_CREATIONDATE))
+        .setMaxResults(1).uniqueResult();
     for (CopilotApp app : appsWithoutModel) {
       app.setModel(defaultModel);
       OBDal.getInstance().save(app);
