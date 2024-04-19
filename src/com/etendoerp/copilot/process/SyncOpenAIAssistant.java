@@ -31,6 +31,7 @@ import com.etendoerp.copilot.util.OpenAIUtils;
 
 public class SyncOpenAIAssistant extends BaseProcessActionHandler {
   private static final Logger log = LogManager.getLogger(SyncOpenAIAssistant.class);
+  public static final String ERROR = "error";
 
   @Override
   protected JSONObject doExecute(Map<String, Object> parameters, String content) {
@@ -72,6 +73,10 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       }
       for (CopilotApp app : appList) {
         OBDal.getInstance().refresh(app);
+        OpenAIUtils.refreshVectorDb(app);
+      }
+      for (CopilotApp app : appList) {
+        OBDal.getInstance().refresh(app);
         syncCount = callSync(syncCount, openaiApiKey, app);
       }
       returnSuccessMsg(result, syncCount, totalRecords);
@@ -83,7 +88,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         JSONObject errorMessage = new JSONObject();
         Throwable ex = DbUtility.getUnderlyingSQLException(e);
         String message = OBMessageUtils.translateError(ex.getMessage()).getMessage();
-        errorMessage.put("severity", "error");
+        errorMessage.put("severity", ERROR);
         errorMessage.put("title", OBMessageUtils.messageBD("Error"));
         errorMessage.put("text", message);
         result.put("message", errorMessage);
