@@ -24,8 +24,6 @@ import com.etendoerp.copilot.data.CopilotFile;
 import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.utility.Attachment;
 
-import static com.etendoerp.copilot.hook.HQLFileHook.COPILOT_FILE_AD_TABLE_ID;
-
 /**
  * This class implements the CopilotFileHook interface and provides functionality
  * for handling remote files.
@@ -36,6 +34,7 @@ public class RemoteFileHook implements CopilotFileHook {
   private static final Logger log = LogManager.getLogger(RemoteFileHook.class);
   // Tab ID for CopilotFile
   public static final String COPILOT_FILE_TAB_ID = "09F802E423924081BC2947A64DDB5AF5";
+  public static final String COPILOT_FILE_AD_TABLE_ID = "6B246B1B3A6F4DE8AFC208E07DB29CE2";
 
   /**
    * Executes the hook for a given CopilotFile.

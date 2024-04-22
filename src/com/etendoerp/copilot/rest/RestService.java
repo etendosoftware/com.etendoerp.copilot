@@ -7,6 +7,7 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.dal.core.OBContext;
 
@@ -57,7 +58,11 @@ public class RestService extends HttpSecureAppServlet {
     try {
       OBContext.setAdminMode();
       if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
-        handleQuestion(request, response);
+        try {
+          handleQuestion(request, response);
+        } catch (OBException e) {
+          throw new OBException("Error handling question: " + e.getMessage());
+        }
         return;
       } else if (StringUtils.equalsIgnoreCase(path, FILE)) {
         handleFile(request, response);

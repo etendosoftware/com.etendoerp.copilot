@@ -38,7 +38,7 @@ public class ProcessScheduleApps extends DalBaseProcess {
     for (ETCOPSchedule schedule : schedules) {
       for (var source : schedule.getCopilotApp().getETCOPAppSourceList()) {
         if (CopilotConstants.isAttachBehaviour(source) || CopilotConstants.isQuestionBehaviour(source)) {
-          OpenAIUtils.syncFile(source.getFile(), openaiApiKey);
+          OpenAIUtils.syncAppSource(source, openaiApiKey);
         }
       }
     }

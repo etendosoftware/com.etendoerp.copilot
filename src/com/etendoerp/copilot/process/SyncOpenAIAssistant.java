@@ -24,7 +24,6 @@ import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
-import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotOpenAIModel;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.OpenAIUtils;
@@ -57,19 +56,18 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         CopilotApp app = OBDal.getInstance().get(CopilotApp.class, selecterRecords.getString(i));
         appList.add(app);
       }
-      Set<CopilotFile> filesToSync = new HashSet<>();
+      Set<CopilotAppSource> appSourcesToSync = new HashSet<>();
       for (CopilotApp app : appList) {
-        List<CopilotFile> list = new ArrayList<>();
+        List<CopilotAppSource> list = new ArrayList<>();
         for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
           if (CopilotConstants.isKbBehaviour(copilotAppSource)) {
-            CopilotFile file = copilotAppSource.getFile();
-            list.add(file);
+            list.add(copilotAppSource);
           }
         }
-        filesToSync.addAll(list);
+        appSourcesToSync.addAll(list);
       }
-      for (CopilotFile fileToSync : filesToSync) {
-        OpenAIUtils.syncFile(fileToSync, openaiApiKey);
+      for (CopilotAppSource appSource : appSourcesToSync) {
+        OpenAIUtils.syncAppSource(appSource, openaiApiKey);
       }
       for (CopilotApp app : appList) {
         OBDal.getInstance().refresh(app);

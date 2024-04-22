@@ -1,18 +1,15 @@
 package com.etendoerp.copilot.hook;
 
-import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotAppSource;
 import org.apache.commons.lang.StringUtils;
-import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.structure.BaseOBObject;
-import org.openbravo.base.weld.WeldUtils;
-import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.core.OBContext;
-import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.model.ad.utility.Attachment;
-import org.openbravo.model.ad.datamodel.Table;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.service.datasource.DataSourceUtils;
+import org.openbravo.service.json.JsonConstants;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -20,33 +17,29 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.etendoerp.copilot.hook.RemoteFileHook.COPILOT_FILE_TAB_ID;
+public class ProcessHQLAppSource {
+  private static final ProcessHQLAppSource INSTANCE = new ProcessHQLAppSource();
+  private static final String AND = " AND ";
+  private static final String WHERE = " WHERE ";
+  public static final String CLIENT_ID = "clientId";
+  public static final String ORGANIZATIONS = "organizations";
 
-public class HQLFileHook implements CopilotFileHook {
+  public static ProcessHQLAppSource getInstance() {
+    return INSTANCE;
+  }
 
-  public static final String COPILOT_FILE_AD_TABLE_ID = "6B246B1B3A6F4DE8AFC208E07DB29CE2";
-  public static final String FILE_TYPE_HQL = "HQL";
-
-  @Override
-  public void exec(CopilotFile hookObject) throws OBException {
+  public File generate(CopilotAppSource appSource) throws OBException {
     try {
-      String result = getHQLResult(hookObject.getHql());
-      String fileName = hookObject.getFilename();
-      // store the result in a temporary file
-      AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(
-          AttachImplementationManager.class);
-      removeAttachment(aim, hookObject);
-      File file = createAttachment(fileName, result);
-      aim.upload(new HashMap<>(), COPILOT_FILE_TAB_ID, hookObject.getId(),
-          hookObject.getOrganization().getId(), file);
+      String result = getHQLResult(appSource.getFile().getHql(), "e");
+      String fileName = appSource.getFile().getName();
+      return createAttachment(fileName, result);
     } catch (IOException e) {
-      throw new OBException(e);
+      throw new OBException(
+          String.format(String.format(OBMessageUtils.messageBD("ETCOP_HQLGenErr"), e)));
+
     } finally {
       OBDal.getInstance().flush();
     }
@@ -63,25 +56,41 @@ public class HQLFileHook implements CopilotFileHook {
     return new File(tempFile.toString());
   }
 
-  public static Attachment getAttachment(CopilotFile targetInstance) {
-    OBCriteria<Attachment> attchCriteria = OBDal.getInstance().createCriteria(Attachment.class);
-    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_RECORD, targetInstance.getId()));
-    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_TABLE,
-        OBDal.getInstance().get(Table.class, COPILOT_FILE_AD_TABLE_ID)));
-    attchCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
-    return (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
-  }
-
-  private void removeAttachment(AttachImplementationManager aim, CopilotFile hookObject) {
-    Attachment attachment = getAttachment(hookObject);
-    if (attachment != null) {
-      aim.delete(attachment);
-    }
-  }
-
-  private String getHQLResult(String hql) {
+  private String getHQLResult(String hql, String entityAlias) {
     final org.hibernate.Session session = OBDal.getInstance().getSession();
+    Map<String, String> parameters = new HashMap<>();
+    String additionalFilter = entityAlias + ".client.id in ('0', :clientId)";
+    // client filter
+    parameters.put(CLIENT_ID, OBContext.getOBContext().getCurrentClient().getId());
+
+    // organization filter
+    final String orgs = DataSourceUtils.getOrgs(parameters.get(JsonConstants.ORG_PARAMETER));
+    if (StringUtils.isNotEmpty(orgs)) {
+      additionalFilter += AND + entityAlias + ".organization.id in ( :organizations )";
+      parameters.put(ORGANIZATIONS, orgs);
+    }
+    // adds the hql filters in the proper place at the end of the query
+    String separator = null;
+    if (StringUtils.containsIgnoreCase(hql, WHERE)) {
+      // if there is already a where clause, append with 'AND'
+      separator = AND;
+    } else {
+      // otherwise, append with 'where'
+      separator = WHERE;
+    }
+    hql = hql + separator + additionalFilter;
     var qry = session.createQuery(hql);
+    Set<String> namedParameters = qry.getParameterMetadata().getNamedParameterNames();
+    if (namedParameters.contains(CLIENT_ID)) {
+      qry.setParameter(CLIENT_ID, parameters.get(CLIENT_ID));
+      parameters.remove(CLIENT_ID);
+    }
+    if (namedParameters.contains(ORGANIZATIONS)) {
+      qry.setParameterList(ORGANIZATIONS,
+          parameters.get(ORGANIZATIONS).replaceAll("'", "").split(","));
+      parameters.remove(ORGANIZATIONS);
+    }
+    parameters.forEach(qry::setParameter);
     List<String> results = new ArrayList<>();
     for (Object resultObject : qry.list()) {
       if (resultObject.getClass().isArray()) {
@@ -137,8 +146,4 @@ public class HQLFileHook implements CopilotFileHook {
     return "/" + contextName + "/" + bob.getEntityName() + "/" + bob.getId() + "/" + title;
   }
 
-  @Override
-  public boolean typeCheck(String type) {
-    return StringUtils.equals(type, FILE_TYPE_HQL);
-  }
 }

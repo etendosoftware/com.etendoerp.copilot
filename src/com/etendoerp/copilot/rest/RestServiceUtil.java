@@ -271,12 +271,12 @@ public class RestServiceUtil {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
       }
-      question += getFileContents(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
+      question += OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
       jsonRequestForCopilot.put(PROP_QUESTION, question);
       addAppSourceFileIds(copilotApp, questionAttachedFileIds);
-      handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
+      //handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
       // Lookup in app sources for the prompt
-      prompt.append(getFileContents(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
+      prompt.append(OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
       if (!StringUtils.isEmpty(prompt.toString())) {
         jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
       }
@@ -325,7 +325,7 @@ public class RestServiceUtil {
     String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
     for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
       if (CopilotConstants.isAttachBehaviour(appSource) || CopilotConstants.isQuestionBehaviour(appSource)) {
-        OpenAIUtils.syncFile(appSource.getFile(), openaiApiKey);
+        OpenAIUtils.syncAppSource(appSource, openaiApiKey);
       }
     }
   }
@@ -365,25 +365,6 @@ public class RestServiceUtil {
         throw new CopilotRestServiceException(message);
       }
     }
-  }
-
-  private static String getFileContents(CopilotApp copilotApp, String type) {
-    StringBuilder content = new StringBuilder();
-    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
-      if (StringUtils.equals(appSource.getBehaviour(), type) && appSource.getFile() != null) {
-        try {
-          File tempFile = OpenAIUtils.getFileFromCopilotFile(appSource.getFile());
-          content.append("\n---\n");
-          content.append(appSource.getFile().getName()).append("\n");
-          content.append(Files.readString(tempFile.toPath())).append("\n");
-          content.append("\n---\n");
-        } catch (IOException e) {
-          log.error(e);
-          throw new OBException(e);
-        }
-      }
-    }
-    return content.toString();
   }
 
   private static void addExtraContextWithHooks(CopilotApp copilotApp, JSONObject jsonRequest) {
