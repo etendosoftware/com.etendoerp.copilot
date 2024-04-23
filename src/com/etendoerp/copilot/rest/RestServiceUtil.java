@@ -403,6 +403,7 @@ public class RestServiceUtil {
   private static void saveFileTemp(File f, String fileId) {
     CopilotFile fileCop = OBProvider.getInstance().get(CopilotFile.class);
     fileCop.setOpenaiIdFile(fileId);
+    fileCop.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
     fileCop.setName(f.getName());
     fileCop.setType("F");
     fileCop.setTemp(true);
