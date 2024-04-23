@@ -274,7 +274,7 @@ public class RestServiceUtil {
       question += OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
       jsonRequestForCopilot.put(PROP_QUESTION, question);
       addAppSourceFileIds(copilotApp, questionAttachedFileIds);
-      //handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
+      handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
       // Lookup in app sources for the prompt
       prompt.append(OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
       if (!StringUtils.isEmpty(prompt.toString())) {
@@ -351,7 +351,7 @@ public class RestServiceUtil {
         }
       }
       // send the files to OpenAI and  replace the "file names" with the file_ids returned by OpenAI
-      jsonRequestForCopilot.put("file_ids", filesIds);
+      jsonRequestForCopilot.put("local_file_ids", filesIds);
     }
   }
 
