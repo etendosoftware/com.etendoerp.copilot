@@ -248,7 +248,15 @@ public class OpenAIUtils {
         .field("purpose", purpose)
         .field("file", fileToSend, mimeType)
         .asString();
-    return new JSONObject(response.getBody());
+    JSONObject jsonResponse = new JSONObject(response.getBody());
+    if(!response.isSuccess()) {
+      if(jsonResponse.has(ERROR)) {
+        throw new OBException(jsonResponse.getJSONObject(ERROR).getString(MESSAGE));
+      } else {
+        throw new OBException(response.getBody());
+      }
+    }
+    return jsonResponse;
   }
 
   private static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
@@ -557,7 +565,13 @@ public class OpenAIUtils {
         if (!response.has(ERROR)) {
           updatedFiles.add(file.getOpenaiIdFile());
         } else {
-          log.warn("Error updating file in vector db: " + response.toString());
+          if(app.isCodeInterpreter()) {
+            log.warn("Error updating file in vector db: " + response);
+          } else {
+            throw new OBException(
+                String.format(OBMessageUtils.messageBD("ETCOP_Error_Updating_VectorDb"), app.getName(),
+                    response.getJSONObject(ERROR).getString(MESSAGE)));
+          }
         }
       }
     }

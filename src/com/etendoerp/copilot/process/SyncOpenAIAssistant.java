@@ -64,6 +64,12 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
             list.add(copilotAppSource);
           }
         }
+        if(!list.isEmpty()) {
+          if(!app.isCodeInterpreter() && !app.isRetrieval()) {
+              throw new OBException(
+                  String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
+          }
+        }
         appSourcesToSync.addAll(list);
       }
       for (CopilotAppSource appSource : appSourcesToSync) {
