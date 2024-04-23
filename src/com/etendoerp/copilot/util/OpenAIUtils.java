@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URLConnection;
+import java.nio.charset.MalformedInputException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Date;
@@ -609,6 +610,10 @@ public class OpenAIUtils {
           content.append(appSource.getFile().getName()).append("\n");
           content.append(Files.readString(tempFile.toPath())).append("\n");
           content.append("\n---\n");
+        } catch (MalformedInputException e) {
+          throw new OBException(
+              String.format(OBMessageUtils.messageBD("ETCOP_Error_MalformedSourceContent"),
+                  appSource.getFile().getName(), appSource.getEtcopApp().getName()));
         } catch (IOException e) {
           log.error(e);
           throw new OBException(e);
