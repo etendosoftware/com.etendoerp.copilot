@@ -35,3 +35,9 @@ for module in ../*; do # for example ../com.etendoerp.copilot.erp
         done
     fi
 done
+
+# come back to the main module
+cd ../$main_module
+#the tools_config file is created in the main module, the tools_config file is used to store the tools that are going to be used in the main module
+#exec python3 local_setup.py
+exec python3 local_setup.py
