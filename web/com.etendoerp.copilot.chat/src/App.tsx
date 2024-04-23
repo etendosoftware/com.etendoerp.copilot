@@ -152,7 +152,7 @@ function App() {
 
         setIsBotLoading(false);
         setStatusIcon(botIcon);
-        setFile('');
+        setFile(null);
         setFileId(null);
       } catch (error: any) {
         console.error('Error fetching data: ', error);
