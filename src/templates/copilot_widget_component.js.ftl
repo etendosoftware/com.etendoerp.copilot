@@ -181,6 +181,11 @@ adjustMaximizeWindowPosition();
             display: flex;
             flex-direction: column;
         }
+
+        .action-buttons-container {
+            align-items: center;
+            display: flex;
+        }
         </style>
     </head>
 

@@ -356,7 +356,7 @@ function App() {
       </div>
 
       {/* Message input area */}
-      <div className={`mx-[12px]`} ref={inputRef}>
+      <div style={{marginBottom:12}} className={`mx-[12px]`} ref={inputRef}>
         <FileSearchInput
           value={inputValue}
           placeholder={labels.ETCOP_Message_Placeholder!}
