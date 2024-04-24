@@ -32,8 +32,13 @@ public class CopilotConstants {
         FILE_BEHAVIOUR_KB);
   }
 
-  public static boolean isFileTypeFile(CopilotFile file) {
+  public static boolean isFileTypeLocalOrRemoteFile(CopilotFile file) {
     return file.getType() != null && (StringUtils.equals(file.getType(),
         FILE_TYPE_RF) || StringUtils.equals(file.getType(), FILE_TYPE_F));
+  }
+
+  public static boolean isFileTypeRemoteFile(CopilotFile file) {
+    return file.getType() != null && (StringUtils.equals(file.getType(),
+        FILE_TYPE_RF));
   }
 }

@@ -230,7 +230,7 @@ public class OpenAIUtils {
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
       if (CopilotConstants.isKbBehaviour(source)) {
         String openaiIdFile;
-        if (CopilotConstants.isFileTypeFile(source.getFile())) {
+        if (CopilotConstants.isFileTypeLocalOrRemoteFile(source.getFile())) {
           openaiIdFile = source.getFile().getOpenaiIdFile();
         } else {
           openaiIdFile = source.getOpenaiIdFile();
@@ -337,7 +337,7 @@ public class OpenAIUtils {
     //first we need to get the file
     //if the file not has an id, we need to create it
     logIfDebug("Syncing file " + appSource.getFile().getName());
-    if (CopilotConstants.isFileTypeFile(appSource.getFile())) {
+    if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
       CopilotFile fileToSync = appSource.getFile();
       WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
           .executeHooks(fileToSync);
@@ -554,7 +554,7 @@ public class OpenAIUtils {
         if (copilotAppSource.getFile() == null) {
           continue;
         }
-        if (!CopilotConstants.isFileTypeFile(copilotAppSource.getFile())) {
+        if (!CopilotConstants.isFileTypeLocalOrRemoteFile(copilotAppSource.getFile())) {
           continue;
         }
         CopilotFile file = copilotAppSource.getFile();
@@ -601,7 +601,7 @@ public class OpenAIUtils {
       if (StringUtils.equals(appSource.getBehaviour(), type) && appSource.getFile() != null) {
         try {
           File tempFile;
-          if (CopilotConstants.isFileTypeFile(appSource.getFile())) {
+          if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
             tempFile = getFileFromCopilotFile(appSource.getFile());
           } else {
             tempFile = ProcessHQLAppSource.getInstance().generate(appSource);

@@ -60,7 +60,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       for (CopilotApp app : appList) {
         List<CopilotAppSource> list = new ArrayList<>();
         for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
-          if (CopilotConstants.isKbBehaviour(copilotAppSource)) {
+          if (CopilotConstants.isKbBehaviour(copilotAppSource) || CopilotConstants.isFileTypeRemoteFile(copilotAppSource.getFile())) {
             list.add(copilotAppSource);
           }
         }
