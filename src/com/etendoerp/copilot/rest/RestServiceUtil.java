@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.util.OpenAIUtils;
+
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItem;
 import org.apache.commons.lang.StringUtils;
@@ -229,8 +230,9 @@ public class RestServiceUtil {
     return handleQuestion(copilotApp, conversationId, question, qId);
   }
 
-  public static JSONObject handleQuestion(CopilotApp copilotApp, String conversationId, String question, List<String> questionAttachedFileIds) throws IOException, JSONException {
-    if(copilotApp == null) {
+  public static JSONObject handleQuestion(CopilotApp copilotApp, String conversationId, String question,
+      List<String> questionAttachedFileIds) throws IOException, JSONException {
+    if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
     refreshDynamicFiles(copilotApp);
@@ -315,7 +317,7 @@ public class RestServiceUtil {
   private static void addAppSourceFileIds(CopilotApp copilotApp,
       List<String> questionAttachedFileIds) {
     for (CopilotAppSource source : copilotApp.getETCOPAppSourceList()) {
-      if(CopilotConstants.isAttachBehaviour(source)) {
+      if (CopilotConstants.isAttachBehaviour(source)) {
         questionAttachedFileIds.add(source.getFile().getOpenaiIdFile());
       }
     }
@@ -335,7 +337,7 @@ public class RestServiceUtil {
     if (questionAttachedFileIds != null && !questionAttachedFileIds.isEmpty()) {
       JSONArray filesIds = new JSONArray();
       for (String questionAttachedFileId : questionAttachedFileIds) {
-        if(StringUtils.isNotEmpty(questionAttachedFileId)) {
+        if (StringUtils.isNotEmpty(questionAttachedFileId)) {
           //check if the file exists in the temp folder
           CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
               .createCriteria(CopilotFile.class)
@@ -370,17 +372,14 @@ public class RestServiceUtil {
   private static void addExtraContextWithHooks(CopilotApp copilotApp, JSONObject jsonRequest) {
     OBContext context = OBContext.getOBContext();
     JSONObject jsonExtraInfo = new JSONObject();
-    Role role = context.getRole();
-    OBDal.getInstance().refresh(role);
+    Role role = OBDal.getInstance().get(Role.class, context.getRole().getId());
     if (role.isWebServiceEnabled().booleanValue()) {
       try {
         //Refresh to avoid LazyInitializationException
-        User user = context.getUser();
-        OBDal.getInstance().refresh(user);
-        Organization currentOrganization = context.getCurrentOrganization();
-        OBDal.getInstance().refresh(currentOrganization);
-        Warehouse warehouse = context.getWarehouse();
-        OBDal.getInstance().refresh(warehouse);
+        User user = OBDal.getInstance().get(User.class, context.getUser().getId());
+        Organization currentOrganization = OBDal.getInstance().get(Organization.class,
+            context.getCurrentOrganization().getId());
+        Warehouse warehouse = OBDal.getInstance().get(Warehouse.class, context.getWarehouse().getId());
         jsonExtraInfo.put("auth", new JSONObject().put("ETENDO_TOKEN",
             SecureWebServicesUtils.generateToken(user, role, currentOrganization,
                 warehouse)));
