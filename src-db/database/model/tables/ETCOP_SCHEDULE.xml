@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETCOP_FILE">
-    <table name="ETCOP_FILE" primaryKey="ETCOP_FILE_KEY">
-      <column name="ETCOP_FILE_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETCOP_SCHEDULE">
+    <table name="ETCOP_SCHEDULE" primaryKey="ETCOP_SCH_KEY">
+      <column name="ETCOP_SCHEDULE_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -33,49 +33,38 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="NAME" primaryKey="false" required="true" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="NAME" primaryKey="false" required="true" type="VARCHAR" size="256" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="DESCRIPTION" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="ETCOP_APP_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="TYPE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="PROMPT" primaryKey="false" required="false" type="VARCHAR" size="4000" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="OPENAI_ID_FILE" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="AD_PROCESS_REQUEST_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="LAST_SYNC" primaryKey="false" required="false" type="TIMESTAMP" size="7" autoIncrement="false">
+      <column name="CONVERSATION" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="FILENAME" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="URL" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="ISTEMP" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
-        <default><![CDATA[N]]></default>
-        <onCreateDefault/>
-      </column>
-      <column name="HQL" primaryKey="false" required="false" type="VARCHAR" size="4000" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <foreign-key foreignTable="AD_CLIENT" name="ETCOP_FILE_CLI_FK">
+      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_SCH_APP_FK">
+        <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_CLIENT" name="ETCOP_SCH_CLI_FK">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETCOP_FILE_ORG_FK">
+      <foreign-key foreignTable="AD_ORG" name="ETCOP_SCH_ORG_FK">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <check name="ETCOP_FILE_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
-      <check name="ETCOP_FILE_ISTEMP_CHK"><![CDATA[ISTEMP IN ('Y', 'N')]]></check>
+      <foreign-key foreignTable="AD_PROCESS_REQUEST" name="ETCOP_SCH_REQ_FK">
+        <reference local="AD_PROCESS_REQUEST_ID" foreign="AD_PROCESS_REQUEST_ID"/>
+      </foreign-key>
+      <check name="ETCOP_APP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>

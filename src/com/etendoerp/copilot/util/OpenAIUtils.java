@@ -1,15 +1,18 @@
 package com.etendoerp.copilot.util;
 
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URLConnection;
+import java.nio.charset.MalformedInputException;
+import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
+import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,7 +24,6 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
-import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -39,6 +41,8 @@ import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import kong.unirest.UnirestException;
 
+import static com.etendoerp.copilot.process.SyncOpenAIAssistant.ERROR;
+
 public class OpenAIUtils {
   private static final Logger log = LogManager.getLogger(OpenAIUtils.class);
   public static final String BASE_URL = "https://api.openai.com/v1";
@@ -48,13 +52,15 @@ public class OpenAIUtils {
   public static final String HEADER_OPEN_AI_BETA = "OpenAI-Beta";
   public static final String CONTENT_TYPE_JSON = "application/json";
   public static final String HEADER_BEARER = "Bearer ";
-  public static final String HEADER_ASSISTANTS_V_1 = "assistants=v1";
+  public static final String HEADER_ASSISTANTS_V_2 = "assistants=v2";
   public static final String OPENAI_API_KEY = "OPENAI_API_KEY";
   public static final String ENDPOINT_FILES = "/files";
   public static final String ENDPOINT_MODELS = "/models";
   public static final String ENDPOINT_ASSISTANTS = "/assistants";
+  public static final String ENDPOINT_VECTORDB = "/vector_stores";
   public static final int MILLIES_SOCKET_TIMEOUT = 5 * 60 * 1000;
-
+  public static final String MESSAGE = "message";
+  public static final String INSTRUCTIONS = "instructions";
 
   private OpenAIUtils() {
     throw new IllegalStateException("Utility class");
@@ -63,65 +69,93 @@ public class OpenAIUtils {
   public static void syncAssistant(String openaiApiKey, CopilotApp app) throws OBException {
     //first we need to get the assistant
     //if the app not has an assistant, we need to create it
-
-    if (StringUtils.isEmpty(app.getOpenaiIdAssistant())) {
-      String assistantId = OpenAIUtils.createAssistant(app, openaiApiKey);
-      app.setOpenaiIdAssistant(assistantId);
-      OBDal.getInstance().save(app);
-      OBDal.getInstance().flush();
-    } else {
-      //we will update the assistant
-      try {
-        JSONObject response = OpenAIUtils.updateAssistant(app, openaiApiKey);
-        if (response.has("error")) {
-          if (response.has("error")
-              && response.getJSONObject("error").has("message")
-              && response.getJSONObject("error").getString("message").contains("No assistant found with id")) {
-            //the assistant not exists, we need to set the id to null and create it again
-            app.setOpenaiIdAssistant(null);
-            OBDal.getInstance().save(app);
-            OBDal.getInstance().flush();
-            String assistantId = OpenAIUtils.createAssistant(app, openaiApiKey);
-            app.setOpenaiIdAssistant(assistantId);
-            OBDal.getInstance().save(app);
-            OBDal.getInstance().flush();
-          }else{
-            throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
-                response.getJSONObject("error").getString("message")));
-          }
-
-        }
-      } catch (JSONException e) {
-        throw new OBException(e.getMessage());
-      }
+    try {
+      upsertAssistant(app, openaiApiKey);
+    } catch (JSONException e) {
+      throw new OBException(e.getMessage());
     }
-
-
   }
 
-  private static JSONObject updateAssistant(CopilotApp app, String openaiApiKey) throws JSONException {
-    //almost the same as createAssistant, but we need to update the assistant
-
-    String endpoint = ENDPOINT_ASSISTANTS + "/" + app.getOpenaiIdAssistant();
-    JSONObject body = new JSONObject();
-    body.put("instructions", getAssistantPrompt(app));
-    body.put("name", app.getName());
-    JSONArray files = getArrayFiles(app);
-    if (files.length() > 0) {
-      body.put("file_ids", files);
+  private static boolean matchParamAndCode(JSONObject response, String param, String code)
+      throws JSONException {
+    if (!response.has(ERROR)) {
+      return false;
     }
+    JSONObject error = response.getJSONObject(ERROR);
+    return error.has("param") && error.has("code") && StringUtils.equals(error.getString("param"),
+        param) && StringUtils.equals(error.getString("code"), code);
+  }
+
+  private static JSONObject upsertAssistant(CopilotApp app, String openaiApiKey)
+      throws JSONException {
+    String openaiIdAssistant = app.getOpenaiIdAssistant();
+    if (StringUtils.isNotEmpty(openaiIdAssistant)) {
+      if (!existsAssistant(openaiIdAssistant)) {
+        openaiIdAssistant = null;
+      }
+    }
+    String endpoint = ENDPOINT_ASSISTANTS + (StringUtils.isNotEmpty(openaiIdAssistant) ?
+        "/" + openaiIdAssistant :
+        "");
+    JSONObject body = new JSONObject();
+    body.put(INSTRUCTIONS, getAssistantPrompt(app));
+    body.put("name", app.getName());
+    body.put("tool_resources", generateToolsResources(app));
     body.put("tools", buildToolsArray(app));
     body.put("model", app.getModel().getSearchkey());
     //make the request to openai
-    JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
-    logIfDebug(jsonResponse.toString());
-    return jsonResponse;
+    JSONObject response = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null, false);
+    logIfDebug(response.toString());
+    //
+    if (response.has(ERROR)) {
+      if (matchParamAndCode(response, INSTRUCTIONS, "string_above_max_length")) {
+        throw new OBException(
+            String.format(OBMessageUtils.messageBD("ETCOP_Error_Sync_Instructions"), app.getName(),
+                response.getJSONObject(ERROR).getString(MESSAGE)));
+      }
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
+              response.getJSONObject(ERROR).getString(MESSAGE)));
+    }
+    if(!StringUtils.equals(app.getOpenaiIdAssistant(), response.getString("id"))){
+      //if the assistant has changed, we need to update the assistant id
+      app.setOpenaiIdAssistant(response.getString("id"));
+      OBDal.getInstance().save(app);
+      OBDal.getInstance().flush();
+    }
+    return response;
+  }
+
+  private static JSONObject generateToolsResources(CopilotApp app) throws JSONException {
+    JSONObject toolsResources = new JSONObject();
+    if (app.isCodeInterpreter()) {
+      toolsResources.put("code_interpreter", generateCodeInterpreterResources(app));
+    }
+    if (app.isRetrieval()) {
+      toolsResources.put("file_search", generateFileSearchResources(app));
+    }
+    return toolsResources;
+  }
+
+  private static JSONObject generateCodeInterpreterResources(CopilotApp app) throws JSONException {
+    JSONArray files = getKbArrayFiles(app);
+    JSONObject fileIds = new JSONObject();
+    fileIds.put("file_ids", files);
+    return fileIds;
+  }
+
+  private static JSONObject generateFileSearchResources(CopilotApp app) throws JSONException {
+    JSONObject vectordb = new JSONObject();
+    JSONArray vectorIds = new JSONArray();
+    vectorIds.put(getOrCreateVectorDbId(app));
+    vectordb.put("vector_store_ids", vectorIds);
+    return vectordb;
   }
 
   private static JSONArray listAssistants(String openaiApiKey) throws JSONException {
     String endpoint = ENDPOINT_ASSISTANTS;
-    JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, "GET", "?order=desc&limit=100"
-    );
+    JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, "GET",
+        "?order=desc&limit=100");
     JSONArray data = json.getJSONArray("data");
     for (int i = 0; i < data.length(); i++) {
       JSONObject assistant = data.getJSONObject(i);
@@ -129,7 +163,8 @@ public class OpenAIUtils {
           "created_at"); // convert the date to a timestamp. the created is in The Unix timestamp (in seconds) for when the assistant file was created.
       Date date = new Date(Long.parseLong(created) * 1000);
       logIfDebug(
-          String.format("%s - %s - %s", assistant.getString("id"), assistant.getString("name"), date));
+          String.format("%s - %s - %s", assistant.getString("id"), assistant.getString("name"),
+              date));
     }
     return data;
 
@@ -141,37 +176,11 @@ public class OpenAIUtils {
     }
   }
 
-  private static void deleteAssistant(String openaiAssistantId, String openaiApiKey) throws JSONException {
+  private static void deleteAssistant(String openaiAssistantId, String openaiApiKey)
+      throws JSONException {
     String endpoint = ENDPOINT_ASSISTANTS + "/" + openaiAssistantId;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, METHOD_DELETE, null);
     logIfDebug(json.toString());
-  }
-
-  private static String createAssistant(CopilotApp app, String openaiApiKey) throws OBException {
-    //recreate the following curl command
-    try {
-
-      String endpoint = ENDPOINT_ASSISTANTS;
-      JSONObject body = new JSONObject();
-      body.put("instructions", getAssistantPrompt(app));
-      body.put("name", app.getName());
-      JSONArray files = getArrayFiles(app);
-      if (files.length() > 0) {
-        body.put("file_ids", files);
-      }
-      body.put("tools", buildToolsArray(app));
-      body.put("model", app.getModel().getSearchkey());
-      //make the request to openai
-      JSONObject jsonResponse = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null);
-      if (jsonResponse.has("error")) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
-            jsonResponse.getJSONObject("error").getString("message")));
-      }
-      return jsonResponse.getString("id");
-    } catch (JSONException e) {
-      throw new OBException(e.getMessage());
-    }
-
   }
 
   private static String getAssistantPrompt(CopilotApp app) {
@@ -184,13 +193,16 @@ public class OpenAIUtils {
     } catch (OBException e) {
       log.error("Error executing hooks", e);
     }
+    //
+    sb.append(getAppSourceContent(app, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
     return sb.toString();
   }
 
   private static JSONArray getToolSet(CopilotApp app) throws OBException, JSONException {
     // we will read from /copilot the tools if we can
     JSONArray result = new JSONArray();
-    OBCriteria<CopilotAppTool> appToolCrit = OBDal.getInstance().createCriteria(CopilotAppTool.class);
+    OBCriteria<CopilotAppTool> appToolCrit = OBDal.getInstance()
+        .createCriteria(CopilotAppTool.class);
     appToolCrit.add(Restrictions.eq(CopilotAppTool.PROPERTY_COPILOTAPP, app));
     List<CopilotAppTool> appToolsList = appToolCrit.list();
     if (appToolsList.isEmpty()) {
@@ -213,31 +225,49 @@ public class OpenAIUtils {
     return new JSONObject().put("type", "object").put("properties", parameters);
   }
 
-
-  private static JSONArray getArrayFiles(CopilotApp app) {
+  private static JSONArray getKbArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
-      if (!StringUtils.isEmpty(source.getFile().getOpenaiIdFile())) {
-        result.put(source.getFile().getOpenaiIdFile());
+      if (CopilotConstants.isKbBehaviour(source)) {
+        String openaiIdFile;
+        if (CopilotConstants.isFileTypeLocalOrRemoteFile(source.getFile())) {
+          openaiIdFile = source.getFile().getOpenaiIdFile();
+        } else {
+          openaiIdFile = source.getOpenaiIdFile();
+        }
+        result.put(openaiIdFile);
       }
     }
     return result;
   }
 
-
-  private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint, String purpose,
-      File fileToSend) throws JSONException {
+  private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint,
+      String purpose, File fileToSend) throws JSONException {
     String mimeType = URLConnection.guessContentTypeFromName(fileToSend.getName());
     kong.unirest.HttpResponse<String> response = Unirest.post(BASE_URL + endpoint)
         .header(HEADER_AUTHORIZATION, String.format("Bearer %s", openaiApiKey))
         .field("purpose", purpose)
-        .field("file", fileToSend, mimeType).asString();
-    return new JSONObject(response.getBody());
+        .field("file", fileToSend, mimeType)
+        .asString();
+    JSONObject jsonResponse = new JSONObject(response.getBody());
+    if(!response.isSuccess()) {
+      if(jsonResponse.has(ERROR)) {
+        throw new OBException(jsonResponse.getJSONObject(ERROR).getString(MESSAGE));
+      } else {
+        throw new OBException(response.getBody());
+      }
+    }
+    return jsonResponse;
   }
-
 
   private static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
       JSONObject body, String method, String queryParams) throws UnirestException, JSONException {
+    return makeRequestToOpenAI(openaiApiKey, endpoint, body, method, queryParams, true);
+  }
+
+  private static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
+      JSONObject body, String method, String queryParams, boolean catchHttpErrors)
+      throws UnirestException, JSONException {
     String url = BASE_URL + endpoint + ((queryParams != null) ? queryParams : "");
     HttpResponse<String> response;
     switch (method) {
@@ -245,7 +275,7 @@ public class OpenAIUtils {
         response = Unirest.get(url)
             .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
             .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
-            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_2)
             .socketTimeout(MILLIES_SOCKET_TIMEOUT)
             .asString();
         break;
@@ -253,7 +283,7 @@ public class OpenAIUtils {
         response = Unirest.post(url)
             .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
             .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
-            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_2)
             .socketTimeout(MILLIES_SOCKET_TIMEOUT)
             .body(body != null ? body.toString() : "")
             .asString();
@@ -262,7 +292,7 @@ public class OpenAIUtils {
         response = Unirest.put(url)
             .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
             .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
-            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_2)
             .socketTimeout(MILLIES_SOCKET_TIMEOUT)
             .body(body != null ? body.toString() : "")
             .asString();
@@ -271,12 +301,18 @@ public class OpenAIUtils {
         response = Unirest.delete(url)
             .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON)
             .header(HEADER_AUTHORIZATION, HEADER_BEARER + openaiApiKey)
-            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_1)
+            .header(HEADER_OPEN_AI_BETA, HEADER_ASSISTANTS_V_2)
             .socketTimeout(MILLIES_SOCKET_TIMEOUT)
             .asString();
         break;
       default:
         throw new IllegalArgumentException("Invalid method: " + method);
+    }
+    JSONObject jsonBody = new JSONObject(response.getBody());
+    if (catchHttpErrors && !response.isSuccess()) {
+      if (jsonBody.has(ERROR)) {
+        throw new OBException(jsonBody.getJSONObject(ERROR).getString(MESSAGE));
+      }
     }
     return new JSONObject(response.getBody());
   }
@@ -290,36 +326,62 @@ public class OpenAIUtils {
     }
     if (Boolean.TRUE.equals(app.isRetrieval())) {
       tool = new JSONObject();
-      tool.put("type", "retrieval");
+      tool.put("type", "file_search");
       toolSet.put(tool);
     }
     return toolSet;
   }
 
-  public static void syncFile(CopilotFile fileToSync,
-      String openaiApiKey) throws JSONException, IOException {
+  public static void syncAppSource(CopilotAppSource appSource, String openaiApiKey)
+      throws JSONException, IOException {
     //first we need to get the file
     //if the file not has an id, we need to create it
-    logIfDebug("Syncing file " + fileToSync.getName());
-    WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
-        .executeHooks(fileToSync);
-    if (!fileHasChanged(fileToSync)) {
-      logIfDebug("File " + fileToSync.getName() + " not has changed, skipping sync");
-      return;
+    logIfDebug("Syncing file " + appSource.getFile().getName());
+    if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
+      CopilotFile fileToSync = appSource.getFile();
+      WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
+          .executeHooks(fileToSync);
+      if (!fileHasChanged(fileToSync)) {
+        logIfDebug("File " + fileToSync.getName() + " not has changed, skipping sync");
+        return;
+      }
+      if (!StringUtils.isEmpty(fileToSync.getOpenaiIdFile())) {
+        //we will delete the file
+        logIfDebug("Deleting file " + fileToSync.getName());
+        deleteFile(fileToSync.getOpenaiIdFile(), openaiApiKey);
+      }
+      logIfDebug("Uploading file " + fileToSync.getName());
+      String fileId = OpenAIUtils.downloadAttachmentAndUploadFile(fileToSync, openaiApiKey);
+      fileToSync.setOpenaiIdFile(fileId);
+      fileToSync.setLastSync(new Date());
+      fileToSync.setUpdated(new Date());
+      OBDal.getInstance().save(fileToSync);
+      OBDal.getInstance().flush();
+    } else {
+      syncHQLAppSource(appSource, openaiApiKey);
     }
-    if (!StringUtils.isEmpty(fileToSync.getOpenaiIdFile())) {
-      //we will delete the file
-      logIfDebug("Deleting file " + fileToSync.getName());
-      deleteFile(fileToSync.getOpenaiIdFile(), openaiApiKey);
-    }
-    logIfDebug("Uploading file " + fileToSync.getName());
-    String fileId = OpenAIUtils.downloadAttachmentAndUploadFile(fileToSync, openaiApiKey);
-    fileToSync.setOpenaiIdFile(fileId);
-    fileToSync.setLastSync(new Date());
-    fileToSync.setUpdated(new Date());
-    OBDal.getInstance().save(fileToSync);
-    OBDal.getInstance().flush();
+  }
 
+  private static String syncHQLAppSource(CopilotAppSource appSource, String openaiApiKey)
+      throws JSONException {
+    String openaiFileId = appSource.getOpenaiIdFile();
+    if (StringUtils.isNotEmpty(openaiFileId)) {
+      logIfDebug("Deleting file " + appSource.getFile().getName());
+      deleteFile(appSource.getOpenaiIdFile(), openaiApiKey);
+    }
+    File file = ProcessHQLAppSource.getInstance().generate(appSource);
+    String fileId = uploadFileToOpenAI(openaiApiKey, file);
+    appSource.setOpenaiIdFile(fileId);
+    OBDal.getInstance().save(appSource);
+    OBDal.getInstance().flush();
+    return fileId;
+  }
+
+  private static boolean existsRemoteFile(String openaiFileId, String openaiApiKey)
+      throws JSONException {
+    var response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiFileId, null,
+        "GET", null, false);
+    return !response.has(ERROR);
   }
 
   private static boolean fileHasChanged(CopilotFile fileToSync) {
@@ -350,26 +412,29 @@ public class OpenAIUtils {
   }
 
   private static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
-    JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiIdFile, null, METHOD_DELETE,
-        null);
-    logIfDebug(response.toString());
+    if (existsRemoteFile(openaiIdFile, openaiApiKey)) {
+      JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiIdFile,
+          null, METHOD_DELETE, null);
+      logIfDebug(response.toString());
+    }
   }
 
-  private static String downloadAttachmentAndUploadFile(CopilotFile fileToSync,
-      String openaiApiKey) throws JSONException, IOException {
+  private static String downloadAttachmentAndUploadFile(CopilotFile fileToSync, String openaiApiKey)
+      throws JSONException, IOException {
     //make the request to openai
     File tempFile = getFileFromCopilotFile(fileToSync);
     return uploadFileToOpenAI(openaiApiKey, tempFile);
   }
 
-  private static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
-    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
+  public static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
+    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(
+        AttachImplementationManager.class);
     OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
     Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
     if (attach == null) {
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"), fileToSync.getName()));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
+          fileToSync.getName()));
     }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);
@@ -388,14 +453,15 @@ public class OpenAIUtils {
     return tempFile;
   }
 
-  public static String uploadFileToOpenAI(String openaiApiKey,
-      File fileToSend) throws JSONException {
+  public static String uploadFileToOpenAI(String openaiApiKey, File fileToSend)
+      throws JSONException {
     JSONObject jsonResponse;
-    String endpoint = ENDPOINT_FILES;
-    jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, endpoint, "assistants", fileToSend);
-    if (jsonResponse.has("error")) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSend.getName(),
-          jsonResponse.getJSONObject("error").getString("message")));
+    jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, ENDPOINT_FILES, "assistants",
+        fileToSend);
+    if (jsonResponse.has(ERROR)) {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSend.getName(),
+              jsonResponse.getJSONObject(ERROR).getString(MESSAGE)));
     }
     return jsonResponse.getString("id");
   }
@@ -429,5 +495,132 @@ public class OpenAIUtils {
     }
   }
 
+  public static void refreshVectorDb(CopilotApp app) throws JSONException {
+    String openAIVectorDbId = getOrCreateVectorDbId(app);
+    JSONObject currentFiles = makeRequestToOpenAI(getOpenaiApiKey(),
+        ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES, null, "GET", null);
+    List<String> updatedFiles = updateVectorDbFiles(app, openAIVectorDbId);
+    removeOutdatedFiles(updatedFiles, currentFiles, openAIVectorDbId);
+  }
+
+  private static String getOrCreateVectorDbId(CopilotApp app) throws JSONException {
+    if (app.getOpenaiVectordbID() != null) {
+      if (!existsVectorDb(app.getOpenaiVectordbID())) {
+        return createVectorDbId(app);
+      }
+      return app.getOpenaiVectordbID();
+    }
+    return createVectorDbId(app);
+  }
+
+  private static boolean existsVectorDb(String openaiIdVectordb) {
+    try {
+      JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(),
+          ENDPOINT_VECTORDB + "/" + openaiIdVectordb, null, "GET", null, false);
+      return !response.has("error");
+    } catch (JSONException e) {
+      return false;
+    }
+  }
+
+  private static boolean existsAssistant(String openaiAssistantId) {
+    try {
+      JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(),
+          ENDPOINT_ASSISTANTS + "/" + openaiAssistantId, null, "GET", null, false);
+      return !response.has("error");
+    } catch (JSONException e) {
+      return false;
+    }
+  }
+
+  private static String createVectorDbId(CopilotApp app) throws JSONException {
+    JSONObject vectordb = new JSONObject();
+    vectordb.put("name", app.getName());
+    JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(), ENDPOINT_VECTORDB, vectordb,
+        "POST", null);
+    String openAIVectorDbId = response.getString("id");
+    app.setOpenaiVectordbID(openAIVectorDbId);
+    OBDal.getInstance().save(app);
+    OBDal.getInstance().flush();
+
+    return openAIVectorDbId;
+  }
+
+  private static List<String> updateVectorDbFiles(CopilotApp app, String openAIVectorDbId)
+      throws JSONException {
+    List<String> updatedFiles = new ArrayList<>();
+    for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
+      if (CopilotConstants.isKbBehaviour(copilotAppSource)) {
+        if (copilotAppSource.getFile() == null) {
+          continue;
+        }
+        if (!CopilotConstants.isFileTypeLocalOrRemoteFile(copilotAppSource.getFile())) {
+          continue;
+        }
+        CopilotFile file = copilotAppSource.getFile();
+        JSONObject fileSearch = new JSONObject();
+        fileSearch.put("file_id", file.getOpenaiIdFile());
+        var response = makeRequestToOpenAI(getOpenaiApiKey(),
+            ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES, fileSearch, "POST", null,
+            false);
+        if (!response.has(ERROR)) {
+          updatedFiles.add(file.getOpenaiIdFile());
+        } else {
+          if(app.isCodeInterpreter()) {
+            log.warn("Error updating file in vector db: " + response);
+          } else {
+            throw new OBException(
+                String.format(OBMessageUtils.messageBD("ETCOP_Error_Updating_VectorDb"), app.getName(),
+                    response.getJSONObject(ERROR).getString(MESSAGE)));
+          }
+        }
+      }
+    }
+    return updatedFiles;
+  }
+
+  private static void removeOutdatedFiles(List<String> updatedFiles, JSONObject currentFiles,
+      String openAIVectorDbId) throws JSONException {
+    if (currentFiles == null || !currentFiles.has("data")) {
+      return;
+    }
+    for (int i = 0; i < currentFiles.getJSONArray("data").length(); i++) {
+      JSONObject existingFile = currentFiles.getJSONArray("data").getJSONObject(i);
+      if (!updatedFiles.contains(existingFile.getString("id"))) {
+        String existingFileId = existingFile.getString("id");
+        makeRequestToOpenAI(getOpenaiApiKey(),
+            OpenAIUtils.ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES + "/" + existingFileId,
+            null, METHOD_DELETE, null);
+      }
+    }
+  }
+
+  public static String getAppSourceContent(CopilotApp copilotApp, String type) {
+    StringBuilder content = new StringBuilder();
+    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+      if (StringUtils.equals(appSource.getBehaviour(), type) && appSource.getFile() != null) {
+        try {
+          File tempFile;
+          if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
+            tempFile = getFileFromCopilotFile(appSource.getFile());
+          } else {
+            tempFile = ProcessHQLAppSource.getInstance().generate(appSource);
+          }
+          content.append("\n---\n");
+          content.append(appSource.getFile().getName()).append("\n");
+          content.append(Files.readString(tempFile.toPath())).append("\n");
+          content.append("\n---\n");
+        } catch (MalformedInputException e) {
+          throw new OBException(
+              String.format(OBMessageUtils.messageBD("ETCOP_Error_MalformedSourceContent"),
+                  appSource.getFile().getName(), appSource.getEtcopApp().getName()));
+        } catch (IOException e) {
+          log.error(e);
+          throw new OBException(e);
+        }
+      }
+    }
+    return content.toString();
+  }
 }
 

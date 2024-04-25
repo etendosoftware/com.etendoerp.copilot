@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -25,13 +24,13 @@ import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
-import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotOpenAIModel;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.OpenAIUtils;
 
 public class SyncOpenAIAssistant extends BaseProcessActionHandler {
   private static final Logger log = LogManager.getLogger(SyncOpenAIAssistant.class);
+  public static final String ERROR = "error";
 
   @Override
   protected JSONObject doExecute(Map<String, Object> parameters, String content) {
@@ -57,22 +56,34 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         CopilotApp app = OBDal.getInstance().get(CopilotApp.class, selecterRecords.getString(i));
         appList.add(app);
       }
-      Set<CopilotFile> filesToSync = new HashSet<>();
+      Set<CopilotAppSource> appSourcesToSync = new HashSet<>();
       for (CopilotApp app : appList) {
-        filesToSync.addAll(
-            app.getETCOPAppSourceList().stream().map(CopilotAppSource::getFile).collect(Collectors.toList()));
+        List<CopilotAppSource> list = new ArrayList<>();
+        for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
+          if (CopilotConstants.isKbBehaviour(copilotAppSource) || CopilotConstants.isFileTypeRemoteFile(copilotAppSource.getFile())) {
+            list.add(copilotAppSource);
+          }
+        }
+        if(!list.isEmpty()) {
+          if(!app.isCodeInterpreter() && !app.isRetrieval()) {
+              throw new OBException(
+                  String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
+          }
+        }
+        appSourcesToSync.addAll(list);
       }
-      for (CopilotFile fileToSync : filesToSync) {
-        OpenAIUtils.syncFile(fileToSync, openaiApiKey);
+      for (CopilotAppSource appSource : appSourcesToSync) {
+        OpenAIUtils.syncAppSource(appSource, openaiApiKey);
       }
-
-
+      for (CopilotApp app : appList) {
+        OBDal.getInstance().refresh(app);
+        OpenAIUtils.refreshVectorDb(app);
+      }
       for (CopilotApp app : appList) {
         OBDal.getInstance().refresh(app);
         syncCount = callSync(syncCount, openaiApiKey, app);
       }
       returnSuccessMsg(result, syncCount, totalRecords);
-
     } catch (Exception e) {
       log.error("Error in process", e);
       try {
@@ -81,7 +92,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         JSONObject errorMessage = new JSONObject();
         Throwable ex = DbUtility.getUnderlyingSQLException(e);
         String message = OBMessageUtils.translateError(ex.getMessage()).getMessage();
-        errorMessage.put("severity", "error");
+        errorMessage.put("severity", ERROR);
         errorMessage.put("title", OBMessageUtils.messageBD("Error"));
         errorMessage.put("text", message);
         result.put("message", errorMessage);
