@@ -106,7 +106,6 @@ adjustMaximizeWindowPosition();
 } else if (window.copilotWindow.height > MAXIMIZED_WINDOW_HEIGHT){
 adjustFullScreenWindowPosition();
 } else{
-console.log(window.copilotWindow.height)
 adjustMinimizeWindowPosition();
 }
 }

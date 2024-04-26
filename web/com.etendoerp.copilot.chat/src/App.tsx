@@ -71,7 +71,8 @@ function App() {
   // Function to handle sending a message
   const handleSendMessage = async () => {
     setIsBotLoading(true);
-
+    setFile(null);
+    setFileId(null);
     if (!isBotLoading) {
       const question = inputValue.trim();
       setInputValue("");
@@ -152,13 +153,11 @@ function App() {
 
         setIsBotLoading(false);
         setStatusIcon(botIcon);
-        setFile(null);
-        setFileId(null);
       } catch (error: any) {
         console.error('Error fetching data: ', error);
         setIsBotLoading(false);
         showErrorMessage(error?.message);
-      }
+      } 
     };
   };
 
