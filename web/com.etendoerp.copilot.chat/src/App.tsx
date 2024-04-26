@@ -71,7 +71,8 @@ function App() {
   // Function to handle sending a message
   const handleSendMessage = async () => {
     setIsBotLoading(true);
-
+    setFile(null);
+    setFileId(null);
     if (!isBotLoading) {
       const question = inputValue.trim();
       setInputValue("");
@@ -152,13 +153,11 @@ function App() {
 
         setIsBotLoading(false);
         setStatusIcon(botIcon);
-        setFile('');
-        setFileId(null);
       } catch (error: any) {
         console.error('Error fetching data: ', error);
         setIsBotLoading(false);
         showErrorMessage(error?.message);
-      }
+      } 
     };
   };
 
@@ -252,10 +251,10 @@ function App() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col">
+    <div id={'iframe-container'} className="h-screen w-screen flex flex-col">
       {/* Initial message and assistants selection */}
       {assistants.length > 0 &&
-        <div className="w-full assistants-shadow border-b py-1 px-2 border-gray-600">
+        <div id={'iframe-selector'} style={{paddingTop: 8, paddingRight: 12, paddingLeft: 12,paddingBottom: 8}} className="w-full assistants-shadow border-b py-1 px-2 border-gray-600">
           <DropdownInput
             value={selectedOption?.name}
             staticData={assistants}
@@ -268,109 +267,115 @@ function App() {
           />
         </div>
       }
-
-      {/* Chat display area */}
-      <div className={`${file ? 'h-[428px]' : 'h-[452px]'} flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200`}>
-        {messages.length === 0 && (
-          <div className="inline-flex mt-[12px] rounded-lg text-blue-900 font-medium">
-            {areLabelsLoaded && (
-              noAssistants ? (
-                <TextMessage
-                  type={"error"}
-                  text={`${labels.ETCOP_NoAssistant}`}
-                />
-              ) : (
-                <TextMessage
-                  title={`${labels.ETCOP_Welcome_Greeting}\n${labels.ETCOP_Welcome_Message}`}
-                  type={"left-user"}
-                  text={""}
-                />
-              )
-            )}
-          </div>
-        )}
-
-        {/* Displaying messages */}
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`text-sm mt-[12px] ${message.sender === "user"
-              ? "text-right user-message slide-up-fade-in"
-              : message.sender === "interpreting"
-                ? ""
-                : message.sender === "error"
-                  ? "text-red-900 rounded-lg"
-                  : "text-black rounded-lg"
-              }`}
-          >
-            {message.sender === "interpreting" && (
-              <div className={`flex items-center`}>
-                <img
-                  src={statusIcon}
-                  alt="Status Icon"
-                  className={statusIcon === responseSent ? "w-5 h-5 mr-1" : "w-8 h-8 slow-bounce"}
-                />
-                <span className={`text-sm ml-1 font-normal text-gray-700`}>
-                  {message.text}
-                </span>
-              </div>
-            )}
-            {message.sender !== "interpreting" && (
-              <p
-                className={`slide-up-fade-in inline-flex flex-col rounded-lg ${message.sender === "user"
-                  ? "text-gray-600 rounded-tr-none"
-                  : message.sender === "error" ? "rounded-tl-none" : "text-black rounded-tl-none"
-                  } break-words overflow-hidden max-w-[90%]`}
-              >
-                {message.sender === "error" ? (
+      <div style={{    
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          overflowX: 'hidden'
+        }}>
+        {/* Chat display area */}
+        <div className={`${file ? 'h-[428px]' : 'h-[452px]'} flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200`}>
+          {messages.length === 0 && (
+            <div className="inline-flex mt-[12px] rounded-lg text-blue-900 font-medium">
+              {areLabelsLoaded && (
+                noAssistants ? (
                   <TextMessage
-                    key={index}
-                    text={message.text}
-                    time={message.timestamp}
-                    type={getMessageType(message.sender)}
+                    type={"error"}
+                    text={`${labels.ETCOP_NoAssistant}`}
                   />
                 ) : (
-                  // Normal message with Copilot's response
-                  message.sender === "bot" ? (
+                  <TextMessage
+                    title={`${labels.ETCOP_Welcome_Greeting}\n${labels.ETCOP_Welcome_Message}`}
+                    type={"left-user"}
+                    text={""}
+                  />
+                )
+              )}
+            </div>
+          )}
+
+          {/* Displaying messages */}
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`text-sm mt-[12px] ${message.sender === "user"
+                ? "text-right user-message slide-up-fade-in"
+                : message.sender === "interpreting"
+                  ? ""
+                  : message.sender === "error"
+                    ? "text-red-900 rounded-lg"
+                    : "text-black rounded-lg"
+                }`}
+            >
+              {message.sender === "interpreting" && (
+                <div className={`flex items-center`}>
+                  <img
+                    src={statusIcon}
+                    alt="Status Icon"
+                    className={statusIcon === responseSent ? "w-5 h-5 mr-1" : "w-8 h-8 slow-bounce"}
+                  />
+                  <span className={`text-sm ml-1 font-normal text-gray-700`}>
+                    {message.text}
+                  </span>
+                </div>
+              )}
+              {message.sender !== "interpreting" && (
+                <p
+                  className={`slide-up-fade-in inline-flex flex-col rounded-lg ${message.sender === "user"
+                    ? "text-gray-600 rounded-tr-none"
+                    : message.sender === "error" ? "rounded-tl-none" : "text-black rounded-tl-none"
+                    } break-words overflow-hidden max-w-[90%]`}
+                >
+                  {message.sender === "error" ? (
                     <TextMessage
                       key={index}
                       text={message.text}
                       time={message.timestamp}
-                      type="left-user"
+                      type={getMessageType(message.sender)}
                     />
                   ) : (
-                    <TextMessage
-                      key={index}
-                      text={message.text}
-                      time={message.timestamp}
-                      type="right-user"
-                      file={message.file}
-                    />
-                  )
-                )}
-              </p>
-            )}
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
+                    // Normal message with Copilot's response
+                    message.sender === "bot" ? (
+                      <TextMessage
+                        key={index}
+                        text={message.text}
+                        time={message.timestamp}
+                        type="left-user"
+                      />
+                    ) : (
+                      <TextMessage
+                        key={index}
+                        text={message.text}
+                        time={message.timestamp}
+                        type="right-user"
+                        file={message.file}
+                      />
+                    )
+                  )}
+                </p>
+              )}
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
 
-      {/* Message input area */}
-      <div className={`mx-[12px]`} ref={inputRef}>
-        <FileSearchInput
-          value={inputValue}
-          placeholder={labels.ETCOP_Message_Placeholder!}
-          onChangeText={text => setInputValue(text)}
-          onSubmit={handleSendMessage}
-          onSubmitEditing={handleSendMessage}
-          setFile={handleSetFile}
-          uploadConfig={uploadConfig}
-          isDisabled={noAssistants}
-          isSendDisable={isBotLoading}
-          isAttachDisable={isBotLoading}
-          onFileUploaded={handleFileId}
-          onError={handleOnError}
-        />
+        {/* Message input area */}
+        <div style={{marginBottom:12}} className={`mx-[12px]`} ref={inputRef}>
+          <FileSearchInput
+            value={inputValue}
+            placeholder={labels.ETCOP_Message_Placeholder!}
+            onChangeText={text => setInputValue(text)}
+            onSubmit={handleSendMessage}
+            onSubmitEditing={handleSendMessage}
+            setFile={handleSetFile}
+            uploadConfig={uploadConfig}
+            isDisabled={noAssistants}
+            isSendDisable={isBotLoading}
+            isAttachDisable={isBotLoading}
+            onFileUploaded={handleFileId}
+            onError={handleOnError}
+          />
+        </div>
       </div>
     </div>
   );
