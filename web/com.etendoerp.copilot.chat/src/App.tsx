@@ -271,7 +271,8 @@ function App() {
       <div style={{    
           display: 'flex',
           flexDirection: 'column',
-          flex: 1
+          flex: 1,
+          overflowX: 'hidden'
         }}>
         {/* Chat display area */}
         <div className={`${file ? 'h-[428px]' : 'h-[452px]'} flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200`}>
