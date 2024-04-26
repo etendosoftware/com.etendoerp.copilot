@@ -23,11 +23,11 @@ def print_yellow(message):
 
 
 def get_full_question(question: QuestionSchema) -> str:
-    if question.file_ids == None:
+    if question.local_file_ids is None or len(question.local_file_ids) == 0:
         return question.question
     result = question.question
     result += "\n" + "Local Files Ids for Context:"
-    for file_id in question.file_ids:
+    for file_id in question.local_file_ids:
         result += "\n - " + os.getcwd() + file_id
     return result
 
