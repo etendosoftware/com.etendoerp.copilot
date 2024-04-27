@@ -6,7 +6,6 @@ import { formatTimeNewDate, getMessageType } from "./utils/functions";
 import enterIcon from "./assets/enter.svg";
 import botIcon from "./assets/bot.svg";
 import responseSent from "./assets/response-sent.svg";
-import { LOADING_MESSAGES } from "./utils/constants";
 import { ILabels } from "./interfaces";
 import { IMessage } from "./interfaces/IMessage";
 import { References } from "./utils/references";
@@ -34,6 +33,45 @@ function App() {
   const messagesEndRef = useRef<any>(null);
   const inputRef = useRef<any>(null);
 
+  useEffect(() => {
+    if (selectedOption) {
+      const eventSourceUrl = `${References.url.SEND_AQUESTION}?app_id=${selectedOption.app_id}`;
+      const eventSource = new EventSource(eventSourceUrl);
+
+      eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        console.log("ES data",data)
+        if(data.response) {
+          handleNewMessage(data.role ? data.role : "bot", data);
+        }
+      };
+
+      eventSource.onerror = function(err) {
+        console.error("EventSource failed:", err);
+        eventSource.close();
+      };
+
+      return () => {
+        eventSource.close();
+      };
+    }
+  }, [selectedOption]);
+
+  const handleNewMessage = async (role:string, message:IMessage) => {
+    console.log("handleNewMessage",message)
+    let _text = message.response ? message.response : message.text
+    if(role === "tool") {
+      _text = "🛠️️ " + _text + ""
+    }
+    setMessages(prevMessages => [...prevMessages, {
+      message_id: message.message_id,
+      text: _text,
+      sender: role,
+      timestamp: formatTimeNewDate(new Date()),
+    }]);
+    scrollToBottom();
+  };
+
   // Function to scroll bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -41,18 +79,6 @@ function App() {
 
   // Function to update the bot interpretation message
   const updateInterpretingMessage = () => {
-    const randomIndex = Math.floor(Math.random() * LOADING_MESSAGES.length);
-    const newMessage = LOADING_MESSAGES[randomIndex];
-
-    setMessages(currentMessages => {
-      const lastInterpretingIndex = currentMessages.findIndex(message => message.sender === "interpreting");
-      if (lastInterpretingIndex !== -1) {
-        const updatedMessages = [...currentMessages];
-        updatedMessages[lastInterpretingIndex] = { ...updatedMessages[lastInterpretingIndex], text: newMessage };
-        return updatedMessages;
-      }
-      return currentMessages;
-    });
   };
 
   // Fetch labels data
@@ -79,9 +105,6 @@ function App() {
       setInputValue("");
       if (!question) return;
 
-      // Delete previous error messages if they exist
-      let updatedMessages = messages.filter(message => message.sender !== "error" && message.sender !== "interpreting");
-
       // Add user message
       const userMessage: IMessage = {
         text: question,
@@ -92,15 +115,7 @@ function App() {
         userMessage.file = file.name;
       }
 
-      // Add interpreting message
-      const interpretingMessage: IMessage = {
-        text: "Interpreting request...",
-        sender: "interpreting",
-        timestamp: formatTimeNewDate(new Date())
-      };
-
-      updatedMessages.push(userMessage, interpretingMessage);
-      setMessages(updatedMessages);
+      await handleNewMessage("user", userMessage)
       setStatusIcon(botIcon);
       setTimeout(() => scrollToBottom(), 100);
 
@@ -127,38 +142,27 @@ function App() {
         const data = await response.json();
 
         if (!conversationId) setConversationId(data.conversation_id);
-        updatedMessages = updatedMessages.filter(message => message.sender !== "interpreting");
 
         if (data.response) {
-          const botMessage: IMessage = {
-            text: data.response,
-            sender: "bot",
-            timestamp: formatTimeNewDate(new Date())
-          };
-          updatedMessages.push(botMessage);
-          setMessages(updatedMessages);
           setStatusIcon(responseSent);
           scrollToBottom();
         } else if (data.error) {
-          updatedMessages = updatedMessages.filter(message => message.sender !== "interpreting");
           const errorMessage: IMessage = {
             text: data.error,
             sender: "error",
             timestamp: formatTimeNewDate(new Date())
           };
-          updatedMessages.push(errorMessage);
-          setMessages(updatedMessages);
+          await handleNewMessage("bot", errorMessage)
           setStatusIcon(responseSent);
           scrollToBottom();
         }
-
         setIsBotLoading(false);
         setStatusIcon(botIcon);
       } catch (error: any) {
         console.error('Error fetching data: ', error);
         setIsBotLoading(false);
         showErrorMessage(error?.message);
-      } 
+      }
     };
   };
 
@@ -170,15 +174,12 @@ function App() {
   };
 
   // Function to show error message if bot does not respond
-  const showErrorMessage = (errorMessage: string) => {
-    setMessages((currentMessages: any) => [
-      ...currentMessages.filter((message: IMessage) => message.sender !== "interpreting"),
-      {
+  const showErrorMessage = async (errorMessage: string) => {
+    await handleNewMessage("bot", {
         text: errorMessage,
         sender: "error",
         timestamp: formatTimeNewDate(new Date())
-      }
-    ]);
+    });
     scrollToBottom();
   };
 
@@ -188,7 +189,7 @@ function App() {
   };
 
   // Manage error 
-  const handleOnError = (errorResponse: any) => {
+  const handleOnError = async (errorResponse: any) => {
     let errorMessage = "";
 
     if (errorResponse) {
@@ -197,14 +198,11 @@ function App() {
       errorMessage = errorResponse;
     }
 
-    setMessages(currentMessages => [
-      ...currentMessages,
-      {
-        text: errorMessage,
-        sender: "error",
-        timestamp: formatTimeNewDate(new Date()),
-      }
-    ]);
+    await handleNewMessage("bot", {
+      text: errorMessage,
+      sender: "error",
+      timestamp: formatTimeNewDate(new Date()),
+    });
     setFile(null);
     scrollToBottom();
   };
@@ -272,7 +270,7 @@ function App() {
           />
         </div>
       }
-      <div style={{    
+      <div style={{
           display: 'flex',
           flexDirection: 'column',
           flex: 1,
@@ -299,70 +297,78 @@ function App() {
             </div>
           )}
 
-          {/* Displaying messages */}
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`text-sm mt-[12px] ${message.sender === "user"
-                ? "text-right user-message slide-up-fade-in"
-                : message.sender === "interpreting"
-                  ? ""
-                  : message.sender === "error"
-                    ? "text-red-900 rounded-lg"
-                    : "text-black rounded-lg"
-                }`}
-            >
-              {message.sender === "interpreting" && (
-                <div className={`flex items-center`}>
-                  <img
-                    src={statusIcon}
-                    alt="Status Icon"
-                    className={statusIcon === responseSent ? "w-5 h-5 mr-1" : "w-8 h-8 slow-bounce"}
+        {/* Displaying messages */}
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={`text-sm mt-[12px] ${message.sender === "user"
+              ? "text-right user-message slide-up-fade-in"
+              : message.sender === "interpreting"
+                ? ""
+                : message.sender === "error"
+                  ? "text-red-900 rounded-lg"
+                  : "text-black rounded-lg"
+              }`}
+          >
+            {message.sender === "interpreting" && (
+              <div className={`flex items-center`}>
+                <img
+                  src={statusIcon}
+                  alt="Status Icon"
+                  className={statusIcon === responseSent ? "w-5 h-5 mr-1" : "w-8 h-8 slow-bounce"}
+                />
+                <span className={`text-sm ml-1 font-normal text-gray-700`}>
+                  {message.text}
+                </span>
+              </div>
+            )}
+            {message.sender !== "interpreting" && (
+              <p
+                className={`slide-up-fade-in inline-flex flex-col rounded-lg ${message.sender === "user"
+                  ? "text-gray-600 rounded-tr-none"
+                  : message.sender === "error" ? "rounded-tl-none" : "text-black rounded-tl-none"
+                  } break-words overflow-hidden max-w-[90%]`}
+              >
+                {message.sender === "error" ? (
+                  <TextMessage
+                    key={index}
+                    text={message.text}
+                    time={message.timestamp}
+                    type={getMessageType(message.sender)}
                   />
-                  <span className={`text-sm ml-1 font-normal text-gray-700`}>
-                    {message.text}
-                  </span>
-                </div>
-              )}
-              {message.sender !== "interpreting" && (
-                <p
-                  className={`slide-up-fade-in inline-flex flex-col rounded-lg ${message.sender === "user"
-                    ? "text-gray-600 rounded-tr-none"
-                    : message.sender === "error" ? "rounded-tl-none" : "text-black rounded-tl-none"
-                    } break-words overflow-hidden max-w-[90%]`}
-                >
-                  {message.sender === "error" ? (
+                ) : (
+                  // Normal message with Copilot's response
+                  message.sender === "bot" ? (
+                    <TextMessage
+                      key={index}
+                      text={message.text ? message.text : "..." }
+                      time={message.timestamp}
+                      type="left-user"
+                    />
+                  ) :
+                  message.sender === "tool" ? (
+                    <TextMessage
+                      key={index}
+                      text={message.text ? message.text : "..." }
+                      type="left-user"
+                    />
+                  ) :
+                  (
                     <TextMessage
                       key={index}
                       text={message.text}
                       time={message.timestamp}
-                      type={getMessageType(message.sender)}
+                      type="right-user"
+                      file={message.file}
                     />
-                  ) : (
-                    // Normal message with Copilot's response
-                    message.sender === "bot" ? (
-                      <TextMessage
-                        key={index}
-                        text={message.text}
-                        time={message.timestamp}
-                        type="left-user"
-                      />
-                    ) : (
-                      <TextMessage
-                        key={index}
-                        text={message.text}
-                        time={message.timestamp}
-                        type="right-user"
-                        file={message.file}
-                      />
-                    )
-                  )}
-                </p>
-              )}
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+                  )
+                )}
+              </p>
+            )}
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
 
         {/* Message input area */}
         <div id={'iframe-input-container'} style={{marginBottom:12}} className={`mx-[12px]`} ref={inputRef}>

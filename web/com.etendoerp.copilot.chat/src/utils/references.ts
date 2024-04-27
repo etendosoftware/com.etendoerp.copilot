@@ -9,5 +9,6 @@ export const References = {
         UPLOAD_FILE: '../../copilot/file',
         GET_LABELS: '../../copilot/labels',
         SEND_QUESTION: '../../copilot/question',
+        SEND_AQUESTION: '../../copilot/aquestion',
     }
 };

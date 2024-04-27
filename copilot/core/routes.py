@@ -3,9 +3,11 @@ import logging
 import threading
 
 from fastapi import APIRouter
+from starlette.responses import StreamingResponse
 
 from . import utils
 from .agent import AgentResponse, copilot_agents, AgentEnum
+from .agent.agent import AssistantResponse
 from .agent.assistant_agent import AssistantAgent
 from .agent.langgraph_agent import LanggraphAgent
 from .exceptions import UnsupportedAgent
@@ -27,9 +29,17 @@ def select_copilot_agent(copilot_type: str):
         raise UnsupportedAgent()
     return copilot_agents[copilot_type]
 
+def _response(response: AssistantResponse):
+    json_value = json.dumps({"answer": {
+        "message_id": response.message_id,
+        "assistant_id": response.assistant_id,
+        "response": response.response,
+        "conversation_id": response.conversation_id,
+        "role": response.role
+    }})
+    return "data: " + json_value + "\n"
 
-@core_router.post("/question")
-def serve_question(question: QuestionSchema):
+def _serve_question(question: QuestionSchema):
     """Copilot main endpdoint to answering questions."""
     agent_type = question.type
     if agent_type is None:
@@ -48,9 +58,10 @@ def serve_question(question: QuestionSchema):
         copilot_debug(
             "Thread " + str(threading.get_ident()) + " Saving extra info:" + str(ThreadContext.identifier_data()))
         ThreadContext.set_data('extra_info', question.extra_info)
-        agent_response: AgentResponse = copilot_agent.execute(question)
-        response = agent_response.output
-        local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
+        agent_responses = copilot_agent.aexecute(question)
+        for agent_response in agent_responses:
+            response = agent_response
+            yield _response(response)
     except Exception as e:
         logger.exception(e)
         copilot_debug("  Exception: " + str(e))
@@ -100,9 +111,20 @@ def serve_question(question: GraphQuestionSchema):
             "code": e.response.status_code if hasattr(e, "response") else 500,
             "message": error_message}
         }
+        yield "data: {\"answer\": " + json.dumps(response) + "}\n"
 
-    return {"answer": response}
+@core_router.post("/question")
+def serve_question(question: QuestionSchema):
+    return _serve_question(question)
 
+def event_stream(question: QuestionSchema):
+    responses = _serve_question(question)
+    for response in responses:
+        yield response
+
+@core_router.post("/aquestion")
+def serve_async_question(question: QuestionSchema):
+    return StreamingResponse(event_stream(question), media_type="text/event-stream")
 
 @core_router.get("/tools")
 def serve_tools():

@@ -4,6 +4,7 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileItemFactory;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -16,15 +17,18 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.TransferQueue;
 
-import static com.etendoerp.copilot.rest.RestServiceUtil.APPLICATION_JSON_CHARSET_UTF_8;
-import static com.etendoerp.copilot.rest.RestServiceUtil.FILE;
-import static com.etendoerp.copilot.rest.RestServiceUtil.GET_ASSISTANTS;
-import static com.etendoerp.copilot.rest.RestServiceUtil.QUESTION;
+import static com.etendoerp.copilot.rest.RestServiceUtil.*;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
 
 public class RestService extends HttpSecureAppServlet {
+  static final Map<String, TransferQueue<String>> asyncRequests = new HashMap<>();
 
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException,
@@ -34,8 +38,35 @@ public class RestService extends HttpSecureAppServlet {
       if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
         handleAssistants(response);
         return;
-      }
-      else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
+      } else if (StringUtils.equalsIgnoreCase(path, AQUESTION)) {
+        response.setContentType("text/event-stream");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Cache-Control", "no-cache");
+        response.setHeader("Connection", "keep-alive");
+        PrintWriter writer = response.getWriter();
+
+        var queue = new LinkedTransferQueue<String>();
+        asyncRequests.put(request.getSession().getId(), queue);
+        try {
+          while(true) {
+            String data = queue.take();
+            if(BooleanUtils.toBoolean(data)) {
+              break;
+            }
+            JSONObject json = new JSONObject(data);
+            if(json.has("answer")) {
+              data = json.getString("answer");
+            }
+            writer.println("data: " + data + "\n\n");
+            writer.flush();
+            // Wait for 1 second before sending the next message
+            Thread.sleep(1000);
+          }
+        } catch (Exception e) {
+          Thread.currentThread().interrupt();
+        }
+        return;
+      } else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         response.getWriter().write(RestServiceUtil.getJSONLabels().toString());
         return;
@@ -117,8 +148,9 @@ public class RestService extends HttpSecureAppServlet {
     }
     String jsonRequestStr = sb.toString();
     try {
-      var responseOriginal = RestServiceUtil.handleQuestion(new JSONObject(jsonRequestStr));
+      var responseOriginal = RestServiceUtil.handleQuestion( asyncRequests.get(request.getSession().getId()), new JSONObject(jsonRequestStr));
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.setStatus(HttpServletResponse.SC_OK);
       response.getWriter().write(responseOriginal.toString());
     } catch (CopilotRestServiceException e) {
       response.getWriter().write(new JSONObject().put("error", e.getMessage()).toString());

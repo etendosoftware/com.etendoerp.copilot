@@ -2,7 +2,7 @@ import os
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Final, Union
+from typing import Final, Union, Optional
 
 from .. import tool_installer, utils
 from ..exceptions import (
@@ -22,8 +22,10 @@ class AgentEnum(str, Enum):
 
 @dataclass
 class AssistantResponse:
+    message_id: str
     response: str
     conversation_id: str
+    role: Optional[str] = None
 
 
 @dataclass
