@@ -7,8 +7,8 @@
  */
 
 group          = "com.etendoerp"
-version        = "1.2.5"
-description    = "Etendo Copilot is a platform that optimises development time with AI-enabled tools to reduce development time and improve development quality."
+version        = "1.2.6"
+description    = "Etendo Copilot Platform"
 ext.artifact   = "copilot"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
 
