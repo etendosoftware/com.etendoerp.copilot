@@ -22,6 +22,10 @@ def print_yellow(message):
     print("\033[93m {}\033[00m".format(message))
 
 
+def print_violet(message):
+    print("\033[95m {}\033[00m".format(message))
+
+
 def get_full_question(question: QuestionSchema) -> str:
     if question.local_file_ids is None or len(question.local_file_ids) == 0:
         return question.question
@@ -44,3 +48,9 @@ def copilot_debug(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
     if os.getenv("COPILOT_DEBUG", 'False').lower() in "true":
         print_yellow(message)
+
+
+def copilot_info(message: str):
+    """Prints a message if COPILOT_DEBUG is set to True."""
+    if os.getenv("COPILOT_INFO", 'False').lower() in "true" or os.getenv("COPILOT_DEBUG", 'False').lower() in "true":
+        print_violet(message)

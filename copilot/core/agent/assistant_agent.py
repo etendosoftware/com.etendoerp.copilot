@@ -1,24 +1,47 @@
 import json
 import os
 import time
-
 from time import sleep
 from typing import Final
 
 from langchain.tools.render import format_tool_to_openai_function
 
+from .agent import AgentResponse, AssistantResponse, CopilotAgent
 from .. import utils
 from ..exceptions import AssistantIdNotFound, AssistantTimeout
 from ..schemas import QuestionSchema
-from .agent import AgentResponse, AssistantResponse, CopilotAgent
-from ..utils import print_blue, print_yellow, get_full_question
-
-SLEEP_SECONDS = 0.05
+from ..utils import print_blue, print_yellow, get_full_question, copilot_debug
 
 
 def _get_openai_client():
     from openai import OpenAI
     return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+def handle_tool_calls(configured_tools, run):
+    tools_outputs_array = []
+    for tool_call in run.required_action.submit_tool_outputs.tool_calls:
+        # Parse arguments for the tool call.
+        print("Tool call: " + str(tool_call))
+        args = json.loads(tool_call.function.arguments)
+        for tool in configured_tools:
+            if tool.name == tool_call.function.name:
+                # If args has only one key called "query", replace args with that value
+                if len(args) == 1 and "query" in args:
+                    args = args["query"]
+                print_blue("Calling tool: " + tool.name + " with args: " + str(args))
+                try:
+                    output = tool.run(args, {}, None)
+                except Exception as ex:
+                    output = {
+                        "error": f"Error calling tool {tool.name}. {str(ex)}"
+                    }
+                print_yellow("Tool output: " + str(output))
+                tools_outputs_array.append({"tool_call_id": tool_call.id, "output": json.dumps(output)})
+                break
+
+        # Submit the output of the tool.
+    return tools_outputs_array
 
 
 class AssistantAgent(CopilotAgent):
@@ -84,54 +107,49 @@ class AssistantAgent(CopilotAgent):
             try:
                 # Create a message in the conversation thread with the user's question.
                 if question.file_ids is None or len(question.file_ids) == 0:
-                    message = self._client.beta.threads.messages.create(
+                    self._client.beta.threads.messages.create(
                         thread_id=thread_id, role="user", content=get_full_question(question)
                     )
                 else:
-                    message = self._client.beta.threads.messages.create(
+                    self._client.beta.threads.messages.create(
                         thread_id=thread_id, role="user", content=get_full_question(question),
                         file_ids=question.file_ids
                     )
 
+            except NotFoundError as ex:
+                raise AssistantIdNotFound(assistant_id=question.assistant_id) from ex
+
+            retries = 10
+            do_retry = True
+            while retries > 0 and do_retry:
+                do_retry = False
                 # Start processing the conversation thread with the assistant.
                 run = self._client.beta.threads.runs.create(
                     thread_id=thread_id, assistant_id=question.assistant_id
                 )
-            except NotFoundError as ex:
-                raise AssistantIdNotFound(assistant_id=question.assistant_id) from ex
+                sleep_seconds = float(utils.read_optional_env_var("COPILOT_SLEEP_SECONDS", "0.5"))
 
-            # Retrieve the current status of the processing run.
-            # Wait for the run to complete.
-            run = self.wait_while_status(run.id, thread_id, "in_progress", SLEEP_SECONDS)
-            # If the run requires action, process the required tool outputs.
-            while run.status == "requires_action":
-                tools_outputs_array = []
-                for tool_call in run.required_action.submit_tool_outputs.tool_calls:
-                    # Parse arguments for the tool call.
-                    print("Tool call: " + str(tool_call))
-                    args = json.loads(tool_call.function.arguments)
-                    for tool in self._configured_tools:
-                        if tool.name == tool_call.function.name:
-                            # If args has only one key called "query", replace args with that value
-                            if len(args) == 1 and "query" in args:
-                                args = args["query"]
-                            print_blue("Calling tool: " + tool.name + " with args: " + str(args))
-                            output = tool.run(args, {}, None)
-                            print_yellow("Tool output: " + str(output))
-                            tools_outputs_array.append({"tool_call_id": tool_call.id, "output": json.dumps(output)})
-                            break
+                # Retrieve the current status of the processing run.
+                # Wait for the run to complete.
+                run = self.wait_while_status(run.id, thread_id, "in_progress", sleep_seconds)
+                # If the run requires action, process the required tool outputs.
+                while run.status == "requires_action":
+                    tools_outputs_array = handle_tool_calls(self._configured_tools, run)
+                    run = self._client.beta.threads.runs.submit_tool_outputs(
+                        thread_id=thread_id,
+                        run_id=run.id,
+                        tool_outputs=tools_outputs_array,
+                    )
+                    run = self.wait_while_status(run.id, thread_id,
+                                                 ["queued", "in_progress", "incomplete", "cancelling"], sleep_seconds)
 
-                    # Submit the output of the tool.
-                run = self._client.beta.threads.runs.submit_tool_outputs(
-                    thread_id=thread_id,
-                    run_id=run.id,
-                    tool_outputs=tools_outputs_array,
-                )
-                run = self.wait_while_status(run.id, thread_id, "queued", SLEEP_SECONDS)
-                run = self.wait_while_status(run.id, thread_id, "in_progress", SLEEP_SECONDS)
-
-            # Wait until the run status is completed.
-            self.wait_while_not_status(run.id, thread_id, "completed", SLEEP_SECONDS)
+                # Wait until the run status is completed.
+                self.wait_while_not_status(run.id, thread_id,
+                                           ["completed", "cancelled", "failed", "expired"],
+                                           sleep_seconds)
+                if run.status in ["cancelled", "failed", "expired"]:
+                    do_retry = True
+                    retries -= 1
 
             # Retrieve all messages from the thread.
             messages = self._client.beta.threads.messages.list(thread_id=thread_id)
@@ -150,16 +168,18 @@ class AssistantAgent(CopilotAgent):
         except (APIConnectionError, APITimeoutError) as ex:
             raise AssistantTimeout() from ex
 
-    def wait_while_status(self, run_id, thread_id, status, seconds):
+    def wait_while_status(self, run_id, thread_id, status_list, seconds):
         run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
-        while run.status == status:
+        copilot_debug(f"Status: {run.status} waiting while: {str(status_list)}")
+        while run.status in status_list:
             run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             sleep(seconds)
         return run
 
-    def wait_while_not_status(self, run_id, thread_id, status, seconds):
+    def wait_while_not_status(self, run_id, thread_id, status_list, seconds):
         run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
-        while run.status != status:
+        copilot_debug(f"Status: {run.status} waiting while not: {str(status_list)}")
+        while run.status not in status_list:
             run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             sleep(seconds)
         return run
