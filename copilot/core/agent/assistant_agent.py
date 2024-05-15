@@ -131,7 +131,7 @@ class AssistantAgent(CopilotAgent):
 
                 # Retrieve the current status of the processing run.
                 # Wait for the run to complete.
-                run = self.wait_while_status(run.id, thread_id, "in_progress", sleep_seconds)
+                run = self.wait_while_status(run.id, thread_id, ["queued", "in_progress"], sleep_seconds)
                 # If the run requires action, process the required tool outputs.
                 while run.status == "requires_action":
                     tools_outputs_array = handle_tool_calls(self._configured_tools, run)
