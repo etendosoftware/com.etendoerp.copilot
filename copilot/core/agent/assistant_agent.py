@@ -170,16 +170,16 @@ class AssistantAgent(CopilotAgent):
 
     def wait_while_status(self, run_id, thread_id, status_list, seconds):
         run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
-        copilot_debug(f"Status: {run.status} waiting while: {str(status_list)}")
         while run.status in status_list:
+            copilot_debug(f"Status: {run.status} waiting while: {str(status_list)}")
             run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             sleep(seconds)
         return run
 
     def wait_while_not_status(self, run_id, thread_id, status_list, seconds):
         run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
-        copilot_debug(f"Status: {run.status} waiting while not: {str(status_list)}")
         while run.status not in status_list:
+            copilot_debug(f"Status: {run.status} waiting while not: {str(status_list)}")
             run = self._client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             sleep(seconds)
         return run
