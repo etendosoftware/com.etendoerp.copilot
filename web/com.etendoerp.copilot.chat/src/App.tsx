@@ -374,6 +374,8 @@ function App() {
             isAttachDisable={isBotLoading}
             onFileUploaded={handleFileId}
             onError={handleOnError}
+            multiline
+            numberOfLines={4}
           />
         </div>
       </div>
