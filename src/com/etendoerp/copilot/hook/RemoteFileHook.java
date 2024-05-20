@@ -21,6 +21,8 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.util.OpenAIUtils;
+
 import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.utility.Attachment;
 
@@ -39,8 +41,10 @@ public class RemoteFileHook implements CopilotFileHook {
   /**
    * Executes the hook for a given CopilotFile.
    *
-   * @param hookObject The CopilotFile for which to execute the hook.
-   * @throws OBException If there is an error executing the hook.
+   * @param hookObject
+   *     The CopilotFile for which to execute the hook.
+   * @throws OBException
+   *     If there is an error executing the hook.
    */
   @Override
   public void exec(CopilotFile hookObject) throws OBException {
@@ -48,6 +52,7 @@ public class RemoteFileHook implements CopilotFileHook {
       log.debug(String.format("RemoteFileHook for file: %s executed start", hookObject.getName()));
     }
     String url = hookObject.getUrl();
+    url = OpenAIUtils.replaceCopilotPromptVariables(url);
     String fileName = hookObject.getFilename();
     //download the file from the URL, preserving the original name, if filename is not empty, use it instead. The file must be
     //stored in a temporary folder.
@@ -80,13 +85,17 @@ public class RemoteFileHook implements CopilotFileHook {
     attchCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
     return (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
   }
+
   /**
    * Downloads a file from a given URL and stores it in a temporary directory.
    *
-   * @param fileUrl The URL of the file to download.
-   * @param customName The custom name for the downloaded file.
+   * @param fileUrl
+   *     The URL of the file to download.
+   * @param customName
+   *     The custom name for the downloaded file.
    * @return The path of the downloaded file.
-   * @throws IOException If there is an error downloading the file.
+   * @throws IOException
+   *     If there is an error downloading the file.
    */
   public static Path downloadFile(String fileUrl, String customName) throws IOException {
     URL url = new URL(fileUrl);
@@ -113,8 +122,10 @@ public class RemoteFileHook implements CopilotFileHook {
   /**
    * Determines the final name of the downloaded file.
    *
-   * @param customName The custom name for the downloaded file.
-   * @param url The URL of the file to download.
+   * @param customName
+   *     The custom name for the downloaded file.
+   * @param url
+   *     The URL of the file to download.
    * @return The final name of the downloaded file.
    */
   public static String getFinalName(String customName, URL url) {
@@ -141,7 +152,8 @@ public class RemoteFileHook implements CopilotFileHook {
   /**
    * Checks if the hook is applicable for the given type.
    *
-   * @param type The type to check.
+   * @param type
+   *     The type to check.
    * @return true if the hook is applicable, false otherwise.
    */
   @Override

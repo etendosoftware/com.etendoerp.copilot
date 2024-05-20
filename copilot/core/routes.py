@@ -10,7 +10,7 @@ from .exceptions import UnsupportedAgent
 from .local_history import ChatHistory, local_history_recorder
 from .schemas import QuestionSchema
 from .threadcontext import ThreadContext
-from .utils import copilot_debug
+from .utils import copilot_debug, copilot_info
 
 core_router = APIRouter()
 
@@ -30,9 +30,9 @@ def serve_question(question: QuestionSchema):
     if agent_type is None:
         agent_type = utils.read_optional_env_var("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
     copilot_agent = select_copilot_agent(agent_type)
-    copilot_debug("  Current agent loaded: " + copilot_agent.__class__.__name__)
+    copilot_info("  Current agent loaded: " + copilot_agent.__class__.__name__)
     copilot_debug("/question endpoint):")
-    copilot_debug("  question: " + question.question)
+    copilot_info("  Question: " + question.question)
     copilot_debug("  agent_type: " + str(agent_type))
     copilot_debug("  assistant_id: " + str(question.assistant_id))
     copilot_debug("  conversation_id: " + str(question.conversation_id))
@@ -40,8 +40,8 @@ def serve_question(question: QuestionSchema):
 
     response = None
     try:
-        copilot_debug("Thread "+ str(threading.get_ident())+ " ROUTES:el que almacena el contexto es: "+
-              str(ThreadContext.identifier_data()))
+        copilot_debug(
+            "Thread " + str(threading.get_ident()) + " Saving extra info:" + str(ThreadContext.identifier_data()))
         ThreadContext.set_data('extra_info', question.extra_info)
         agent_response: AgentResponse = copilot_agent.execute(question)
         response = agent_response.output
