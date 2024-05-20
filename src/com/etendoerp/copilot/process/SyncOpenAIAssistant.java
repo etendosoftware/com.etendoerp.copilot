@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -60,14 +61,15 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       for (CopilotApp app : appList) {
         List<CopilotAppSource> list = new ArrayList<>();
         for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
-          if (CopilotConstants.isKbBehaviour(copilotAppSource) || CopilotConstants.isFileTypeRemoteFile(copilotAppSource.getFile())) {
+          if (CopilotConstants.isKbBehaviour(copilotAppSource) || CopilotConstants.isFileTypeRemoteFile(
+              copilotAppSource.getFile())) {
             list.add(copilotAppSource);
           }
         }
-        if(!list.isEmpty()) {
-          if(!app.isCodeInterpreter() && !app.isRetrieval()) {
-              throw new OBException(
-                  String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
+        if (!list.isEmpty()) {
+          if (!app.isCodeInterpreter() && !app.isRetrieval()) {
+            throw new OBException(
+                String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
           }
         }
         appSourcesToSync.addAll(list);
@@ -113,7 +115,8 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
     for (int i = 0; i < modelJSONArray.length(); i++) {
       try {
         JSONObject modelObj = modelJSONArray.getJSONObject(i);
-        if (!StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
+        if (!StringUtils.startsWith(modelObj.getString("id"), "ft:") && //exclude the models that start with gpt-4o
+            !StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
             !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
           modelIds.add(modelObj);
         }
@@ -126,12 +129,13 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
 
     //now we will check the models of the database that are not in the list of models from openai, to mark them as not active
     for (CopilotOpenAIModel modelInDB : modelsInDB) {
-      if (!modelIds.contains(modelInDB.getSearchkey())) {
+      //check if the model is in the list of models from openai
+      if (modelIds.stream().noneMatch(modelInModelList(modelInDB))) {
         modelInDB.setActive(false);
         OBDal.getInstance().save(modelInDB);
-      } else {
-        modelIds.remove(modelInDB.getSearchkey());
+        continue;
       }
+      modelIds.removeIf(modelInModelList(modelInDB));
     }
     //the models that are not in the database, we will create them,
     for (JSONObject modelData : modelIds) {
@@ -145,6 +149,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       OBDal.getInstance().save(model);
     }
     OBDal.getInstance().flush();
+
     //check for Apps that needs a model and don't have one, set the Default
     List<CopilotApp> appsWithoutModel = OBDal.getInstance().createCriteria(CopilotApp.class)
         .add(Restrictions.isNull(CopilotApp.PROPERTY_MODEL))
@@ -153,7 +158,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
 
     CopilotOpenAIModel defaultModel = (CopilotOpenAIModel) OBDal.getInstance().createCriteria(
             CopilotOpenAIModel.class)
-        .add(Restrictions.eq(CopilotOpenAIModel.PROPERTY_SEARCHKEY, "gpt-4-turbo-preview"))
+        .add(Restrictions.eq(CopilotOpenAIModel.PROPERTY_SEARCHKEY, "gpt-4o"))
         .addOrder(Order.desc(CopilotOpenAIModel.PROPERTY_CREATIONDATE))
         .setMaxResults(1).uniqueResult();
     for (CopilotApp app : appsWithoutModel) {
@@ -162,6 +167,10 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
     }
     OBDal.getInstance().flush();
 
+  }
+
+  private Predicate<JSONObject> modelInModelList(CopilotOpenAIModel modelInDB) {
+    return model -> StringUtils.equals(model.optString("id"), modelInDB.getSearchkey());
   }
 
   private int callSync(int syncCount, String openaiApiKey, CopilotApp app) {
