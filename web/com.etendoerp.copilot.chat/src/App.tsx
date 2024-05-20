@@ -360,7 +360,7 @@ function App() {
         </div>
 
         {/* Message input area */}
-        <div style={{marginBottom:12}} className={`mx-[12px]`} ref={inputRef}>
+        <div id={'iframe-input-container'} style={{marginBottom:12}} className={`mx-[12px]`} ref={inputRef}>
           <FileSearchInput
             value={inputValue}
             placeholder={labels.ETCOP_Message_Placeholder!}
@@ -375,7 +375,7 @@ function App() {
             onFileUploaded={handleFileId}
             onError={handleOnError}
             multiline
-            numberOfLines={4}
+            numberOfLines={7}
           />
         </div>
       </div>

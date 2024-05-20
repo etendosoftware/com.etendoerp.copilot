@@ -108,6 +108,25 @@ body {
 
 .iframe-selector-full-screen {
   width: 350px !important;
-  background: #EEEEEE;
+  background: #E4ECF4;
   border-bottom-width: 0px !important;
+}
+#iframe-input-container *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#iframe-input-container *::-webkit-scrollbar-track {
+	border-radius: 10px;
+	background-color: transparent;
+}
+
+#iframe-input-container *::-webkit-scrollbar {
+	width: 8px;
+	background-color: transparent;
+}
+
+#iframe-input-container *::-webkit-scrollbar-thumb {
+	border-radius: 10px;
+	background-color: #E0E0E0;
 }
