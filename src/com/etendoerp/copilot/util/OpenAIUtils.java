@@ -374,7 +374,7 @@ public class OpenAIUtils {
       logIfDebug("File " + fileToSync.getName() + " not has changed, skipping sync");
       return;
     }
-    if (!StringUtils.isEmpty(fileToSync.getOpenaiIdFile())) {
+    if (StringUtils.isNotEmpty(fileToSync.getOpenaiIdFile())) {
       //we will delete the file
       logIfDebug("Deleting file " + fileToSync.getName());
       deleteFile(fileToSync.getOpenaiIdFile(), openaiApiKey);
