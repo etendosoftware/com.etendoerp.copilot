@@ -173,7 +173,7 @@ public class RestServiceUtil {
         .getOpenbravoProperties()
         .getProperty("source.path");
     String buildCopilotPath = sourcePath + "/build/copilot";
-    String modulePath = sourcePath + "/modules/com.etendoerp.copilot";
+    String modulePath = sourcePath + "/modules";
     // copy the file to the buildCopilotPath folder, in a subfolder with the name of the file_id
     String filePath = String.format("/copilotTempFiles/%s/%s", fileUUID, originalFileName);
     saveFileTemp(f, filePath);
