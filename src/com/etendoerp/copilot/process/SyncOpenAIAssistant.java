@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -59,20 +60,14 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       }
       Set<CopilotAppSource> appSourcesToSync = new HashSet<>();
       for (CopilotApp app : appList) {
-        List<CopilotAppSource> list = new ArrayList<>();
-        for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
-          if (CopilotConstants.isKbBehaviour(copilotAppSource) || CopilotConstants.isFileTypeRemoteFile(
-              copilotAppSource.getFile())) {
-            list.add(copilotAppSource);
-          }
+        List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
+        List<CopilotAppSource> listSources = appSources.stream().filter(CopilotConstants::isKbBehaviour).collect(
+            Collectors.toList());
+        if (!listSources.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
+          throw new OBException(
+              String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
         }
-        if (!list.isEmpty()) {
-          if (!app.isCodeInterpreter() && !app.isRetrieval()) {
-            throw new OBException(
-                String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
-          }
-        }
-        appSourcesToSync.addAll(list);
+        appSourcesToSync.addAll(listSources);
       }
       for (CopilotAppSource appSource : appSourcesToSync) {
         OpenAIUtils.syncAppSource(appSource, openaiApiKey);
