@@ -1,7 +1,9 @@
 package com.etendoerp.copilot.hook;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
+
 import org.apache.commons.lang.StringUtils;
+import org.jetbrains.annotations.Nullable;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.structure.BaseOBObject;
@@ -34,7 +36,8 @@ public class ProcessHQLAppSource {
   public File generate(CopilotAppSource appSource) throws OBException {
     try {
       String result = getHQLResult(appSource.getFile().getHql(), "e");
-      String fileName = appSource.getFile().getName();
+
+      String fileName = getFileName(appSource);
       return createAttachment(fileName, result);
     } catch (IOException e) {
       throw new OBException(
@@ -43,6 +46,31 @@ public class ProcessHQLAppSource {
     } finally {
       OBDal.getInstance().flush();
     }
+  }
+
+  /**
+   * This method is used to generate a file name for a given CopilotAppSource object.
+   *
+   * @param appSource
+   *     The CopilotAppSource object for which the file name is to be generated.
+   * @return A string representing the file name.
+   */
+  private String getFileName(CopilotAppSource appSource) {
+    // If the file object within the appSource is not null and it has a non-empty filename, return the filename.
+    if (appSource.getFile() != null && StringUtils.isNotEmpty(appSource.getFile().getFilename())) {
+      return appSource.getFile().getFilename();
+    }
+    // If the file object within the appSource has a non-empty name, sanitize it and return.
+    // The sanitization process involves replacing spaces with underscores and removing characters that are not allowed in file names.
+    if (StringUtils.isNotEmpty(appSource.getFile().getName())) {
+      var name = appSource.getFile().getName();
+      // Remove characters that are not allowed in file names and spaces
+      name = name.replace(" ", "_");
+      name = name.replaceAll("[^a-zA-Z0-9-_]", "");
+      return name;
+    }
+    // If the file object within the appSource does not have a name or filename, generate a default name using the current timestamp.
+    return "result" + System.currentTimeMillis();
   }
 
   private File createAttachment(String fileName, String result) throws IOException {
