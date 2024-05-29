@@ -121,13 +121,13 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
     hql.append("select ");
     hql.append("roapp.role.name, ");
     hql.append("roapp.role.id, ");
-    hql.append("toolweb.smfwheDefinedwebhook.name, ");
-    hql.append("toolweb.smfwheDefinedwebhook.id, ");
+    hql.append("toolweb.webHook.name, ");
+    hql.append("toolweb.webHook.id, ");
     hql.append("(  ");
     hql.append("    select count(id) ");
     hql.append("    from smfwhe_definedwebhook_role hkrole ");
     hql.append("    where hkrole.role = roapp.role ");
-    hql.append("        and hkrole.smfwheDefinedwebhook = toolweb.smfwheDefinedwebhook ");
+    hql.append("        and hkrole.smfwheDefinedwebhook = toolweb.webHook ");
     hql.append(") ");
     hql.append("from ETCOP_Role_App roapp ");
     hql.append("    left join ETCOP_App_Tool apptool on apptool.copilotApp = roapp.copilotApp ");
