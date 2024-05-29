@@ -11,5 +11,6 @@ export interface ILabels {
     ETCOP_SuccessSync?: string;
     ETCOP_UniqueAttachment?: string;
     ETCOP_Welcome_Greeting?: string;
+    ETCOP_Message_AssistantHeader?: string;
     ETCOP_Welcome_Message?: string;
 }

@@ -259,6 +259,7 @@ function App() {
             value={selectedOption?.name}
             staticData={assistants}
             displayKey="name"
+            title={labels.ETCOP_Message_AssistantHeader}
             onSelect={(option: any) => {
               handleOptionSelected(option);
               setMessages([]);
