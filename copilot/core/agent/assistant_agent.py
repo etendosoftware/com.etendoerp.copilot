@@ -5,6 +5,7 @@ from time import sleep
 from typing import Final
 
 from langchain.tools.render import format_tool_to_openai_function
+from openai import BadRequestError
 
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
 from .. import utils
@@ -104,6 +105,7 @@ class AssistantAgent(CopilotAgent):
             thread_id = question.conversation_id
             if not thread_id:
                 thread_id = self._client.beta.threads.create().id
+            is_thread_retry = False
             try:
                 # Create a message in the conversation thread with the user's question.
                 if question.file_ids is None or len(question.file_ids) == 0:
@@ -118,15 +120,26 @@ class AssistantAgent(CopilotAgent):
 
             except NotFoundError as ex:
                 raise AssistantIdNotFound(assistant_id=question.assistant_id) from ex
+            except BadRequestError as ex:
+                if ex.body is None or ex.body.get("message") is None:
+                    raise ex
 
+                errmsg = ex.body.get("message")
+                if "Can't add messages to thread" not in errmsg or "while a run" not in errmsg or "is active." not in errmsg:
+                    raise ex
+                is_thread_retry = True  # We will retry the thread run
             retries = 10
             do_retry = True
             while retries > 0 and do_retry:
                 do_retry = False
-                # Start processing the conversation thread with the assistant.
-                run = self._client.beta.threads.runs.create(
-                    thread_id=thread_id, assistant_id=question.assistant_id
-                )
+                if not is_thread_retry:
+                    # Start processing the conversation thread with the assistant.
+                    run = self._client.beta.threads.runs.create(
+                        thread_id=thread_id, assistant_id=question.assistant_id
+                    )
+                else:
+                    run = self._client.beta.threads.runs.list(thread_id=thread_id,order="desc",limit=1
+                                                              ).data[0]
                 sleep_seconds = float(utils.read_optional_env_var("COPILOT_SLEEP_SECONDS", "0.5"))
 
                 # Retrieve the current status of the processing run.
