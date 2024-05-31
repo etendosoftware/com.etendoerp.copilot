@@ -66,13 +66,13 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       for (CopilotApp app : appList) {
         checkWebHookAccess(app);
         List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
-        List<CopilotAppSource> listSources = appSources.stream().filter(CopilotConstants::isKbBehaviour).collect(
+        List<CopilotAppSource> listSourcesForKb = appSources.stream().filter(CopilotConstants::isKbBehaviour).collect(
             Collectors.toList());
-        if (!listSources.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
+        if (!listSourcesForKb.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
           throw new OBException(
               String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
         }
-        appSourcesToSync.addAll(listSources);
+        appSourcesToSync.addAll(appSources);
       }
       for (CopilotAppSource appSource : appSourcesToSync) {
         OpenAIUtils.syncAppSource(appSource, openaiApiKey);
