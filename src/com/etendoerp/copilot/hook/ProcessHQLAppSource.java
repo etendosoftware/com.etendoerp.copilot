@@ -1,9 +1,20 @@
 package com.etendoerp.copilot.hook;
 
-import com.etendoerp.copilot.data.CopilotAppSource;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
-import org.jetbrains.annotations.Nullable;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.structure.BaseOBObject;
@@ -13,14 +24,7 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.service.datasource.DataSourceUtils;
 import org.openbravo.service.json.JsonConstants;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.*;
-import java.util.stream.Collectors;
+import com.etendoerp.copilot.data.CopilotAppSource;
 
 public class ProcessHQLAppSource {
   private static final ProcessHQLAppSource INSTANCE = new ProcessHQLAppSource();
