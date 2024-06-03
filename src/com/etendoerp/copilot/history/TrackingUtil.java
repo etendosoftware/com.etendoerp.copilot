@@ -48,16 +48,16 @@ public class TrackingUtil {
   }
 
   public void trackQuestion(String conversationId, String question) {
-    createMessage(conversationId, CopilotConstants.MESSAGE_ASSISTANT, question);
+    createMessage(conversationId, CopilotConstants.MESSAGE_USER, question);
   }
 
   public void trackResponse(String conversationId, String string) {
-    createMessage(conversationId, CopilotConstants.MESSAGE_USER, string);
+    createMessage(conversationId, CopilotConstants.MESSAGE_ASSISTANT, string);
   }
 
   public static JSONArray getHistory(String conversationId) throws JSONException {
     List<Message> messages = OBDal.getInstance()
-        .createQuery(Message.class, "as m where m.etcopConversation.externalID = :conversationId")
+        .createQuery(Message.class, "as m where m.etcopConversation.externalID = :conversationId order by m.creationDate asc")
         .setNamedParameter("conversationId", conversationId)
         .list();
     JSONArray history = new JSONArray();

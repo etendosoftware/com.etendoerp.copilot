@@ -9,7 +9,7 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools.render import format_tool_to_openai_function
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.messages import (
-    HumanMessage,
+    HumanMessage, AIMessage,
 )
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -100,8 +100,13 @@ class LangchainAgent(CopilotAgent):
             provider=question.provider,
             open_ai_model=question.model
         )
-        messages = [HumanMessage(content=message.content, role=message.role) for message in question.history]
-        messages += [HumanMessage(content=full_question, role="user")]
+        messages = []
+        for message in question.history:
+            if message.role == "USER":
+               messages.append(HumanMessage(content=message.content))
+            elif message.role == "ASSISTANT":
+               messages.append(AIMessage(content=message.content))
+        messages.append(HumanMessage(content=full_question))
         langchain_respose: Dict = executor.invoke({"system_prompt": question.system_prompt, "messages": messages})
         output_answer = {"response": langchain_respose["output"]}
         return AgentResponse(input=full_question, output=AssistantResponse(

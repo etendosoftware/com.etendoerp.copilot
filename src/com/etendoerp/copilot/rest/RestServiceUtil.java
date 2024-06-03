@@ -18,8 +18,6 @@ import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.history.TrackingUtil;
 import com.etendoerp.copilot.util.OpenAIUtils;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItem;
 import org.apache.commons.lang.StringUtils;
@@ -73,6 +71,7 @@ public class RestServiceUtil {
   public static final String PROP_CONVERSATION_ID = "conversation_id";
   public static final String PROP_QUESTION = "question";
   public static final String PROP_TYPE = "type";
+  public static final String PROP_HISTORY = "history";
   public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
   public static final String APPLICATION_JSON_CHARSET_UTF_8 = "application/json;charset=UTF-8";
   public static final String FILE = "/file";
@@ -261,9 +260,10 @@ public class RestServiceUtil {
         if (StringUtils.isEmpty(conversationId)) {
           conversationId = UUID.randomUUID().toString();
         }
+        prompt.append(copilotApp.getPrompt());
         jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
         jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGCHAIN);
-        jsonRequestForCopilot.put("history", TrackingUtil.getHistory(conversationId));
+        jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
         if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
           jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
           jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getName());
