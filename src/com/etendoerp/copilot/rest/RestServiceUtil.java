@@ -314,11 +314,11 @@ public class RestServiceUtil {
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
     JSONObject responseOriginal = new JSONObject();
     responseOriginal.put(APP_ID, copilotApp.getId());
-    if(!responseJsonFromCopilot.has("answer")) {
+    if (!responseJsonFromCopilot.has("answer")) {
       String message = "";
-      if(responseJsonFromCopilot.has("detail")) {
+      if (responseJsonFromCopilot.has("detail")) {
         JSONArray detail = responseJsonFromCopilot.getJSONArray("detail");
-        if(detail.length() > 0) {
+        if (detail.length() > 0) {
           message = ((JSONObject) detail.get(0)).getString("message");
         }
       }
