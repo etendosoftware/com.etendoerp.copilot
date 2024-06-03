@@ -173,7 +173,7 @@ public class RestServiceUtil {
         .getOpenbravoProperties()
         .getProperty("source.path");
     String buildCopilotPath = sourcePath + "/build/copilot";
-    String modulePath = sourcePath + "/modules/com.etendoerp.copilot";
+    String modulePath = sourcePath + "/modules";
     // copy the file to the buildCopilotPath folder, in a subfolder with the name of the file_id
     String filePath = String.format("/copilotTempFiles/%s/%s", fileUUID, originalFileName);
     saveFileTemp(f, filePath);
@@ -225,9 +225,14 @@ public class RestServiceUtil {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
     }
-    List<String> qId = new ArrayList<>();
-    qId.add(questionAttachedFileId);
-    return handleQuestion(copilotApp, conversationId, question, qId);
+    if (StringUtils.equalsIgnoreCase(copilotApp.getAppType(), CopilotConstants.APP_TYPE_OPENAI)
+        && StringUtils.isEmpty(copilotApp.getOpenaiIdAssistant())) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_OpenAIAppNotSync"), appId));
+    }
+
+    List<String> filesReceived = new ArrayList<>();
+    filesReceived.add(questionAttachedFileId); // File path in temp folder. This files were attached in the pop-up.
+    return handleQuestion(copilotApp, conversationId, question, filesReceived);
   }
 
   public static JSONObject handleQuestion(CopilotApp copilotApp, String conversationId, String question,

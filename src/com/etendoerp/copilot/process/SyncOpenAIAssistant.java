@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -19,8 +20,10 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.access.Role;
 import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -28,6 +31,8 @@ import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotOpenAIModel;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.OpenAIUtils;
+import com.etendoerp.webhookevents.data.DefinedWebHook;
+import com.etendoerp.webhookevents.data.DefinedwebhookRole;
 
 public class SyncOpenAIAssistant extends BaseProcessActionHandler {
   private static final Logger log = LogManager.getLogger(SyncOpenAIAssistant.class);
@@ -59,20 +64,15 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       }
       Set<CopilotAppSource> appSourcesToSync = new HashSet<>();
       for (CopilotApp app : appList) {
-        List<CopilotAppSource> list = new ArrayList<>();
-        for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
-          if (CopilotConstants.isKbBehaviour(copilotAppSource) || CopilotConstants.isFileTypeRemoteFile(
-              copilotAppSource.getFile())) {
-            list.add(copilotAppSource);
-          }
+        checkWebHookAccess(app);
+        List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
+        List<CopilotAppSource> listSourcesForKb = appSources.stream().filter(CopilotConstants::isKbBehaviour).collect(
+            Collectors.toList());
+        if (!listSourcesForKb.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
+          throw new OBException(
+              String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
         }
-        if (!list.isEmpty()) {
-          if (!app.isCodeInterpreter() && !app.isRetrieval()) {
-            throw new OBException(
-                String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
-          }
-        }
-        appSourcesToSync.addAll(list);
+        appSourcesToSync.addAll(appSources);
       }
       for (CopilotAppSource appSource : appSourcesToSync) {
         OpenAIUtils.syncAppSource(appSource, openaiApiKey);
@@ -105,6 +105,99 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       OBContext.restorePreviousMode();
     }
     return result;
+  }
+
+
+  /**
+   * This method checks the access of each role to the webhooks associated with the given application.
+   * It queries the database for each role and associated webhook, and if a role does not have access to a webhook,
+   * it calls the upsertAccess method to create a new access record.
+   *
+   * @param app
+   *     The CopilotApp object representing the application for which to check webhook access.
+   */
+  private void checkWebHookAccess(CopilotApp app) {
+    StringBuilder hql = new StringBuilder();
+    hql.append("select ");
+    hql.append("roapp.role.name, ");
+    hql.append("roapp.role.id, ");
+    hql.append("toolweb.webHook.name, ");
+    hql.append("toolweb.webHook.id, ");
+    hql.append("(  ");
+    hql.append("    select count(id) ");
+    hql.append("    from smfwhe_definedwebhook_role hkrole ");
+    hql.append("    where hkrole.role = roapp.role ");
+    hql.append("        and hkrole.smfwheDefinedwebhook = toolweb.webHook ");
+    hql.append(") ");
+    hql.append("from ETCOP_Role_App roapp ");
+    hql.append("    left join ETCOP_App_Tool apptool on apptool.copilotApp = roapp.copilotApp ");
+    hql.append("    left join etcop_tool_wbhk toolweb on apptool.copilotTool = toolweb.copilotTool ");
+    hql.append("where 1 = 1 ");
+    hql.append("and roapp.copilotApp.id = :appId ");
+  /*
+    Returns a list of arrays with the following structure:
+    [0] Role Id
+    [1] Role Name
+    [2] Webhook Id
+    [3] Webhook Name
+    [4] Quantity of Record of access to the webhook by the role (if not null, the role has access)
+    Basically, we are looking for the roles that don't have access to the webhook, if the quantity of records is 0, the role doesn't have access
+   */
+    List<Object[]> results = OBDal.getInstance().getSession().createQuery(hql.toString())
+        .setParameter("appId", app.getId()).list();
+    if (log.isDebugEnabled()) {
+      log.debug(String.format("Results: %d", results.size()));
+    }
+    for (Object[] result : results) {
+      String roleId = (String) result[1];
+      String roleName = (String) result[0];
+      String webhookId = (String) result[3];
+      String webhookName = (String) result[2];
+      Long accessCount = (Long) result[4];
+      if (accessCount == null || accessCount == 0) {
+        if (log.isDebugEnabled()) {
+          log.debug(String.format("Role %s does not have access to webhook %s", roleName, webhookName));
+        }
+        Role role = OBDal.getInstance().get(Role.class, roleId);
+        DefinedWebHook hook = OBDal.getInstance().get(DefinedWebHook.class, webhookId);
+        upsertAccess(hook, role, false);
+      }
+    }
+  }
+
+  /**
+   * This method is used to insert or update access to a defined webhook for a specific role.
+   * If the role already has access to the webhook and skipIfExist is false, the method will return without making any changes.
+   * If the role does not have access to the webhook or skipIfExist is true, a new access record will be created.
+   *
+   * @param hook
+   *     The DefinedWebHook object representing the webhook to which access is being granted.
+   * @param role
+   *     The Role object representing the role to which access is being granted.
+   * @param skipIfExist
+   *     A boolean value that determines whether to skip the operation if the role already has access to the webhook.
+   */
+  private void upsertAccess(DefinedWebHook hook, Role role, boolean skipIfExist) {
+    // If skipIfExist is false, check if the role already has access to the webhook
+    if (!skipIfExist) {
+      OBCriteria<DefinedwebhookRole> critWebHookRole = OBDal.getInstance().createCriteria(DefinedwebhookRole.class);
+      critWebHookRole.add(Restrictions.eq(DefinedwebhookRole.PROPERTY_SMFWHEDEFINEDWEBHOOK, hook));
+      critWebHookRole.add(Restrictions.eq(DefinedwebhookRole.PROPERTY_ROLE, role));
+      critWebHookRole.setMaxResults(1);
+      DefinedwebhookRole wbhkRole = (DefinedwebhookRole) (critWebHookRole.uniqueResult());
+      // If the role already has access, return without making any changes
+      if (wbhkRole != null) {
+        return;
+      }
+    }
+    // If the role does not have access or skipIfExist is true, create a new access record
+    DefinedwebhookRole newRole = OBProvider.getInstance().get(DefinedwebhookRole.class);
+    newRole.setNewOBObject(true);
+    newRole.setRole(role);
+    newRole.setClient(role.getClient());
+    newRole.setOrganization(role.getOrganization());
+    newRole.setSmfwheDefinedwebhook(hook);
+    OBDal.getInstance().save(newRole);
   }
 
   private void syncOpenaiModels(String openaiApiKey) {
