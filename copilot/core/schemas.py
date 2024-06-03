@@ -2,6 +2,9 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+class Message(BaseModel):
+    content: str
+    role: str
 
 class QuestionSchema(BaseModel):
     question: str
@@ -14,4 +17,4 @@ class QuestionSchema(BaseModel):
     provider: Optional[str] = None
     model: Optional[str] = None
     system_prompt: Optional[str] = None
-    history: Optional[list[str]] = None
+    history: Optional[list[Message]] = None

@@ -18,6 +18,8 @@ import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.history.TrackingUtil;
 import com.etendoerp.copilot.util.OpenAIUtils;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItem;
 import org.apache.commons.lang.StringUtils;
@@ -251,17 +253,20 @@ public class RestServiceUtil {
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
       JSONObject jsonRequestForCopilot = new JSONObject();
-      if (StringUtils.isNotEmpty(conversationId)) {
-        jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
-      }
       //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
       // and we need to add the type of the assistant (openai or langchain)
       appType = copilotApp.getAppType();
       StringBuilder prompt = new StringBuilder();
       if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)) {
+        if (StringUtils.isEmpty(conversationId)) {
+          conversationId = UUID.randomUUID().toString();
+        }
+        jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
         jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGCHAIN);
+        jsonRequestForCopilot.put("history", TrackingUtil.getHistory(conversationId));
         if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
           jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
+          jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getName());
         } else if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_GEMINI_VALUE)) {
           jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_GEMINI);
           jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");
@@ -278,6 +283,9 @@ public class RestServiceUtil {
       } else {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
+      }
+      if (StringUtils.isNotEmpty(conversationId)) {
+        jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
       }
       question += OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
       jsonRequestForCopilot.put(PROP_QUESTION, question);
@@ -306,6 +314,16 @@ public class RestServiceUtil {
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
     JSONObject responseOriginal = new JSONObject();
     responseOriginal.put(APP_ID, copilotApp.getId());
+    if(!responseJsonFromCopilot.has("answer")) {
+      String message = "";
+      if(responseJsonFromCopilot.has("detail")) {
+        JSONArray detail = responseJsonFromCopilot.getJSONArray("detail");
+        if(detail.length() > 0) {
+          message = ((JSONObject) detail.get(0)).getString("message");
+        }
+      }
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
+    }
     JSONObject answer = (JSONObject) responseJsonFromCopilot.get("answer");
     handleErrorMessagesIfExists(answer);
     conversationId = answer.optString(PROP_CONVERSATION_ID);
