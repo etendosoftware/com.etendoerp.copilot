@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.history.TrackingUtil;
 import com.etendoerp.copilot.util.OpenAIUtils;
 
 import org.apache.commons.fileupload.FileItem;
@@ -316,6 +317,8 @@ public class RestServiceUtil {
     //getting the object of the Timestamp class
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
+    TrackingUtil.getInstance().trackQuestion(conversationId, question);
+    TrackingUtil.getInstance().trackResponse(conversationId, responseOriginal.getString(PROP_RESPONSE));
     return responseOriginal;
   }
 

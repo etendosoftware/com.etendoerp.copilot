@@ -1,0 +1,55 @@
+package com.etendoerp.copilot.history;
+
+import com.etendoerp.copilot.data.Conversation;
+import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.Message;
+import com.etendoerp.copilot.util.CopilotConstants;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBDal;
+
+import java.util.List;
+
+public class TrackingUtil {
+  private static TrackingUtil instance = null;
+
+  private TrackingUtil() {
+  }
+
+  public static TrackingUtil getInstance() {
+    if (instance == null) {
+      instance = new TrackingUtil();
+    }
+    return instance;
+  }
+
+  private Conversation getConversation(String conversationId) {
+    Conversation conversation = OBDal.getInstance()
+        .createQuery(Conversation.class, "as c where c.externalID = :conversationId")
+        .setNamedParameter("conversationId", conversationId)
+        .uniqueResult();
+    if (conversation == null) {
+      conversation = new Conversation();
+      conversation.setExternalID(conversationId);
+      conversation.setUser(OBContext.getOBContext().getUser());
+      OBDal.getInstance().save(conversation);
+    }
+    return conversation;
+  }
+
+  private void createMessage(String conversationId, String messageRole, String question) {
+    Message message = new Message();
+    message.setEtcopConversation(getConversation(conversationId));
+    message.setMessage(question);
+    message.setRole(messageRole);
+    OBDal.getInstance().save(message);
+    OBDal.getInstance().flush();
+  }
+
+  public void trackQuestion(String conversationId, String question) {
+    createMessage(conversationId, CopilotConstants.MESSAGE_ASSISTANT, question);
+  }
+
+  public void trackResponse(String conversationId, String string) {
+    createMessage(conversationId, CopilotConstants.MESSAGE_USER, string);
+  }
+}
