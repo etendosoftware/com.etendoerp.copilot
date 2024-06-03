@@ -1,8 +1,7 @@
-package com.etendoerp.copilot.history;
+package com.etendoerp.copilot.util;
 
 import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.Message;
-import com.etendoerp.copilot.util.CopilotConstants;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
