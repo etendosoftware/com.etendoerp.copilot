@@ -12,6 +12,7 @@ import { IMessage } from "./interfaces/IMessage";
 import { References } from "./utils/references";
 import "./App.css";
 import { DropdownInput } from "etendo-ui-library/dist-web/components";
+import { SparksIcon } from "etendo-ui-library/dist-web/assets/images/icons";
 
 function App() {
   // States
@@ -255,11 +256,14 @@ function App() {
       {/* Initial message and assistants selection */}
       {assistants.length > 0 &&
         <div id={'iframe-selector'} style={{paddingTop: 8, paddingRight: 12, paddingLeft: 12,paddingBottom: 8}} className="w-full assistants-shadow border-b py-1 px-2 border-gray-600">
+          <div id={'assistant-title'}>
+            <SparksIcon style={{height:12,width:12}}/>
+            <div id={'assistant-title-label'}>{labels.ETCOP_Message_AssistantHeader}</div>
+          </div>
           <DropdownInput
             value={selectedOption?.name}
             staticData={assistants}
             displayKey="name"
-            title={labels.ETCOP_Message_AssistantHeader}
             onSelect={(option: any) => {
               handleOptionSelected(option);
               setMessages([]);
