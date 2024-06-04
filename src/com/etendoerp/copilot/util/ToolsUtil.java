@@ -14,9 +14,18 @@ import org.openbravo.dal.service.OBDal;
 import java.util.List;
 
 public class ToolsUtil {
+
   private ToolsUtil() {
+    // Private constructor to prevent instantiation
   }
 
+  /**
+   * Get the tools for the app
+   * @param app
+   * @return
+   * @throws OBException
+   * @throws JSONException
+   */
   public static JSONArray getToolSet(CopilotApp app) throws OBException, JSONException {
     // we will read from /copilot the tools if we can
     JSONArray result = new JSONArray();
@@ -32,11 +41,9 @@ public class ToolsUtil {
       CopilotTool erpTool = appTool.getCopilotTool();
       String toolInfo = erpTool.getJsonStructure();
       if (toolInfo != null) {
-
         result.put(new JSONObject(toolInfo));
       }
     }
-
     return result;
   }
 
