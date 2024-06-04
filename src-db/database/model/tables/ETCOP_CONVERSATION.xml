@@ -58,6 +58,9 @@
       <foreign-key foreignTable="AD_USER" name="ETCOP_CONV_USR">
         <reference local="AD_USER_ID" foreign="AD_USER_ID"/>
       </foreign-key>
+      <unique name="ETCOP_CONV_EXTID_UNIQUE">
+        <unique-column name="EXTERNAL_ID"/>
+      </unique>
       <check name="ETCOP_CONV_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
       <check name="ETCOP_VISIBLE_CHECK"><![CDATA[VISIBLE IN ('Y', 'N')]]></check>
     </table>

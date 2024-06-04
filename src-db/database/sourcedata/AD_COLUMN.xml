@@ -6,6 +6,8 @@
 <!--000B1D5FADF8409D971AC1091E1085B3-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--000B1D5FADF8409D971AC1091E1085B3-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--000B1D5FADF8409D971AC1091E1085B3-->  <NAME><![CDATA[Role]]></NAME>
+<!--000B1D5FADF8409D971AC1091E1085B3-->  <DESCRIPTION><![CDATA[Role of messages in conversation.]]></DESCRIPTION>
+<!--000B1D5FADF8409D971AC1091E1085B3-->  <HELP><![CDATA[This field has the role of which participant generate the message.]]></HELP>
 <!--000B1D5FADF8409D971AC1091E1085B3-->  <COLUMNNAME><![CDATA[Role]]></COLUMNNAME>
 <!--000B1D5FADF8409D971AC1091E1085B3-->  <AD_TABLE_ID><![CDATA[2ECCDDB5C80E467B9FCDFAF179E62996]]></AD_TABLE_ID>
 <!--000B1D5FADF8409D971AC1091E1085B3-->  <AD_REFERENCE_ID><![CDATA[17]]></AD_REFERENCE_ID>
@@ -437,6 +439,8 @@
 <!--12B0EB9F567B4DA78ACFA5A5AB12B41F-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--12B0EB9F567B4DA78ACFA5A5AB12B41F-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--12B0EB9F567B4DA78ACFA5A5AB12B41F-->  <NAME><![CDATA[Title]]></NAME>
+<!--12B0EB9F567B4DA78ACFA5A5AB12B41F-->  <DESCRIPTION><![CDATA[Title of current conversation.]]></DESCRIPTION>
+<!--12B0EB9F567B4DA78ACFA5A5AB12B41F-->  <HELP><![CDATA[This field has a global subject of tracked conversation.]]></HELP>
 <!--12B0EB9F567B4DA78ACFA5A5AB12B41F-->  <COLUMNNAME><![CDATA[Title]]></COLUMNNAME>
 <!--12B0EB9F567B4DA78ACFA5A5AB12B41F-->  <AD_TABLE_ID><![CDATA[700CFE305D7348419F812B65F7DD27BD]]></AD_TABLE_ID>
 <!--12B0EB9F567B4DA78ACFA5A5AB12B41F-->  <AD_REFERENCE_ID><![CDATA[10]]></AD_REFERENCE_ID>
@@ -475,7 +479,7 @@
 <!--12B2EC18B281472E95CB28563111E986-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--12B2EC18B281472E95CB28563111E986-->  <NAME><![CDATA[Active]]></NAME>
 <!--12B2EC18B281472E95CB28563111E986-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--12B2EC18B281472E95CB28563111E986-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
+<!--12B2EC18B281472E95CB28563111E986-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--12B2EC18B281472E95CB28563111E986-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -595,6 +599,8 @@
 <!--1AC917D8987F4B3FA02F79948C35207D-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--1AC917D8987F4B3FA02F79948C35207D-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--1AC917D8987F4B3FA02F79948C35207D-->  <NAME><![CDATA[Time]]></NAME>
+<!--1AC917D8987F4B3FA02F79948C35207D-->  <DESCRIPTION><![CDATA[Time of track of the message.]]></DESCRIPTION>
+<!--1AC917D8987F4B3FA02F79948C35207D-->  <HELP><![CDATA[Tracked time of the ocurrence of the message for reference only.]]></HELP>
 <!--1AC917D8987F4B3FA02F79948C35207D-->  <COLUMNNAME><![CDATA[Time]]></COLUMNNAME>
 <!--1AC917D8987F4B3FA02F79948C35207D-->  <AD_TABLE_ID><![CDATA[2ECCDDB5C80E467B9FCDFAF179E62996]]></AD_TABLE_ID>
 <!--1AC917D8987F4B3FA02F79948C35207D-->  <AD_REFERENCE_ID><![CDATA[15]]></AD_REFERENCE_ID>
@@ -2060,7 +2066,7 @@
 <!--5C53C95750B34707AD261568946DC96F-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--5C53C95750B34707AD261568946DC96F-->  <NAME><![CDATA[Active]]></NAME>
 <!--5C53C95750B34707AD261568946DC96F-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--5C53C95750B34707AD261568946DC96F-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
+<!--5C53C95750B34707AD261568946DC96F-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--5C53C95750B34707AD261568946DC96F-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -2219,7 +2225,9 @@
 <!--5D8D3B75AB5C4F4FA9D43E25894FCAFF-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--5D8D3B75AB5C4F4FA9D43E25894FCAFF-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--5D8D3B75AB5C4F4FA9D43E25894FCAFF-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--5D8D3B75AB5C4F4FA9D43E25894FCAFF-->  <NAME><![CDATA[Etcop_Conversation_ID]]></NAME>
+<!--5D8D3B75AB5C4F4FA9D43E25894FCAFF-->  <NAME><![CDATA[Conversation]]></NAME>
+<!--5D8D3B75AB5C4F4FA9D43E25894FCAFF-->  <DESCRIPTION><![CDATA[Conversation identifier]]></DESCRIPTION>
+<!--5D8D3B75AB5C4F4FA9D43E25894FCAFF-->  <HELP><![CDATA[Identifier of current tracked conversation]]></HELP>
 <!--5D8D3B75AB5C4F4FA9D43E25894FCAFF-->  <COLUMNNAME><![CDATA[Etcop_Conversation_ID]]></COLUMNNAME>
 <!--5D8D3B75AB5C4F4FA9D43E25894FCAFF-->  <AD_TABLE_ID><![CDATA[700CFE305D7348419F812B65F7DD27BD]]></AD_TABLE_ID>
 <!--5D8D3B75AB5C4F4FA9D43E25894FCAFF-->  <AD_REFERENCE_ID><![CDATA[13]]></AD_REFERENCE_ID>
@@ -2257,6 +2265,8 @@
 <!--5F8B1860B0C8418B8C72F20532DD1759-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--5F8B1860B0C8418B8C72F20532DD1759-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--5F8B1860B0C8418B8C72F20532DD1759-->  <NAME><![CDATA[Message]]></NAME>
+<!--5F8B1860B0C8418B8C72F20532DD1759-->  <DESCRIPTION><![CDATA[Message text]]></DESCRIPTION>
+<!--5F8B1860B0C8418B8C72F20532DD1759-->  <HELP><![CDATA[Message tracked in current conversation]]></HELP>
 <!--5F8B1860B0C8418B8C72F20532DD1759-->  <COLUMNNAME><![CDATA[Message]]></COLUMNNAME>
 <!--5F8B1860B0C8418B8C72F20532DD1759-->  <AD_TABLE_ID><![CDATA[2ECCDDB5C80E467B9FCDFAF179E62996]]></AD_TABLE_ID>
 <!--5F8B1860B0C8418B8C72F20532DD1759-->  <AD_REFERENCE_ID><![CDATA[14]]></AD_REFERENCE_ID>
@@ -3522,6 +3532,8 @@
 <!--8EB591490F07424193C2F0FF69C4DBA0-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--8EB591490F07424193C2F0FF69C4DBA0-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--8EB591490F07424193C2F0FF69C4DBA0-->  <NAME><![CDATA[ExternalID]]></NAME>
+<!--8EB591490F07424193C2F0FF69C4DBA0-->  <DESCRIPTION><![CDATA[ID determined by external service depends on provider.]]></DESCRIPTION>
+<!--8EB591490F07424193C2F0FF69C4DBA0-->  <HELP><![CDATA[Reference only external identifier.]]></HELP>
 <!--8EB591490F07424193C2F0FF69C4DBA0-->  <COLUMNNAME><![CDATA[External_ID]]></COLUMNNAME>
 <!--8EB591490F07424193C2F0FF69C4DBA0-->  <AD_TABLE_ID><![CDATA[700CFE305D7348419F812B65F7DD27BD]]></AD_TABLE_ID>
 <!--8EB591490F07424193C2F0FF69C4DBA0-->  <AD_REFERENCE_ID><![CDATA[10]]></AD_REFERENCE_ID>
@@ -3676,7 +3688,7 @@
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <NAME><![CDATA[Active]]></NAME>
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--963BC17D0EDC490E97BB1315AFF4302B-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
+<!--963BC17D0EDC490E97BB1315AFF4302B-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -4154,6 +4166,8 @@
 <!--BDEED0F2CB4445498CFF4C8EAE8E7F87-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--BDEED0F2CB4445498CFF4C8EAE8E7F87-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--BDEED0F2CB4445498CFF4C8EAE8E7F87-->  <NAME><![CDATA[Etcop_Message_ID]]></NAME>
+<!--BDEED0F2CB4445498CFF4C8EAE8E7F87-->  <DESCRIPTION><![CDATA[ID of current message.]]></DESCRIPTION>
+<!--BDEED0F2CB4445498CFF4C8EAE8E7F87-->  <HELP><![CDATA[Record identifier of the message.]]></HELP>
 <!--BDEED0F2CB4445498CFF4C8EAE8E7F87-->  <COLUMNNAME><![CDATA[Etcop_Message_ID]]></COLUMNNAME>
 <!--BDEED0F2CB4445498CFF4C8EAE8E7F87-->  <AD_TABLE_ID><![CDATA[2ECCDDB5C80E467B9FCDFAF179E62996]]></AD_TABLE_ID>
 <!--BDEED0F2CB4445498CFF4C8EAE8E7F87-->  <AD_REFERENCE_ID><![CDATA[13]]></AD_REFERENCE_ID>
@@ -4304,6 +4318,8 @@
 <!--C718BBD779AB4188975779FB9F3855C2-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--C718BBD779AB4188975779FB9F3855C2-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--C718BBD779AB4188975779FB9F3855C2-->  <NAME><![CDATA[Etcop_Conversation_ID]]></NAME>
+<!--C718BBD779AB4188975779FB9F3855C2-->  <DESCRIPTION><![CDATA[Conversation identifier]]></DESCRIPTION>
+<!--C718BBD779AB4188975779FB9F3855C2-->  <HELP><![CDATA[Identifier of current tracked conversation]]></HELP>
 <!--C718BBD779AB4188975779FB9F3855C2-->  <COLUMNNAME><![CDATA[Etcop_Conversation_ID]]></COLUMNNAME>
 <!--C718BBD779AB4188975779FB9F3855C2-->  <AD_TABLE_ID><![CDATA[2ECCDDB5C80E467B9FCDFAF179E62996]]></AD_TABLE_ID>
 <!--C718BBD779AB4188975779FB9F3855C2-->  <AD_REFERENCE_ID><![CDATA[19]]></AD_REFERENCE_ID>
@@ -5416,6 +5432,8 @@
 <!--EC4D2ABDC72A471E854BEDD3D1369E98-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--EC4D2ABDC72A471E854BEDD3D1369E98-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--EC4D2ABDC72A471E854BEDD3D1369E98-->  <NAME><![CDATA[ExternalID]]></NAME>
+<!--EC4D2ABDC72A471E854BEDD3D1369E98-->  <DESCRIPTION><![CDATA[ID determined by external service depends on provider.]]></DESCRIPTION>
+<!--EC4D2ABDC72A471E854BEDD3D1369E98-->  <HELP><![CDATA[Reference only external identifier.]]></HELP>
 <!--EC4D2ABDC72A471E854BEDD3D1369E98-->  <COLUMNNAME><![CDATA[External_ID]]></COLUMNNAME>
 <!--EC4D2ABDC72A471E854BEDD3D1369E98-->  <AD_TABLE_ID><![CDATA[2ECCDDB5C80E467B9FCDFAF179E62996]]></AD_TABLE_ID>
 <!--EC4D2ABDC72A471E854BEDD3D1369E98-->  <AD_REFERENCE_ID><![CDATA[10]]></AD_REFERENCE_ID>
@@ -5492,7 +5510,7 @@
 <!--F0E526AFFB06496BABB779E323A0B05B-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--F0E526AFFB06496BABB779E323A0B05B-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--F0E526AFFB06496BABB779E323A0B05B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--F0E526AFFB06496BABB779E323A0B05B-->  <NAME><![CDATA[AD_User_ID]]></NAME>
+<!--F0E526AFFB06496BABB779E323A0B05B-->  <NAME><![CDATA[User/Contact]]></NAME>
 <!--F0E526AFFB06496BABB779E323A0B05B-->  <DESCRIPTION><![CDATA[An acquaintance to reach for information related to the business partner.]]></DESCRIPTION>
 <!--F0E526AFFB06496BABB779E323A0B05B-->  <HELP><![CDATA[The User identifies a unique user in the system. This could be an internal user or a business partner contact]]></HELP>
 <!--F0E526AFFB06496BABB779E323A0B05B-->  <COLUMNNAME><![CDATA[AD_User_ID]]></COLUMNNAME>
@@ -5891,7 +5909,9 @@
 <!--FD7467A388BE4E72A096181A93057F5E-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--FD7467A388BE4E72A096181A93057F5E-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--FD7467A388BE4E72A096181A93057F5E-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--FD7467A388BE4E72A096181A93057F5E-->  <NAME><![CDATA[Etdoc_Prompt]]></NAME>
+<!--FD7467A388BE4E72A096181A93057F5E-->  <NAME><![CDATA[Prompt]]></NAME>
+<!--FD7467A388BE4E72A096181A93057F5E-->  <DESCRIPTION><![CDATA[Prompt sended to assistant.]]></DESCRIPTION>
+<!--FD7467A388BE4E72A096181A93057F5E-->  <HELP><![CDATA[Reference only field to store message sended to assistant.]]></HELP>
 <!--FD7467A388BE4E72A096181A93057F5E-->  <COLUMNNAME><![CDATA[Etdoc_Prompt]]></COLUMNNAME>
 <!--FD7467A388BE4E72A096181A93057F5E-->  <AD_TABLE_ID><![CDATA[2ECCDDB5C80E467B9FCDFAF179E62996]]></AD_TABLE_ID>
 <!--FD7467A388BE4E72A096181A93057F5E-->  <AD_REFERENCE_ID><![CDATA[14]]></AD_REFERENCE_ID>

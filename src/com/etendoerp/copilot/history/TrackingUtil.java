@@ -28,11 +28,12 @@ public class TrackingUtil {
     Conversation conversation = OBDal.getInstance()
         .createQuery(Conversation.class, "as c where c.externalID = :conversationId")
         .setNamedParameter("conversationId", conversationId)
+        .setMaxResult(1)
         .uniqueResult();
     if (conversation == null) {
       conversation = new Conversation();
       conversation.setExternalID(conversationId);
-      conversation.setUser(OBContext.getOBContext().getUser());
+      conversation.setUserContact(OBContext.getOBContext().getUser());
       OBDal.getInstance().save(conversation);
     }
     return conversation;
