@@ -14,7 +14,7 @@ class CustomHelloWorldMultiArgsTool(ToolWrapper):
     description = "This is the CustomHelloWorldMultiArgsTool tool implementation."
 
     args_schema: Type[BaseModel] = CalculatorInput
-    return_direct: bool = True
+    return_direct: bool = False
 
     def run(self, input_params: Dict, *args, **kwargs):
         result_message = f"Input params {input_params}, args={args}, kwargs={kwargs}"

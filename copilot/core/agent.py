@@ -5,10 +5,10 @@ from typing import Final
 from langchain.agents import AgentExecutor
 from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
+from langchain_core.utils.function_calling import convert_to_openai_function
 from langchain_openai import ChatOpenAI
 from langchain.chat_models.base import BaseChatModel
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.tools.render import format_tool_to_openai_function
 
 from . import utils
 from .exceptions import OpenAIApiKeyNotFound, SystemPromptNotFound
@@ -43,7 +43,7 @@ def get_langchain_agent_executor(open_ai_model: str) -> AgentExecutor:
     # binds tools to the LLM
 
     configured_tools: LangChainTools = ToolLoader().load_configured_tools()
-    llm_with_tools = llm.bind(functions=[format_tool_to_openai_function(tool) for tool in configured_tools])
+    llm_with_tools = llm.bind(functions=[convert_to_openai_function(tool) for tool in configured_tools])
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -66,4 +66,4 @@ def get_langchain_agent_executor(open_ai_model: str) -> AgentExecutor:
     return AgentExecutor(agent=agent, tools=configured_tools, verbose=True)
 
 
-langchain_agent_executor: Final[BaseChatModel] = get_langchain_agent_executor(open_ai_model=OPENAI_MODEL)
+langchain_agent_executor: Final[AgentExecutor] = get_langchain_agent_executor(open_ai_model=OPENAI_MODEL)

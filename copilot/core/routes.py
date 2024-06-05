@@ -11,6 +11,9 @@ from .local_history import ChatHistory, local_history_recorder
 from .schemas import QuestionSchema
 from .threadcontext import ThreadContext
 from .utils import copilot_debug, copilot_info
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 core_router = APIRouter()
 
@@ -47,6 +50,7 @@ def serve_question(question: QuestionSchema):
         response = agent_response.output
         local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
     except Exception as e:
+        logger.exception(e)
         copilot_debug("  Exception: " + str(e))
         if hasattr(e, "response"):
             content = e.response.content

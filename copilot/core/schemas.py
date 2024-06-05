@@ -39,5 +39,5 @@ class QuestionSchema(BaseModel):
     system_prompt: Optional[str] = None
     history: Optional[list[MessageSchema]] = None
     tools: Optional[list[ToolSchema]] = None
-    assistants: Optional[list[AssistantSchema]]
+    assistants: Optional[list[AssistantSchema]] = None
     graph: Optional[AssistantGraph] = None
