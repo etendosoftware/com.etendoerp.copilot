@@ -2,17 +2,17 @@ from langchain.agents import create_openai_tools_agent, AgentExecutor
 from langchain_community.chat_models import ChatOpenAI
 from langchain_core.messages import BaseMessage, HumanMessage
 import operator
-from typing import Annotated, Sequence, TypedDict
-import functools
+from typing import Annotated, TypedDict
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import StateGraph, END
-from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain_experimental.tools import PythonREPLTool
+from typing import Final, Sequence
+from .. import utils
 
 from copilot.core.schemas import AssistantGraph
 
 
 class CopilotLangGraph:
+    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-turbo-preview")
 
     assistant_graph: AssistantGraph
 
@@ -60,7 +60,7 @@ class CopilotLangGraph:
             ]
         ).partial(options=str(options), members=", ".join(members_names))
 
-        llm = ChatOpenAI(model="gpt-4-1106-preview")
+        llm = ChatOpenAI(model=self.OPENAI_MODEL, temperature=0, streaming=False)
 
         supervisor_chain = (
                 prompt
@@ -163,7 +163,7 @@ class CopilotLangGraph:
             if "__end__" not in message:
                 print("----")
 
-        return message["__end__"]["messages"][-1].content
+        return message[list(message.keys())[0]]["messages"][-1].content
 
 class GraphMember:
     name: str

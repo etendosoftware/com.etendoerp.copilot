@@ -652,6 +652,23 @@ protobuf = ">=3.19.5,<3.20.0 || >3.20.0,<3.20.1 || >3.20.1,<4.21.1 || >4.21.1,<4
 grpc = ["grpcio (>=1.44.0,<2.0.0.dev0)"]
 
 [[package]]
+name = "grandalf"
+version = "0.8"
+description = "Graph and drawing algorithms framework"
+optional = false
+python-versions = "*"
+files = [
+    {file = "grandalf-0.8-py3-none-any.whl", hash = "sha256:793ca254442f4a79252ea9ff1ab998e852c1e071b863593e5383afee906b4185"},
+    {file = "grandalf-0.8.tar.gz", hash = "sha256:2813f7aab87f0d20f334a3162ccfbcbf085977134a17a5b516940a93a77ea974"},
+]
+
+[package.dependencies]
+pyparsing = "*"
+
+[package.extras]
+full = ["numpy", "ply"]
+
+[[package]]
 name = "greenlet"
 version = "3.0.3"
 description = "Lightweight in-process concurrent programming"
@@ -1106,6 +1123,20 @@ langchain-core = ">=0.2.0,<0.3.0"
 
 [package.extras]
 extended-testing = ["beautifulsoup4 (>=4.12.3,<5.0.0)", "lxml (>=4.9.3,<6.0)"]
+
+[[package]]
+name = "langgraph"
+version = "0.0.62"
+description = "langgraph"
+optional = false
+python-versions = "<4.0,>=3.9.0"
+files = [
+    {file = "langgraph-0.0.62-py3-none-any.whl", hash = "sha256:6cbf0e074dec4217aa5642b0cdc98863966f008b41ce339beb34bd5b99c24d8d"},
+    {file = "langgraph-0.0.62.tar.gz", hash = "sha256:565ec7e3cb699626fe9643391c63bc4f07d2cdc5a37a38b1a4e258d6ea5b6c40"},
+]
+
+[package.dependencies]
+langchain-core = ">=0.2,<0.3"
 
 [[package]]
 name = "langsmith"
@@ -2360,4 +2391,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "d05e97c768fc947ab81d3525b73a45ba4e8cbd99b1293b9302b0650b5d063fd9"
+content-hash = "83fc1dfab2d08fd5b1cdf3a7de8a7827cc1d5774782109355298a3fb852decf0"
