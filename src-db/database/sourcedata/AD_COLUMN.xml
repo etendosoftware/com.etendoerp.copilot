@@ -479,7 +479,7 @@
 <!--12B2EC18B281472E95CB28563111E986-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--12B2EC18B281472E95CB28563111E986-->  <NAME><![CDATA[Active]]></NAME>
 <!--12B2EC18B281472E95CB28563111E986-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--12B2EC18B281472E95CB28563111E986-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--12B2EC18B281472E95CB28563111E986-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--12B2EC18B281472E95CB28563111E986-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -2066,7 +2066,7 @@
 <!--5C53C95750B34707AD261568946DC96F-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--5C53C95750B34707AD261568946DC96F-->  <NAME><![CDATA[Active]]></NAME>
 <!--5C53C95750B34707AD261568946DC96F-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--5C53C95750B34707AD261568946DC96F-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--5C53C95750B34707AD261568946DC96F-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--5C53C95750B34707AD261568946DC96F-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -3688,7 +3688,7 @@
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <NAME><![CDATA[Active]]></NAME>
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--963BC17D0EDC490E97BB1315AFF4302B-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--963BC17D0EDC490E97BB1315AFF4302B-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>

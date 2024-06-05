@@ -1,8 +1,7 @@
-package com.etendoerp.copilot.history;
+package com.etendoerp.copilot.util;
 
 import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.Message;
-import com.etendoerp.copilot.util.CopilotConstants;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -12,6 +11,7 @@ import org.openbravo.dal.service.OBDal;
 import java.util.List;
 
 public class TrackingUtil {
+
   private static TrackingUtil instance = null;
 
   private TrackingUtil() {
@@ -58,7 +58,8 @@ public class TrackingUtil {
 
   public static JSONArray getHistory(String conversationId) throws JSONException {
     List<Message> messages = OBDal.getInstance()
-        .createQuery(Message.class, "as m where m.etcopConversation.externalID = :conversationId order by m.creationDate asc")
+        .createQuery(Message.class,
+            "as m where m.etcopConversation.externalID = :conversationId order by m.creationDate asc")
         .setNamedParameter("conversationId", conversationId)
         .list();
     JSONArray history = new JSONArray();
@@ -70,6 +71,5 @@ public class TrackingUtil {
     }
     return history;
   }
-
 
 }

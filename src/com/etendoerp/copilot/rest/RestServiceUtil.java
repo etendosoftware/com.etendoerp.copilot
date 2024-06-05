@@ -15,7 +15,8 @@ import java.util.List;
 import java.util.UUID;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
-import com.etendoerp.copilot.history.TrackingUtil;
+import com.etendoerp.copilot.util.ToolsUtil;
+import com.etendoerp.copilot.util.TrackingUtil;
 import com.etendoerp.copilot.util.OpenAIUtils;
 
 import org.apache.commons.fileupload.FileItem;
@@ -57,6 +58,7 @@ import javax.servlet.ServletException;
 
 public class RestServiceUtil {
 
+
   private RestServiceUtil() {
   }
 
@@ -78,6 +80,7 @@ public class RestServiceUtil {
   public static final String PROP_PROVIDER = "provider";
   public static final String PROP_MODEL = "model";
   public static final String PROP_SYSTEM_PROMPT = "system_prompt";
+  private static final String PROP_TOOLS = "tools";
   private static final String PROVIDER_OPENAI = "openai";
   private static final String PROVIDER_GEMINI = "gemini";
   public static final String PROVIDER_OPENAI_VALUE = "O";
@@ -264,6 +267,7 @@ public class RestServiceUtil {
         jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
         jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGCHAIN);
         jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
+        jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
         if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
           jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
           jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getName());
