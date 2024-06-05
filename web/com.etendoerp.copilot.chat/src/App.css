@@ -130,3 +130,19 @@ body {
 	border-radius: 10px;
 	background-color: #E0E0E0;
 }
+
+#assistant-title{
+  flex-direction: row;
+  align-items: center;
+  display: none;
+}
+
+#assistant-title-label {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  letter-spacing: -0.01em;
+  text-align: left;
+  margin-left: 4px;
+}

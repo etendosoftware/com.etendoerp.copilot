@@ -44,10 +44,18 @@ var header = document.getElementById('chatHeader');
 header.style.backgroundColor = '#F2F5F9';
 var reactIframe = document.getElementById('react-iframe');
 var reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
+if (reactDoc) {
 var iframeSelector = reactDoc.getElementById('iframe-selector');
 var iframeContainer = reactDoc.getElementById('iframe-container');
+var assistantTitle = reactDoc.getElementById('assistant-title');
+if (assistantTitle) {
+assistantTitle.style.display = 'flex';
+}
+if (iframeContainer && iframeSelector) {
 iframeSelector.classList.add("iframe-selector-full-screen");
 iframeContainer.classList.add("iframe-container-full-screen");
+}
+}
 var imgElement = document.getElementById('maximizeIcon');
 imgElement.src = "web/images/maximize-2.svg";
 window.copilotWindow.setLeft(MARGIN_CONTAINER_FULL_SCREEN);
@@ -82,6 +90,10 @@ var reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document
 if (reactDoc) {
 var iframeSelector = reactDoc.getElementById('iframe-selector');
 var iframeContainer = reactDoc.getElementById('iframe-container');
+var assistantTitle = reactDoc.getElementById('assistant-title');
+if (assistantTitle) {
+assistantTitle.style.display = 'none';
+}
 if (iframeContainer && iframeSelector) {
 iframeSelector.classList.remove("iframe-selector-full-screen");
 iframeContainer.classList.remove("iframe-container-full-screen");
