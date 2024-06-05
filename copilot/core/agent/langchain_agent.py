@@ -9,11 +9,11 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools.render import format_tool_to_openai_function
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.messages import (
-    HumanMessage,
+    HumanMessage, AIMessage,
 )
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from .agent import AgentResponse, CopilotAgent
+from .agent import AgentResponse, CopilotAgent, AssistantResponse
 from .. import utils
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, CopilotAgent
@@ -70,7 +70,8 @@ class LangchainAgent(CopilotAgent):
         else:
             prompt = ChatPromptTemplate.from_messages(
                 [
-                    ("system", "{system_prompt}"), ("user", "{input}"),
+                    ("system", "{system_prompt}"),
+                    MessagesPlaceholder(variable_name="messages"),
                     MessagesPlaceholder(variable_name="copilot_agent_scratchpad"),
                 ]
             )
@@ -82,7 +83,7 @@ class LangchainAgent(CopilotAgent):
             agent = (
                     {
                         "system_prompt": lambda x: x["system_prompt"],
-                        "input": lambda x: x["input"],
+                        "messages": lambda x: x["messages"],
                         "copilot_agent_scratchpad": lambda x: format_to_openai_functions(x["intermediate_steps"]),
                     }
                     | prompt
@@ -99,9 +100,20 @@ class LangchainAgent(CopilotAgent):
             provider=question.provider,
             open_ai_model=question.model
         )
-        langchain_respose: Dict = executor.invoke({"input": full_question, "system_prompt": question.system_prompt})
+        messages = []
+        for message in question.history:
+            if message.role == "USER":
+               messages.append(HumanMessage(content=message.content))
+            elif message.role == "ASSISTANT":
+               messages.append(AIMessage(content=message.content))
+        messages.append(HumanMessage(content=full_question))
+        langchain_respose: Dict = executor.invoke({"system_prompt": question.system_prompt, "messages": messages})
         output_answer = {"response": langchain_respose["output"]}
-        return AgentResponse(input=langchain_respose["input"], output=output_answer)
+        return AgentResponse(input=full_question, output=AssistantResponse(
+            response=output_answer["response"],
+            assistant_id=question.assistant_id,
+            conversation_id=question.conversation_id
+        ))
 
     def get_tools(self):
         return self._configured_tools

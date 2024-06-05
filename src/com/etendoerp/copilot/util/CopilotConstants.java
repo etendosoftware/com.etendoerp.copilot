@@ -15,6 +15,8 @@ public class CopilotConstants {
   public static final String FILE_BEHAVIOUR_KB = "kb";
   public static final String FILE_TYPE_RF = "RF";
   public static final String FILE_TYPE_F = "F";
+  public static final String MESSAGE_ASSISTANT = "ASSISTANT";
+  public static final String MESSAGE_USER = "USER";
   private static final String FILE_TYPE_HQL = "HQL";
 
   public static boolean isSystemPromptBehaviour(CopilotAppSource source) {
