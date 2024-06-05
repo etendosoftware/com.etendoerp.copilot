@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
@@ -86,11 +87,12 @@ public class SyncToolStructure extends BaseProcessActionHandler {
           toolInfoJson.put("type", "function");
           JSONObject funtionJson = new JSONObject();
           funtionJson.put("name", erpTool.getValue());
-          funtionJson.put(DESCRIPTION, toolInfo.getString(DESCRIPTION));
+          String descriptionOfTool = StringUtils.trim(toolInfo.getString(DESCRIPTION));
+          funtionJson.put(DESCRIPTION, descriptionOfTool);
           funtionJson.put("parameters", wrappWithJSONSchema(toolInfo.getJSONObject("parameters")));
           toolInfoJson.put("function", funtionJson);
           erpTool.setJsonStructure(toolInfoJson.toString(2));
-          erpTool.setDescription(toolInfo.getString(DESCRIPTION));
+          erpTool.setDescription(descriptionOfTool);
           OBDal.getInstance().save(erpTool);
         }
         syncCount++;

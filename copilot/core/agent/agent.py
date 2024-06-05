@@ -30,7 +30,7 @@ class AssistantResponse:
 @dataclass
 class AgentResponse:
     input: str
-    output: Union[AssistantResponse, str]
+    output: AssistantResponse
 
 
 class CopilotAgent:

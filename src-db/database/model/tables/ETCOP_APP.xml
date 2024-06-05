@@ -69,8 +69,27 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
+      <column name="PROVIDER" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="OPENAI_ID_VECTORDB" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_MODULE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="SYSTEM_APP" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETCOP_APP_CLI_FK">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_MODULE" name="ETCOP_APP_MOD_FK">
+        <reference local="AD_MODULE_ID" foreign="AD_MODULE_ID"/>
       </foreign-key>
       <foreign-key foreignTable="AD_ORG" name="ETCOP_APP_ORG_FK">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
@@ -79,6 +98,7 @@
         <reference local="ETCOP_OPENAI_MODEL_ID" foreign="ETCOP_OPENAI_MODEL_ID"/>
       </foreign-key>
       <check name="ETCOP_APP_CODE_INTERP_CHK"><![CDATA[CODE_INTERPRETER IN ('Y', 'N')]]></check>
+      <check name="ETCOP_APP_IS_SYS_CHK"><![CDATA[SYSTEM_APP IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
       <check name="ETCOP_RTRIVAL_CHK"><![CDATA[RETRIEVAL IN ('Y', 'N')]]></check>
     </table>

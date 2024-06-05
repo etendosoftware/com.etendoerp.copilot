@@ -100,3 +100,14 @@ body {
   opacity: 1;
   transition: opacity 0.5s ease-out;
 }
+
+/* Full screen class */
+.iframe-container-full-screen {
+  flex-direction: row !important;
+}
+
+.iframe-selector-full-screen {
+  width: 350px !important;
+  background: #EEEEEE;
+  border-bottom-width: 0px !important;
+}
