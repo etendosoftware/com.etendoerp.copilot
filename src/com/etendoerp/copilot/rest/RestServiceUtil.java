@@ -374,7 +374,7 @@ public class RestServiceUtil {
         String name = teamMember.getName().replaceAll("[^a-zA-Z0-9]", "");
         memberData.put("name", name);
         assistantsArray.put(memberData);
-        memberData.put("type", getAppTypeForCopilot(copilotApp.getAppType()));
+        memberData.put("type", teamMember.getAppType());
         if (StringUtils.equalsIgnoreCase(copilotApp.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
           memberData.put(PROP_ASSISTANT_ID, teamMember.getOpenaiIdAssistant());
 
@@ -391,25 +391,6 @@ public class RestServiceUtil {
     }
   }
 
-  /**
-   * This method determines the type of assistant for a given appType.
-   * It checks the appType parameter and returns a string representing the type of assistant.
-   * If the appType is "OPENAI", it returns "openai".
-   * If the appType is "LANGCHAIN", it returns "langchain".
-   * If the appType is neither "OPENAI" nor "LANGCHAIN", it returns an empty string.
-   *
-   * @param appType
-   *     The type of the app. It should be either "OPENAI" or "LANGCHAIN".
-   * @return A string representing the type of assistant. It can be "openai", "langchain", or an empty string.
-   */
-  private static String getAppTypeForCopilot(String appType) {
-    if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
-      return "openai";
-    } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)) {
-      return "langchain";
-    }
-    return "";
-  }
 
   /**
    * This method is used to set the stages for a given request to the Langchain assistant.
