@@ -1,5 +1,5 @@
 import os
-from conextion_assistant import prompt,model
+from connection import prompt,model
 from dotenv import load_dotenv
 
 load_dotenv()

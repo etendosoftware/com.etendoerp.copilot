@@ -1,10 +1,13 @@
 {
-    "native_tools": {
-
-    },
+    "native_tools": {},
     "third_party_tools": {
         "HelloWorldTool": true,
         "BastianFetcher": true,
-        "CustomHelloWorldMultiArgsTool": true
-        }
+        "CustomHelloWorldMultiArgsTool": true,
+        "DDLTool": true,
+        "DBQueryGenerator": true,
+        "APICallTool": true,
+        "OpenAPIToolTemplate": true,
+        "OpenAPIPetStoreTool": true
+    }
 }
