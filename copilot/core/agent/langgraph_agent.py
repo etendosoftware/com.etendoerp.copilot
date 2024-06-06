@@ -9,11 +9,13 @@ from langchain_core.messages import (
 from langchain_core.utils.function_calling import convert_to_openai_function
 from langchain_openai import ChatOpenAI
 
+from . import AssistantAgent, LangchainAgent
 from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
 from .. import utils
 from ..langgraph.copilot_langgraph import GraphMember, CopilotLangGraph
-from ..schemas import QuestionSchema
+from ..schemas import QuestionSchema, GraphQuestionSchema
+
 
 class LanggraphAgent(CopilotAgent):
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-turbo-preview")
@@ -22,11 +24,9 @@ class LanggraphAgent(CopilotAgent):
         super().__init__()
 
     # The agent state is the input to each node in the graph
-    def execute(self, question: QuestionSchema) -> AgentResponse:
+    def execute(self, question: GraphQuestionSchema) -> AgentResponse:
         thread_id = question.conversation_id
         _tools = self._configured_tools
-        tools = [convert_to_openai_function(tool) for tool in _tools]
-
         members = []
 
         def invoke_model_openai(state: List[BaseMessage], _agent, _name: str):
@@ -35,27 +35,23 @@ class LanggraphAgent(CopilotAgent):
 
         def invoke_model_langchain(state: Sequence[BaseMessage], _agent, _name: str):
             result = _agent.invoke(state)
-            return {"messages": [HumanMessage(content=result.content, name=_name)]}
+            content = ""
+            if result.type == "AgentFinish":
+                content = result.messages[-1].content
+            else:
+                content = result.content
+
+            return {"messages": [HumanMessage(content=content, name=_name)]}
 
         if question.assistants:
             for assistant in question.assistants:
                 member = None
                 if assistant.type == "openai-assistant":
-                    agent = OpenAIAssistantRunnable(assistant_id=assistant.assistant_id, as_agent=True, tools=tools)
+                    agent = AssistantAgent().get_agent(assistant.assistant_id)
                     model_node = functools.partial(invoke_model_openai, _agent=agent, _name=assistant.name)
                     member = GraphMember(assistant.name, model_node)
                 else:
-                    prompt = ChatPromptTemplate.from_messages(
-                        [
-                            (
-                                "system",
-                                assistant.system_prompt
-                            ),
-                            MessagesPlaceholder(variable_name="messages"),
-                        ]
-                    )
-                    model = ChatOpenAI(temperature=0, streaming=False, model=self.OPENAI_MODEL)
-                    agent = prompt | model
+                    agent = LangchainAgent().get_agent(assistant.provider, assistant.model, assistant.tools, assistant.system_prompt)
                     model_node = functools.partial(invoke_model_langchain, _agent=agent, _name=assistant.name)
                     member = GraphMember(assistant.name, model_node)
 
@@ -68,6 +64,6 @@ class LanggraphAgent(CopilotAgent):
         return AgentResponse(
             input=question.model_dump_json(),
             output=AssistantResponse(
-                response=final_response, assistant_id=question.assistant_id, conversation_id=thread_id
+                response=final_response, conversation_id=thread_id
             )
         )

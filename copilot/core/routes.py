@@ -71,15 +71,11 @@ def serve_question(question: QuestionSchema):
 @core_router.post("/graph")
 def serve_question(question: GraphQuestionSchema):
     """Copilot main endpdoint to answering questions."""
-    agent_type = question.type
     copilot_agent = LanggraphAgent()
     copilot_info("  Current agent loaded: " + copilot_agent.__class__.__name__)
     copilot_debug("/question endpoint):")
     copilot_info("  Question: " + question.question)
-    copilot_debug("  agent_type: " + str(agent_type))
-    copilot_debug("  assistant_id: " + str(question.assistant_id))
     copilot_debug("  conversation_id: " + str(question.conversation_id))
-    copilot_debug("  file_ids: " + str(question.file_ids))
 
     response = None
     try:

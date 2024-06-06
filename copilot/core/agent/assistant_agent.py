@@ -27,12 +27,15 @@ class AssistantAgent(CopilotAgent):
     def get_assistant_id(self) -> str:
         return self._assistant_id
 
-    def get_executor(self, assistant_id: str) -> AgentExecutor:
+    def get_agent(self, assistant_id: str):
         agent = OpenAIAssistantV2Runnable(assistant_id=assistant_id, as_agent=True)
+
+    def get_executor(self, agent) -> AgentExecutor:
         return AgentExecutor(agent=agent, tools=self._configured_tools)
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
-        agent_executor = self.get_executor(question.assistant_id)
+        agent = self.get_agent(question.assistant_id)
+        agent_executor = self.get_executor(agent)
         _input = {
             "content": question.question,
         }

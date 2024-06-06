@@ -44,8 +44,8 @@ class LangchainAgent(CopilotAgent):
     def __init__(self):
         super().__init__()
 
-    def _get_langchain_agent_executor(self, provider: str, open_ai_model: str,
-                                      tools: list[ToolSchema] = None) -> AgentExecutor:
+    def get_agent(self, provider: str, open_ai_model: str,
+                                      tools: list[ToolSchema] = None, system_prompt: str = None):
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
         Raises:
@@ -58,17 +58,20 @@ class LangchainAgent(CopilotAgent):
         if provider == "gemini":
             agent = self.get_gemini_agent(open_ai_model)
         else:
-            agent = self.get_openai_agent(open_ai_model, tools)
+            agent = self.get_openai_agent(open_ai_model, tools, system_prompt)
 
+        return agent
+
+    def get_agent_executor(self, agent):
         return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True)
 
-    def get_openai_agent(self, open_ai_model, tools):
+    def get_openai_agent(self, open_ai_model, tools, system_prompt):
         _llm = ChatOpenAI(temperature=0, streaming=False, model_name=open_ai_model)
         _enabled_tools = self.get_functions(tools)
         if len(_enabled_tools):
             prompt = ChatPromptTemplate.from_messages(
                 [
-                    ("system", SYSTEM_PROMPT_PLACEHOLDER),
+                    ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
                     MessagesPlaceholder(variable_name="messages"),
                     MessagesPlaceholder(variable_name="agent_scratchpad"),
                 ]
@@ -78,7 +81,7 @@ class LangchainAgent(CopilotAgent):
             llm = _llm
             prompt = ChatPromptTemplate.from_messages(
                 [
-                    ("system", SYSTEM_PROMPT_PLACEHOLDER),
+                    ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
                     MessagesPlaceholder(variable_name="messages"),
                 ]
             )
@@ -122,11 +125,8 @@ class LangchainAgent(CopilotAgent):
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
-        executor: Final[AgentExecutor] = self._get_langchain_agent_executor(
-            provider=question.provider,
-            open_ai_model=question.model,
-            tools=question.tools
-        )
+        agent = self.get_agent(question.provider, question.model, question.tools)
+        executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         messages = []
         for message in question.history:
             if message.role == "USER":
