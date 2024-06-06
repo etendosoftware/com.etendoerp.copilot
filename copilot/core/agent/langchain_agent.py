@@ -1,28 +1,17 @@
 from typing import Dict, Final, Union
 
-from langchain.agents import create_openai_tools_agent, AgentExecutor, AgentOutputParser, create_openai_functions_agent
-from langchain.agents.format_scratchpad import format_to_openai_functions
-from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-from langchain_openai import ChatOpenAI
-from langchain.chat_models.base import BaseChatModel
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.tools.render import format_tool_to_openai_function
-from langchain_core.utils.function_calling import convert_to_openai_function
-from langchain_core.agents import AgentAction, AgentFinish
-from langchain_core.messages import (
-    HumanMessage, AIMessage,
-)
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.runnables import Runnable, RunnablePassthrough
+from langchain.agents import AgentExecutor, AgentOutputParser, create_openai_functions_agent
 from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
-from langchain.agents.format_scratchpad.openai_tools import (
-    format_to_openai_tool_messages,
-)
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.agents import AgentAction, AgentFinish
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
-from .agent import AgentResponse, CopilotAgent, AssistantResponse
-from .. import utils
-from ..schemas import QuestionSchema, ToolSchema
 from .agent import AgentResponse, CopilotAgent
+from .agent import AssistantResponse
+from .. import utils
+from ..memory.memory_handler import MemoryHandler
+from ..schemas import QuestionSchema, ToolSchema
 from ..utils import get_full_question
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
@@ -40,9 +29,11 @@ class CustomOutputParser(AgentOutputParser):
 
 class LangchainAgent(CopilotAgent):
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-turbo-preview")
+    _memory : MemoryHandler = None
 
     def __init__(self):
         super().__init__()
+        self._memory = MemoryHandler()
 
     def get_agent(self, provider: str, open_ai_model: str,
                                       tools: list[ToolSchema] = None, system_prompt: str = None):
@@ -127,18 +118,11 @@ class LangchainAgent(CopilotAgent):
         full_question = get_full_question(question)
         agent = self.get_agent(question.provider, question.model, question.tools)
         executor: Final[AgentExecutor] = self.get_agent_executor(agent)
-        messages = []
-        for message in question.history:
-            if message.role == "USER":
-                messages.append(HumanMessage(content=message.content))
-            elif message.role == "ASSISTANT":
-                messages.append(AIMessage(content=message.content))
-        messages.append(HumanMessage(content=full_question))
+        messages = self._memory.get_memory(question.history, full_question)
         langchain_respose: Dict = executor.invoke({"system_prompt": question.system_prompt, "messages": messages})
         output_answer = {"response": langchain_respose["output"]}
         return AgentResponse(input=full_question, output=AssistantResponse(
             response=output_answer["response"],
-            assistant_id=question.assistant_id,
             conversation_id=question.conversation_id
         ))
 

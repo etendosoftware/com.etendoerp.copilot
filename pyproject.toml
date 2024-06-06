@@ -21,6 +21,7 @@ langchain-google-genai = "^1.0.5"
 langchain-community = "^0.2.2"
 langgraph = "^0.0.62"
 grandalf = "^0.8"
+aiosqlite = "^0.20.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.3.1"

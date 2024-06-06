@@ -1,27 +1,26 @@
 import functools
 from typing import Final, List, Sequence
 
-from langchain.agents.openai_assistant import OpenAIAssistantRunnable
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import (
     HumanMessage, BaseMessage,
 )
-from langchain_core.utils.function_calling import convert_to_openai_function
-from langchain_openai import ChatOpenAI
 
 from . import AssistantAgent, LangchainAgent
 from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
 from .. import utils
-from ..langgraph.copilot_langgraph import GraphMember, CopilotLangGraph
-from ..schemas import QuestionSchema, GraphQuestionSchema
+from ..langgraph.copilot_langgraph import CopilotLangGraph
+from ..langgraph.patterns.base_pattern import GraphMember
+from ..memory.memory_handler import MemoryHandler
+from ..schemas import GraphQuestionSchema
 
 
 class LanggraphAgent(CopilotAgent):
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-turbo-preview")
+    _memory : MemoryHandler = None
 
     def __init__(self):
         super().__init__()
+        self._memory = MemoryHandler()
 
     # The agent state is the input to each node in the graph
     def execute(self, question: GraphQuestionSchema) -> AgentResponse:
@@ -59,7 +58,7 @@ class LanggraphAgent(CopilotAgent):
 
         lang_graph = CopilotLangGraph(members, question.graph)
 
-        final_response = lang_graph.invoke(question=question.question)
+        final_response = lang_graph.invoke(question=question.question, thread_id=thread_id)
 
         return AgentResponse(
             input=question.model_dump_json(),
