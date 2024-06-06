@@ -18,7 +18,7 @@ class HelloWorldTool(ToolWrapper):
     name = "HelloWorldTool"
     description = "This is the classic HelloWorld tool implementation."
     args_schema: Type[BaseModel] = DummyInput
-    return_direct: bool = True
+    return_direct: bool = False
 
     def run(self, query: str, *args, **kwargs) -> str:
         result_message = """
