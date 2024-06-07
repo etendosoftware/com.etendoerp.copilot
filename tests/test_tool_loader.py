@@ -51,23 +51,19 @@ def test_load_configured_tools_no_valid_config(set_fake_openai_api_key):
 
 @patch("copilot.core.tool_loader.tool_installer", return_value=Mock())
 def test_load_configured_tools_with_valid_file(fake_valid_config_file, set_fake_openai_api_key):
-    from copilot.core.bastian_tool import BastianFetcher
-
     from tools import HelloWorldTool
 
     json_config = {"native_tools": {"BastianFetcher": True}, "third_party_tools": {"HelloWorldTool": True}}
     with create_json_config_file(json_config) as json_config_file:
         tool_loader = ToolLoader(config_filename=json_config_file)
         tool_loader.install_dependencies = Mock()
-        assert tool_loader.native_tool_config == {"BastianFetcher": True}
         assert tool_loader.third_party_tool_config == {"HelloWorldTool": True}
 
         configured_tools = tool_loader.load_configured_tools()
-        assert len(configured_tools) == 2
+        assert len(configured_tools) == 1
 
         sorted_configured_tools = sorted(configured_tools, key=lambda x: x.name)
-        assert isinstance(sorted_configured_tools[0], BastianFetcher)
-        assert isinstance(sorted_configured_tools[1], HelloWorldTool)
+        assert isinstance(sorted_configured_tools[0], HelloWorldTool)
 
 
 def test_tools_config_file_not_found(monkeypatch, set_fake_openai_api_key):
@@ -105,5 +101,4 @@ def test_get_tool_dependencies_wrong_format(unsupported_config_file):
 
 def test_is_tool_implemented_raise_false(tool_loader):
     assert tool_loader._is_tool_implemented(tool_name="sarasa") is False
-    assert tool_loader._is_tool_implemented(tool_name="BastianFetcher")
     assert tool_loader._is_tool_implemented(tool_name="HelloWorldTool")

@@ -64,3 +64,5 @@ copilotTempFiles/*
 build/
 !build/classes/
 etendo.artifact.properties
+
+/**/checkpoints.sqlite

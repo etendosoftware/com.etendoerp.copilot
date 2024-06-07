@@ -27,8 +27,8 @@ class AssistantSchema(BaseModel):
     file_ids: Optional[list[str]] = None
     local_file_ids: Optional[list[str]] = None
     provider: str
-    model: str
-    system_prompt: str
+    model: Optional[str] = None
+    system_prompt: Optional[str] = None
     tools: Optional[list[ToolSchema]] = None
 
 class QuestionSchema(AssistantSchema):

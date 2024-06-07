@@ -11,7 +11,7 @@ from .patterns.supervisor_pattern import SupervisorPattern
 
 logger = logging.getLogger(__name__)
 
-memory = SqliteSaver.from_conn_string(":memory:")
+memory = SqliteSaver.from_conn_string("checkpoints.sqlite")
 
 class CopilotLangGraph:
 
@@ -20,7 +20,6 @@ class CopilotLangGraph:
 
     def __init__(self, members, assistant_graph):
 
-        #self._pattern = LoopPattern()
         self._pattern = SupervisorPattern()
         workflow = self._pattern.construct_nodes(members, assistant_graph)
         self._pattern.connect_graph(assistant_graph, workflow)
