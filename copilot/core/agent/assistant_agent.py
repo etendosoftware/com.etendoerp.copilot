@@ -1,8 +1,8 @@
 import os
 from typing import Final
 
-from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
 from langchain.agents import AgentExecutor
+from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
 
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
 from .. import utils
@@ -29,6 +29,7 @@ class AssistantAgent(CopilotAgent):
 
     def get_agent(self, assistant_id: str):
         agent = OpenAIAssistantV2Runnable(assistant_id=assistant_id, as_agent=True)
+        return agent
 
     def get_executor(self, agent) -> AgentExecutor:
         return AgentExecutor(agent=agent, tools=self._configured_tools)
@@ -46,6 +47,6 @@ class AssistantAgent(CopilotAgent):
         return AgentResponse(
             input=question.model_dump_json(),
             output=AssistantResponse(
-                response=response["output"], assistant_id=question.assistant_id, conversation_id=response["thread_id"]
+                response=response["output"], conversation_id=response["thread_id"]
             ),
         )

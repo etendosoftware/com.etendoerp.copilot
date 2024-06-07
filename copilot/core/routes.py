@@ -10,7 +10,7 @@ from .agent.langgraph_agent import LanggraphAgent
 from .exceptions import UnsupportedAgent
 from .langgraph.copilot_langgraph import CopilotLangGraph
 from .local_history import ChatHistory, local_history_recorder
-from .schemas import QuestionSchema, GraphQuestionSchema
+from .schemas import QuestionSchema, GraphQuestionSchema, AssistantSchema
 from .threadcontext import ThreadContext
 from .utils import copilot_debug, copilot_info
 import logging
