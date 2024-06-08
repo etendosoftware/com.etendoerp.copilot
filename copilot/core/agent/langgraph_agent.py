@@ -10,13 +10,14 @@ from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
 from .. import utils
 from ..langgraph.copilot_langgraph import CopilotLangGraph
+from ..langgraph.patterns import SupervisorPattern
 from ..langgraph.patterns.base_pattern import GraphMember
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import GraphQuestionSchema
 
 
 class LanggraphAgent(CopilotAgent):
-    _memory : MemoryHandler = None
+    _memory: MemoryHandler = None
 
     def __init__(self):
         super().__init__()
@@ -26,7 +27,7 @@ class LanggraphAgent(CopilotAgent):
     def execute(self, question: GraphQuestionSchema) -> AgentResponse:
         thread_id = question.conversation_id
         _tools = self._configured_tools
-        members = []
+        members: list[GraphMember] = []
 
         def invoke_model_openai(state: List[BaseMessage], _agent, _name: str):
             response = _agent.invoke({"content": state["messages"][0].content})
@@ -50,13 +51,14 @@ class LanggraphAgent(CopilotAgent):
                     model_node = functools.partial(invoke_model_openai, _agent=agent, _name=assistant.name)
                     member = GraphMember(assistant.name, model_node)
                 else:
-                    agent = LangchainAgent().get_agent(assistant.provider, assistant.model, assistant.tools, assistant.system_prompt)
+                    agent = LangchainAgent().get_agent(assistant.provider, assistant.model, assistant.tools,
+                                                       assistant.system_prompt)
                     model_node = functools.partial(invoke_model_langchain, _agent=agent, _name=assistant.name)
                     member = GraphMember(assistant.name, model_node)
 
                 members.append(member)
 
-        lang_graph = CopilotLangGraph(members, question.graph)
+        lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern())
 
         final_response = lang_graph.invoke(question=question.question, thread_id=thread_id)
 

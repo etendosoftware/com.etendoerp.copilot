@@ -18,11 +18,10 @@ class CopilotLangGraph:
     assistant_graph: AssistantGraph
     _pattern: BasePattern
 
-    def __init__(self, members, assistant_graph):
-
-        self._pattern = SupervisorPattern()
-        workflow = self._pattern.construct_nodes(members, assistant_graph)
-        self._pattern.connect_graph(assistant_graph, workflow)
+    def __init__(self, members, assistant_graph, pattern: BasePattern = None):
+        self._pattern = pattern
+        workflow = self.get_pattern().construct_nodes(members, assistant_graph)
+        self.get_pattern().connect_graph(assistant_graph, workflow)
         self._assistant_graph = assistant_graph
         self._graph = workflow.compile(checkpointer=memory)
         self._graph.get_graph().print_ascii()
@@ -33,18 +32,24 @@ class CopilotLangGraph:
         except Exception as e:
             logger.exception(e)
 
+    def get_pattern(self):
+        return self._pattern
+
     def invoke(self, question, thread_id):
         message = None
         config = {
             "configurable": {"thread_id": thread_id},
             "recursion_limit": 50
         }
-        for message in self._graph.stream(
+        messages = self._graph.stream(
                 {"messages": [HumanMessage(content=question)]},
             config
-        ):
+        )
+
+        for message in messages:
             if "__end__" not in message:
                 print("----")
+
 
         return message[list(message.keys())[0]]["messages"][-1].content
 
