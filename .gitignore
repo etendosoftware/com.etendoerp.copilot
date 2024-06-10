@@ -67,3 +67,5 @@ etendo.artifact.properties
 venv/
 
 graph.png
+
+/**/checkpoints.sqlite

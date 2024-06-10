@@ -14,7 +14,7 @@ from copilot.core import utils
 class BasePattern():
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
 
-    def construct_nodes(self, members, assistant_graph) -> StateGraph:
+    def construct_nodes(self, members, assistant_graph = None) -> StateGraph:
         class AgentState(TypedDict):
             # The annotation tells the graph that new messages will always
             # be added to the current states
