@@ -24,11 +24,7 @@ if (window.myWindow && window.myWindow.isVisible()) {
 return;
 }
 // Define constants for commonly used values
-WHITE_COLOR ="#FFFFFF"
-GRAY_COLOR = "#666666"
 LIGHT_GRAY_COLOR = "#F2F5F9"
-LIGHT_GRAY_COLOR_200 = "#EFF1F7"
-BLUE_COLOR = "#202452"
 BUTTON_WIDTH = 80
 BUTTON_HEIGHT = 30
 WINDOW_WIDTH = 425
@@ -37,22 +33,35 @@ MAXIMIZED_WINDOW_HEIGHT = 650
 MAXIMIZED_WINDOW_WIDTH = 425
 MINIMIZED_WINDOW_HEIGHT = 55
 MINIMIZED_WINDOW_WIDTH = 131
-MARGIN_CONTAINER = 12
+MARGIN_CONTAINER_HORIZONTAL = 1
+MARGIN_CONTAINER_VERTICAL = 6
+MARGIN_CONTAINER_FULL_SCREEN= 12
+MARGIN_CONTAINER_FULL_SCREEN_HORIZONTAL= 13
+MARGIN_CONTAINER_FULL_SCREEN_VERTICAL= 18
 // Function to adjust window position
 function adjustFullScreenWindowPosition() {
+var header = document.getElementById('chatHeader');
+header.style.backgroundColor = '#F2F5F9';
 var reactIframe = document.getElementById('react-iframe');
 var reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
+if (reactDoc) {
 var iframeSelector = reactDoc.getElementById('iframe-selector');
 var iframeContainer = reactDoc.getElementById('iframe-container');
+var assistantTitle = reactDoc.getElementById('assistant-title');
+if (assistantTitle) {
+assistantTitle.style.display = 'flex';
+}
+if (iframeContainer && iframeSelector) {
 iframeSelector.classList.add("iframe-selector-full-screen");
 iframeContainer.classList.add("iframe-container-full-screen");
-//aa
+}
+}
 var imgElement = document.getElementById('maximizeIcon');
 imgElement.src = "web/images/maximize-2.svg";
-window.copilotWindow.setLeft(MARGIN_CONTAINER);
-window.copilotWindow.setTop(MARGIN_CONTAINER);
-window.copilotWindow.setWidth(isc.Page.getWidth()-MARGIN_CONTAINER - MARGIN_CONTAINER);
-window.copilotWindow.setHeight(isc.Page.getHeight()-MARGIN_CONTAINER - MARGIN_CONTAINER);
+window.copilotWindow.setLeft(MARGIN_CONTAINER_FULL_SCREEN);
+window.copilotWindow.setTop(MARGIN_CONTAINER_FULL_SCREEN);
+window.copilotWindow.setWidth(isc.Page.getWidth() - MARGIN_CONTAINER_FULL_SCREEN_HORIZONTAL);
+window.copilotWindow.setHeight(isc.Page.getHeight() - MARGIN_CONTAINER_FULL_SCREEN_VERTICAL);
 }
 function adjustMinimizeWindowPosition() {
 var widget = document.querySelector('.widgetContainer');
@@ -63,21 +72,28 @@ var button = document.getElementById('button-minimize');
 button.style.display = 'flex';
 window.copilotWindow.setHeight(MINIMIZED_WINDOW_HEIGHT);
 WINDOW_HEIGHT = MINIMIZED_WINDOW_HEIGHT;
-newLeft = isc.Page.getWidth() - MINIMIZED_WINDOW_WIDTH- MARGIN_CONTAINER;
-newTop = isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER;
+newLeft = Math.max(0, isc.Page.getWidth() - MINIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
+newTop = Math.max(0, isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
 window.copilotWindow.setLeft(newLeft);
 window.copilotWindow.setTop(newTop);
 window.copilotWindow.setWidth(MINIMIZED_WINDOW_WIDTH);
 window.copilotWindow.setHeight(MINIMIZED_WINDOW_HEIGHT);
 }
 function adjustMaximizeWindowPosition() {
+var header = document.getElementById('chatHeader');
+header.style.backgroundColor = '#FFFFFF';
 var widget = document.querySelector('.widgetContainer');
+widget.style.setProperty('margin', '0px', 'important');
 widget.style.setProperty('border', '1px solid #666', 'important');
 var reactIframe = document.getElementById('react-iframe');
 var reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
 if (reactDoc) {
 var iframeSelector = reactDoc.getElementById('iframe-selector');
 var iframeContainer = reactDoc.getElementById('iframe-container');
+var assistantTitle = reactDoc.getElementById('assistant-title');
+if (assistantTitle) {
+assistantTitle.style.display = 'none';
+}
 if (iframeContainer && iframeSelector) {
 iframeSelector.classList.remove("iframe-selector-full-screen");
 iframeContainer.classList.remove("iframe-container-full-screen");
@@ -91,8 +107,8 @@ var button = document.getElementById('button-minimize');
 button.style.display = 'none';
 window.copilotWindow.setHeight(MAXIMIZED_WINDOW_HEIGHT);
 WINDOW_HEIGHT = MAXIMIZED_WINDOW_HEIGHT;
-newLeft = Math.max(0, isc.Page.getWidth() - MAXIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER);
-newTop = Math.max(0, isc.Page.getHeight() - MAXIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER);
+newLeft = Math.max(0, isc.Page.getWidth() - MAXIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
+newTop = Math.max(0, isc.Page.getHeight() - MAXIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
 window.copilotWindow.setLeft(newLeft);
 window.copilotWindow.setTop(newTop);
 window.copilotWindow.setWidth(isc.Page.getWidth());
@@ -153,10 +169,10 @@ contents: `
 <head>
     <style>
     .icon-button {
-        width: 2rem;
-        height: 2rem;
+        width: 24px;
+        height: 24px;
         cursor: pointer;
-        border-radius: 0.5rem;
+        margin-left: 8px;
     }
 
     .close-button-container {
@@ -183,6 +199,8 @@ contents: `
         padding: 0px 12px;
         align-items: center;
         background-color: #FFFFFF;
+        border-bottom: 1px solid #D3D6E1;
+        height: 56px;
     }
 
     .content-header {
@@ -247,7 +265,7 @@ contents: `
         <span class="copilot-title-minimize">Copilot</span>
     </button>
     <div id="chatBody">
-        <div class="container-header">
+        <div id="chatHeader" class="container-header">
             <div class="content-header">
                 <img id="copilote-img-max" class="copilot-logotype" src="web/images/copilot.png" alt="Logo Copilot">
                 <span class="copilot-title">Copilot</span>
