@@ -287,6 +287,8 @@ public class RestServiceUtil {
       addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
       String bodyReq = jsonRequestForCopilot.toString();
       String endpoint = isGraph ? GRAPH : QUESTION;
+      logIfDebug("Request to Copilot:);");
+      logIfDebug(new JSONObject(bodyReq).toString(2));
       HttpRequest copilotRequest = HttpRequest.newBuilder()
           .uri(new URI(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort)))
           .headers("Content-Type", APPLICATION_JSON_CHARSET_UTF_8)
@@ -343,9 +345,9 @@ public class RestServiceUtil {
    *     The JSONObject to which the request parameters are to be added.
    */
   private static void buildLangraphRequestForCopilot(CopilotApp copilotApp, String conversationId,
-      JSONObject jsonRequestForCopilot) {
+      JSONObject jsonRequestForCopilot) throws JSONException {
     HashMap<String, ArrayList<String>> stagesAssistants = new HashMap<>();
-    loadStagesAssistants(copilotApp, jsonRequestForCopilot, stagesAssistants);
+    loadStagesAssistants(copilotApp, jsonRequestForCopilot, conversationId, stagesAssistants);
     setStages(jsonRequestForCopilot, stagesAssistants);
   }
 
@@ -363,8 +365,8 @@ public class RestServiceUtil {
    *     A HashMap mapping stage names to a list of assistant names for each stage.
    */
   private static void loadStagesAssistants(CopilotApp copilotApp, JSONObject jsonRequestForCopilot,
-      HashMap<String, ArrayList<String>> stagesAssistants) {
-    //iterate over the team members and get the Json for each one, at this moment, all in one stage
+      String conversationId,
+      HashMap<String, ArrayList<String>> stagesAssistants) throws JSONException {
     ArrayList<String> teamMembersIdentifier = new ArrayList<>();
     JSONArray assistantsArray = new JSONArray();
     for (CopilotApp teamMember : getTeamMembers(copilotApp)) {
@@ -373,21 +375,22 @@ public class RestServiceUtil {
         //the name is the identifier of the team member, but without any character that is not a letter or a number
         String name = teamMember.getName().replaceAll("[^a-zA-Z0-9]", "");
         memberData.put("name", name);
-        assistantsArray.put(memberData);
+        teamMembersIdentifier.add(name);
         memberData.put("type", teamMember.getAppType());
-        if (StringUtils.equalsIgnoreCase(copilotApp.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
+        if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
           memberData.put(PROP_ASSISTANT_ID, teamMember.getOpenaiIdAssistant());
-
-        } else if (StringUtils.equalsIgnoreCase(CopilotConstants.APP_TYPE_LANGCHAIN,
-            CopilotConstants.APP_TYPE_LANGCHAIN)) {
-          buildLangchainRequestForCopilot(teamMember, null, jsonRequestForCopilot);
+        } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)) {
+          buildLangchainRequestForCopilot(teamMember, null, memberData);
         }
-        jsonRequestForCopilot.put("assistants", assistantsArray);
-
-
+        assistantsArray.put(memberData);
       } catch (JSONException e) {
         log.error(e);
       }
+    }
+    stagesAssistants.put("stage1", teamMembersIdentifier);
+    jsonRequestForCopilot.put("assistants", assistantsArray);
+    if (StringUtils.isNotEmpty(conversationId)) {
+      jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
     }
   }
 
@@ -464,7 +467,7 @@ public class RestServiceUtil {
       jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");
     } else {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingProvider"),
-          copilotApp.getProvider()));
+          copilotApp.getName()));
     }
     if (!StringUtils.isEmpty(copilotApp.getPrompt())) {
       prompt = new StringBuilder(copilotApp.getPrompt() + "\n");

@@ -65,3 +65,5 @@ build/
 !build/classes/
 etendo.artifact.properties
 venv/
+
+graph.png
