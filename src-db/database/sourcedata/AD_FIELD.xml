@@ -568,7 +568,7 @@
 <!--33E724539109456882A91A36F6C38BC9-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--33E724539109456882A91A36F6C38BC9-->  <NAME><![CDATA[Active]]></NAME>
 <!--33E724539109456882A91A36F6C38BC9-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--33E724539109456882A91A36F6C38BC9-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--33E724539109456882A91A36F6C38BC9-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--33E724539109456882A91A36F6C38BC9-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -2247,7 +2247,7 @@
 <!--CD94FE15472943B69CCB913237168D04-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--CD94FE15472943B69CCB913237168D04-->  <NAME><![CDATA[Active]]></NAME>
 <!--CD94FE15472943B69CCB913237168D04-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--CD94FE15472943B69CCB913237168D04-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--CD94FE15472943B69CCB913237168D04-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--CD94FE15472943B69CCB913237168D04-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -2560,7 +2560,7 @@
 <!--FB7D836AC85E418382287221BC64E4E4-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--FB7D836AC85E418382287221BC64E4E4-->  <NAME><![CDATA[Active]]></NAME>
 <!--FB7D836AC85E418382287221BC64E4E4-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--FB7D836AC85E418382287221BC64E4E4-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--FB7D836AC85E418382287221BC64E4E4-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--FB7D836AC85E418382287221BC64E4E4-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>

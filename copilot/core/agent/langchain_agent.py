@@ -15,7 +15,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from .agent import AgentResponse, CopilotAgent, AssistantResponse
 from .. import utils
-from ..schemas import QuestionSchema
+from ..schemas import QuestionSchema, ToolSchema
 from .agent import AgentResponse, CopilotAgent
 from ..utils import get_full_question
 
@@ -35,7 +35,7 @@ class LangchainAgent(CopilotAgent):
     def __init__(self):
         super().__init__()
 
-    def _get_langchain_agent_executor(self, provider: str, open_ai_model: str) -> AgentExecutor:
+    def _get_langchain_agent_executor(self, provider: str, open_ai_model: str, tools: list[ToolSchema] = None) -> AgentExecutor:
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
         Raises:
@@ -47,6 +47,7 @@ class LangchainAgent(CopilotAgent):
 
         # loads the language model we are going to use to control the agent
         llm = None
+        _enabled_tools = []
 
         if provider == "gemini":
             prompt = ChatPromptTemplate.from_messages(
@@ -76,10 +77,22 @@ class LangchainAgent(CopilotAgent):
                 ]
             )
             _llm = ChatOpenAI(temperature=0, model_name=open_ai_model)
-            # binds tools to the LLM
-            llm = _llm.bind(
-                functions=[format_tool_to_openai_function(tool) for tool in self._configured_tools]
-            )
+            _functions = []
+            if tools:
+                for tool in tools:
+                    _tool = None
+                    for t in self._configured_tools:
+                        if t.name == tool.function.name:
+                            _tool = t
+                            _enabled_tools.append(t)
+                            break
+                    _functions.append(format_tool_to_openai_function(_tool))
+                # binds tools to the LLM
+                llm = _llm.bind(
+                    functions=_functions
+                )
+            else:
+                llm = _llm
             agent = (
                     {
                         "system_prompt": lambda x: x["system_prompt"],
@@ -91,14 +104,15 @@ class LangchainAgent(CopilotAgent):
                     | OpenAIFunctionsAgentOutputParser()
             )
 
-        return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True)
+        return AgentExecutor(agent=agent, tools=_enabled_tools, verbose=True)
 
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
         executor: Final[BaseChatModel] = self._get_langchain_agent_executor(
             provider=question.provider,
-            open_ai_model=question.model
+            open_ai_model=question.model,
+            tools=question.tools
         )
         messages = []
         for message in question.history:

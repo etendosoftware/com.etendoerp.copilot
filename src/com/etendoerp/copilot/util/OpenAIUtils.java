@@ -224,29 +224,6 @@ public class OpenAIUtils {
     return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
   }
 
-  private static JSONArray getToolSet(CopilotApp app) throws OBException, JSONException {
-    // we will read from /copilot the tools if we can
-    JSONArray result = new JSONArray();
-    OBCriteria<CopilotAppTool> appToolCrit = OBDal.getInstance()
-        .createCriteria(CopilotAppTool.class);
-    appToolCrit.add(Restrictions.eq(CopilotAppTool.PROPERTY_COPILOTAPP, app));
-    List<CopilotAppTool> appToolsList = appToolCrit.list();
-    if (appToolsList.isEmpty()) {
-      return result;
-    }
-    //make petition to /copilot
-    for (CopilotAppTool appTool : appToolsList) {
-      CopilotTool erpTool = appTool.getCopilotTool();
-      String toolInfo = erpTool.getJsonStructure();
-      if (toolInfo != null) {
-
-        result.put(new JSONObject(toolInfo));
-      }
-    }
-
-    return result;
-  }
-
   public static JSONObject wrappWithJSONSchema(JSONObject parameters) throws JSONException {
     return new JSONObject().put("type", "object").put("properties", parameters);
   }
@@ -344,7 +321,7 @@ public class OpenAIUtils {
   }
 
   private static JSONArray buildToolsArray(CopilotApp app) throws JSONException {
-    JSONArray toolSet = getToolSet(app);
+    JSONArray toolSet = ToolsUtil.getToolSet(app);
     JSONObject tool = new JSONObject();
     if (Boolean.TRUE.equals(app.isCodeInterpreter())) {
       tool.put("type", "code_interpreter");
