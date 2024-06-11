@@ -27,6 +27,9 @@ public class ToolsUtil {
    * @throws JSONException
    */
   public static JSONArray getToolSet(CopilotApp app) throws OBException, JSONException {
+    if (app == null) {
+      throw new IllegalArgumentException("CopilotApp cannot be null");
+    }
     // we will read from /copilot the tools if we can
     JSONArray result = new JSONArray();
     OBCriteria<CopilotAppTool> appToolCrit = OBDal.getInstance()
