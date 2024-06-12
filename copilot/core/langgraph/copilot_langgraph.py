@@ -17,8 +17,9 @@ class CopilotLangGraph:
 
     assistant_graph: AssistantGraph
     _pattern: BasePattern
+    _graph: LoopPattern
 
-    def __init__(self, members, assistant_graph, pattern: BasePattern = None):
+    def __init__(self, members, assistant_graph, pattern: BasePattern):
         self._pattern = pattern
         workflow = self.get_pattern().construct_nodes(members, assistant_graph)
         self.get_pattern().connect_graph(assistant_graph, workflow)
@@ -50,6 +51,8 @@ class CopilotLangGraph:
             if "__end__" not in message:
                 print("----")
 
-
-        return message[list(message.keys())[0]]["messages"][-1].content
+        if len(messages) > 0:
+            return message[list(message.keys())[0]]["messages"][-1].content
+        else:
+            return "No response"
 

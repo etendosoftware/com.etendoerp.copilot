@@ -17,9 +17,6 @@ def test_langchain_agent_is_intanciated():
 
 
 def test_assistant_agent_is_intanciated():
-    if os.getenv("AGENT_TYPE") != agent.AgentEnum.OPENAI_ASSISTANT.value:
-        pytest.skip("Skipping open 1.2.4 is required")
-
     agent.AGENT_TYPE_ENVAR = agent.AgentEnum.OPENAI_ASSISTANT.value
     copilot_agent = agent._get_agent_executors()[agent.AGENT_TYPE_ENVAR]
     assert isinstance(copilot_agent, agent.assistant_agent.AssistantAgent)

@@ -31,6 +31,7 @@ class SupervisorPattern(BasePattern):
 
 
     def connect_graph(self, assistant_graph, workflow):
+        skip_assistant = False
         for i in range(0, len(assistant_graph.stages)):
             stage = assistant_graph.stages[i]
             if len(stage.assistants) == 1:
@@ -42,6 +43,8 @@ class SupervisorPattern(BasePattern):
                         else:
                             workflow.add_edge(assistant_name, "supervisor-" + assistant_graph.stages[i + 1].name)
                     else:
+                        if i == 0:
+                            skip_assistant = True
                         workflow.add_edge(assistant_name, END)
             else:
                 members_names = []
@@ -57,8 +60,7 @@ class SupervisorPattern(BasePattern):
                         workflow.add_edge(assistant_name, END)
                 conditional_map = {k: k for k in members_names}
                 workflow.add_conditional_edges("supervisor-" + stage.name, lambda x: x["next"], conditional_map)
-        if len(assistant_graph.stages) == 1:
+        if len(assistant_graph.stages[0].assistants) == 1:
             workflow.set_entry_point(assistant_graph.stages[0].assistants[0])
         else:
-            # Finally, add entrypoint
             workflow.set_entry_point("supervisor-" + assistant_graph.stages[0].name)

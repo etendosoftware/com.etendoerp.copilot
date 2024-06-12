@@ -8,7 +8,6 @@ from langchain_core.messages import (
 from . import AssistantAgent, LangchainAgent
 from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
-from .. import utils
 from ..langgraph.copilot_langgraph import CopilotLangGraph
 from ..langgraph.patterns import SupervisorPattern
 from ..langgraph.patterns.base_pattern import GraphMember
@@ -27,7 +26,6 @@ class LanggraphAgent(CopilotAgent):
     def execute(self, question: GraphQuestionSchema) -> AgentResponse:
         thread_id = question.conversation_id
         _tools = self._configured_tools
-        members: list[GraphMember] = []
 
         def invoke_model_openai(state: List[BaseMessage], _agent, _name: str):
             response = _agent.invoke({"content": state["messages"][0].content})
@@ -43,20 +41,7 @@ class LanggraphAgent(CopilotAgent):
 
             return {"messages": [HumanMessage(content=content, name=_name)]}
 
-        if question.assistants:
-            for assistant in question.assistants:
-                member = None
-                if assistant.type == "openai-assistant":
-                    agent = AssistantAgent().get_agent(assistant.assistant_id)
-                    model_node = functools.partial(invoke_model_openai, _agent=agent, _name=assistant.name)
-                    member = GraphMember(assistant.name, model_node)
-                else:
-                    agent = LangchainAgent().get_agent(assistant.provider, assistant.model, assistant.tools,
-                                                       assistant.system_prompt)
-                    model_node = functools.partial(invoke_model_langchain, _agent=agent, _name=assistant.name)
-                    member = GraphMember(assistant.name, model_node)
-
-                members.append(member)
+        members: list[GraphMember] = self.get_members(invoke_model_langchain, invoke_model_openai, question)
 
         lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern())
 
@@ -68,3 +53,24 @@ class LanggraphAgent(CopilotAgent):
                 response=final_response, conversation_id=thread_id
             )
         )
+
+    def get_members(self, invoke_model_langchain, invoke_model_openai, question) -> list[GraphMember]:
+        members = []
+        if question.assistants:
+            for assistant in question.assistants:
+                member = None
+                if assistant.type == "openai-assistant":
+                    agent = self.get_assistant_agent().get_agent(assistant.assistant_id)
+                    model_node = functools.partial(invoke_model_openai, _agent=agent, _name=assistant.name)
+                    member = GraphMember(assistant.name, model_node)
+                else:
+                    agent = LangchainAgent().get_agent(assistant.provider, assistant.model, assistant.tools,
+                                                       assistant.system_prompt)
+                    model_node = functools.partial(invoke_model_langchain, _agent=agent, _name=assistant.name)
+                    member = GraphMember(assistant.name, model_node)
+
+                members.append(member)
+        return members
+
+    def get_assistant_agent(self):
+        return AssistantAgent()
