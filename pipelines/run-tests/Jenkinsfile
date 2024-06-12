@@ -30,7 +30,7 @@ pipeline {
 
     agent {
         kubernetes {
-            label 'jenkins-node-rx'
+            inheritFrom 'jenkins-node-copilot'
             defaultContainer 'jnlp'
             yaml """
 apiVersion: v1
@@ -207,6 +207,7 @@ spec:
                     }
                 }
             }
+        }
         stage ('Run Python tests') {
             steps {
                 sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
@@ -229,8 +230,8 @@ spec:
                                 echo 'Running python tests'
                                 dir("com.etendoerp.copilot") {
                                      sh """
-                                     poetry install
-                                     poetry run coverage run -m pytest
+                                     pip install -r requirements.txt
+                                     pytest
                                      """
                                 }
                             } catch (Exception e) {
@@ -245,87 +246,4 @@ spec:
             }
         }
     }
-    post {
-            always {
-                script {
-                    echo"proccess is done"
-                }
-            }
-            fixed {
-                mail to: EMAIL_ADDRESS,
-                subject: "✅ FIXED - ${currentBuild.fullDisplayName}",
-                body: """
-    ${new Date()}
-    __________________________________________________________
-
-    ✅ ERRORS FIXED ✅
-
-    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
-    Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
-
-    The problems found in the previous run/s have been fixed! 💪
-    Check out the output in the following link:
-    ${env.BUILD_URL}
-    __________________________________________________________
-                """
-            }
-            failure {
-                script {
-                    sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh etendo_rx failure "Failed Build Environments" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
-                    echo "Failed Build Environments"
-                }
-                cleanWs deleteDirs: true
-                mail to: EMAIL_ADDRESS,
-                subject: "⛔ ERROR - ${currentBuild.fullDisplayName}",
-                body:  """
-    ${new Date()}
-    __________________________________________________________
-
-    ⛔ ERROR ⛔
-
-    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
-    Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
-
-    The build has failed unexpectedly.
-    💡 This build was on an Etendo Core environment.
-    To more information on the failing run visit:
-    ${env.BUILD_URL}
-    __________________________________________________________
-                """
-            }
-            unstable {
-                script {
-                    sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh etendo_rx failure "Failed Tests" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
-                    echo "Failed Test"
-                }
-                cleanWs deleteDirs: true
-                mail to: EMAIL_ADDRESS,
-                subject: "⚠️ TESTS FAILED - ${currentBuild.fullDisplayName}",
-                body: """
-    ${new Date()}
-    __________________________________________________________
-
-    ⚠️ BUILD UNSTABLE ⚠️
-
-    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
-    Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
-
-    Tests have been detected that have failed in Etendo RX.
-    💡 These tests were run on a Postgres database environment.
-    To more information on the failing run visit:
-    ${env.BUILD_URL}
-    __________________________________________________________
-                """
-            }
-            success {
-                script {
-                    sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh etendo_rx success "Successful Test Suites" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
-                    echo "Successful Test"
-                }
-                cleanWs deleteDirs: true
-            }
-        }
 }

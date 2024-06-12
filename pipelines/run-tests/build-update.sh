@@ -1,17 +1,18 @@
 #!/bin/bash
 
-URI='api.github.com'
-OWNER='etendosoftware'
-REPO_SLUG=$1
-REVISION=$5
-STATUS=$2
-DESCRIPTION=$3
-TARGET_URL="$6"
-ACCESS_TOKEN=$4
-GIT_STATUS_URL="https://$ACCESS_TOKEN:x-oauth-basic@$URI/repos/$OWNER/$REPO_SLUG/statuses/${REVISION}"
-TEMPLATE='{"state":"%s", "target_url":"%s", "description":"%s", "context":"build/job"}'
-PAYLOAD=$(printf "$TEMPLATE" "$STATUS" "$TARGET_URL" "$DESCRIPTION")
+template='{"key": "%s", "state": "%s", "name": "%s", "url": "%s", "description": "%s"}'
 
-echo $PAYLOAD
-echo $GIT_STATUS_URL
-curl -X POST -H "application/json" -d "$PAYLOAD" "${GIT_STATUS_URL}"
+DATA=$(printf "$template" "$BUILD_ID" "$2" "$JOB_NAME" "$BUILD_URL" "$3")
+
+URI='https://api.bitbucket.org/2.0/repositories'
+OWNER='koodu_software'
+REPO_SLUG=$1
+REVISION=$GIT_COMMIT
+URL="$URI/$OWNER/$REPO_SLUG/commit/$REVISION/statuses/build"
+
+USER="koodu_bot"
+PASSWORD="koodu"
+
+echo $URL
+echo $DATA
+curl -s -u "$USER:$PASSWORD" $URL --header "Content-Type: application/json" --request POST --data "$DATA"
