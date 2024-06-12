@@ -11,10 +11,12 @@ import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.data.TeamMember;
 import com.etendoerp.copilot.util.ToolsUtil;
 import com.etendoerp.copilot.util.TrackingUtil;
 import com.etendoerp.copilot.util.OpenAIUtils;
@@ -65,6 +67,7 @@ public class RestServiceUtil {
   private static final Logger log = LogManager.getLogger(RestServiceUtil.class);
 
   public static final String QUESTION = "/question";
+  public static final String GRAPH = "/graph";
   public static final String GET_ASSISTANTS = "/assistants";
   public static final String APP_ID = "app_id";
   public static final String PROP_ASSISTANT_ID = "assistant_id";
@@ -255,35 +258,21 @@ public class RestServiceUtil {
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
       JSONObject jsonRequestForCopilot = new JSONObject();
+      boolean isGraph = checkIfGraphQuestion(copilotApp);
       //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
       // and we need to add the type of the assistant (openai or langchain)
       appType = copilotApp.getAppType();
-      StringBuilder prompt = new StringBuilder();
       if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)) {
         if (StringUtils.isEmpty(conversationId)) {
           conversationId = UUID.randomUUID().toString();
         }
-        prompt.append(copilotApp.getPrompt());
-        jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
-        jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGCHAIN);
-        jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
-        jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
-        if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
-          jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
-          jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getName());
-        } else if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_GEMINI_VALUE)) {
-          jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_GEMINI);
-          jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");
+        if (!isGraph) {
+          buildLangchainRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
         } else {
-          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingProvider"),
-              copilotApp.getProvider()));
-        }
-        if (!StringUtils.isEmpty(copilotApp.getPrompt())) {
-          prompt = new StringBuilder(copilotApp.getPrompt() + "\n");
+          buildLangraphRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
         }
       } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
-        jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_OPENAI);
-        jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
+        buildOpenAIrequestForCopilot(copilotApp, jsonRequestForCopilot);
       } else {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
@@ -295,15 +284,13 @@ public class RestServiceUtil {
       jsonRequestForCopilot.put(PROP_QUESTION, question);
       addAppSourceFileIds(copilotApp, questionAttachedFileIds);
       handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
-      // Lookup in app sources for the prompt
-      prompt.append(OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
-      if (!StringUtils.isEmpty(prompt.toString())) {
-        jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
-      }
       addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
       String bodyReq = jsonRequestForCopilot.toString();
+      String endpoint = isGraph ? GRAPH : QUESTION;
+      logIfDebug("Request to Copilot:);");
+      logIfDebug(new JSONObject(bodyReq).toString(2));
       HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s/question", copilotHost, copilotPort)))
+          .uri(new URI(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort)))
           .headers("Content-Type", APPLICATION_JSON_CHARSET_UTF_8)
           .version(HttpClient.Version.HTTP_1_1)
           .POST(HttpRequest.BodyPublishers.ofString(bodyReq))
@@ -342,6 +329,197 @@ public class RestServiceUtil {
     TrackingUtil.getInstance().trackQuestion(conversationId, question);
     TrackingUtil.getInstance().trackResponse(conversationId, responseOriginal.getString(PROP_RESPONSE));
     return responseOriginal;
+  }
+
+  /**
+   * This method is used to build a request for the Langraph assistant.
+   * It first initializes a HashMap to store the stages and their associated assistants.
+   * Then, it calls the loadStagesAssistants method to load the assistants for each stage into the HashMap.
+   * Finally, it calls the setStages method to set the stages for the request using the data in the HashMap.
+   *
+   * @param copilotApp
+   *     The CopilotApp instance for which the request is to be built.
+   * @param conversationId
+   *     The conversation ID to be used in the request.
+   * @param jsonRequestForCopilot
+   *     The JSONObject to which the request parameters are to be added.
+   */
+  private static void buildLangraphRequestForCopilot(CopilotApp copilotApp, String conversationId,
+      JSONObject jsonRequestForCopilot) throws JSONException {
+    HashMap<String, ArrayList<String>> stagesAssistants = new HashMap<>();
+    loadStagesAssistants(copilotApp, jsonRequestForCopilot, conversationId, stagesAssistants);
+    setStages(jsonRequestForCopilot, stagesAssistants);
+  }
+
+  /**
+   * This method is used to load the stages and their associated assistants for a given CopilotApp instance.
+   * It iterates over the team members of the CopilotApp instance and creates a JSON object for each one.
+   * Each team member JSON object contains the name of the team member and the type of the assistant.
+   * The team member JSON objects are added to a JSON array, which is then added to the request JSON object under the key "assistants".
+   *
+   * @param copilotApp
+   *     The CopilotApp instance for which the stages and their associated assistants are to be loaded.
+   * @param jsonRequestForCopilot
+   *     The JSONObject to which the stages and their associated assistants are to be added.
+   * @param stagesAssistants
+   *     A HashMap mapping stage names to a list of assistant names for each stage.
+   */
+  private static void loadStagesAssistants(CopilotApp copilotApp, JSONObject jsonRequestForCopilot,
+      String conversationId,
+      HashMap<String, ArrayList<String>> stagesAssistants) throws JSONException {
+    ArrayList<String> teamMembersIdentifier = new ArrayList<>();
+    JSONArray assistantsArray = new JSONArray();
+    for (CopilotApp teamMember : getTeamMembers(copilotApp)) {
+      JSONObject memberData = new JSONObject();
+      try {
+        //the name is the identifier of the team member, but without any character that is not a letter or a number
+        String name = teamMember.getName().replaceAll("[^a-zA-Z0-9]", "");
+        memberData.put("name", name);
+        teamMembersIdentifier.add(name);
+        memberData.put("type", teamMember.getAppType());
+        if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
+          memberData.put(PROP_ASSISTANT_ID, teamMember.getOpenaiIdAssistant());
+        } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)) {
+          buildLangchainRequestForCopilot(teamMember, null, memberData);
+        }
+        assistantsArray.put(memberData);
+      } catch (JSONException e) {
+        log.error(e);
+      }
+    }
+    stagesAssistants.put("stage1", teamMembersIdentifier);
+    jsonRequestForCopilot.put("assistants", assistantsArray);
+    if (StringUtils.isNotEmpty(conversationId)) {
+      jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
+    }
+  }
+
+
+  /**
+   * This method is used to set the stages for a given request to the Langchain assistant.
+   * It iterates over the stages and their associated assistants, creating a JSON object for each stage.
+   * Each stage JSON object contains the name of the stage and a JSON array of the assistants for that stage.
+   * The stage JSON objects are added to a JSON array, which is then added to a new JSON object under the key "stages".
+   * This new JSON object is then added to the request JSON object under the key "graph".
+   *
+   * @param jsonRequestForCopilot
+   *     The JSONObject to which the stages are to be added.
+   * @param stagesAssistants
+   *     A HashMap mapping stage names to a list of assistant names for each stage.
+   */
+  private static void setStages(JSONObject jsonRequestForCopilot, HashMap<String, ArrayList<String>> stagesAssistants) {
+    try {
+      JSONArray stages = new JSONArray();
+      for (String stage : stagesAssistants.keySet()) {
+        JSONObject stageJson = new JSONObject();
+        stageJson.put("name", stage);
+        JSONArray assistants = new JSONArray();
+        for (String assistantsList : stagesAssistants.get(stage)) {
+          assistants.put(assistantsList);
+        }
+        stageJson.put("assistants", assistants);
+        stages.put(stageJson);
+      }
+      JSONObject graph = new JSONObject();
+      graph.put("stages", stages);
+      jsonRequestForCopilot.put("graph", graph);
+    } catch (JSONException e) {
+      log.error(e);
+    }
+  }
+
+  /**
+   * This method is used to build a request for the Langchain assistant.
+   * It sets the assistant ID to the ID of the CopilotApp instance and the type of the assistant to "Langchain".
+   * If a conversation ID is provided, it adds the conversation history to the request.
+   * It also adds the toolset of the CopilotApp instance to the request.
+   * Depending on the provider of the CopilotApp instance, it sets the provider and model in the request.
+   * If the provider is "OPENAI", it sets the provider to "openai" and the model to the name of the model of the CopilotApp instance.
+   * If the provider is "GEMINI", it sets the provider to "gemini" and the model to "gemini-1.5-pro-latest".
+   * If the provider is neither "OPENAI" nor "GEMINI", it throws an exception.
+   * If the CopilotApp instance has a prompt, it adds the prompt and the content of the app source file with the behaviour "system" to the request.
+   *
+   * @param copilotApp
+   *     The CopilotApp instance for which the request is to be built.
+   * @param conversationId
+   *     The conversation ID to be used in the request. If it is not empty, the conversation history will be added to the request.
+   * @param jsonRequestForCopilot
+   *     The JSONObject to which the request parameters are to be added.
+   * @throws JSONException
+   *     If an error occurs while processing the JSON data.
+   */
+
+  private static void buildLangchainRequestForCopilot(CopilotApp copilotApp, String conversationId,
+      JSONObject jsonRequestForCopilot) throws JSONException {
+    StringBuilder prompt = new StringBuilder();
+    prompt.append(copilotApp.getPrompt());
+    jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
+    jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGCHAIN);
+    if (StringUtils.isNotEmpty(conversationId)) {
+      jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
+    }
+    jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
+    if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
+      jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
+      jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getName());
+    } else if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_GEMINI_VALUE)) {
+      jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_GEMINI);
+      jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");
+    } else {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingProvider"),
+          copilotApp.getName()));
+    }
+    if (!StringUtils.isEmpty(copilotApp.getPrompt())) {
+      prompt = new StringBuilder(copilotApp.getPrompt() + "\n");
+      // Lookup in app sources for the prompt
+      prompt.append(OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
+      if (!StringUtils.isEmpty(prompt.toString())) {
+        jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
+      }
+    }
+  }
+
+  /**
+   * This method is used to build a request for the OpenAI assistant.
+   * It sets the type of the assistant to "OpenAI" and the assistant ID to the OpenAI ID of the CopilotApp instance.
+   *
+   * @param copilotApp
+   *     The CopilotApp instance for which the request is to be built.
+   * @param jsonRequestForCopilot
+   *     The JSONObject to which the request parameters are to be added.
+   * @throws JSONException
+   *     If an error occurs while processing the JSON data.
+   */
+  private static void buildOpenAIrequestForCopilot(CopilotApp copilotApp,
+      JSONObject jsonRequestForCopilot) throws JSONException {
+    jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_OPENAI);
+    jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
+  }
+
+  /**
+   * This method checks if the given CopilotApp instance is of type "LANGCHAIN" and has associated team members.
+   * It returns true if both conditions are met, otherwise it returns false.
+   *
+   * @param copilotApp
+   *     The CopilotApp instance to be checked.
+   * @return A boolean value indicating whether the CopilotApp instance is of type "LANGCHAIN" and has associated team members.
+   */
+  private static boolean checkIfGraphQuestion(CopilotApp copilotApp) {
+    return StringUtils.equalsIgnoreCase(copilotApp.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)
+        && !getTeamMembers(copilotApp).isEmpty();
+  }
+
+  /**
+   * This method retrieves all the team members associated with a given CopilotApp instance.
+   * It uses Java 8 streams to map each TeamMember instance to its associated CopilotApp instance and collects the results into a list.
+   *
+   * @param copilotApp
+   *     The CopilotApp instance for which the team members are to be retrieved.
+   * @return A list of CopilotApp instances representing the team members of the given CopilotApp instance.
+   */
+  private static List<CopilotApp> getTeamMembers(CopilotApp copilotApp) {
+    return copilotApp.getETCOPTeamMemberList().stream().map(TeamMember::getMember).collect(
+        java.util.stream.Collectors.toList());
   }
 
   private static void addAppSourceFileIds(CopilotApp copilotApp,
