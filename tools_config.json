@@ -3,11 +3,6 @@
     "third_party_tools": {
         "HelloWorldTool": true,
         "BastianFetcher": true,
-        "CustomHelloWorldMultiArgsTool": true,
-        "DDLTool": true,
-        "DBQueryGenerator": true,
-        "APICallTool": true,
-        "OpenAPIToolTemplate": true,
-        "OpenAPIPetStoreTool": true
+        "CustomHelloWorldMultiArgsTool": true
     }
 }
