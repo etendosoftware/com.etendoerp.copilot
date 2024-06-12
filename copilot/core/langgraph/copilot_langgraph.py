@@ -42,17 +42,12 @@ class CopilotLangGraph:
             "configurable": {"thread_id": thread_id},
             "recursion_limit": 50
         }
-        messages = self._graph.stream(
+        for message in self._graph.stream(
                 {"messages": [HumanMessage(content=question)]},
             config
-        )
-
-        for message in messages:
+        ):
             if "__end__" not in message:
                 print("----")
 
-        if len(messages) > 0:
-            return message[list(message.keys())[0]]["messages"][-1].content
-        else:
-            return "No response"
+        return message[list(message.keys())[0]]["messages"][-1].content
 
