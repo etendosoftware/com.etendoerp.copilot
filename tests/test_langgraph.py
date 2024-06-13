@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
 
-from httpcore import MockStream
+from langchain_core.messages import HumanMessage
+from langgraph.pregel.io import AddableUpdatesDict
 
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.langgraph.copilot_langgraph import CopilotLangGraph
@@ -102,12 +103,10 @@ class TestCopilotLangGraph(unittest.TestCase):
     @patch('copilot.core.agent.assistant_agent.AssistantAgent')
     @patch('copilot.core.agent.langgraph_agent.LanggraphAgent.get_assistant_agent')
     def test_payload(self, mockAssistantAgent, mock_get_assistant_agent):
-
         agent = LanggraphAgent()
         mock_get_assistant_agent.return_value = mockAssistantAgent
 
     def test_copilot_lang_graph(self):
-
         invoke_model_langchain = MagicMock()
         invoke_model_openai = MagicMock()
         pattern = SupervisorPattern()
@@ -119,6 +118,7 @@ class TestCopilotLangGraph(unittest.TestCase):
         assistant_graph = MagicMock()
 
         graph = CopilotLangGraph(members, payload.graph, pattern)
+
 
 if __name__ == '__main__':
     unittest.main()
