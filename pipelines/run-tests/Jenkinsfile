@@ -152,7 +152,7 @@ spec:
             }
             steps {
                 sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                sh './pipelines/run-tests/build-update.sh etendo_rx pending "Build Environment Etendo Core" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
+                sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Starting build" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                 withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
                     withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                         sh 'mkdir -p ~/.ssh && ssh-keyscan bitbucket.org >> ~/.ssh/known_hosts'
@@ -213,7 +213,7 @@ spec:
             steps {
                 container('compiler') {
                     sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh etendo_rx pending "Build Environment Etendo Core" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Run Python tests" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                     withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
                         withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                             // Clone Etendo Core
@@ -271,7 +271,7 @@ spec:
             failure {
                 script {
                     sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh etendo_rx failure "Failed Build Environments" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Failed Build Environments" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                     echo "Failed Build Environments"
                 }
                 cleanWs deleteDirs: true
@@ -296,7 +296,7 @@ spec:
             unstable {
                 script {
                     sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh etendo_rx failure "Failed Tests" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Failed Tests" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                     echo "Failed Test"
                 }
                 cleanWs deleteDirs: true
@@ -321,7 +321,7 @@ spec:
             success {
                 script {
                     sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh etendo_rx success "Successful Test Suites" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Successful Test" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                     echo "Successful Test"
                 }
                 cleanWs deleteDirs: true

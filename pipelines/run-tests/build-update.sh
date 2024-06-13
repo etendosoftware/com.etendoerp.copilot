@@ -1,18 +1,30 @@
 #!/bin/bash
 
+# Parameters
+REPO_SLUG=$1
+REVISION=$2
+BUILD_ID=$3
+STATE=$4
+JOB_NAME=$5
+BUILD_URL=$6
+DESCRIPTION=$7
+OWNER=$8
+USER=$9
+TOKEN=${10}
+
+# Template for JSON data
 template='{"key": "%s", "state": "%s", "name": "%s", "url": "%s", "description": "%s"}'
 
-DATA=$(printf "$template" "$BUILD_ID" "$2" "$JOB_NAME" "$BUILD_URL" "$3")
+# Formatted JSON data
+DATA=$(printf "$template" "$BUILD_ID" "$STATE" "$JOB_NAME #$BUILD_ID" "$BUILD_URL" "$DESCRIPTION")
 
+# Bitbucket API URL
 URI='https://api.bitbucket.org/2.0/repositories'
-OWNER='koodu_software'
-REPO_SLUG=$1
-REVISION=$GIT_COMMIT
 URL="$URI/$OWNER/$REPO_SLUG/commit/$REVISION/statuses/build"
 
-USER="koodu_bot"
-PASSWORD="koodu"
+# Print URL and DATA for debugging purposes
+echo "$URL"
+echo "$DATA"
 
-echo $URL
-echo $DATA
-curl -s -u "$USER:$PASSWORD" $URL --header "Content-Type: application/json" --request POST --data "$DATA"
+# cURL request to update the build status on Bitbucket
+curl -u "$USER:$TOKEN" "$URL" --header "Content-Type: application/json" --data "$DATA"
