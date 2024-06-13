@@ -8,6 +8,33 @@
 
 definitions:
   steps:
+    - step: &git-police
+        name: Git Police Step
+        script:
+          - printenv
+          - echo "-------------------------------------------------------------------------"
+          - echo "${DOCKERHUB_PASSWORD}" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+          - docker run -d -p 5000:5000 -e REPO_TOKEN="${ETENDOBOT_TOKEN}" -e PR_ID="$BITBUCKET_PR_ID" -e REPO_NAME="$BITBUCKET_REPO_SLUG" etendo/gitpolice:"${GITPOLICE_VERSION}"
+          - echo "-------------------------------------------------------------------------"
+          - sleep 10s
+          - response=$(curl -s -o response.txt -w "%{http_code}" -X GET http://localhost:5000/api/bitbucket)
+          - |
+            if [ "$response" -ne 200 ]; then
+              echo "API call failed with status code $response"
+              cat response.txt
+              exit 1
+            fi
+          - |
+            if ! grep -q "Valid branch name and correct destination" response.txt; then
+              echo "Git Police check failed: response does not contain 'Valid branch name and correct destination'"
+              echo "Full response:"
+              cat response.txt
+              exit 1
+            fi
+          - echo "API call successful with status code $response"
+          - cat response.txt
+        services:
+          - docker
     - step: &build-step
         image: maven:3.3.9
         name: SonarQube analysis
@@ -20,21 +47,21 @@ definitions:
         name: Make Review Step
         script:
           - printenv
-          -  echo "-------------------------------------------------------------------------"
-          -  echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-          -  docker run -d -p 5000:5000 -e REPO_API_TOKEN="${ETENDOBOT_TOKEN}" -e PULL_REQUEST=$BITBUCKET_PR_ID -e PROJECT=$BITBUCKET_REPO_OWNER -e REPO_SLUG=$BITBUCKET_REPO_SLUG -e OPENAI_API_KEY=$OPENAI_API_KEY etendo/code-reviewer:latest
-          -  echo "-------------------------------------------------------------------------"
-          -  sleep 10s
+          - echo "-------------------------------------------------------------------------"
+          - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+          - docker run -d -p 5000:5000 -e REPO_API_TOKEN="${ETENDOBOT_TOKEN}" -e PULL_REQUEST=$BITBUCKET_PR_ID -e PROJECT=$BITBUCKET_REPO_OWNER -e REPO_SLUG=$BITBUCKET_REPO_SLUG -e OPENAI_API_KEY=$OPENAI_API_KEY etendo/code-reviewer:latest
+          - echo "-------------------------------------------------------------------------"
+          - sleep 10s
           - response=$(curl -s -o response.txt -w "%{http_code}" -X GET http://localhost:5000/review/bitbucket)
-          -  if [ $response -ne 200 ]; then
-          -    echo "API call failed with status code $response"
-          -    echo "Response text:"
-          -    cat response.txt
-          -    exit 1
-          -  fi
-          -  echo "API call successful with status code $response"
-          -  echo "Response text:"
-          -  cat response.txt
+          - if [ $response -ne 200 ]; then
+          - echo "API call failed with status code $response"
+          - echo "Response text:"
+          - cat response.txt
+          - exit 1
+          - fi
+          - echo "API call successful with status code $response"
+          - echo "Response text:"
+          - cat response.txt
         services:
           - docker
   caches:
@@ -45,15 +72,38 @@ pipelines:
   branches:
     master:
       - step: *build-step
+      - parallel:
+          - step:
+              name: Build and Push for amd64
+              script:
+                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+                - IMAGE=etendo/etendo_copilot_core:master-amd64
+                - docker build --platform linux/amd64 -t ${IMAGE} .
+                - docker push ${IMAGE}
+              services:
+                - docker
+          - step:
+              name: Build and Push for arm64
+              runs-on:
+                - self.hosted
+                - linux.arm64
+              script:
+                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+                - IMAGE=etendo/etendo_copilot_core:master-arm64
+                - docker build --platform linux/arm64/v8 -t ${IMAGE} .
+                - docker push ${IMAGE}
+              services:
+                - docker
       - step:
-          image: atlassian/default-image:3
-          name: Deploy to Production
-          deployment: Production
+          name: Create and Push Manifest
           script:
             - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-            - IMAGE=etendo/etendo_copilot_core:master
-            - docker build -t ${IMAGE} .
-            - docker push ${IMAGE}
+            - docker pull etendo/etendo_copilot_core:master-amd64
+            - docker pull etendo/etendo_copilot_core:master-arm64
+            - docker manifest create etendo/etendo_copilot_core:master etendo/etendo_copilot_core:master-amd64 etendo/etendo_copilot_core:master-arm64
+            - docker manifest annotate etendo/etendo_copilot_core:master etendo/etendo_copilot_core:master-amd64 --os linux --arch amd64
+            - docker manifest annotate etendo/etendo_copilot_core:master etendo/etendo_copilot_core:master-arm64 --os linux --arch arm64
+            - docker manifest push etendo/etendo_copilot_core:master
           services:
             - docker
     develop:
@@ -68,19 +118,86 @@ pipelines:
             - docker push ${IMAGE}
           services:
             - docker
-    experimental:
+      - parallel:
+          - step:
+              name: Build and Push for amd64
+              script:
+                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+                - IMAGE=etendo/etendo_copilot_core:develop-amd64
+                - docker build --platform linux/amd64 -t ${IMAGE} .
+                - docker push ${IMAGE}
+              services:
+                - docker
+          - step:
+              name: Build and Push for arm64
+              runs-on:
+                - self.hosted
+                - linux.arm64
+              script:
+                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+                - IMAGE=etendo/etendo_copilot_core:develop-arm64
+                - docker build --platform linux/arm64/v8 -t ${IMAGE} .
+                - docker push ${IMAGE}
+              services:
+                - docker
       - step:
-          name: Deploy to Experimental
-          deployment: Experimental
+          name: Create and Push Manifest
           script:
             - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-            - IMAGE=etendo/etendo_copilot_core:experimental
+            - docker pull etendo/etendo_copilot_core:develop-amd64
+            - docker pull etendo/etendo_copilot_core:develop-arm64
+            - docker manifest create etendo/etendo_copilot_core:develop etendo/etendo_copilot_core:develop-amd64 etendo/etendo_copilot_core:develop-arm64
+            - docker manifest annotate etendo/etendo_copilot_core:develop etendo/etendo_copilot_core:develop-amd64 --os linux --arch amd64
+            - docke
+      - step:
+          image: atlassian/default-image:3
+          name: Deploy to Develop
+          deployment: Develop
+          script:
+            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+            - IMAGE=etendo/etendo_copilot_core:develop
             - docker build -t ${IMAGE} .
             - docker push ${IMAGE}
           services:
             - docker
-  pull-requests:
-    '**':
+    experimental:
       - parallel:
-        - step: *make-review
-        - step: *build-step
+          - step:
+              name: Build and Push for amd64
+              script:
+                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+                - IMAGE=etendo/etendo_copilot_core:experimental-amd64
+                - docker build --platform linux/amd64 -t ${IMAGE} .
+                - docker push ${IMAGE}
+              services:
+                - docker
+          - step:
+              name: Build and Push for arm64
+              runs-on:
+                - self.hosted
+                - linux.arm64
+              script:
+                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+                - IMAGE=etendo/etendo_copilot_core:experimental-arm64
+                - docker build --platform linux/arm64/v8 -t ${IMAGE} .
+                - docker push ${IMAGE}
+              services:
+                - docker
+      - step:
+          name: Create and Push Manifest
+          script:
+            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+            - docker pull etendo/etendo_copilot_core:experimental-amd64
+            - docker pull etendo/etendo_copilot_core:experimental-arm64
+            - docker manifest create etendo/etendo_copilot_core:experimental etendo/etendo_copilot_core:experimental-amd64 etendo/etendo_copilot_core:experimental-arm64
+            - docker manifest annotate etendo/etendo_copilot_core:experimental etendo/etendo_copilot_core:experimental-amd64 --os linux --arch amd64
+            - docker manifest annotate etendo/etendo_copilot_core:experimental etendo/etendo_copilot_core:experimental-arm64 --os linux --arch arm64
+            - docker manifest push etendo/etendo_copilot_core:experimental
+          services:
+            - docker
+  pull-requests:
+    "**":
+      - step: *git-police
+      - parallel:
+          - step: *make-review
+          - step: *build-step
