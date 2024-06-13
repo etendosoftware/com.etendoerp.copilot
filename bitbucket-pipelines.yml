@@ -107,17 +107,6 @@ pipelines:
           services:
             - docker
     develop:
-      - step:
-          image: atlassian/default-image:3
-          name: Deploy to Develop
-          deployment: Develop
-          script:
-            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-            - IMAGE=etendo/etendo_copilot_core:develop
-            - docker build -t ${IMAGE} .
-            - docker push ${IMAGE}
-          services:
-            - docker
       - parallel:
           - step:
               name: Build and Push for amd64
