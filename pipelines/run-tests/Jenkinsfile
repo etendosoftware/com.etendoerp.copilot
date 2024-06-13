@@ -26,6 +26,7 @@ pipeline {
         BUILD_CLASSIC       = false
         DOCKER_HOST         = '/home/jenkins/docker.sock'
         DOCKER_TLS_VERIFY   = 0
+        OPENAI_API_KEY      = '123'
     }
 
     agent {
@@ -72,7 +73,7 @@ spec:
               - >-
                 chmod a+x /var/run/docker.sock && rm
                 /etc/apt/sources.list.d/pgdg.list || echo 0 && apt update && apt
-                install -y curl
+                install -y curl python3.10
       terminationMessagePath: /dev/termination-log
       terminationMessagePolicy: File
       imagePullPolicy: IfNotPresent
@@ -151,7 +152,7 @@ spec:
             }
             steps {
                 sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                sh './pipelines/run-tests/build-update.sh etendo_rx pending "Build Environment Etendo Core" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
+                sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Starting build" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                 withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
                     withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                         sh 'mkdir -p ~/.ssh && ssh-keyscan bitbucket.org >> ~/.ssh/known_hosts'
@@ -210,35 +211,32 @@ spec:
         }
         stage ('Run Python tests') {
             steps {
-                sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                sh './pipelines/run-tests/build-update.sh etendo_rx pending "Build Environment Etendo Core" $ACCESS_TOKEN $GIT_COMMIT $BUILD_URL'
-                withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
-                    withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                        sh 'mkdir -p ~/.ssh && ssh-keyscan bitbucket.org >> ~/.ssh/known_hosts'
-                        sh """
-                        git config user.name "$GIT_USERNAME"
-                        git config user.email "$GIT_USERNAME"
-                        """
+                container('compiler') {
+                    sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Run Python tests" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                    withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
+                        withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                            // Clone Etendo Core
+                            sh "GIT_SSH_COMMAND=\"ssh -i ${keyfile} -o \"UserKnownHostsFile=/dev/null\" -o \"StrictHostKeyChecking=no\"\" git clone --branch $BRANCH_NAME git@bitbucket.org:koodu_software/com.etendoerp.copilot.git"
 
-                        // Clone Etendo Core
-                        sh "GIT_SSH_COMMAND=\"ssh -i ${keyfile}\" git clone --branch $BRANCH_NAME git@bitbucket.org:koodu_software/com.etendoerp.copilot.git"
-
-                        // Setup environment
-                        sh 'printenv'
-                        script {
-                            try {
-                                echo 'Running python tests'
-                                dir("com.etendoerp.copilot") {
-                                     sh """
-                                     pip install -r requirements.txt
-                                     pytest
-                                     """
+                            // Setup environment
+                            sh 'printenv'
+                            script {
+                                try {
+                                    echo 'Running python tests'
+                                    dir("com.etendoerp.copilot") {
+                                         sh """
+                                         pip3 install poetry
+                                         poetry install
+                                         poetry run coverage run -m pytest
+                                         """
+                                    }
+                                } catch (Exception e) {
+                                    echo 'Build of Etendo Core FAILED'
+                                    currentBuild.result = 'FAILED'
+                                    error('Build Etendo Core FAILED!')
+                                    env.STATUSCORE = "0"
                                 }
-                            } catch (Exception e) {
-                                echo 'Build of Etendo Core FAILED'
-                                currentBuild.result = 'FAILED'
-                                error('Build Etendo Core FAILED!')
-                                env.STATUSCORE = "0"
                             }
                         }
                     }
@@ -246,4 +244,87 @@ spec:
             }
         }
     }
+    post {
+            always {
+                script {
+                    echo"proccess is done"
+                }
+            }
+            fixed {
+                mail to: EMAIL_ADDRESS,
+                subject: "✅ FIXED - ${currentBuild.fullDisplayName}",
+                body: """
+    ${new Date()}
+    __________________________________________________________
+
+    ✅ ERRORS FIXED ✅
+
+    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
+    Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
+
+    The problems found in the previous run/s have been fixed! 💪
+    Check out the output in the following link:
+    ${env.BUILD_URL}
+    __________________________________________________________
+                """
+            }
+            failure {
+                script {
+                    sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Failed Build Environments" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                    echo "Failed Build Environments"
+                }
+                cleanWs deleteDirs: true
+                mail to: EMAIL_ADDRESS,
+                subject: "⛔ ERROR - ${currentBuild.fullDisplayName}",
+                body:  """
+    ${new Date()}
+    __________________________________________________________
+
+    ⛔ ERROR ⛔
+
+    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
+    Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
+
+    The build has failed unexpectedly.
+    💡 This build was on an Etendo Core environment.
+    To more information on the failing run visit:
+    ${env.BUILD_URL}
+    __________________________________________________________
+                """
+            }
+            unstable {
+                script {
+                    sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Failed Tests" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                    echo "Failed Test"
+                }
+                cleanWs deleteDirs: true
+                mail to: EMAIL_ADDRESS,
+                subject: "⚠️ TESTS FAILED - ${currentBuild.fullDisplayName}",
+                body: """
+    ${new Date()}
+    __________________________________________________________
+
+    ⚠️ BUILD UNSTABLE ⚠️
+
+    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
+    Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
+
+    Tests have been detected that have failed in Etendo RX.
+    💡 These tests were run on a Postgres database environment.
+    To more information on the failing run visit:
+    ${env.BUILD_URL}
+    __________________________________________________________
+                """
+            }
+            success {
+                script {
+                    sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Successful Test" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                    echo "Successful Test"
+                }
+                cleanWs deleteDirs: true
+            }
+        }
 }

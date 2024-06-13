@@ -37,17 +37,23 @@ class CopilotLangGraph:
         return self._pattern
 
     def invoke(self, question, thread_id):
-        message = None
         config = {
             "configurable": {"thread_id": thread_id},
             "recursion_limit": 50
         }
+        message = self.print_messages(config, question)
+
+        if message is None:
+            return ""
+        return message[list(message.keys())[0]]["messages"][-1].content
+
+    def print_messages(self, config, question):
+        message = None
         for message in self._graph.stream(
                 {"messages": [HumanMessage(content=question)]},
-            config
+                config
         ):
             if "__end__" not in message:
                 print("----")
-
-        return message[list(message.keys())[0]]["messages"][-1].content
+        return message
 
