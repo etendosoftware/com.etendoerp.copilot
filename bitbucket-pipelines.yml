@@ -137,16 +137,8 @@ pipelines:
             - docker pull etendo/etendo_copilot_core:develop-arm64
             - docker manifest create etendo/etendo_copilot_core:develop etendo/etendo_copilot_core:develop-amd64 etendo/etendo_copilot_core:develop-arm64
             - docker manifest annotate etendo/etendo_copilot_core:develop etendo/etendo_copilot_core:develop-amd64 --os linux --arch amd64
-            - docke
-      - step:
-          image: atlassian/default-image:3
-          name: Deploy to Develop
-          deployment: Develop
-          script:
-            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-            - IMAGE=etendo/etendo_copilot_core:develop
-            - docker build -t ${IMAGE} .
-            - docker push ${IMAGE}
+            - docker manifest annotate etendo/etendo_copilot_core:develop etendo/etendo_copilot_core:develop-arm64 --os linux --arch arm64
+            - docker manifest push etendo/etendo_copilot_core:develop
           services:
             - docker
     experimental:
