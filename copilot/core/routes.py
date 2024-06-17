@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 
 from fastapi import APIRouter
@@ -8,12 +9,11 @@ from .agent import AgentResponse, copilot_agents, AgentEnum
 from .agent.assistant_agent import AssistantAgent
 from .agent.langgraph_agent import LanggraphAgent
 from .exceptions import UnsupportedAgent
-from .langgraph.copilot_langgraph import CopilotLangGraph
 from .local_history import ChatHistory, local_history_recorder
-from .schemas import QuestionSchema, GraphQuestionSchema, AssistantSchema
+from .schemas import QuestionSchema, GraphQuestionSchema
 from .threadcontext import ThreadContext
 from .utils import copilot_debug, copilot_info
-import logging
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,7 @@ def serve_question(question: QuestionSchema):
 
     return {"answer": response}
 
+
 @core_router.post("/graph")
 def serve_question(question: GraphQuestionSchema):
     """Copilot main endpdoint to answering questions."""
@@ -101,6 +102,7 @@ def serve_question(question: GraphQuestionSchema):
         }
 
     return {"answer": response}
+
 
 @core_router.get("/tools")
 def serve_tools():

@@ -6,6 +6,7 @@ from langgraph.pregel.io import AddableUpdatesDict
 
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.langgraph.copilot_langgraph import CopilotLangGraph
+from copilot.core.langgraph.members_util import MembersUtil
 from copilot.core.langgraph.patterns import SupervisorPattern
 from copilot.core.langgraph.patterns.base_pattern import GraphMember
 from copilot.core.schemas import GraphQuestionSchema
@@ -101,21 +102,15 @@ class TestCopilotLangGraph(unittest.TestCase):
         instance = CopilotLangGraph(members, assistant_graph, pattern)
 
     @patch('copilot.core.agent.assistant_agent.AssistantAgent')
-    @patch('copilot.core.agent.langgraph_agent.LanggraphAgent.get_assistant_agent')
+    @patch('copilot.core.agent.langgraph_agent.MembersUtil.get_assistant_agent')
     def test_payload(self, mockAssistantAgent, mock_get_assistant_agent):
-        agent = LanggraphAgent()
         mock_get_assistant_agent.return_value = mockAssistantAgent
 
     def test_copilot_lang_graph(self):
-        invoke_model_langchain = MagicMock()
-        invoke_model_openai = MagicMock()
         pattern = SupervisorPattern()
 
-        agent = LanggraphAgent()
-        members = agent.get_members(invoke_model_langchain, invoke_model_openai, payload)
+        members = MembersUtil().get_members(payload)
         self.assertEqual(len(members), 3)
-
-        assistant_graph = MagicMock()
 
         graph = CopilotLangGraph(members, payload.graph, pattern)
 

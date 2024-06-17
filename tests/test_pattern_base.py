@@ -5,6 +5,7 @@ from langchain_core.runnables.graph import Edge
 from langgraph.graph import StateGraph
 
 from copilot.core.agent.langgraph_agent import LanggraphAgent
+from copilot.core.langgraph.members_util import MembersUtil
 from copilot.core.langgraph.patterns import SupervisorPattern
 from copilot.core.langgraph.patterns.base_pattern import BasePattern
 from copilot.core.schemas import GraphQuestionSchema
@@ -67,11 +68,7 @@ class TestPatternBase(unittest.TestCase):
 
     def test_initialization(self):
 
-        invoke_model_langchain = MagicMock()
-        invoke_model_openai = MagicMock()
-
-        agent = LanggraphAgent()
-        members = agent.get_members(invoke_model_langchain, invoke_model_openai, payload)
+        members = MembersUtil().get_members(payload)
         self.assertEqual(len(members), 4)
 
         pattern = BasePattern()
