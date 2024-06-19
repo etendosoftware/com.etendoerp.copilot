@@ -36,6 +36,7 @@ DEPENDENCIES_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var("DEPEND
 
 class ToolLoader:
     """Responsible for loading the user tools and making them available to the copilot agent."""
+    installed_deps = False
 
     def __init__(
             self,
@@ -128,9 +129,11 @@ class ToolLoader:
                 class_name = globals()[tool_name]
                 configured_tools.append(class_name())
 
-                if tool_name in self._tools_dependencies.keys():
-                    print_yellow(f"Installing dependencies for {tool_name} tool: ...")
-                    tool_installer.install_dependencies(dependencies=self._tools_dependencies[tool_name])
+                if ToolLoader.installed_deps is False:
+                    if tool_name in self._tools_dependencies.keys():
+                        print_yellow(f"Installing dependencies for {tool_name} tool: ...")
+                        tool_installer.install_dependencies(dependencies=self._tools_dependencies[tool_name])
+                    ToolLoader.installed_deps = True
                 # nothing todo, tool_name has not dependendies defined
 
             # nothing todo, tool_name is disabled from config
