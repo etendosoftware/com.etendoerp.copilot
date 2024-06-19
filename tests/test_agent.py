@@ -10,25 +10,22 @@ from copilot.core.exceptions import (
 )
 
 
-def test_langchain_agent_is_intanciated():
+def test_langchain_agent_is_instanciated():
     agent.AGENT_TYPE_ENVAR = agent.AgentEnum.LANGCHAIN.value
-    copilot_agent = agent._get_agent_executor()
+    copilot_agent = agent._get_agent_executors()[agent.AGENT_TYPE_ENVAR]
     assert isinstance(copilot_agent, agent.langchain_agent.LangchainAgent)
 
 
-def test_assistant_agent_is_intanciated():
-    if os.getenv("AGENT_TYPE") != agent.AgentEnum.OPENAI_ASSISTANT.value:
-        pytest.skip("Skipping open 1.2.4 is required")
-
+def test_assistant_agent_is_instanciated():
     agent.AGENT_TYPE_ENVAR = agent.AgentEnum.OPENAI_ASSISTANT.value
-    copilot_agent = agent._get_agent_executor()
+    copilot_agent = agent._get_agent_executors()[agent.AGENT_TYPE_ENVAR]
     assert isinstance(copilot_agent, agent.assistant_agent.AssistantAgent)
 
 
 def test_unnsupported_agent():
     agent.AGENT_TYPE_ENVAR = "unexistent_agent"
-    with pytest.raises(UnsupportedAgent, match=UnsupportedAgent.message):
-        agent._get_agent_executor()
+    with pytest.raises(KeyError, match="'unexistent_agent'"):
+        agent._get_agent_executors()[agent.AGENT_TYPE_ENVAR]
 
 
 @pytest.fixture

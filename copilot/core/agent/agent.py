@@ -23,14 +23,13 @@ class AgentEnum(str, Enum):
 @dataclass
 class AssistantResponse:
     response: str
-    assistant_id: str
     conversation_id: str
 
 
 @dataclass
 class AgentResponse:
     input: str
-    output: Union[AssistantResponse, str]
+    output: AssistantResponse
 
 
 class CopilotAgent:

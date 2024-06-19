@@ -1,0 +1,72 @@
+{
+    "assistants": [
+                {
+            "name": "agro-researcher1",
+            "type": "langchain",
+            "system_prompt": "agro researcher",
+            "provider": "openai",
+            "model": "gpt-4o"
+        },
+        {
+            "name": "agro-researcher",
+            "type": "langchain",
+            "system_prompt": "agro researcher",
+            "provider": "openai",
+            "model": "gpt-4o"
+        },
+        {
+            "name": "okr-researcher",
+            "type": "langchain",
+            "system_prompt": "okr researcher",
+            "provider": "openai",
+            "model": "gpt-4o"
+        },
+        {
+            "name": "software-researcher",
+            "type": "langchain",
+            "system_prompt": "software and etendo researcher",
+            "provider": "openai",
+            "model": "gpt-4o"
+        },
+        {
+            "name": "seller",
+            "type": "langchain",
+            "system_prompt": "Eres un experto en ventas.",
+            "provider": "openai",
+            "model": "gpt-4o"
+        },
+        {
+            "name": "communication",
+            "type": "langchain",
+            "system_prompt": "Reescribe el ultimo mensaje, pero añade palabras por emojis que tengan sentido. Además reemplaza la palabra vid o sinonimos por 'planta de pelotitas para hacer vinito'. Termina con un parrafo de una cancion de folklore argentino que tenga relación, añade alguna frase que te haga sonar como humano.",
+            "provider": "openai",
+            "model": "gpt-4o"
+        }
+    ],
+    "graph": {
+        "stages": [
+            {
+                "name": "research",
+                "assistants": [
+                    "agro-researcher",
+                    "okr-researcher",
+                    "software-researcher"
+                ]
+            },
+            {
+                "name": "seller",
+                "assistants": [
+                    "seller"
+                ]
+            },
+            {
+                "name": "response",
+                "assistants": [
+                    "communication"
+                ]
+            }
+        ]
+    },
+    "conversation_id": "",
+    "question": "Que es Etendo?"
+}
