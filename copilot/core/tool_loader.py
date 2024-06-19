@@ -133,10 +133,11 @@ class ToolLoader:
                     if tool_name in self._tools_dependencies.keys():
                         print_yellow(f"Installing dependencies for {tool_name} tool: ...")
                         tool_installer.install_dependencies(dependencies=self._tools_dependencies[tool_name])
-                    ToolLoader.installed_deps = True
                 # nothing todo, tool_name has not dependendies defined
 
             # nothing todo, tool_name is disabled from config
             print_green(SUCCESS_CODE)
-
+        if not ToolLoader.installed_deps:
+            utils.copilot_info("Dependencies installed successfully")
+            ToolLoader.installed_deps = True
         return configured_tools
