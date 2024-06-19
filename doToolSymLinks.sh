@@ -38,6 +38,23 @@ for module in ../*; do # for example ../com.etendoerp.copilot.erp
             fi
         done
     fi
+    if [ -d "$module/tests/" ]; then # if the folder com.etendoerp.copilot.erp/tools exists
+        for _test in "$module/tests"/*; do # for example ../com.etendoerp.copilot.erp/tools/Ejemplo.py
+            # Get the filename without the path
+            test_name=$(basename "$_test") # test_name = Ejemplo.py
+            echo "Checking _test: $test_name"
+            echo "_test: $_test"
+            # Check if the file already exists in the main module
+            if [ ! -e "tests/$test_name" ] && [[ "$test_name" == *.py ]]; then # if the file com.etendoerp.copilot/tools/Ejemplo.py does not exist and the file extension is .py
+                # Create the symbolic link, com.etendoerp.copilot/tools/Ejemplo.py -> com.etendoerp.copilot.erp/tools/Ejemplo.py
+                echo "Creating symbolic link for $test_name, command is: ln -s $_test tests/$test_name"
+                ln -s "../$_test" "tests/$test_name"
+                echo "Symbolic link created for $test_name"
+            else
+                echo "The file $test_name already exists in the main module."
+            fi
+        done
+    fi
 done
 
 # come back to the main module
