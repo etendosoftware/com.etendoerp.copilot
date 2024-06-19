@@ -10,13 +10,13 @@ from copilot.core.exceptions import (
 )
 
 
-def test_langchain_agent_is_intanciated():
+def test_langchain_agent_is_instanciated():
     agent.AGENT_TYPE_ENVAR = agent.AgentEnum.LANGCHAIN.value
     copilot_agent = agent._get_agent_executors()[agent.AGENT_TYPE_ENVAR]
     assert isinstance(copilot_agent, agent.langchain_agent.LangchainAgent)
 
 
-def test_assistant_agent_is_intanciated():
+def test_assistant_agent_is_instanciated():
     agent.AGENT_TYPE_ENVAR = agent.AgentEnum.OPENAI_ASSISTANT.value
     copilot_agent = agent._get_agent_executors()[agent.AGENT_TYPE_ENVAR]
     assert isinstance(copilot_agent, agent.assistant_agent.AssistantAgent)

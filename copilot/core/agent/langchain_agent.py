@@ -54,7 +54,7 @@ class LangchainAgent(CopilotAgent):
         return agent
 
     def get_agent_executor(self, agent):
-        return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True)
+        return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True, handle_parsing_errors=True, debug=True)
 
     def get_openai_agent(self, open_ai_model, tools, system_prompt):
         _llm = ChatOpenAI(temperature=0, streaming=False, model_name=open_ai_model)

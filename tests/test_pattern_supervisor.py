@@ -1,10 +1,9 @@
 import unittest
-from unittest.mock import MagicMock
 
 from langchain_core.runnables.graph import Edge
 from langgraph.graph import StateGraph
 
-from copilot.core.agent.langgraph_agent import LanggraphAgent
+from copilot.core.langgraph.members_util import MembersUtil
 from copilot.core.langgraph.patterns import SupervisorPattern
 from copilot.core.schemas import GraphQuestionSchema
 
@@ -197,17 +196,13 @@ payload5: GraphQuestionSchema = GraphQuestionSchema.model_validate({
 class TestPatternSupervisor(unittest.TestCase):
 
     def test_one_stage(self):
-        invoke_model_langchain = MagicMock()
-        invoke_model_openai = MagicMock()
-
-        agent = LanggraphAgent()
-        members = agent.get_members(invoke_model_langchain, invoke_model_openai, payload1)
+        members = MembersUtil().get_members(payload1)
         self.assertEqual(len(members), 4)
 
         pattern = SupervisorPattern()
         nodes: StateGraph = pattern.construct_nodes(members, payload1.graph)
         keys = [str(k) for k in list(nodes.nodes.keys())]
-        expected = ['SQLExpert', 'Ticketgenerator', 'Emojiswriter', 'Capo', 'supervisor-stage1']
+        expected = ['SQLExpert', 'Ticketgenerator', 'Emojiswriter', 'Capo', 'supervisor-stage1', 'output']
         assert len(keys) == len(expected)
         for k in keys:
             assert k in expected
@@ -219,15 +214,17 @@ class TestPatternSupervisor(unittest.TestCase):
 
         actual_edges = graph.edges
         expected_edges = [
-            Edge(source='Capo', target='__end__', data=None, conditional=False),
-            Edge(source='Emojiswriter', target='__end__', data=None, conditional=False),
-            Edge(source='SQLExpert', target='__end__', data=None, conditional=False),
-            Edge(source='Ticketgenerator', target='__end__', data=None, conditional=False),
+            Edge(source='Capo', target='supervisor-stage1', data=None, conditional=False),
+            Edge(source='Emojiswriter', target='supervisor-stage1', data=None, conditional=False),
+            Edge(source='SQLExpert', target='supervisor-stage1', data=None, conditional=False),
+            Edge(source='Ticketgenerator', target='supervisor-stage1', data=None, conditional=False),
             Edge(source='__start__', target='supervisor-stage1', data=None, conditional=False),
+            Edge(source='output', target='__end__', data=None, conditional=False),
             Edge(source='supervisor-stage1', target='SQLExpert', data=None, conditional=True),
             Edge(source='supervisor-stage1', target='Ticketgenerator', data=None, conditional=True),
             Edge(source='supervisor-stage1', target='Emojiswriter', data=None, conditional=True),
-            Edge(source='supervisor-stage1', target='Capo', data=None, conditional=True)
+            Edge(source='supervisor-stage1', target='Capo', data=None, conditional=True),
+            Edge(source='supervisor-stage1', target='output', data='FINISH', conditional=True)
         ]
 
         # Convertir listas de Edge a listas de tuplas
@@ -238,17 +235,14 @@ class TestPatternSupervisor(unittest.TestCase):
         self.assertEqual(expected_edges_as_tuples, actual_edges_as_tuples)
 
     def test_two_stages(self):
-        invoke_model_langchain = MagicMock()
-        invoke_model_openai = MagicMock()
-
-        agent = LanggraphAgent()
-        members = agent.get_members(invoke_model_langchain, invoke_model_openai, payload2)
+        members = MembersUtil().get_members(payload2)
         self.assertEqual(len(members), 4)
 
         pattern = SupervisorPattern()
         nodes: StateGraph = pattern.construct_nodes(members, payload2.graph)
         keys = [str(k) for k in list(nodes.nodes.keys())]
-        expected = ['SQLExpert', 'Ticketgenerator', 'Emojiswriter', 'Capo', 'supervisor-stage1', 'supervisor-stage2']
+        expected = ['SQLExpert', 'Ticketgenerator', 'Emojiswriter', 'Capo', 'supervisor-stage1', 'supervisor-stage2',
+                    'output']
         assert len(keys) == len(expected)
         for k in keys:
             assert k in expected
@@ -260,15 +254,19 @@ class TestPatternSupervisor(unittest.TestCase):
 
         actual_edges = graph.edges
         expected_edges = [
-            Edge(source='Capo', target='__end__', data=None, conditional=False),
-            Edge(source='Emojiswriter', target='__end__', data=None, conditional=False),
+            Edge(source='Capo', target='supervisor-stage2', data=None, conditional=False),
+            Edge(source='Emojiswriter', target='supervisor-stage2', data=None, conditional=False),
+            Edge(source='SQLExpert', target='supervisor-stage1', data=None, conditional=False),
             Edge(source='SQLExpert', target='supervisor-stage2', data=None, conditional=False),
+            Edge(source='Ticketgenerator', target='supervisor-stage1', data=None, conditional=False),
             Edge(source='Ticketgenerator', target='supervisor-stage2', data=None, conditional=False),
             Edge(source='__start__', target='supervisor-stage1', data=None, conditional=False),
+            Edge(source='output', target='__end__', data=None, conditional=False),
             Edge(source='supervisor-stage1', target='SQLExpert', data=None, conditional=True),
             Edge(source='supervisor-stage1', target='Ticketgenerator', data=None, conditional=True),
             Edge(source='supervisor-stage2', target='Emojiswriter', data=None, conditional=True),
-            Edge(source='supervisor-stage2', target='Capo', data=None, conditional=True)
+            Edge(source='supervisor-stage2', target='Capo', data=None, conditional=True),
+            Edge(source='supervisor-stage2', target='output', data='FINISH', conditional=True),
         ]
 
         # Convertir listas de Edge a listas de tuplas
@@ -279,11 +277,7 @@ class TestPatternSupervisor(unittest.TestCase):
         self.assertEqual(expected_edges_as_tuples, actual_edges_as_tuples)
 
     def test_one_node(self):
-        invoke_model_langchain = MagicMock()
-        invoke_model_openai = MagicMock()
-
-        agent = LanggraphAgent()
-        members = agent.get_members(invoke_model_langchain, invoke_model_openai, payload3)
+        members = MembersUtil().get_members(payload3)
         self.assertEqual(len(members), 1)
 
         pattern = SupervisorPattern()
@@ -313,11 +307,7 @@ class TestPatternSupervisor(unittest.TestCase):
         self.assertEqual(expected_edges_as_tuples, actual_edges_as_tuples)
 
     def test_one_node_stage1(self):
-        invoke_model_langchain = MagicMock()
-        invoke_model_openai = MagicMock()
-
-        agent = LanggraphAgent()
-        members = agent.get_members(invoke_model_langchain, invoke_model_openai, payload4)
+        members = MembersUtil().get_members(payload4)
         self.assertEqual(len(members), 4)
 
         pattern = SupervisorPattern()
@@ -353,11 +343,7 @@ class TestPatternSupervisor(unittest.TestCase):
         self.assertEqual(expected_edges_as_tuples, actual_edges_as_tuples)
 
     def test_one_node_each_stage(self):
-        invoke_model_langchain = MagicMock()
-        invoke_model_openai = MagicMock()
-
-        agent = LanggraphAgent()
-        members = agent.get_members(invoke_model_langchain, invoke_model_openai, payload5)
+        members = MembersUtil().get_members(payload5)
         self.assertEqual(len(members), 2)
 
         pattern = SupervisorPattern()
