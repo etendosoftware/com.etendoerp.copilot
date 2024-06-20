@@ -1,15 +1,11 @@
 import json
-import os
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Final, List, Optional, TypeAlias
+from typing import Dict, List, Optional, TypeAlias
 
 import toml
 
 from tools import *  # noqa: F403
-
 from . import tool_installer, utils
-
 # tools need to be imported so they can be inferred from globals
 # ruff: noqa: F401
 # fmt: off
@@ -18,10 +14,8 @@ from .exceptions import (
     ToolConfigFileNotFound,
     ToolDependenciesFileNotFound,
 )
-from .retrieval_tool import RetrievalTool
 from .tool_dependencies import Dependency, ToolsDependencies
 from .tool_wrapper import ToolWrapper
-
 # fmt: on
 from .utils import SUCCESS_CODE, print_green, print_yellow
 
@@ -31,7 +25,8 @@ NATIVE_TOOL_IMPLEMENTATION: Final[str] = "copilot"
 NATIVE_TOOLS_NODE_NAME: Final[str] = "native_tools"
 THIRD_PARTY_TOOLS_NODE_NAME: Final[str] = "third_party_tools"
 CONFIGURED_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var("CONFIGURED_TOOLS_FILENAME", "tools_config.json")
-DEPENDENCIES_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var("DEPENDENCIES_TOOLS_FILENAME", "tools_deps.toml")
+DEPENDENCIES_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var("DEPENDENCIES_TOOLS_FILENAME",
+                                                                         "tools_deps.toml")
 
 
 class ToolLoader:
@@ -83,7 +78,8 @@ class ToolLoader:
                     # that the name for install is different than the name for import. In this case, the left side of
                     # the | is the name for install and the right side is the name for import.
                     Dependency(name=self.left_side(dependency_name), version=None if version == "*" else version,
-                               import_name=self.rigth_side(dependency_name)) for dependency_name, version in value.items()
+                               import_name=self.rigth_side(dependency_name)) for dependency_name, version in
+                    value.items()
                 ]
             return tools_dependencies
 
@@ -109,7 +105,7 @@ class ToolLoader:
     def _is_tool_implemented(self, tool_name: str) -> bool:
         return tool_name in {tool.__name__ for tool in ToolWrapper.__subclasses__()}
 
-    def load_configured_tools(self) -> LangChainTools:
+    def load_configured_tools(self, install_dependencies: bool = False) -> LangChainTools:
         """Loads the configured tools. If a tool has dependencies, they will be installed dinamically."""
         configured_tools: LangChainTools = []
 
@@ -129,11 +125,10 @@ class ToolLoader:
                 class_name = globals()[tool_name]
                 configured_tools.append(class_name())
 
-                if ToolLoader.installed_deps is False:
+                if install_dependencies:
                     if tool_name in self._tools_dependencies.keys():
                         print_yellow(f"Installing dependencies for {tool_name} tool: ...")
                         tool_installer.install_dependencies(dependencies=self._tools_dependencies[tool_name])
-                    ToolLoader.installed_deps = True
                 # nothing todo, tool_name has not dependendies defined
 
             # nothing todo, tool_name is disabled from config
