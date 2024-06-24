@@ -5,8 +5,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -327,6 +331,7 @@ public class RestServiceUtil {
           .version(HttpClient.Version.HTTP_1_1)
           .POST(HttpRequest.BodyPublishers.ofString(bodyReq))
           .build();
+         */
       URL url = new URL(String.format("http://%s:%s/aquestion", copilotHost, copilotPort));
       HttpURLConnection connection = (HttpURLConnection) url.openConnection();
       connection.setRequestMethod("POST");
@@ -334,7 +339,6 @@ public class RestServiceUtil {
       connection.setDoOutput(true);
       connection.setDoInput(true);
       connection.getOutputStream().write(jsonRequestForCopilot.toString().getBytes());
-      */
 
       try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
         String line;
