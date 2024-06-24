@@ -12,6 +12,7 @@ import { References } from "./utils/references";
 import "./App.css";
 import { DropdownInput } from "etendo-ui-library/dist-web/components";
 import { SparksIcon } from "etendo-ui-library/dist-web/assets/images/icons";
+import { RestUtils } from "./utils/environment";
 
 function App() {
   // States
@@ -27,7 +28,7 @@ function App() {
   const { selectedOption, assistants, getAssistants, handleOptionSelected } = useAssistants();
 
   // Constants
-  const noAssistants = assistants.length === 0;
+  const noAssistants = assistants?.length === 0 ? true : false;
 
   // References
   const messagesEndRef = useRef<any>(null);
@@ -86,8 +87,7 @@ function App() {
     const requestOptions = {
       method: 'GET',
     }
-
-    const response = await fetch(References.url.GET_LABELS, requestOptions);
+    const response = await RestUtils.fetch(References.url.GET_LABELS, requestOptions);
     const data = await response.json();
     if (data) {
       setLabels(data);
@@ -133,12 +133,11 @@ function App() {
 
       const requestOptions = {
         method: References.method.POST,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
         signal: new AbortController().signal
       };
       try {
-        const response = await fetch(References.url.SEND_QUESTION, requestOptions);
+        const response = await RestUtils.fetch(References.url.SEND_QUESTION, requestOptions);
         const data = await response.json();
 
         if (!conversationId) setConversationId(data.conversation_id);
