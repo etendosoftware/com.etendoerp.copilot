@@ -24,7 +24,8 @@ class LanggraphAgent(CopilotAgent):
 
         lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern())
 
-        final_response = lang_graph.invoke(question=question.question, thread_id=thread_id)
+
+        final_response = lang_graph.invoke(question=question.question, thread_id=thread_id, get_image=question.generate_image)
 
         return AgentResponse(
             input=question.model_dump_json(),

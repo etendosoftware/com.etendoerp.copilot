@@ -24,21 +24,18 @@ class CopilotLangGraph:
         self._assistant_graph = assistant_graph
         self._graph = workflow.compile(checkpointer=memory)
         self._graph.get_graph().print_ascii()
-        try:
-            binary_content = self._graph.get_graph().draw_mermaid_png()
-            with open("graph.png", 'wb') as file:
-                file.write(binary_content)
-        except Exception as e:
-            logger.exception(e)
 
     def get_pattern(self):
         return self._pattern
 
-    def invoke(self, question, thread_id):
+    def invoke(self, question, thread_id, get_image=False):
         config = {
             "configurable": {"thread_id": thread_id},
             "recursion_limit": 50
         }
+        if get_image:
+            import base64
+            return base64.b64encode(self._graph.get_graph().draw_mermaid_png()).decode()
         message = self.print_messages(config, question)
 
         if message is None:

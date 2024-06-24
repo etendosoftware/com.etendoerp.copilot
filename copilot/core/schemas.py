@@ -52,3 +52,4 @@ class GraphQuestionSchema(BaseModel):
     assistants: Optional[list[AssistantSchema]] = None
     graph: Optional[AssistantGraph] = None
     extra_info: Optional[dict] = None
+    generate_image: Optional[bool] = False

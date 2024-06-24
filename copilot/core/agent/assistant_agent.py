@@ -37,8 +37,12 @@ class AssistantAgent(CopilotAgent):
     def execute(self, question: QuestionSchema) -> AgentResponse:
         agent = self.get_agent(question.assistant_id)
         agent_executor = self.get_executor(agent)
+        full_question = question.question
+        if question.local_file_ids is not None and len(question.local_file_ids) > 0:
+            full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
+
         _input = {
-            "content": question.question,
+            "content": full_question,
         }
         if question.conversation_id is not None:
             _input["thread_id"] = question.conversation_id

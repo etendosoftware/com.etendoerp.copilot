@@ -33,7 +33,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="AD_MODULE_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="AD_MODULE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>

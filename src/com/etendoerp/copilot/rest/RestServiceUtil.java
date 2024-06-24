@@ -262,7 +262,12 @@ public class RestServiceUtil {
       //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
       // and we need to add the type of the assistant (openai or langchain)
       appType = copilotApp.getAppType();
-      if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)) {
+      List<String> allowedAppTypes = List.of(CopilotConstants.APP_TYPE_LANGCHAIN, CopilotConstants.APP_TYPE_LANGGRAPH,
+          CopilotConstants.APP_TYPE_OPENAI);
+
+      if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)
+          || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGGRAPH)
+      ) {
         if (StringUtils.isEmpty(conversationId)) {
           conversationId = UUID.randomUUID().toString();
         }
@@ -505,8 +510,8 @@ public class RestServiceUtil {
    * @return A boolean value indicating whether the CopilotApp instance is of type "LANGCHAIN" and has associated team members.
    */
   private static boolean checkIfGraphQuestion(CopilotApp copilotApp) {
-    return StringUtils.equalsIgnoreCase(copilotApp.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)
-        && !getTeamMembers(copilotApp).isEmpty();
+    return StringUtils.equalsIgnoreCase(copilotApp.getAppType(), CopilotConstants.APP_TYPE_LANGGRAPH);
+
   }
 
   /**
@@ -640,4 +645,61 @@ public class RestServiceUtil {
     }
   }
 
+  public static String getGraphImg(CopilotApp copilotApp) throws JSONException, IOException {
+    if (copilotApp == null) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
+    }
+    // read the json sent
+    HttpResponse<String> responseFromCopilot = null;
+    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String appType;
+    try {
+      HttpClient client = HttpClient.newBuilder().build();
+      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
+      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      JSONObject jsonRequestForCopilot = new JSONObject();
+      //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
+      // and we need to add the type of the assistant (openai or langchain)
+      appType = copilotApp.getAppType();
+      String conversationId = UUID.randomUUID().toString();
+
+      buildLangraphRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
+      jsonRequestForCopilot.put("generate_image", true);
+      if (StringUtils.isNotEmpty(conversationId)) {
+        jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
+      }
+      String question = "placeholder";
+      jsonRequestForCopilot.put(PROP_QUESTION, question);
+      addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
+      String bodyReq = jsonRequestForCopilot.toString();
+      logIfDebug("Request to Copilot:);");
+      logIfDebug(new JSONObject(bodyReq).toString(2));
+      HttpRequest copilotRequest = HttpRequest.newBuilder()
+          .uri(new URI(String.format("http://%s:%s" + GRAPH, copilotHost, copilotPort)))
+          .headers("Content-Type", APPLICATION_JSON_CHARSET_UTF_8)
+          .version(HttpClient.Version.HTTP_1_1)
+          .POST(HttpRequest.BodyPublishers.ofString(bodyReq))
+          .build();
+
+      responseFromCopilot = client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
+    } catch (URISyntaxException | InterruptedException e) {
+      log.error(e);
+      Thread.currentThread().interrupt();
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
+    }
+    JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
+    if (!responseJsonFromCopilot.has("answer")) {
+      String message = "";
+      if (responseJsonFromCopilot.has("detail")) {
+        JSONArray detail = responseJsonFromCopilot.getJSONArray("detail");
+        if (detail.length() > 0) {
+          message = ((JSONObject) detail.get(0)).getString("message");
+        }
+      }
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
+    }
+    JSONObject answer = (JSONObject) responseJsonFromCopilot.get("answer");
+    handleErrorMessagesIfExists(answer);
+    return answer.getString("response");
+  }
 }

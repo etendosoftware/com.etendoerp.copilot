@@ -133,5 +133,7 @@ class ToolLoader:
 
             # nothing todo, tool_name is disabled from config
             print_green(SUCCESS_CODE)
-
+        if not ToolLoader.installed_deps:
+            utils.copilot_info("Dependencies installed successfully")
+            ToolLoader.installed_deps = True
         return configured_tools
