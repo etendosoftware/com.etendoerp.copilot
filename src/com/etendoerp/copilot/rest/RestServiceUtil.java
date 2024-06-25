@@ -1,9 +1,6 @@
 package com.etendoerp.copilot.rest;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -18,7 +15,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
-import java.util.*;
 import java.util.concurrent.TransferQueue;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
@@ -63,6 +59,7 @@ import com.etendoerp.copilot.util.CopilotConstants;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 
 public class RestServiceUtil {
 
@@ -75,6 +72,7 @@ public class RestServiceUtil {
   public static final String QUESTION = "/question";
   public static final String GRAPH = "/graph";
   public static final String AQUESTION = "/aquestion";
+  public static final String AGRAPH = "/agraph";
   public static final String GET_ASSISTANTS = "/assistants";
   public static final String APP_ID = "app_id";
   public static final String PROP_ASSISTANT_ID = "assistant_id";
@@ -253,7 +251,7 @@ public class RestServiceUtil {
     }
   }
 
-  static JSONObject handleQuestion(TransferQueue<String> queue, JSONObject jsonRequest) throws JSONException, IOException {
+  static JSONObject handleQuestion(HttpServletResponse queue, JSONObject jsonRequest) throws JSONException, IOException {
     String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID);
     String appId = jsonRequest.getString(APP_ID);
     String question = jsonRequest.getString(PROP_QUESTION);
@@ -272,12 +270,34 @@ public class RestServiceUtil {
     return handleQuestion(queue, copilotApp, conversationId, question, filesReceived);
   }
 
-  public static JSONObject handleQuestion(TransferQueue<String> queue, CopilotApp copilotApp, String conversationId, String question,
+  private static void serverSideEvents(HttpServletResponse response, InputStream inputStream) {
+    response.setContentType("text/event-stream");
+    response.setCharacterEncoding("UTF-8");
+    response.setHeader("Cache-Control", "no-cache");
+    response.setHeader("Connection", "keep-alive");
+    try (PrintWriter writer = response.getWriter()) {
+      writer.println("data: {}\n\n");
+      writer.flush();
+      try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          if (line.startsWith("data:")) {
+            writer.println(line + "\n\n");
+            writer.flush();
+          }
+        }
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  public static JSONObject handleQuestion(HttpServletResponse queue, CopilotApp copilotApp, String conversationId, String question,
       List<String> questionAttachedFileIds) throws IOException, JSONException {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
-    refreshDynamicFiles(queue, copilotApp);
+    refreshDynamicFiles(copilotApp);
     // read the json sent
     String responseFromCopilot = null;
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
@@ -320,37 +340,17 @@ public class RestServiceUtil {
       handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
       addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
       String bodyReq = jsonRequestForCopilot.toString();
-      String endpoint = isGraph ? GRAPH : QUESTION;
+      String endpoint = isGraph ? AGRAPH : AQUESTION;
       logIfDebug("Request to Copilot:);");
       logIfDebug(new JSONObject(bodyReq).toString(2));
-      // Sync
-      /*
-      HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort)))
-          .headers("Content-Type", APPLICATION_JSON_CHARSET_UTF_8)
-          .version(HttpClient.Version.HTTP_1_1)
-          .POST(HttpRequest.BodyPublishers.ofString(bodyReq))
-          .build();
-         */
-      URL url = new URL(String.format("http://%s:%s/aquestion", copilotHost, copilotPort));
+      URL url = new URL(String.format("http://%s:%s/" + endpoint, copilotHost, copilotPort));
       HttpURLConnection connection = (HttpURLConnection) url.openConnection();
       connection.setRequestMethod("POST");
       connection.setRequestProperty("Content-Type", "application/json");
       connection.setDoOutput(true);
       connection.setDoInput(true);
       connection.getOutputStream().write(jsonRequestForCopilot.toString().getBytes());
-
-      try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
-        String line;
-        while ((line = reader.readLine()) != null) {
-          if (line.startsWith("data:")) {
-            responseFromCopilot = line.substring(5);
-              sendData(queue, responseFromCopilot);
-          }
-        }
-      } finally {
-        connection.disconnect();
-      }
+      serverSideEvents(queue, connection.getInputStream());
     } catch (Exception e) {
       log.error(e);
       Thread.currentThread().interrupt();
@@ -588,11 +588,10 @@ public class RestServiceUtil {
     }
   }
 
-  private static void refreshDynamicFiles(TransferQueue<String> queue, CopilotApp copilotApp) throws JSONException, IOException {
+  private static void refreshDynamicFiles(CopilotApp copilotApp) throws JSONException, IOException {
     String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
     for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
       if (CopilotConstants.isAttachBehaviour(appSource) || CopilotConstants.isQuestionBehaviour(appSource)) {
-        sendMsg(queue, "tool", "Refreshing " + appSource.getFile().getName());
         OpenAIUtils.syncAppSource(appSource, openaiApiKey);
       }
     }

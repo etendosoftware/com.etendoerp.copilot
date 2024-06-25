@@ -22,9 +22,9 @@ class AgentEnum(str, Enum):
 
 @dataclass
 class AssistantResponse:
-    message_id: str
     response: str
     conversation_id: str
+    message_id: Optional[str] = None
     role: Optional[str] = None
 
 

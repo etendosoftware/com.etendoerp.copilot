@@ -1,9 +1,12 @@
+import asyncio
 import json
 import logging
 import threading
 
 from fastapi import APIRouter
+from fsspec.asyn import loop
 from starlette.responses import StreamingResponse
+import threading
 
 from . import utils
 from .agent import AgentResponse, copilot_agents, AgentEnum
@@ -30,14 +33,28 @@ def select_copilot_agent(copilot_type: str):
     return copilot_agents[copilot_type]
 
 def _response(response: AssistantResponse):
-    json_value = json.dumps({"answer": {
-        "message_id": response.message_id,
-        "assistant_id": response.assistant_id,
-        "response": response.response,
-        "conversation_id": response.conversation_id,
-        "role": response.role
-    }})
+    if type(response) == AssistantResponse:
+        json_value = json.dumps({"answer": {
+            "response": response.response,
+            "conversation_id": response.conversation_id,
+            "role": response.role
+        }})
+    else:
+        json_value = json.dumps({"answer": {
+            "response": response.output.response,
+            "conversation_id": response.output.conversation_id,
+            "role": response.output.role
+        }})
+    copilot_debug('data: ' + json_value)
     return "data: " + json_value + "\n"
+
+async def gather_responses(agent, question, queue):
+    try:
+        async for agent_response in agent.aexecute(question):
+            await queue.put(agent_response)
+    except Exception as e:
+        await queue.put(e)
+    await queue.put(None)  # Signal that processing is done
 
 def _serve_question(question: QuestionSchema):
     """Copilot main endpdoint to answering questions."""
@@ -58,10 +75,24 @@ def _serve_question(question: QuestionSchema):
         copilot_debug(
             "Thread " + str(threading.get_ident()) + " Saving extra info:" + str(ThreadContext.identifier_data()))
         ThreadContext.set_data('extra_info', question.extra_info)
-        agent_responses = copilot_agent.aexecute(question)
-        for agent_response in agent_responses:
-            response = agent_response
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        queue = asyncio.Queue()
+        async def main():
+            await asyncio.gather(
+                gather_responses(copilot_agent, question, queue),
+            )
+        task = loop.create_task(main())
+        while True:
+            response = loop.run_until_complete(queue.get())
+            if response is None:
+                break
+            if isinstance(response, Exception):
+                copilot_debug(f"Error: {str(response)}")
+                continue
             yield _response(response)
+        loop.run_until_complete(task)
+        loop.close()
     except Exception as e:
         logger.exception(e)
         copilot_debug("  Exception: " + str(e))

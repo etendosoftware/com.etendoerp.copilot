@@ -12,7 +12,8 @@ import { References } from "./utils/references";
 import "./App.css";
 import { DropdownInput } from "etendo-ui-library/dist-web/components";
 import { SparksIcon } from "etendo-ui-library/dist-web/assets/images/icons";
-import { RestUtils } from "./utils/environment";
+import { RestUtils, isDevelopment } from "./utils/environment";
+import { EventSourcePolyfill } from 'event-source-polyfill';
 
 function App() {
   // States
@@ -33,30 +34,6 @@ function App() {
   // References
   const messagesEndRef = useRef<any>(null);
   const inputRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (selectedOption) {
-      const eventSourceUrl = `${References.url.SEND_AQUESTION}?app_id=${selectedOption.app_id}`;
-      const eventSource = new EventSource(eventSourceUrl);
-
-      eventSource.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        console.log("ES data",data)
-        if(data.response) {
-          handleNewMessage(data.role ? data.role : "bot", data);
-        }
-      };
-
-      eventSource.onerror = function(err) {
-        console.error("EventSource failed:", err);
-        eventSource.close();
-      };
-
-      return () => {
-        eventSource.close();
-      };
-    }
-  }, [selectedOption]);
 
   const handleNewMessage = async (role:string, message:IMessage) => {
     console.log("handleNewMessage",message)
@@ -131,30 +108,33 @@ function App() {
         requestBody.file = fileId;
       }
 
-      const requestOptions = {
-        method: References.method.POST,
-        body: JSON.stringify(requestBody),
-        signal: new AbortController().signal
-      };
       try {
-        const response = await RestUtils.fetch(References.url.SEND_QUESTION, requestOptions);
-        const data = await response.json();
-
-        if (!conversationId) setConversationId(data.conversation_id);
-
-        if (data.response) {
-          setStatusIcon(responseSent);
-          scrollToBottom();
-        } else if (data.error) {
-          const errorMessage: IMessage = {
-            text: data.error,
-            sender: "error",
-            timestamp: formatTimeNewDate(new Date())
+          const params = Object.keys(requestBody).map(key => `${key}=${requestBody[key]}`).join('&');
+          const eventSourceUrl = isDevelopment() ?
+          `${References.DEV}${References.url.SEND_AQUESTION}?client_id=${clientId}&${params}`:
+           `${References.DEV}${References.url.SEND_AQUESTION}?client_id=${clientId}&${params}`;
+           const headers = {
+            'Authorization': 'Basic ' + btoa('admin:admin'),
           };
-          await handleNewMessage("bot", errorMessage)
-          setStatusIcon(responseSent);
-          scrollToBottom();
-        }
+          const eventSource = new EventSourcePolyfill(eventSourceUrl, {
+            headers: headers,
+            heartbeatTimeout: 12000000,
+          });
+
+          eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            console.log("ES data",data)
+            const answer = data?.answer;
+            if(answer?.response) {
+              handleNewMessage(answer.role ? answer.role : "bot", answer);
+            }
+          };
+
+          eventSource.onerror = function(err) {
+            console.error("EventSource failed:", err);
+            eventSource.close();
+          };
+
         setIsBotLoading(false);
         setStatusIcon(botIcon);
       } catch (error: any) {

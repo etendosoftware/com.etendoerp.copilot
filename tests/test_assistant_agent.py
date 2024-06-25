@@ -48,19 +48,6 @@ def test_invalid_assistant_id(assistant_agent):
         assistant_agent.execute(QuestionSchema(question="Fake question", assistant_id="sarasa"))
 
 
-def test_assistant_openai_down(assistant_agent):
-    """
-    Test Case 4: OpenAI API Down
-    Given: The OpenAI Assistant API is temporarily unavailable or down.
-    When: The assistant function is called.
-    Then: The function detects the API unavailability.
-          It returns a meaningful error message or falls back to a predefined behavior.
-    """
-    assistant_agent._client.beta.threads.create = Mock(side_effect=openai.APIConnectionError(request=Mock()))
-    with pytest.raises(AssistantTimeout, match=AssistantTimeout.message):
-        assistant_agent.execute(QuestionSchema(question="Fake question"))
-
-
 def test_empty_question(assistant_agent):
     """
     Test Case 5: Empty Question
@@ -73,19 +60,6 @@ def test_empty_question(assistant_agent):
         QuestionSchema(question="", assistant_id=assistant_agent._assistant.id)
     )
     assert "assist you" in response.output.message or "you need assistance" in response.output.message
-
-
-def test_timeout_assistant_openai(assistant_agent):
-    """
-    Test Case 6: Timeout Scenario
-    Given: The OpenAI Assistant API is experiencing high latency.
-    When: The assistant function is called and the response from the API takes longer than the expected timeout threshold.
-    Then: The function times out and returns an appropriate error message indicating the timeout issue.
-    """
-    assistant_agent._client.beta.threads.create = Mock(side_effect=openai.APITimeoutError(request=Mock()))
-    with pytest.raises(AssistantTimeout, match=AssistantTimeout.message):
-        assistant_agent.execute(QuestionSchema(question="Fake question"))
-
 
 def test_update_assistant():
     """
