@@ -122,6 +122,8 @@ public class RestService extends HttpSecureAppServlet {
     JSONObject json = new JSONObject();
     json.put("question", request.getParameter("question"));
     json.put("app_id", request.getParameter("app_id"));
+    json.put("conversation_id", request.getParameter("conversation_id"));
+    json.put("file", request.getParameter("file"));
     try {
       RestServiceUtil.handleQuestion(response, json);
     } catch (CopilotRestServiceException e) {

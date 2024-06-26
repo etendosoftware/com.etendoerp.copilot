@@ -9,7 +9,6 @@ from .patterns.loop_pattern import LoopPattern
 
 logger = logging.getLogger(__name__)
 
-memory = SqliteSaver.from_conn_string("checkpoints.sqlite")
 
 
 class CopilotLangGraph:
@@ -17,7 +16,7 @@ class CopilotLangGraph:
     _pattern: BasePattern
     _graph: LoopPattern
 
-    def __init__(self, members, assistant_graph, pattern: BasePattern):
+    def __init__(self, members, assistant_graph, pattern: BasePattern, memory):
         self._pattern = pattern
         workflow = self.get_pattern().construct_nodes(members, assistant_graph)
         self.get_pattern().connect_graph(assistant_graph, workflow)

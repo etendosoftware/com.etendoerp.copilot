@@ -1,7 +1,7 @@
 import json
 import os
 from time import sleep
-from typing import Final
+from typing import Final, AsyncGenerator
 
 from langchain.agents import AgentExecutor
 from langchain.agents.openai_assistant.base import OpenAIAssistantAction
@@ -11,13 +11,6 @@ from langchain_core.runnables import AddableDict
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
 from .. import utils
 from ..schemas import QuestionSchema
-
-SLEEP_SECONDS = 300
-
-def _get_openai_client():
-    from openai import OpenAI
-    return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 
 class AssistantAgent(CopilotAgent):
     """OpenAI Assistant Agent implementation."""
@@ -65,8 +58,8 @@ class AssistantAgent(CopilotAgent):
                                             "conversation_id": response.conversation_id}})
         return "data: " + json_value + "\n"
 
-    async def aexecute(self, question: QuestionSchema) -> AgentResponse:
-        copilot_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true" # Debug mode
+    async def aexecute(self, question: QuestionSchema) -> AssistantResponse:
+        copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true" # Debug mode
         agent = self.get_agent(question.assistant_id)
         agent_executor = self.get_executor(agent)
         full_question = question.question
@@ -78,7 +71,12 @@ class AssistantAgent(CopilotAgent):
         }
         if question.conversation_id is not None:
             _input["thread_id"] = question.conversation_id
+
         async for event in agent_executor.astream_events(_input, version="v2"):
+            if copilot_stream_debug:
+                yield AssistantResponse(
+                    response=str(event), conversation_id=question.conversation_id, role="debug"
+                )
             kind = event["event"]
             if kind == "on_chain_end":
                 if type(event["data"]["output"]) == list:
@@ -95,32 +93,8 @@ class AssistantAgent(CopilotAgent):
                             response=action.tool, conversation_id=action.thread_id, role="tool"
                         )
                     else:
-                        if not type(event["data"]["output"]) == AddableDict:
+                        if type(event["data"]["output"]) != AddableDict:
                             return_values = event["data"]["output"].return_values
                             yield AssistantResponse(
                                 response=str(return_values["output"]), conversation_id=return_values["thread_id"]
                             )
-                        else:
-                            if copilot_debug:
-                                return_values = event["data"]["output"]
-                                yield AssistantResponse(
-                                    response=str(return_values["output"]), conversation_id=return_values["thread_id"]
-                                )
-            elif kind == "on_chain_stream":
-                if event["data"]["chunk"].get("actions") != None and type(event["data"]["chunk"]["actions"]) == list:
-                    for action in event["data"]["chunk"]["actions"]:
-                        if type(action) == OpenAIAssistantAction:
-                            if copilot_debug:
-                                yield AssistantResponse(
-                                    response=json.dumps(action.tool_input), conversation_id=action.thread_id, role="tool"
-                                )
-                else:
-                    if copilot_debug:
-                        yield AssistantResponse(
-                            response=str(event["data"]["chunk"]), conversation_id='', role="assistant"
-                        )
-            elif kind == "on_chat_model_stream":
-                if copilot_debug:
-                    yield AssistantResponse(
-                        response=event["data"]['chunk'].content, conversation_id='', role="tool"
-                    )

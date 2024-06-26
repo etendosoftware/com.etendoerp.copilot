@@ -3,7 +3,6 @@ import { IAssistant } from "../interfaces/IAssistant";
 import { References } from "../utils/references";
 import { RestUtils } from "../utils/environment";
 
-const PROD = false;
 export const useAssistants = () => {
     const [selectedOption, setSelectedOption] = useState<IAssistant | null>(null);
     const [assistants, setAssistants] = useState<IAssistant[]>([]);

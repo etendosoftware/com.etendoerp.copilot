@@ -4,9 +4,7 @@ import logging
 import threading
 
 from fastapi import APIRouter
-from fsspec.asyn import loop
 from starlette.responses import StreamingResponse
-import threading
 
 from . import utils
 from .agent import AgentResponse, copilot_agents, AgentEnum
@@ -32,6 +30,7 @@ def select_copilot_agent(copilot_type: str):
         raise UnsupportedAgent()
     return copilot_agents[copilot_type]
 
+
 def _response(response: AssistantResponse):
     if type(response) == AssistantResponse:
         json_value = json.dumps({"answer": {
@@ -48,6 +47,7 @@ def _response(response: AssistantResponse):
     copilot_debug('data: ' + json_value)
     return "data: " + json_value + "\n"
 
+
 async def gather_responses(agent, question, queue):
     try:
         async for agent_response in agent.aexecute(question):
@@ -55,6 +55,7 @@ async def gather_responses(agent, question, queue):
     except Exception as e:
         await queue.put(e)
     await queue.put(None)  # Signal that processing is done
+
 
 def _serve_question(question: QuestionSchema):
     """Copilot main endpdoint to answering questions."""
@@ -78,10 +79,12 @@ def _serve_question(question: QuestionSchema):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         queue = asyncio.Queue()
+
         async def main():
             await asyncio.gather(
                 gather_responses(copilot_agent, question, queue),
             )
+
         task = loop.create_task(main())
         while True:
             response = loop.run_until_complete(queue.get())
@@ -144,18 +147,80 @@ def serve_question(question: GraphQuestionSchema):
         }
         yield "data: {\"answer\": " + json.dumps(response) + "}\n"
 
+
+def event_stream_graph(question: GraphQuestionSchema):
+    responses = _serve_agraph(question)
+    for response in responses:
+        yield response
+
+
+@core_router.post("/agraph")
+def serve_async_graph(question: GraphQuestionSchema):
+    return StreamingResponse(event_stream_graph(question), media_type="text/event-stream")
+
+
+def _serve_agraph(question: GraphQuestionSchema):
+    """Copilot main endpdoint to answering questions."""
+    copilot_agent = LanggraphAgent()
+    copilot_info("  Current agent loaded: " + copilot_agent.__class__.__name__)
+    copilot_debug("/question endpoint):")
+    copilot_info("  Question: " + question.question)
+    copilot_debug("  conversation_id: " + str(question.conversation_id))
+
+    try:
+        ThreadContext.set_data('extra_info', question.extra_info)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        queue = asyncio.Queue()
+
+        async def main():
+            await asyncio.gather(
+                gather_responses(copilot_agent, question, queue),
+            )
+
+        task = loop.create_task(main())
+        while True:
+            response = loop.run_until_complete(queue.get())
+            if response is None:
+                break
+            if isinstance(response, Exception):
+                copilot_debug(f"Error: {str(response)}")
+                continue
+            yield _response(response)
+        loop.run_until_complete(task)
+        loop.close()
+    except Exception as e:
+        logger.exception(e)
+        copilot_debug("  Exception: " + str(e))
+        if hasattr(e, "response"):
+            content = e.response.content
+            # content has the json error message
+            error_message = json.loads(content).get('error').get('message')
+        else:
+            error_message = str(e)
+
+        response = {"error": {
+            "code": e.response.status_code if hasattr(e, "response") else 500,
+            "message": error_message}
+        }
+        yield "data: {\"answer\": " + json.dumps(response) + "}\n"
+
+
 @core_router.post("/question")
 def serve_question(question: QuestionSchema):
     return _serve_question(question)
+
 
 def event_stream(question: QuestionSchema):
     responses = _serve_question(question)
     for response in responses:
         yield response
 
+
 @core_router.post("/aquestion")
 def serve_async_question(question: QuestionSchema):
     return StreamingResponse(event_stream(question), media_type="text/event-stream")
+
 
 @core_router.get("/tools")
 def serve_tools():

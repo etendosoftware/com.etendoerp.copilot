@@ -288,7 +288,11 @@ public class RestServiceUtil {
         }
       }
     } catch (IOException e) {
-      e.printStackTrace();
+    } finally {
+      try {
+        inputStream.close();
+      } catch (Exception e) {
+      }
     }
   }
 
@@ -303,7 +307,6 @@ public class RestServiceUtil {
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String appType;
     try {
-      HttpClient client = HttpClient.newBuilder().build();
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
       JSONObject jsonRequestForCopilot = new JSONObject();
@@ -343,7 +346,7 @@ public class RestServiceUtil {
       String endpoint = isGraph ? AGRAPH : AQUESTION;
       logIfDebug("Request to Copilot:);");
       logIfDebug(new JSONObject(bodyReq).toString(2));
-      URL url = new URL(String.format("http://%s:%s/" + endpoint, copilotHost, copilotPort));
+      URL url = new URL(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort));
       HttpURLConnection connection = (HttpURLConnection) url.openConnection();
       connection.setRequestMethod("POST");
       connection.setRequestProperty("Content-Type", "application/json");
@@ -518,7 +521,7 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
     if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
       jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
-      jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getName());
+      jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getIdentifier());
     } else if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_GEMINI_VALUE)) {
       jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_GEMINI);
       jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");
