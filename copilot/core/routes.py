@@ -57,8 +57,20 @@ async def gather_responses(agent, question, queue):
     await queue.put(None)  # Signal that processing is done
 
 
-def _serve_question(question: QuestionSchema):
-    """Copilot main endpdoint to answering questions."""
+def _serve_question_sync(question: QuestionSchema):
+    """Copilot endpoint for answering questions synchronously."""
+    agent_type, copilot_agent = _initialize_agent(question)
+    response = None
+    try:
+        response = _execute_agent(copilot_agent, question)
+        local_history_recorder.record_chat(chat_question=question.question, chat_answer=response)
+    except Exception as e:
+        response = _handle_exception(e)
+    return {"answer": response}
+
+
+def _initialize_agent(question: QuestionSchema):
+    """Initialize and return the copilot agent."""
     agent_type = question.type
     if agent_type is None:
         agent_type = utils.read_optional_env_var("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
@@ -70,48 +82,30 @@ def _serve_question(question: QuestionSchema):
     copilot_debug("  assistant_id: " + str(question.assistant_id))
     copilot_debug("  conversation_id: " + str(question.conversation_id))
     copilot_debug("  file_ids: " + str(question.file_ids))
+    ThreadContext.set_data('extra_info', question.extra_info)
+    return agent_type, copilot_agent
 
-    response = None
-    try:
-        copilot_debug(
-            "Thread " + str(threading.get_ident()) + " Saving extra info:" + str(ThreadContext.identifier_data()))
-        ThreadContext.set_data('extra_info', question.extra_info)
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        queue = asyncio.Queue()
 
-        async def main():
-            await asyncio.gather(
-                gather_responses(copilot_agent, question, queue),
-            )
+def _execute_agent(copilot_agent, question: QuestionSchema):
+    """Execute the agent and return the response."""
+    agent_response: AgentResponse = copilot_agent.execute(question)
+    return agent_response.output
 
-        task = loop.create_task(main())
-        while True:
-            response = loop.run_until_complete(queue.get())
-            if response is None:
-                break
-            if isinstance(response, Exception):
-                copilot_debug(f"Error: {str(response)}")
-                continue
-            yield _response(response)
-        loop.run_until_complete(task)
-        loop.close()
-    except Exception as e:
-        logger.exception(e)
-        copilot_debug("  Exception: " + str(e))
-        if hasattr(e, "response"):
-            content = e.response.content
-            # content has the json error message
-            error_message = json.loads(content).get('error').get('message')
-        else:
-            error_message = str(e)
 
-        response = {"error": {
-            "code": e.response.status_code if hasattr(e, "response") else 500,
-            "message": error_message}
-        }
+def _handle_exception(e: Exception):
+    """Handle exceptions and return an error response."""
+    logger.exception(e)
+    copilot_debug("  Exception: " + str(e))
+    if hasattr(e, "response"):
+        content = e.response.content
+        error_message = json.loads(content).get('error').get('message')
+    else:
+        error_message = str(e)
 
-    return {"answer": response}
+    return {"error": {
+        "code": e.response.status_code if hasattr(e, "response") else 500,
+        "message": error_message}
+    }
 
 
 @core_router.post("/graph")
@@ -145,7 +139,8 @@ def serve_question(question: GraphQuestionSchema):
             "code": e.response.status_code if hasattr(e, "response") else 500,
             "message": error_message}
         }
-        yield "data: {\"answer\": " + json.dumps(response) + "}\n"
+
+    return {"answer": response}
 
 
 def event_stream_graph(question: GraphQuestionSchema):
@@ -208,19 +203,42 @@ def _serve_agraph(question: GraphQuestionSchema):
 
 @core_router.post("/question")
 def serve_question(question: QuestionSchema):
-    return _serve_question(question)
+    return _serve_question_sync(question)
 
 
-def event_stream(question: QuestionSchema):
-    responses = _serve_question(question)
-    for response in responses:
+async def _serve_question_async(question: QuestionSchema):
+    """Copilot endpoint for answering questions asynchronously."""
+    agent_type, copilot_agent = _initialize_agent(question)
+    response = None
+    try:
+        queue = asyncio.Queue()
+
+        async def main():
+            await asyncio.gather(
+                gather_responses(copilot_agent, question, queue),
+            )
+
+        task = asyncio.create_task(main())
+        while True:
+            response = await queue.get()
+            if response is None:
+                break
+            if isinstance(response, Exception):
+                copilot_debug(f"Error: {str(response)}")
+                continue
+            yield _response(response)
+        await task
+    except Exception as e:
+        response = _handle_exception(e)
+        yield {"answer": response}
+
+async def event_stream(question: QuestionSchema):
+    async for response in _serve_question_async(question):
         yield response
 
-
 @core_router.post("/aquestion")
-def serve_async_question(question: QuestionSchema):
+async def serve_async_question(question: QuestionSchema):
     return StreamingResponse(event_stream(question), media_type="text/event-stream")
-
 
 @core_router.get("/tools")
 def serve_tools():

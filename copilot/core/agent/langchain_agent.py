@@ -55,7 +55,7 @@ class LangchainAgent(CopilotAgent):
 
         return agent
 
-    def get_agent_executor(self, agent):
+    def get_agent_executor(self, agent) -> AgentExecutor:
         return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True, handle_parsing_errors=True, debug=True)
 
     def get_openai_agent(self, open_ai_model, tools, system_prompt):
@@ -158,16 +158,10 @@ class LangchainAgent(CopilotAgent):
                         response=event["name"], conversation_id='', role="tool"
                     )
             elif kind == "on_chain_end":
-                if type(event["data"]["output"]) == list:
-                    pass
-                else:
-                    if type(event["data"]["output"]) == OpenAIAssistantAction:
-                        pass
-                    else:
-                        if not type(event["data"]["output"]) == AddableDict:
-                            output = event["data"]["output"]
-                            if type(output) == AgentFinish:
-                                return_values = output.return_values
-                                yield AssistantResponse(
-                                    response=str(return_values["output"]), conversation_id=""
-                                )
+                if not type(event["data"]["output"]) == AddableDict:
+                    output = event["data"]["output"]
+                    if type(output) == AgentFinish:
+                        return_values = output.return_values
+                        yield AssistantResponse(
+                            response=str(return_values["output"]), conversation_id=""
+                        )

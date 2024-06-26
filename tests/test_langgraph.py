@@ -1,9 +1,12 @@
+import json
 import unittest
 from unittest.mock import patch, MagicMock
 
-from langchain_core.messages import HumanMessage
-from langgraph.pregel.io import AddableUpdatesDict
+import pytest
+from fastapi.testclient import TestClient
+from langgraph.checkpoint.sqlite import SqliteSaver
 
+from copilot.app import app
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.langgraph.copilot_langgraph import CopilotLangGraph
 from copilot.core.langgraph.members_util import MembersUtil
@@ -11,50 +14,63 @@ from copilot.core.langgraph.patterns import SupervisorPattern
 from copilot.core.langgraph.patterns.base_pattern import GraphMember
 from copilot.core.schemas import GraphQuestionSchema
 
-payload: GraphQuestionSchema = GraphQuestionSchema.model_validate({
-    "assistants": [
-        {
-            "name": "SQLExpert",
-            "type": "openai-assistant",
-            "assistant_id": "asst_xtery992WunjICv1Pjbrrp4v"
-        },
-        {
-            "name": "Ticketgenerator",
-            "type": "openai-assistant",
-            "assistant_id": "asst_7xpJ0v7UxjzWlhkQyPYbseC6"
-        },
-        {
-            "name": "Emojiswriter",
-            "type": "langchain",
-            "assistant_id": "FD8485BBE72D4B69BED2626D72114834",
-            "tools": [],
-            "provider": "openai",
-            "model": "gpt-4o",
-            "system_prompt": "Eres un experto en hacer redacciones usando emojis. Si recibes un texto, lo redactaras de manera muy amigable y usando muchos emojis\n"
-        },
-    ],
-    "history": [],
-    "graph": {
-        "stages": [
+client = TestClient(app)
+
+
+@pytest.fixture
+def mock_langgraph_agent():
+    with patch('copilot.core.agent.langgraph_agent.LanggraphAgent') as mock_agent:
+        instance = mock_agent.return_value
+        instance.execute.return_value = MagicMock(output="Paris")
+        yield mock_agent
+
+
+@pytest.fixture
+def graph_question_payload():
+    return GraphQuestionSchema.model_validate({
+        "assistants": [
             {
-                "name": "stage1",
-                "assistants": [
-                    "SQLExpert",
-                    "Ticketgenerator",
-                    "Emojiswriter"
-                ]
+                "name": "SQLExpert",
+                "type": "openai-assistant",
+                "assistant_id": "asst_xtery992WunjICv1Pjbrrp4v"
+            },
+            {
+                "name": "Ticketgenerator",
+                "type": "openai-assistant",
+                "assistant_id": "asst_7xpJ0v7UxjzWlhkQyPYbseC6"
+            },
+            {
+                "name": "Emojiswriter",
+                "type": "langchain",
+                "assistant_id": "FD8485BBE72D4B69BED2626D72114834",
+                "tools": [],
+                "provider": "openai",
+                "model": "gpt-4o",
+                "system_prompt": "Eres un experto en hacer redacciones usando emojis. Si recibes un texto, lo redactaras de manera muy amigable y usando muchos emojis\n"
+            },
+        ],
+        "history": [],
+        "graph": {
+            "stages": [
+                {
+                    "name": "stage1",
+                    "assistants": [
+                        "SQLExpert",
+                        "Ticketgenerator",
+                        "Emojiswriter"
+                    ]
+                }
+            ]
+        },
+        "conversation_id": "d2264c6d-14b8-42bd-9cfc-60a552d433b9",
+        "question": "What is the capital of France?",
+        "local_file_ids": [],
+        "extra_info": {
+            "auth": {
+                "ETENDO_TOKEN": "eyJhbGciOiJIUzI1NiJ9"
             }
-        ]
-    },
-    "conversation_id": "d2264c6d-14b8-42bd-9cfc-60a552d433b9",
-    "question": "What is the capital of France?",
-    "local_file_ids": [],
-    "extra_info": {
-        "auth": {
-            "ETENDO_TOKEN": "eyJhbGciOiJIUzI1NiJ9"
         }
-    }
-})
+    })
 
 
 class TestCopilotLangGraph(unittest.TestCase):
@@ -74,8 +90,9 @@ class TestCopilotLangGraph(unittest.TestCase):
         pattern.connect_graph = mock_connect_graph
         pattern.compile.return_value = MagicMock()
 
+        memory = SqliteSaver.from_conn_string(":memory:")
         # Creating instance
-        instance = CopilotLangGraph(members, assistant_graph, pattern)
+        instance = CopilotLangGraph(members, assistant_graph, pattern, memory)
 
         # Assertions to ensure correct initialization
         self.assertIsNotNone(instance._graph)
@@ -98,22 +115,34 @@ class TestCopilotLangGraph(unittest.TestCase):
         graph.stream.return_value = [{"__end__": False, "content": "Test message"}]
         pattern.compile.return_value = graph
 
+        memory = SqliteSaver.from_conn_string(":memory:")
         # Creating instance
-        instance = CopilotLangGraph(members, assistant_graph, pattern)
+        instance = CopilotLangGraph(members, assistant_graph, pattern, memory)
 
     @patch('copilot.core.agent.assistant_agent.AssistantAgent')
     @patch('copilot.core.agent.langgraph_agent.MembersUtil.get_assistant_agent')
     def test_payload(self, mockAssistantAgent, mock_get_assistant_agent):
         mock_get_assistant_agent.return_value = mockAssistantAgent
 
-    def test_copilot_lang_graph(self):
-        pattern = SupervisorPattern()
 
-        members = MembersUtil().get_members(payload)
-        self.assertEqual(len(members), 3)
+def test_copilot_lang_graph(graph_question_payload):
+    pattern = SupervisorPattern()
 
-        graph = CopilotLangGraph(members, payload.graph, pattern)
+    members = MembersUtil().get_members(graph_question_payload)
+    assert len(members) == 3
+
+    memory = SqliteSaver.from_conn_string(":memory:")
+    graph = CopilotLangGraph(members, graph_question_payload.graph, pattern, memory)
 
 
-if __name__ == '__main__':
-    unittest.main()
+@patch('copilot.core.agent.langgraph_agent.LanggraphAgent.execute')
+def test_serve_question_success(mock_execute, graph_question_payload):
+    mock_execute.return_value = MagicMock(output={'conversation_id': 'd2264c6d-14b8-42bd-9cfc-60a552d433b9', 'message_id': None, 'response': 'Paris.', 'role': None})
+    response = client.post("/graph", json=json.loads(graph_question_payload.json()))
+    assert response.status_code == 200
+    assert response.json() == {'answer': {'conversation_id': 'd2264c6d-14b8-42bd-9cfc-60a552d433b9', 'message_id': None, 'response': 'Paris.', 'role': None}} != {'answer': 'Paris'}
+
+
+def test_initialization(mock_langgraph_agent):
+    agent = LanggraphAgent()
+    assert agent is not None

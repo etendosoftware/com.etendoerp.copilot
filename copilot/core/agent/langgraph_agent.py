@@ -79,11 +79,10 @@ class LanggraphAgent(CopilotAgent):
                                 node = metadata["langgraph_node"]
                                 if node.startswith("supervisor-stage"):
                                     message = "Thinking what to do next ..."
+                                elif node == "output":
+                                    message = "Got it! Writing the answer ..."
                                 else:
-                                    if node == "output":
-                                        message = "Got it! Writing the answer ..."
-                                    else:
-                                        message = "Asking for this to the agent '" + node + "'"
+                                    message = "Asking for this to the agent '" + node + "'"
                                 yield AssistantResponse(
                                     response=message, conversation_id=question.conversation_id, role="node"
                                 )
@@ -93,17 +92,11 @@ class LanggraphAgent(CopilotAgent):
                         response=event["name"], conversation_id=question.conversation_id, role="tool"
                     )
             elif kind == "on_chain_end":
-                if type(event["data"]["output"]) == list:
-                    pass
-                else:
-                    if type(event["data"]["output"]) == OpenAIAssistantAction:
-                        pass
-                    else:
-                        if not type(event["data"]["output"]) == AddableDict:
-                            output = event["data"]["output"]
-                            if type(output) == AgentFinish:
-                                if event.get("metadata") != None and event["metadata"].get("langgraph_node") != None and event["metadata"]["langgraph_node"] == "output":
-                                    return_values = output.return_values
-                                    yield AssistantResponse(
-                                        response=str(return_values["output"]), conversation_id=""
-                                    )
+                if len(event["parent_ids"]) == 0:
+                    output = event["data"]["output"]
+                    if output.get("messages") != None and len(output["messages"]) > 0:
+                        message = output["messages"][-1]
+                        if type(message) == HumanMessage:
+                            yield AssistantResponse(
+                                response=message.content, conversation_id=""
+                            )

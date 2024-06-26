@@ -14,6 +14,7 @@ import { DropdownInput } from 'etendo-ui-library/dist-web/components';
 import { SparksIcon } from 'etendo-ui-library/dist-web/assets/images/icons';
 import { RestUtils, isDevelopment } from './utils/environment';
 import { EventSourcePolyfill } from 'event-source-polyfill';
+import { ROLE_BOT, ROLE_ERROR, ROLE_NODE, ROLE_TOOL, ROLE_USER, ROLE_WAIT } from './utils/constants';
 
 function App() {
   // States
@@ -37,12 +38,14 @@ function App() {
   const inputRef = useRef<any>(null);
 
   const handleNewMessage = async (role: string, message: IMessage) => {
-    console.log('handleNewMessage', message);
     let _text = message?.response ?? message.text;
-    if (role === 'tool') {
+    if (role === ROLE_WAIT) {
+      _text = '⏳ ' + _text + '';
+    }
+    if (role === ROLE_TOOL) {
       _text = '🛠️ ' + _text + '';
     }
-    if (role === 'node') {
+    if (role === ROLE_NODE) {
       _text = '🤖 ' + _text + '';
     }
 
@@ -50,8 +53,8 @@ function App() {
       const lastMessage = prevMessages[prevMessages.length - 1];
       if (
         lastMessage &&
-        (lastMessage.sender === 'tool' || lastMessage.sender === 'node') &&
-        (role === lastMessage.sender || role === 'bot')
+        (lastMessage.sender === ROLE_TOOL || lastMessage.sender === ROLE_NODE) &&
+        (role === lastMessage.sender || role === ROLE_BOT)
       ) {
         // Replace the last message if the role is the same
         return [
@@ -116,14 +119,13 @@ function App() {
       // Add user message
       const userMessage: IMessage = {
         text: question,
-        sender: 'user',
+        sender: ROLE_USER,
         timestamp: formatTimeNewDate(new Date()),
       };
       if (file) {
         userMessage.file = file.name;
       }
-
-      await handleNewMessage('user', userMessage);
+      await handleNewMessage(ROLE_USER, userMessage);
       setStatusIcon(botIcon);
       setTimeout(() => scrollToBottom(), 100);
 
@@ -139,42 +141,35 @@ function App() {
         requestBody.file = fileId;
       }
 
-      setMessages([
-        ...messages,
-        {
-          message_id: '',
-          text: '',
-          sender: 'node',
-          timestamp: formatTimeNewDate(new Date()),
-        },
-      ]);
       try {
         const params = Object.keys(requestBody)
           .map(key => `${key}=${requestBody[key]}`)
           .join('&');
         const eventSourceUrl = isDevelopment()
           ? `${References.DEV}${References.url.SEND_AQUESTION}?${params}`
-          : `${References.DEV}${References.url.SEND_AQUESTION}?${params}`;
-        const headers = {
-          Authorization: 'Basic ' + btoa('admin:admin'),
-        };
+          : `${References.PROD}${References.url.SEND_AQUESTION}?${params}`;
+        let headers = {}
+        if(isDevelopment()) {
+          headers = {
+            Authorization: 'Basic ' + btoa('admin:admin')
+          }
+        }
         const eventSource = new EventSourcePolyfill(eventSourceUrl, {
           headers: headers,
           heartbeatTimeout: 12000000,
         });
-
         eventSource.onmessage = function (event) {
           const data = JSON.parse(event.data);
-          console.log('ES data', data);
           const answer = data?.answer;
           if (answer?.conversation_id) {
             setConversationId(answer.conversation_id);
           }
           if (answer?.response) {
             if (answer.role === 'debug') {
+              // Don't delete
               console.log('Debug message', answer.response);
             } else {
-              handleNewMessage(answer.role ? answer.role : 'bot', answer);
+              handleNewMessage(answer.role ? answer.role : ROLE_BOT, answer);
             }
           }
         };
@@ -203,9 +198,9 @@ function App() {
 
   // Function to show error message if bot does not respond
   const showErrorMessage = async (errorMessage: string) => {
-    await handleNewMessage('bot', {
+    await handleNewMessage(ROLE_BOT, {
       text: errorMessage,
-      sender: 'error',
+      sender: ROLE_ERROR,
       timestamp: formatTimeNewDate(new Date()),
     });
     scrollToBottom();
@@ -226,9 +221,9 @@ function App() {
       errorMessage = errorResponse;
     }
 
-    await handleNewMessage('bot', {
+    await handleNewMessage(ROLE_BOT, {
       text: errorMessage,
-      sender: 'error',
+      sender: ROLE_ERROR,
       timestamp: formatTimeNewDate(new Date()),
     });
     setFile(null);
@@ -332,7 +327,7 @@ function App() {
               {areLabelsLoaded &&
                 (noAssistants ? (
                   <TextMessage
-                    type={'error'}
+                    type={ROLE_ERROR}
                     text={`${labels.ETCOP_NoAssistant}`}
                   />
                 ) : (
@@ -350,11 +345,11 @@ function App() {
             <div
               key={index}
               className={`text-sm mt-[12px] ${
-                message.sender === 'user'
+                message.sender === ROLE_USER
                   ? 'text-right user-message slide-up-fade-in'
                   : message.sender === 'interpreting'
                     ? ''
-                    : message.sender === 'error'
+                    : message.sender === ROLE_ERROR
                       ? 'text-red-900 rounded-lg'
                       : 'text-black rounded-lg'
               }`}
@@ -378,14 +373,14 @@ function App() {
               {message.sender !== 'interpreting' && (
                 <p
                   className={`slide-up-fade-in inline-flex flex-col rounded-lg ${
-                    message.sender === 'user'
+                    message.sender === ROLE_USER
                       ? 'text-gray-600 rounded-tr-none'
-                      : message.sender === 'error'
+                      : message.sender === ROLE_ERROR
                         ? 'rounded-tl-none'
                         : 'text-black rounded-tl-none'
                   } break-words overflow-hidden max-w-[90%]`}
                 >
-                  {message.sender === 'error' ? (
+                  {message.sender === ROLE_ERROR ? (
                     <TextMessage
                       key={index}
                       text={message.text}
@@ -393,14 +388,14 @@ function App() {
                       type={getMessageType(message.sender)}
                     />
                   ) : // Normal message with Copilot's response
-                  message.sender === 'bot' ? (
+                  message.sender === ROLE_BOT ? (
                     <TextMessage
                       key={index}
                       text={message.text ? message.text : '...'}
                       time={message.timestamp}
                       type="left-user"
                     />
-                  ) : message.sender === 'tool' || message.sender === 'node' ? (
+                  ) : message.sender === ROLE_TOOL || message.sender === ROLE_NODE ? (
                     <div className={`flex items-center`}>
                       <img
                         src={statusIcon}

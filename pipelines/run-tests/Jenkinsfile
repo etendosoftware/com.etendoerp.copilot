@@ -27,6 +27,7 @@ pipeline {
         DOCKER_HOST         = '/home/jenkins/docker.sock'
         DOCKER_TLS_VERIFY   = 0
         OPENAI_API_KEY      = '123'
+        GOOGLE_API_KEY      = '123'
     }
 
     agent {

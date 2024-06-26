@@ -26,6 +26,7 @@ class AssistantResponse:
     conversation_id: str
     message_id: Optional[str] = None
     role: Optional[str] = None
+    assistant_id: Optional[str] = None
 
 
 @dataclass
