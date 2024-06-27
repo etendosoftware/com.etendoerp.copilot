@@ -4,6 +4,10 @@ pipeline {
     }
 
     environment {
+        REPOSITORY_NAME     = 'com.etendoerp.copilot'
+        OWNER_REPOSITORY    = "koodu_software"
+
+
         CONTEXT_NAME        = 'etendo'
         BBDD_SID            = 'etendo'
         BBDD_PORT           = '5432'
@@ -16,7 +20,6 @@ pipeline {
         GITHUB_USER         = 'etendobot'
         GITHUB_TOKEN        = credentials('github-read-package-token')
         JAVA_HOME           = '/opt/java/openjdk/'
-        ACCESS_TOKEN        = credentials('access_token_github')
         EMAIL_ADDRESS       = credentials('email_builds')
         URL_REPO            = 'https://github.com/etendosoftware/etendo_rx'
         COMMIT_AUTHOR_NAME  = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
@@ -28,6 +31,16 @@ pipeline {
         DOCKER_TLS_VERIFY   = 0
         OPENAI_API_KEY      = '123'
         GOOGLE_API_KEY      = '123'
+
+        COMMIT_INPROGRESS_STATUS = "INPROGRESS"
+        COMMIT_SUCCESS_STATUS    = "SUCCESSFUL"
+        COMMIT_FAILED_STATUS     = "FAILED"
+
+        CONTEXT_BUILD = "copilot-core-tests"
+
+        USER_ACCESS  = credentials('user-access-commit-bitbucket')
+        ACCESS_TOKEN = credentials('access-token-commit-bitbucket')
+
     }
 
     agent {
@@ -153,7 +166,7 @@ spec:
             }
             steps {
                 sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Starting build" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Starting build" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                 withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
                     withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                         sh 'mkdir -p ~/.ssh && ssh-keyscan bitbucket.org >> ~/.ssh/known_hosts'
@@ -214,7 +227,7 @@ spec:
             steps {
                 container('compiler') {
                     sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Run Python tests" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Run Python tests" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                     withCredentials([sshUserPrivateKey(credentialsId: 'my-credentials', keyFileVariable: 'keyfile')]) {
                         withCredentials([usernamePassword(credentialsId: "koodu_credentials", passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                             // Clone Etendo Core
@@ -272,7 +285,7 @@ spec:
             failure {
                 script {
                     sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Failed Build Environments" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_FAILED_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Failed Build Environments" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                     echo "Failed Build Environments"
                 }
                 cleanWs deleteDirs: true
@@ -297,7 +310,7 @@ spec:
             unstable {
                 script {
                     sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Failed Tests" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_FAILED_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Failed Tests" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                     echo "Failed Test"
                 }
                 cleanWs deleteDirs: true
@@ -322,7 +335,7 @@ spec:
             success {
                 script {
                     sh 'chmod a+x ./pipelines/run-tests/build-update.sh'
-                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $COMMIT_HASH $BUILD_NUMBER $COMMIT_INPROGRESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Successful Test" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
+                    sh './pipelines/run-tests/build-update.sh $REPOSITORY_NAME $GIT_COMMIT $BUILD_NUMBER $COMMIT_SUCCESS_STATUS \"${CONTEXT_BUILD}\" $BUILD_URL "Successful Test" $OWNER_REPOSITORY $USER_ACCESS $ACCESS_TOKEN'
                     echo "Successful Test"
                 }
                 cleanWs deleteDirs: true
