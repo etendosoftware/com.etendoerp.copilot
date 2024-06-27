@@ -44,6 +44,8 @@ class QuestionSchema(AssistantSchema):
     history: Optional[list[MessageSchema]] = None
     extra_info: Optional[dict] = None
 
+class QuestionResponseSchema(BaseModel):
+    answer: str
 
 class GraphQuestionSchema(BaseModel):
     question: str

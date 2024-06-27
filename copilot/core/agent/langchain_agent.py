@@ -1,9 +1,12 @@
+import os
 from typing import Dict, Final, Union
 
 from langchain.agents import AgentExecutor, AgentOutputParser, create_openai_functions_agent
+from langchain.agents.openai_assistant.base import OpenAIAssistantAction
 from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.agents import AgentAction, AgentFinish
+from langchain_core.runnables import AddableDict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 
@@ -15,7 +18,6 @@ from ..schemas import QuestionSchema, ToolSchema
 from ..utils import get_full_question
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
-
 
 class CustomOutputParser(AgentOutputParser):
     def parse(self, output) -> Union[AgentAction, AgentFinish]:
@@ -53,7 +55,7 @@ class LangchainAgent(CopilotAgent):
 
         return agent
 
-    def get_agent_executor(self, agent):
+    def get_agent_executor(self, agent) -> AgentExecutor:
         return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True, handle_parsing_errors=True, debug=True)
 
     def get_openai_agent(self, open_ai_model, tools, system_prompt):
@@ -128,3 +130,38 @@ class LangchainAgent(CopilotAgent):
 
     def get_tools(self):
         return self._configured_tools
+
+    async def aexecute(self, question: QuestionSchema) -> AgentResponse:
+        copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true" # Debug mode
+        agent = self.get_agent(question.provider, question.model, question.tools)
+        agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
+        full_question = question.question
+        if question.local_file_ids is not None and len(question.local_file_ids) > 0:
+            full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
+        messages = self._memory.get_memory(question.history, full_question)
+        _input = {
+            "content": full_question,
+            "messages": messages,
+            "system_prompt": question.system_prompt
+        }
+        if question.conversation_id is not None:
+            _input["thread_id"] = question.conversation_id
+        async for event in agent_executor.astream_events(_input, version="v2"):
+            if copilot_stream_debug:
+                yield AssistantResponse(
+                    response=str(event), conversation_id='', role="debug"
+                )
+            kind = event["event"]
+            if kind == "on_tool_start":
+                if len(event["parent_ids"]) == 1:
+                    yield AssistantResponse(
+                        response=event["name"], conversation_id='', role="tool"
+                    )
+            elif kind == "on_chain_end":
+                if not type(event["data"]["output"]) == AddableDict:
+                    output = event["data"]["output"]
+                    if type(output) == AgentFinish:
+                        return_values = output.return_values
+                        yield AssistantResponse(
+                            response=str(return_values["output"]), conversation_id=""
+                        )

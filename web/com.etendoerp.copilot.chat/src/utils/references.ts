@@ -11,6 +11,7 @@ export const References = {
         UPLOAD_FILE: 'file',
         GET_LABELS: 'labels',
         SEND_QUESTION: 'question',
+        SEND_AQUESTION: 'aquestion',
         GET_ASSISTANTS: 'assistants',
     }
 };
