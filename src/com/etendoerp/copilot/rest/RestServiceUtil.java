@@ -1,9 +1,10 @@
 package com.etendoerp.copilot.rest;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -17,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.concurrent.TransferQueue;
 
 import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotAppSource;
@@ -62,6 +64,7 @@ import com.etendoerp.copilot.util.CopilotConstants;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 
 public class RestServiceUtil {
 
@@ -73,6 +76,8 @@ public class RestServiceUtil {
 
   public static final String QUESTION = "/question";
   public static final String GRAPH = "/graph";
+  public static final String AQUESTION = "/aquestion";
+  public static final String AGRAPH = "/agraph";
   public static final String GET_ASSISTANTS = "/assistants";
   public static final String APP_ID = "app_id";
   public static final String PROP_ASSISTANT_ID = "assistant_id";
@@ -229,7 +234,29 @@ public class RestServiceUtil {
     }
   }
 
-  static JSONObject handleQuestion(JSONObject jsonRequest) throws JSONException, IOException {
+  public static void sendMsg(TransferQueue<String> queue, String role, String msg)
+      throws JSONException {
+    JSONObject data = new JSONObject();
+    data.put("message_id", "");
+    data.put("assistant_id", "");
+    data.put("response", msg);
+    data.put("conversation_id", "");
+    data.put("role", role);
+    sendData(queue, data.toString());
+  }
+
+  public static void sendData(TransferQueue<String> queue, String data) {
+    if(queue == null) {
+      return;
+    }
+    try {
+      queue.transfer(data);
+    } catch (InterruptedException e) {
+      log.error(e);
+    }
+  }
+
+  static JSONObject handleQuestion(HttpServletResponse queue, JSONObject jsonRequest) throws JSONException, IOException {
     String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID);
     String appId = jsonRequest.getString(APP_ID);
     String question = jsonRequest.getString(PROP_QUESTION);
@@ -245,21 +272,46 @@ public class RestServiceUtil {
 
     List<String> filesReceived = new ArrayList<>();
     filesReceived.add(questionAttachedFileId); // File path in temp folder. This files were attached in the pop-up.
-    return handleQuestion(copilotApp, conversationId, question, filesReceived);
+    return handleQuestion(queue, copilotApp, conversationId, question, filesReceived);
   }
 
-  public static JSONObject handleQuestion(CopilotApp copilotApp, String conversationId, String question,
+  private static void serverSideEvents(HttpServletResponse response, InputStream inputStream) {
+    response.setContentType("text/event-stream");
+    response.setCharacterEncoding("UTF-8");
+    response.setHeader("Cache-Control", "no-cache");
+    response.setHeader("Connection", "keep-alive");
+    try (PrintWriter writer = response.getWriter()) {
+      writer.println("data: {}\n\n");
+      writer.flush();
+      try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          if (line.startsWith("data:")) {
+            writer.println(line + "\n\n");
+            writer.flush();
+          }
+        }
+      }
+    } catch (IOException e) {
+    } finally {
+      try {
+        inputStream.close();
+      } catch (Exception e) {
+      }
+    }
+  }
+
+  public static JSONObject handleQuestion(HttpServletResponse queue, CopilotApp copilotApp, String conversationId, String question,
       List<String> questionAttachedFileIds) throws IOException, JSONException {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
     refreshDynamicFiles(copilotApp);
     // read the json sent
-    HttpResponse<String> responseFromCopilot = null;
+    String responseFromCopilot = null;
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String appType;
     try {
-      HttpClient client = HttpClient.newBuilder().build();
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
       JSONObject jsonRequestForCopilot = new JSONObject();
@@ -296,23 +348,26 @@ public class RestServiceUtil {
       handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
       addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
       String bodyReq = jsonRequestForCopilot.toString();
-      String endpoint = isGraph ? GRAPH : QUESTION;
+      String endpoint = isGraph ? AGRAPH : AQUESTION;
       logIfDebug("Request to Copilot:);");
       logIfDebug(new JSONObject(bodyReq).toString(2));
-      HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort)))
-          .headers("Content-Type", APPLICATION_JSON_CHARSET_UTF_8)
-          .version(HttpClient.Version.HTTP_1_1)
-          .POST(HttpRequest.BodyPublishers.ofString(bodyReq))
-          .build();
-
-      responseFromCopilot = client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
-    } catch (URISyntaxException | InterruptedException e) {
+      URL url = new URL(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort));
+      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+      connection.setRequestMethod("POST");
+      connection.setRequestProperty("Content-Type", "application/json");
+      connection.setDoOutput(true);
+      connection.setDoInput(true);
+      connection.getOutputStream().write(jsonRequestForCopilot.toString().getBytes());
+      serverSideEvents(queue, connection.getInputStream());
+    } catch (Exception e) {
       log.error(e);
       Thread.currentThread().interrupt();
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
-    JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
+    if(responseFromCopilot == null) {
+      return null;
+    }
+    JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot);
     JSONObject responseOriginal = new JSONObject();
     responseOriginal.put(APP_ID, copilotApp.getId());
     if (!responseJsonFromCopilot.has("answer")) {
@@ -471,7 +526,7 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
     if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
       jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
-      jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getName());
+      jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getIdentifier());
     } else if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_GEMINI_VALUE)) {
       jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_GEMINI);
       jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");

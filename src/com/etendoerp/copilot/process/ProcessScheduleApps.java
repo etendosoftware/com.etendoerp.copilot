@@ -115,7 +115,7 @@ public class ProcessScheduleApps extends DalBaseProcess {
           }
         }
         logger.log("-> Send question to copilot:\n---\n " + schedule.getPrompt() + "\n---\n");
-        JSONObject response = RestServiceUtil.handleQuestion(copilotApp, schedule.getConversation(),
+        JSONObject response = RestServiceUtil.handleQuestion(null, copilotApp, schedule.getConversation(),
             schedule.getPrompt(), fileIds);
         if (response.has("response")) {
           logger.log("<- Copilot response:\n---\n" + response.getString("response") + "\n---\n");

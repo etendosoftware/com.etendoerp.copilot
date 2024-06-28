@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { IAssistant } from "../interfaces/IAssistant";
+import { References } from "../utils/references";
+import { RestUtils } from "../utils/environment";
 
 export const useAssistants = () => {
     const [selectedOption, setSelectedOption] = useState<IAssistant | null>(null);
@@ -11,8 +13,7 @@ export const useAssistants = () => {
         const requestOptions = {
             method: 'GET',
         }
-
-        const response = await fetch("../../copilot/assistants", requestOptions);
+        const response = await RestUtils.fetch(References.url.GET_ASSISTANTS, requestOptions);
         const data = await response.json();
         if (data.length > 0) {
             setSelectedOption(data[0]);

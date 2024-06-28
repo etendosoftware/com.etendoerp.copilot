@@ -69,3 +69,4 @@ venv/
 graph.png
 
 /**/checkpoints.sqlite
+/.scannerwork/**
