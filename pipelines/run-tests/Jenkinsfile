@@ -21,7 +21,7 @@ pipeline {
         GITHUB_TOKEN        = credentials('github-read-package-token')
         JAVA_HOME           = '/opt/java/openjdk/'
         EMAIL_ADDRESS       = credentials('email_builds')
-        URL_REPO            = 'https://github.com/etendosoftware/etendo_rx'
+        URL_REPO            = "https://bitbucket.org/${OWNER_REPOSITORY}/${REPOSITORY_NAME}"
         COMMIT_AUTHOR_NAME  = sh(returnStdout: true, script: "git log -1 --pretty=format:'%an'").trim()
         COMMIT_AUTHOR_EMAIL = sh(returnStdout: true, script: "git log -1 --pretty=format:'%ae'").trim()
         CATALINA_HOME       = "${WORKSPACE}/apache-tomcat-8.5.75"

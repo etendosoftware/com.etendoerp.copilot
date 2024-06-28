@@ -26,16 +26,16 @@ class AssistantAgent(CopilotAgent):
     def get_assistant_id(self) -> str:
         return self._assistant_id
 
-    def get_agent(self, assistant_id: str):
+    def get_agent(self, assistant_id: str) -> OpenAIAssistantV2Runnable:
         agent = OpenAIAssistantV2Runnable(assistant_id=assistant_id, as_agent=True)
         return agent
 
-    def get_executor(self, agent) -> AgentExecutor:
+    def get_agent_executor(self, agent: OpenAIAssistantV2Runnable) -> AgentExecutor:
         return AgentExecutor(agent=agent, tools=self._configured_tools)
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
         agent = self.get_agent(question.assistant_id)
-        agent_executor = self.get_executor(agent)
+        agent_executor = self.get_agent_executor(agent)
         full_question = question.question
         if question.local_file_ids is not None and len(question.local_file_ids) > 0:
             full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
@@ -75,17 +75,15 @@ class AssistantAgent(CopilotAgent):
                 yield response
 
     def _prepare_agent_executor(self, question: QuestionSchema) -> AgentExecutor:
-        agent = self.get_agent(question.provider, question.model, question.tools)
+        agent = self.get_agent(question.assistant_id)
         return self.get_agent_executor(agent)
 
     def _prepare_input(self, question: QuestionSchema) -> Dict:
         full_question = question.question
         if question.local_file_ids:
             full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
-        messages = self._memory.get_memory(question.history, full_question)
         _input = {
             "content": full_question,
-            "messages": messages,
             "system_prompt": question.system_prompt
         }
         if question.conversation_id:
