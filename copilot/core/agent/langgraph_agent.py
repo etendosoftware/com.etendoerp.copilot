@@ -1,10 +1,7 @@
 import os
 import uuid
 
-from langchain.agents.openai_assistant.base import OpenAIAssistantAction
-from langchain_core.agents import AgentFinish
 from langchain_core.messages import HumanMessage
-from langchain_core.runnables import AddableDict
 from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 
@@ -34,8 +31,12 @@ class LanggraphAgent(CopilotAgent):
 
         memory = SqliteSaver.from_conn_string("checkpoints.sqlite")
         lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory)
+        full_question = question.question
+        if question.local_file_ids is not None and len(question.local_file_ids) > 0:
+            full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
 
-        final_response = lang_graph.invoke(question=question.question, thread_id=thread_id, get_image=question.generate_image)
+        final_response = lang_graph.invoke(question=full_question, thread_id=thread_id,
+                                           get_image=question.generate_image)
 
         return AgentResponse(
             input=question.model_dump_json(),
@@ -45,12 +46,14 @@ class LanggraphAgent(CopilotAgent):
         )
 
     async def aexecute(self, question: GraphQuestionSchema) -> AgentResponse:
-        copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true" # Debug mode
+        copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
         members: list[GraphMember] = MembersUtil().get_members(question)
         memory = AsyncSqliteSaver.from_conn_string("checkpoints.sqlite")
         lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory)
 
         full_question = question.question
+        if question.local_file_ids is not None and len(question.local_file_ids) > 0:
+            full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
         _input = HumanMessage(content=full_question)
         config = {
             "configurable": {

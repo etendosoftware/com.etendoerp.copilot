@@ -36,7 +36,7 @@ class MembersUtil:
         if assistant.type == "openai-assistant":
             agent: AssistantAgent = self.get_assistant_agent()
             _agent = agent.get_agent(assistant.assistant_id)
-            agent_executor = agent.get_executor(_agent)
+            agent_executor = agent.get_agent_executor(_agent)
             model_node = functools.partial(self.model_openai_invoker(), _agent=agent_executor, _name=assistant.name)
             member = GraphMember(assistant.name, model_node)
         else:

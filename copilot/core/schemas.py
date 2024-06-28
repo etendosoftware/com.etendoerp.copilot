@@ -55,3 +55,4 @@ class GraphQuestionSchema(BaseModel):
     graph: Optional[AssistantGraph] = None
     extra_info: Optional[dict] = None
     generate_image: Optional[bool] = False
+    local_file_ids: Optional[list[str]] = None
