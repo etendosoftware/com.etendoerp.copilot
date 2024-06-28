@@ -46,14 +46,14 @@
         <onCreateDefault/>
       </column>
       <column name="PROMPT" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
-        <default/>
+        <default><![CDATA[''::text]]></default>
         <onCreateDefault/>
       </column>
       <column name="APPTYPE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="SYNC_OPENAI_ASSISTANT" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+      <column name="SYNC_ASSISTANT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[Y]]></default>
         <onCreateDefault/>
       </column>
@@ -93,6 +93,10 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
+      <column name="TEMPERATURE" primaryKey="false" required="true" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[1]]></default>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETCOP_APP_CLI_FK">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
@@ -108,6 +112,7 @@
       <check name="ETCOP_APP_CODE_INTERP_CHK"><![CDATA[CODE_INTERPRETER IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_IS_SYS_CHK"><![CDATA[SYSTEM_APP IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETCOP_APP_TEMPERATURE_CHECK"><![CDATA[TEMPERATURE >= 0 AND TEMPERATURE <= 2]]></check>
       <check name="ETCOP_RTRIVAL_CHK"><![CDATA[RETRIEVAL IN ('Y', 'N')]]></check>
     </table>
   </database>

@@ -9,12 +9,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.TeamMember;
 import com.etendoerp.copilot.util.ToolsUtil;
@@ -29,6 +33,7 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
@@ -331,8 +336,8 @@ public class RestServiceUtil {
     //getting the object of the Timestamp class
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
-    TrackingUtil.getInstance().trackQuestion(conversationId, question);
-    TrackingUtil.getInstance().trackResponse(conversationId, responseOriginal.getString(PROP_RESPONSE));
+    TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, responseOriginal.getString(PROP_RESPONSE), copilotApp);
     return responseOriginal;
   }
 
@@ -627,14 +632,18 @@ public class RestServiceUtil {
       OBContext.setAdminMode();
       //send json of assistants
       JSONArray assistants = new JSONArray();
-      List<CopilotRoleApp> appList = OBDal.getInstance()
+      OBContext context = OBContext.getOBContext();
+      List<CopilotApp> appList = new HashSet<>(OBDal.getInstance()
           .createCriteria(CopilotRoleApp.class)
-          .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, OBContext.getOBContext().getRole()))
-          .list();
-      for (CopilotRoleApp roleApp : appList) {
+          .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, context.getRole()))
+          .list()).stream().map(CopilotRoleApp::getCopilotApp)
+          .collect(Collectors.toList());
+      appList.sort((app1, app2) -> getLastConversation(context.getUser(), app2)
+          .compareTo(getLastConversation(context.getUser(), app1)));
+      for (CopilotApp app : appList) {
         JSONObject assistantJson = new JSONObject();
-        assistantJson.put(APP_ID, roleApp.getCopilotApp().getId());
-        assistantJson.put("name", roleApp.getCopilotApp().getName());
+        assistantJson.put(APP_ID, app.getId());
+        assistantJson.put("name", app.getName());
         assistants.put(assistantJson);
       }
       return assistants;
@@ -643,6 +652,22 @@ public class RestServiceUtil {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private static Date getLastConversation(User user, CopilotApp copilotApp) {
+    OBCriteria<Conversation> convCriteria = OBDal.getInstance().createCriteria(Conversation.class);
+    convCriteria.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, copilotApp));
+    convCriteria.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, user));
+    convCriteria.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
+    convCriteria.setMaxResults(1);
+    Conversation conversation = (Conversation) convCriteria.uniqueResult();
+    if (conversation == null) {
+      return Date.from(Instant.parse("2024-01-01T00:00:00Z"));
+    }
+    if (conversation.getLastMsg() == null) {
+      return conversation.getCreationDate();
+    }
+    return conversation.getLastMsg();
   }
 
   public static String getGraphImg(CopilotApp copilotApp) throws JSONException, IOException {
