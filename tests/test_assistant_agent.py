@@ -1,82 +1,68 @@
-import os
-import openai
-from unittest.mock import Mock
+import unittest
 
 import pytest
-from copilot.core.agent import AssistantAgent
-from copilot.core.exceptions import (
-    AssistantIdNotFound,
-    AssistantTimeout,
-    OpenAIApiKeyNotFound,
-)
-from copilot.core.schemas import QuestionSchema
+from unittest.mock import MagicMock, AsyncMock, patch
 
-if os.getenv("AGENT_TYPE") != "openai-assistant":
-    pytest.skip("Skipping open 1.2.4 is required", allow_module_level=True)
+from langchain.utils import openai
+from langchain_community.adapters.openai import ChatCompletion
+from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
+
+from copilot.core.agent import AssistantAgent
+from copilot.core.schemas import QuestionSchema
 
 
 @pytest.fixture
-def assistant_agent() -> AssistantAgent:
-    from copilot.core import agent
-    agent.AGENT_TYPE_ENVAR = agent.AgentEnum.OPENAI_ASSISTANT.value
-    agent.agent.CopilotAgent.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+def assistant_agent():
     return AssistantAgent()
 
+def test_get_assistant_id(assistant_agent):
+    assert assistant_agent.get_assistant_id() is None
 
-def test_missing_api_key(monkeypatch):
-    """
-    Test Case 2: Missing API Key
-    Given: The OpenAI API key is not set in the environment variables.
-    When: The assistant function is called.
-    Then: The function fails gracefully, providing a clear error message about the missing API key.
-    """
-    with pytest.raises(OpenAIApiKeyNotFound, match=OpenAIApiKeyNotFound.message):
-        from copilot.core.agent.agent import CopilotAgent
+@pytest.fixture
+def mock_openai_chatcompletion(monkeypatch):
 
-        CopilotAgent.OPENAI_API_KEY = None
-        AssistantAgent()
+    class AsyncChatCompletionIterator:
+        def __init__(self, answer: str):
+            self.answer_index = 0
+            self.answer_deltas = answer.split(" ")
+
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            if self.answer_index < len(self.answer_deltas):
+                answer_chunk = self.answer_deltas[self.answer_index]
+                self.answer_index += 1
+                return openai.util.convert_to_openai_object(
+                    {"choices": [{"delta": {"content": answer_chunk}}]})
+            else:
+                raise StopAsyncIteration
+
+    async def mock_acreate(*args, **kwargs):
+        return AsyncChatCompletionIterator("The capital of France is Paris.")
+
+    monkeypatch.setattr(ChatCompletion, "acreate", mock_acreate)
+
+@patch("copilot.core.agent.AssistantAgent.get_agent", autospec=True)
+def test_get_agent(mock_get_agent, assistant_agent):
+    assistant_id = "test_id"
+    agent_instance = MagicMock(spec=OpenAIAssistantV2Runnable)
+    mock_get_agent.return_value = agent_instance
+
+    agent = assistant_agent.get_agent(assistant_id)
+
+    mock_get_agent.assert_called_once_with(assistant_agent, assistant_id)
+    assert agent == agent_instance
 
 
-def test_invalid_assistant_id(assistant_agent):
-    """
-    Test Case 3: Invalid Assistant ID
-    Given: An invalid assistant_id is provided (e.g., a non-existent or malformed ID).
-    When: The assistant function is called with this invalid assistant_id.
-    Then: The function handles the error gracefully and returns an appropriate error message.
-    """
-    with pytest.raises(AssistantIdNotFound, match="No assistant found with id 'sarasa'"):
-        assistant_agent.execute(QuestionSchema(question="Fake question", assistant_id="sarasa"))
+@patch("langchain.agents.AgentExecutor.invoke")
+def test_execute(mock_invoke, assistant_agent):
+    question = QuestionSchema(assistant_id="test_id", question="test question", local_file_ids=None)
+    mock_invoke.return_value = {"output": "test response", "thread_id": "test_thread_id"}
 
+    response = assistant_agent.execute(question)
 
-def test_empty_question(assistant_agent):
-    """
-    Test Case 5: Empty Question
-    Given: A valid assistant_id and conversation_id are provided.
-           The question parameter is an empty string.
-    When: The assistant function is called with these parameters.
-    Then: The function returns an error or a prompt asking for a valid question.
-    """
-    response = assistant_agent.execute(
-        QuestionSchema(question="", assistant_id=assistant_agent._assistant.id)
-    )
-    assert "assist you" in response.output.message or "you need assistance" in response.output.message
+    assert response.input == question.model_dump_json()
+    assert response.output.response == "test response"
+    assert response.output.conversation_id == "test_thread_id"
 
-def test_update_assistant():
-    """
-    Test Case 7: Successful Update of Assistant
-    Given: A valid assistant_id is provided for an existing assistant.
-           The function is expected to update the assistant with new parameters.
-    When: The assistant function is called with the assistant_id and new parameters.
-    Then: The assistant is successfully updated.
-          The function returns confirmation of the update along with the updated
-          assistant_id and any other relevant information.
-    """
-    copilot_assistant_agent = AssistantAgent()
-
-    _client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    new_assistant = _client.beta.assistants.create(name="test", model=copilot_assistant_agent.OPENAI_MODEL)
-
-    old_assistant_id = copilot_assistant_agent._assistant.id
-    copilot_assistant_agent.execute(QuestionSchema(question="Fake question", assistant_id=new_assistant.id))
-    assert copilot_assistant_agent._assistant.id != old_assistant_id
-    assert copilot_assistant_agent._assistant.id == new_assistant.id
