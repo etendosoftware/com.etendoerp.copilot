@@ -109,7 +109,7 @@ def _handle_exception(e: Exception):
 
 
 @core_router.post("/graph")
-def serve_question(question: GraphQuestionSchema):
+def serve_question_graph(question: GraphQuestionSchema):
     """Copilot main endpdoint to answering questions."""
     copilot_agent = LanggraphAgent()
     copilot_info("  Current agent loaded: " + copilot_agent.__class__.__name__)
@@ -117,7 +117,6 @@ def serve_question(question: GraphQuestionSchema):
     copilot_info("  Question: " + question.question)
     copilot_debug("  conversation_id: " + str(question.conversation_id))
 
-    response = None
     try:
         copilot_debug(
             "Thread " + str(threading.get_ident()) + " Saving extra info:" + str(ThreadContext.identifier_data()))
@@ -232,13 +231,16 @@ async def _serve_question_async(question: QuestionSchema):
         response = _handle_exception(e)
         yield {"answer": response}
 
+
 async def event_stream(question: QuestionSchema):
     async for response in _serve_question_async(question):
         yield response
 
+
 @core_router.post("/aquestion")
 async def serve_async_question(question: QuestionSchema):
     return StreamingResponse(event_stream(question), media_type="text/event-stream")
+
 
 @core_router.get("/tools")
 def serve_tools():

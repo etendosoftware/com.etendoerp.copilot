@@ -23,6 +23,7 @@ import java.util.concurrent.TransferQueue;
 import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.TeamMember;
+import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.ToolsUtil;
 import com.etendoerp.copilot.util.TrackingUtil;
 import com.etendoerp.copilot.util.OpenAIUtils;
@@ -82,7 +83,8 @@ public class RestServiceUtil {
   public static final String APP_ID = "app_id";
   public static final String PROP_ASSISTANT_ID = "assistant_id";
   public static final String PROP_RESPONSE = "response";
-
+  public static final String PROP_TEMPERATURE = "temperature";
+  public static final String PROP_DESCRIPTION = "description";
   public static final String PROP_CONVERSATION_ID = "conversation_id";
   public static final String PROP_QUESTION = "question";
   public static final String PROP_TYPE = "type";
@@ -94,10 +96,6 @@ public class RestServiceUtil {
   public static final String PROP_MODEL = "model";
   public static final String PROP_SYSTEM_PROMPT = "system_prompt";
   private static final String PROP_TOOLS = "tools";
-  private static final String PROVIDER_OPENAI = "openai";
-  private static final String PROVIDER_GEMINI = "gemini";
-  public static final String PROVIDER_OPENAI_VALUE = "O";
-  public static final String PROVIDER_GEMINI_VALUE = "G";
 
   static JSONObject getJSONLabels() {
     try {
@@ -246,7 +244,7 @@ public class RestServiceUtil {
   }
 
   public static void sendData(TransferQueue<String> queue, String data) {
-    if(queue == null) {
+    if (queue == null) {
       return;
     }
     try {
@@ -256,7 +254,8 @@ public class RestServiceUtil {
     }
   }
 
-  static JSONObject handleQuestion(HttpServletResponse queue, JSONObject jsonRequest) throws JSONException, IOException {
+  static JSONObject handleQuestion(HttpServletResponse queue,
+      JSONObject jsonRequest) throws JSONException, IOException {
     String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID);
     String appId = jsonRequest.getString(APP_ID);
     String question = jsonRequest.getString(PROP_QUESTION);
@@ -301,7 +300,8 @@ public class RestServiceUtil {
     }
   }
 
-  public static JSONObject handleQuestion(HttpServletResponse queue, CopilotApp copilotApp, String conversationId, String question,
+  public static JSONObject handleQuestion(HttpServletResponse queue, CopilotApp copilotApp, String conversationId,
+      String question,
       List<String> questionAttachedFileIds) throws IOException, JSONException {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
@@ -364,7 +364,7 @@ public class RestServiceUtil {
       Thread.currentThread().interrupt();
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
-    if(responseFromCopilot == null) {
+    if (responseFromCopilot == null) {
       return null;
     }
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot);
@@ -448,6 +448,7 @@ public class RestServiceUtil {
           buildLangchainRequestForCopilot(teamMember, null, memberData);
         }
         assistantsArray.put(memberData);
+
       } catch (JSONException e) {
         log.error(e);
       }
@@ -457,6 +458,12 @@ public class RestServiceUtil {
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
     }
+    //prompt of the graph supervisor
+    if (StringUtils.isNotEmpty(copilotApp.getPrompt())) {
+      jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
+    }
+    //temperature of the graph supervisor
+    jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
   }
 
 
@@ -523,23 +530,20 @@ public class RestServiceUtil {
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
     }
+    jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
     jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
-    if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
-      jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
-      jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getIdentifier());
-    } else if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_GEMINI_VALUE)) {
-      jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_GEMINI);
-      jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");
-    } else {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingProvider"),
-          copilotApp.getName()));
-    }
+    jsonRequestForCopilot.put(PROP_PROVIDER, CopilotUtils.getProvider(copilotApp));
+    jsonRequestForCopilot.put(PROP_MODEL, CopilotUtils.getAppModel(copilotApp));
+
     if (!StringUtils.isEmpty(copilotApp.getPrompt())) {
       prompt = new StringBuilder(copilotApp.getPrompt() + "\n");
       // Lookup in app sources for the prompt
       prompt.append(OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
       if (!StringUtils.isEmpty(prompt.toString())) {
         jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
+      }
+      if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
+        jsonRequestForCopilot.put(PROP_DESCRIPTION, copilotApp.getOpenaiIdAssistant());
       }
     }
   }

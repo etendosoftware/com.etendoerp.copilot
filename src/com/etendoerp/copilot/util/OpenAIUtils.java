@@ -28,13 +28,12 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
-import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.data.CopilotTool;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 
@@ -103,7 +102,10 @@ public class OpenAIUtils {
     body.put("name", app.getName());
     body.put("tool_resources", generateToolsResources(app));
     body.put("tools", buildToolsArray(app));
-    body.put("model", app.getModel().getSearchkey());
+    if (app.getTemperature() != null) {
+      body.put("temperature", app.getTemperature());
+    }
+    body.put("model", CopilotUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI));
     //make the request to openai
     JSONObject response = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null, false);
     logIfDebug(response.toString());

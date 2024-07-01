@@ -93,7 +93,7 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
-      <column name="TEMPERATURE" primaryKey="false" required="true" type="DECIMAL" autoIncrement="false">
+      <column name="TEMPERATURE" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
         <default><![CDATA[1]]></default>
         <onCreateDefault/>
       </column>
