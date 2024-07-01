@@ -1,9 +1,10 @@
+"""
+Test the LangchainAgent class
+"""
 import pytest
 from unittest.mock import patch, MagicMock
 
-from langchain.agents.agent import RunnableAgent
 from langchain_core.agents import AgentFinish
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableSequence
 
 from copilot.core.agent.langchain_agent import LangchainAgent
@@ -47,8 +48,8 @@ def test_get_agent_executor(langchain_agent):
         assert agent_executor.agent.runnable == agent
 
 def test_execute(langchain_agent):
-    question = QuestionSchema(provider='openai', model='gpt-4', tools=[], system_prompt='Test system prompt',
-                              history=[], question='Test question', conversation_id='123')
+    question = QuestionSchema(provider='openai', model='gpt-4', tools=[], system_prompt=
+        'Test system prompt', history=[], question='Test question', conversation_id='123')
     with patch.object(langchain_agent, 'get_agent') as mock_get_agent, \
             patch.object(langchain_agent, 'get_agent_executor') as mock_get_agent_executor, \
             patch.object(langchain_agent._memory, 'get_memory') as mock_get_memory, \
