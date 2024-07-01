@@ -1,3 +1,9 @@
+"""
+This module contains the main routes for the Copilot API.
+
+The routes are responsible for handling the incoming requests and returning the responses.
+
+"""
 import asyncio
 import json
 import logging
@@ -6,16 +12,16 @@ import threading
 from fastapi import APIRouter
 from starlette.responses import StreamingResponse
 
-from . import utils
-from .agent import AgentResponse, copilot_agents, AgentEnum
-from .agent.agent import AssistantResponse
-from .agent.assistant_agent import AssistantAgent
-from .agent.langgraph_agent import LanggraphAgent
-from .exceptions import UnsupportedAgent
-from .local_history import ChatHistory, local_history_recorder
-from .schemas import QuestionSchema, GraphQuestionSchema
-from .threadcontext import ThreadContext
-from .utils import copilot_debug, copilot_info
+from copilot.core import utils
+from copilot.core.agent import AgentResponse, copilot_agents, AgentEnum
+from copilot.core.agent.agent import AssistantResponse
+from copilot.core.agent.assistant_agent import AssistantAgent
+from copilot.core.agent.langgraph_agent import LanggraphAgent
+from copilot.core.exceptions import UnsupportedAgent
+from copilot.core.local_history import ChatHistory, local_history_recorder
+from copilot.core.schemas import QuestionSchema, GraphQuestionSchema
+from copilot.core.threadcontext import ThreadContext
+from copilot.core.utils import copilot_debug, copilot_info
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -109,7 +115,7 @@ def _handle_exception(e: Exception):
 
 
 @core_router.post("/graph")
-def serve_question(question: GraphQuestionSchema):
+def serve_graph(question: GraphQuestionSchema):
     """Copilot main endpdoint to answering questions."""
     copilot_agent = LanggraphAgent()
     copilot_info("  Current agent loaded: " + copilot_agent.__class__.__name__)
@@ -120,11 +126,13 @@ def serve_question(question: GraphQuestionSchema):
     response = None
     try:
         copilot_debug(
-            "Thread " + str(threading.get_ident()) + " Saving extra info:" + str(ThreadContext.identifier_data()))
+            "Thread " + str(threading.get_ident()) + " Saving extra info:" +
+            str(ThreadContext.identifier_data()))
         ThreadContext.set_data('extra_info', question.extra_info)
         agent_response: AgentResponse = copilot_agent.execute(question)
         response = agent_response.output
-        local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
+        local_history_recorder.record_chat(chat_question=question.question,
+                                           chat_answer=agent_response.output)
     except Exception as e:
         logger.exception(e)
         copilot_debug("  Exception: " + str(e))
