@@ -1,0 +1,501 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - langsmith-py/0.1.77
+      x-api-key:
+      - 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
+    method: GET
+    uri: https://api.smith.langchain.com/info
+  response:
+    body:
+      string: '{"version":"0.6.21","license_expiration_time":null,"batch_ingest_config":{"scale_up_qsize_trigger":1000,"scale_up_nthreads_limit":16,"scale_down_nempty_trigger":4,"size_limit":100,"size_limit_bytes":20971520},"instance_flags":{"org_creation_disabled":false,"show_ttl_ui":true,"trace_tier_duration_days":{"longlived":400,"shortlived":14}}}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Content-Length:
+      - '338'
+      Via:
+      - 1.1 google
+      cache-control:
+      - no-cache
+      content-type:
+      - application/json
+      date:
+      - Mon, 01 Jul 2024 14:49:01 GMT
+      server:
+      - uvicorn
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"assistant_id": "asst_TikUD1u7TLmMCTooINIznube", "thread": {"messages":
+      [{"role": "user", "content": "What is the capital of France?", "attachments":
+      [], "metadata": null}], "metadata": null}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - Bearer sk-proj-v6hYv8UjNOn3HmRQkg5rT3BlbkFJl3uhssJCB1cUuDpSwo3B
+      connection:
+      - keep-alive
+      content-length:
+      - '193'
+      content-type:
+      - application/json
+      host:
+      - api.openai.com
+      openai-beta:
+      - assistants=v2
+      user-agent:
+      - AsyncOpenAI/Python 1.34.0
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.34.0
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.11.8
+    method: POST
+    uri: https://api.openai.com/v1/threads/runs
+  response:
+    content: "{\n  \"id\": \"run_cNCx4YcRFkF6q41SJBRxIVtR\",\n  \"object\": \"thread.run\",\n
+      \ \"created_at\": 1719845342,\n  \"assistant_id\": \"asst_TikUD1u7TLmMCTooINIznube\",\n
+      \ \"thread_id\": \"thread_evLYFq4hbtNax9UEdhrB8qMH\",\n  \"status\": \"queued\",\n
+      \ \"started_at\": null,\n  \"expires_at\": 1719845942,\n  \"cancelled_at\":
+      null,\n  \"failed_at\": null,\n  \"completed_at\": null,\n  \"required_action\":
+      null,\n  \"last_error\": null,\n  \"model\": \"gpt-4o\",\n  \"instructions\":
+      \"You are a personal math tutor. Write and run code to answer math questions.\",\n
+      \ \"tools\": [\n    {\n      \"type\": \"code_interpreter\"\n    }\n  ],\n  \"tool_resources\":
+      {},\n  \"metadata\": {},\n  \"temperature\": 1.0,\n  \"top_p\": 1.0,\n  \"max_completion_tokens\":
+      null,\n  \"max_prompt_tokens\": null,\n  \"truncation_strategy\": {\n    \"type\":
+      \"auto\",\n    \"last_messages\": null\n  },\n  \"incomplete_details\": null,\n
+      \ \"usage\": null,\n  \"response_format\": \"auto\",\n  \"tool_choice\": \"auto\",\n
+      \ \"parallel_tool_calls\": true\n}"
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 89c7334acadeb530-SCL
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 01 Jul 2024 14:49:02 GMT
+      Server:
+      - cloudflare
+      Set-Cookie:
+      - __cf_bm=eFR6OFWs5rpBalap8ylJp.z.T7mrG46Q3un5KMvkUGU-1719845342-1.0.1.1-MaW.iihYQifncM_w2cAAj_I4URikxKJiTePf6hNBpYrhALrHNUPWSLoGykeTF4iGkri0hrjKeB84GNxyM0996A;
+        path=/; expires=Mon, 01-Jul-24 15:19:02 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=qtddTIBX9cKyoRdxLvyddEYeydSBPVha.mzI8BTNoJg-1719845342279-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      Transfer-Encoding:
+      - chunked
+      alt-svc:
+      - h3=":443"; ma=86400
+      openai-organization:
+      - futit-2
+      openai-processing-ms:
+      - '251'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=15724800; includeSubDomains
+      x-request-id:
+      - req_10e6442920c68b734b8e2ad51b6cfd56
+    http_version: HTTP/1.1
+    status_code: 200
+- request:
+    body: '{"post":[{"id":"06aa8235-7431-48f6-a61d-d89b07c5b7b2","start_time":"2024-07-01T14:49:01.669021+00:00","end_time":null,"extra":{"runtime":{"sdk":"langsmith-py","sdk_version":"0.1.77","library":"langchain-core","platform":"macOS-14.5-arm64-arm-64bit","runtime":"python","py_implementation":"CPython","runtime_version":"3.11.8","langchain_version":"0.2.2","langchain_core_version":"0.2.5","library_version":"0.2.5"},"metadata":{"revision_id":"feature/eml-506-pre-merge-11-g0a0946c-dirty"}},"error":null,"serialized":{"lc":1,"type":"not_implemented","id":["langchain","agents","agent","AgentExecutor"],"repr":"AgentExecutor(agent=RunnableAgent(runnable=OpenAIAssistantV2Runnable(client=<openai.OpenAI
+      object at 0x14f5ec950>, async_client=<openai.AsyncOpenAI object at 0x14f5f0210>,
+      assistant_id=''asst_TikUD1u7TLmMCTooINIznube'', as_agent=True), input_keys_arg=[],
+      return_keys_arg=[], stream_runnable=True), tools=[HelloWorldTool(), CustomHelloWorldMultiArgsTool()])","name":"AgentExecutor","graph":{"nodes":[{"id":0,"type":"schema","data":"ChainInput"},{"id":1,"type":"runnable","data":{"id":["langchain","agents","agent","AgentExecutor"],"name":"AgentExecutor"}},{"id":2,"type":"schema","data":"ChainOutput"}],"edges":[{"source":0,"target":1},{"source":1,"target":2}]}},"events":[{"name":"start","time":"2024-07-01T14:49:01.669021+00:00"}],"reference_example_id":null,"parent_run_id":null,"tags":[],"trace_id":"06aa8235-7431-48f6-a61d-d89b07c5b7b2","dotted_order":"20240701T144901669021Z06aa8235-7431-48f6-a61d-d89b07c5b7b2","outputs":null,"session_name":"Copilot","name":"AgentExecutor","inputs":{"content":"What
+      is the capital of France?","system_prompt":""},"run_type":"chain"},{"id":"5d0928bf-9cab-4ea2-bf3e-7b835bb0660a","start_time":"2024-07-01T14:49:01.699075+00:00","end_time":null,"extra":{"runtime":{"sdk":"langsmith-py","sdk_version":"0.1.77","library":"langchain-core","platform":"macOS-14.5-arm64-arm-64bit","runtime":"python","py_implementation":"CPython","runtime_version":"3.11.8","langchain_version":"0.2.2","langchain_core_version":"0.2.5","library_version":"0.2.5"},"metadata":{"revision_id":"feature/eml-506-pre-merge-11-g0a0946c-dirty"}},"error":null,"serialized":{"lc":1,"type":"not_implemented","id":["langchain_community","agents","openai_assistant","base","OpenAIAssistantV2Runnable"],"repr":"OpenAIAssistantV2Runnable(client=<openai.OpenAI
+      object at 0x14f5ec950>, async_client=<openai.AsyncOpenAI object at 0x14f5f0210>,
+      assistant_id=''asst_TikUD1u7TLmMCTooINIznube'', as_agent=True)","name":"OpenAIAssistantV2Runnable","graph":{"nodes":[{"id":0,"type":"schema","data":"OpenAIAssistantV2RunnableInput"},{"id":1,"type":"runnable","data":{"id":["langchain_community","agents","openai_assistant","base","OpenAIAssistantV2Runnable"],"name":"OpenAIAssistantV2Runnable"}},{"id":2,"type":"schema","data":"OpenAIAssistantV2RunnableOutput"}],"edges":[{"source":0,"target":1},{"source":1,"target":2}]}},"events":[{"name":"start","time":"2024-07-01T14:49:01.699075+00:00"}],"reference_example_id":null,"parent_run_id":"06aa8235-7431-48f6-a61d-d89b07c5b7b2","tags":[],"trace_id":"06aa8235-7431-48f6-a61d-d89b07c5b7b2","dotted_order":"20240701T144901669021Z06aa8235-7431-48f6-a61d-d89b07c5b7b2.20240701T144901699075Z5d0928bf-9cab-4ea2-bf3e-7b835bb0660a","outputs":null,"session_name":"Copilot","name":"OpenAIAssistantV2Runnable","inputs":{"content":"What
+      is the capital of France?","system_prompt":"","intermediate_steps":[]},"run_type":"chain"}]}'
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '3454'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - langsmith-py/0.1.77
+      x-api-key:
+      - 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
+    method: POST
+    uri: https://api.smith.langchain.com/runs/batch
+  response:
+    body:
+      string: '{"message":"Runs batch ingested"}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Content-Length:
+      - '33'
+      Via:
+      - 1.1 google
+      content-type:
+      - application/json
+      date:
+      - Mon, 01 Jul 2024 14:49:01 GMT
+      server:
+      - uvicorn
+    status:
+      code: 202
+      message: Accepted
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - Bearer sk-proj-v6hYv8UjNOn3HmRQkg5rT3BlbkFJl3uhssJCB1cUuDpSwo3B
+      connection:
+      - keep-alive
+      content-type:
+      - application/json
+      cookie:
+      - __cf_bm=eFR6OFWs5rpBalap8ylJp.z.T7mrG46Q3un5KMvkUGU-1719845342-1.0.1.1-MaW.iihYQifncM_w2cAAj_I4URikxKJiTePf6hNBpYrhALrHNUPWSLoGykeTF4iGkri0hrjKeB84GNxyM0996A;
+        _cfuvid=qtddTIBX9cKyoRdxLvyddEYeydSBPVha.mzI8BTNoJg-1719845342279-0.0.1.1-604800000
+      host:
+      - api.openai.com
+      openai-beta:
+      - assistants=v2
+      user-agent:
+      - AsyncOpenAI/Python 1.34.0
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.34.0
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.11.8
+    method: GET
+    uri: https://api.openai.com/v1/threads/thread_evLYFq4hbtNax9UEdhrB8qMH/runs/run_cNCx4YcRFkF6q41SJBRxIVtR
+  response:
+    content: "{\n  \"id\": \"run_cNCx4YcRFkF6q41SJBRxIVtR\",\n  \"object\": \"thread.run\",\n
+      \ \"created_at\": 1719845342,\n  \"assistant_id\": \"asst_TikUD1u7TLmMCTooINIznube\",\n
+      \ \"thread_id\": \"thread_evLYFq4hbtNax9UEdhrB8qMH\",\n  \"status\": \"in_progress\",\n
+      \ \"started_at\": 1719845342,\n  \"expires_at\": 1719845942,\n  \"cancelled_at\":
+      null,\n  \"failed_at\": null,\n  \"completed_at\": null,\n  \"required_action\":
+      null,\n  \"last_error\": null,\n  \"model\": \"gpt-4o\",\n  \"instructions\":
+      \"You are a personal math tutor. Write and run code to answer math questions.\",\n
+      \ \"tools\": [\n    {\n      \"type\": \"code_interpreter\"\n    }\n  ],\n  \"tool_resources\":
+      {},\n  \"metadata\": {},\n  \"temperature\": 1.0,\n  \"top_p\": 1.0,\n  \"max_completion_tokens\":
+      null,\n  \"max_prompt_tokens\": null,\n  \"truncation_strategy\": {\n    \"type\":
+      \"auto\",\n    \"last_messages\": null\n  },\n  \"incomplete_details\": null,\n
+      \ \"usage\": null,\n  \"response_format\": \"auto\",\n  \"tool_choice\": \"auto\",\n
+      \ \"parallel_tool_calls\": true\n}"
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 89c7334daf06b530-SCL
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 01 Jul 2024 14:49:02 GMT
+      Server:
+      - cloudflare
+      Transfer-Encoding:
+      - chunked
+      alt-svc:
+      - h3=":443"; ma=86400
+      openai-organization:
+      - futit-2
+      openai-processing-ms:
+      - '53'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=15724800; includeSubDomains
+      x-request-id:
+      - req_5b8676de2390072a8f00bb90225941e2
+    http_version: HTTP/1.1
+    status_code: 200
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - Bearer sk-proj-v6hYv8UjNOn3HmRQkg5rT3BlbkFJl3uhssJCB1cUuDpSwo3B
+      connection:
+      - keep-alive
+      content-type:
+      - application/json
+      cookie:
+      - __cf_bm=eFR6OFWs5rpBalap8ylJp.z.T7mrG46Q3un5KMvkUGU-1719845342-1.0.1.1-MaW.iihYQifncM_w2cAAj_I4URikxKJiTePf6hNBpYrhALrHNUPWSLoGykeTF4iGkri0hrjKeB84GNxyM0996A;
+        _cfuvid=qtddTIBX9cKyoRdxLvyddEYeydSBPVha.mzI8BTNoJg-1719845342279-0.0.1.1-604800000
+      host:
+      - api.openai.com
+      openai-beta:
+      - assistants=v2
+      user-agent:
+      - AsyncOpenAI/Python 1.34.0
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.34.0
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.11.8
+    method: GET
+    uri: https://api.openai.com/v1/threads/thread_evLYFq4hbtNax9UEdhrB8qMH/runs/run_cNCx4YcRFkF6q41SJBRxIVtR
+  response:
+    content: "{\n  \"id\": \"run_cNCx4YcRFkF6q41SJBRxIVtR\",\n  \"object\": \"thread.run\",\n
+      \ \"created_at\": 1719845342,\n  \"assistant_id\": \"asst_TikUD1u7TLmMCTooINIznube\",\n
+      \ \"thread_id\": \"thread_evLYFq4hbtNax9UEdhrB8qMH\",\n  \"status\": \"completed\",\n
+      \ \"started_at\": 1719845342,\n  \"expires_at\": null,\n  \"cancelled_at\":
+      null,\n  \"failed_at\": null,\n  \"completed_at\": 1719845342,\n  \"required_action\":
+      null,\n  \"last_error\": null,\n  \"model\": \"gpt-4o\",\n  \"instructions\":
+      \"You are a personal math tutor. Write and run code to answer math questions.\",\n
+      \ \"tools\": [\n    {\n      \"type\": \"code_interpreter\"\n    }\n  ],\n  \"tool_resources\":
+      {},\n  \"metadata\": {},\n  \"temperature\": 1.0,\n  \"top_p\": 1.0,\n  \"max_completion_tokens\":
+      null,\n  \"max_prompt_tokens\": null,\n  \"truncation_strategy\": {\n    \"type\":
+      \"auto\",\n    \"last_messages\": null\n  },\n  \"incomplete_details\": null,\n
+      \ \"usage\": {\n    \"prompt_tokens\": 138,\n    \"completion_tokens\": 9,\n
+      \   \"total_tokens\": 147\n  },\n  \"response_format\": \"auto\",\n  \"tool_choice\":
+      \"auto\",\n  \"parallel_tool_calls\": true\n}"
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 89c73355bba8b530-SCL
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 01 Jul 2024 14:49:03 GMT
+      Server:
+      - cloudflare
+      Transfer-Encoding:
+      - chunked
+      alt-svc:
+      - h3=":443"; ma=86400
+      openai-organization:
+      - futit-2
+      openai-processing-ms:
+      - '81'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=15724800; includeSubDomains
+      x-request-id:
+      - req_3ab9cd9bedbdc57a7f951ae9166ff400
+    http_version: HTTP/1.1
+    status_code: 200
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - Bearer sk-proj-v6hYv8UjNOn3HmRQkg5rT3BlbkFJl3uhssJCB1cUuDpSwo3B
+      connection:
+      - keep-alive
+      content-type:
+      - application/json
+      host:
+      - api.openai.com
+      openai-beta:
+      - assistants=v2
+      user-agent:
+      - OpenAI/Python 1.34.0
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.34.0
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.11.8
+    method: GET
+    uri: https://api.openai.com/v1/threads/thread_evLYFq4hbtNax9UEdhrB8qMH/messages?order=asc
+  response:
+    content: "{\n  \"object\": \"list\",\n  \"data\": [\n    {\n      \"id\": \"msg_7YT0KLh26tU72RW76474sHPp\",\n
+      \     \"object\": \"thread.message\",\n      \"created_at\": 1719845342,\n      \"assistant_id\":
+      null,\n      \"thread_id\": \"thread_evLYFq4hbtNax9UEdhrB8qMH\",\n      \"run_id\":
+      null,\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\":
+      \"text\",\n          \"text\": {\n            \"value\": \"What is the capital
+      of France?\",\n            \"annotations\": []\n          }\n        }\n      ],\n
+      \     \"attachments\": [],\n      \"metadata\": {}\n    },\n    {\n      \"id\":
+      \"msg_1PesnzjxN5NUmP4oqALhyPUM\",\n      \"object\": \"thread.message\",\n      \"created_at\":
+      1719845342,\n      \"assistant_id\": \"asst_TikUD1u7TLmMCTooINIznube\",\n      \"thread_id\":
+      \"thread_evLYFq4hbtNax9UEdhrB8qMH\",\n      \"run_id\": \"run_cNCx4YcRFkF6q41SJBRxIVtR\",\n
+      \     \"role\": \"assistant\",\n      \"content\": [\n        {\n          \"type\":
+      \"text\",\n          \"text\": {\n            \"value\": \"The capital of France
+      is Paris.\",\n            \"annotations\": []\n          }\n        }\n      ],\n
+      \     \"attachments\": [],\n      \"metadata\": {}\n    }\n  ],\n  \"first_id\":
+      \"msg_7YT0KLh26tU72RW76474sHPp\",\n  \"last_id\": \"msg_1PesnzjxN5NUmP4oqALhyPUM\",\n
+      \ \"has_more\": false\n}"
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 89c733581fbca5e4-SCL
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 01 Jul 2024 14:49:04 GMT
+      Server:
+      - cloudflare
+      Set-Cookie:
+      - __cf_bm=HKchkeP2_SlIDh3m010V3RnYRiSv1DIqs1CC46y9yUg-1719845344-1.0.1.1-c2YKf5oTwmfWLnx6dh3Uj8zTC0EAJJtkQ647uhEN1ZxscRVQraVgBvRUrjxK2DpbPXfgPxEadf.yOxEklk8aEQ;
+        path=/; expires=Mon, 01-Jul-24 15:19:04 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=3Fy8C0N0NJZvR6bfswGJTrGbvRZD9w0IOIl_zdxvFXQ-1719845344216-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      Transfer-Encoding:
+      - chunked
+      alt-svc:
+      - h3=":443"; ma=86400
+      openai-organization:
+      - futit-2
+      openai-processing-ms:
+      - '45'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=15724800; includeSubDomains
+      x-request-id:
+      - req_db60d35b76d9c3548574a87d7216ceb9
+    http_version: HTTP/1.1
+    status_code: 200
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - Bearer sk-proj-v6hYv8UjNOn3HmRQkg5rT3BlbkFJl3uhssJCB1cUuDpSwo3B
+      connection:
+      - keep-alive
+      content-type:
+      - application/json
+      cookie:
+      - __cf_bm=HKchkeP2_SlIDh3m010V3RnYRiSv1DIqs1CC46y9yUg-1719845344-1.0.1.1-c2YKf5oTwmfWLnx6dh3Uj8zTC0EAJJtkQ647uhEN1ZxscRVQraVgBvRUrjxK2DpbPXfgPxEadf.yOxEklk8aEQ;
+        _cfuvid=3Fy8C0N0NJZvR6bfswGJTrGbvRZD9w0IOIl_zdxvFXQ-1719845344216-0.0.1.1-604800000
+      host:
+      - api.openai.com
+      openai-beta:
+      - assistants=v2
+      user-agent:
+      - OpenAI/Python 1.34.0
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.34.0
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.11.8
+    method: GET
+    uri: https://api.openai.com/v1/threads/thread_evLYFq4hbtNax9UEdhrB8qMH/messages?order=asc&after=msg_1PesnzjxN5NUmP4oqALhyPUM
+  response:
+    content: "{\n  \"object\": \"list\",\n  \"data\": [],\n  \"first_id\": null,\n
+      \ \"last_id\": null,\n  \"has_more\": false\n}"
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 89c73359ca2ca5e4-SCL
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 01 Jul 2024 14:49:04 GMT
+      Server:
+      - cloudflare
+      Transfer-Encoding:
+      - chunked
+      alt-svc:
+      - h3=":443"; ma=86400
+      openai-organization:
+      - futit-2
+      openai-processing-ms:
+      - '34'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=15724800; includeSubDomains
+      x-request-id:
+      - req_38ffbd67cbcce9a7b098d4f44ec930c6
+    http_version: HTTP/1.1
+    status_code: 200
+version: 1

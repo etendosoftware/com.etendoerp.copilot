@@ -24,17 +24,19 @@ grandalf = "^0.8"
 aiosqlite = "^0.20.0"
 tox = "^4.15.1"
 setuptools = "^70.0.0"
-pytest-cov = "^5.0.0"
 ipython = "^8.25.0"
-pytest-asyncio = "^0.23.7"
 nest-asyncio = "^1.6.0"
 
-
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.3.1"
 ipython = "^8.14.0"
 httpx = "^0.24.1"
+pytest-asyncio = "^0.23.7"
+pytest-recording = "^0.13.1"
+pytest-cov = "^5.0.0"
 
 [build-system]
 requires = ["poetry-core"]

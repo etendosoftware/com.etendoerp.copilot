@@ -242,7 +242,7 @@ spec:
                                          sh """
                                          pip3 install poetry
                                          poetry install
-                                         poetry run coverage run -m pytest
+                                         poetry run coverage run -m pytest --record-mode=rewrite --block-network
                                          """
                                     }
                                 } catch (Exception e) {

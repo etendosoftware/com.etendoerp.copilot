@@ -1,0 +1,86 @@
+interactions:
+- request:
+    body: '{"model": "gpt-4o", "instructions": "You are a personal math tutor. Write
+      and run code to answer math questions.", "name": "Math Tutor", "tools": [{"type":
+      "code_interpreter"}]}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - Bearer sk-proj-v6hYv8UjNOn3HmRQkg5rT3BlbkFJl3uhssJCB1cUuDpSwo3B
+      connection:
+      - keep-alive
+      content-length:
+      - '177'
+      content-type:
+      - application/json
+      host:
+      - api.openai.com
+      openai-beta:
+      - assistants=v2
+      user-agent:
+      - OpenAI/Python 1.34.0
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.34.0
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.11.8
+    method: POST
+    uri: https://api.openai.com/v1/assistants
+  response:
+    content: "{\n  \"id\": \"asst_TikUD1u7TLmMCTooINIznube\",\n  \"object\": \"assistant\",\n
+      \ \"created_at\": 1719845341,\n  \"name\": \"Math Tutor\",\n  \"description\":
+      null,\n  \"model\": \"gpt-4o\",\n  \"instructions\": \"You are a personal math
+      tutor. Write and run code to answer math questions.\",\n  \"tools\": [\n    {\n
+      \     \"type\": \"code_interpreter\"\n    }\n  ],\n  \"top_p\": 1.0,\n  \"temperature\":
+      1.0,\n  \"tool_resources\": {\n    \"code_interpreter\": {\n      \"file_ids\":
+      []\n    }\n  },\n  \"metadata\": {},\n  \"response_format\": \"auto\"\n}"
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 89c73345fec50dd4-SCL
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 01 Jul 2024 14:49:01 GMT
+      Server:
+      - cloudflare
+      Set-Cookie:
+      - __cf_bm=.U2e5CMkBGVwhMw6W7tUAYaE9j6eAJusP9JtwI51shA-1719845341-1.0.1.1-BZebor62Mv_itW45tCNGAIIlGn_d.0J4gnVDX1CXhgBOTbTBpfIIfCklL9FhYGSs4HR52YeSFS2eqTPvmK2ggg;
+        path=/; expires=Mon, 01-Jul-24 15:19:01 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=dhn8mdUPZa9MYbzADZ1EI8sDIYsmlDyqL6NmUOMpSBc-1719845341501-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      Transfer-Encoding:
+      - chunked
+      alt-svc:
+      - h3=":443"; ma=86400
+      openai-organization:
+      - futit-2
+      openai-processing-ms:
+      - '241'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=15724800; includeSubDomains
+      x-request-id:
+      - req_b459fe7222bdd0ba75ff504ad16594a6
+    http_version: HTTP/1.1
+    status_code: 200
+version: 1
