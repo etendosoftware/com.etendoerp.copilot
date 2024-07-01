@@ -24,6 +24,8 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.ad.system.Client;
+import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -55,13 +57,19 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       int syncCount = 0;
       String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
 
-      syncOpenaiModels(openaiApiKey);
       List<CopilotApp> appList = new ArrayList<>();
 
       for (int i = 0; i < totalRecords; i++) {
         CopilotApp app = OBDal.getInstance().get(CopilotApp.class, selecterRecords.getString(i));
         appList.add(app);
       }
+      List<CopilotApp> appListOpenAI = appList.stream().filter(
+              app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI))
+          .collect(Collectors.toList());
+      if (!appListOpenAI.isEmpty()) {
+        syncOpenaiModels(openaiApiKey);
+      }
+
       Set<CopilotAppSource> appSourcesToSync = new HashSet<>();
       for (CopilotApp app : appList) {
         checkWebHookAccess(app);
@@ -77,11 +85,12 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       for (CopilotAppSource appSource : appSourcesToSync) {
         OpenAIUtils.syncAppSource(appSource, openaiApiKey);
       }
-      for (CopilotApp app : appList) {
+
+      for (CopilotApp app : appListOpenAI) {
         OBDal.getInstance().refresh(app);
         OpenAIUtils.refreshVectorDb(app);
       }
-      for (CopilotApp app : appList) {
+      for (CopilotApp app : appListOpenAI) {
         OBDal.getInstance().refresh(app);
         syncCount = callSync(syncCount, openaiApiKey, app);
       }
@@ -231,35 +240,44 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       modelIds.removeIf(modelInModelList(modelInDB));
     }
     //the models that are not in the database, we will create them,
-    for (JSONObject modelData : modelIds) {
-      CopilotOpenAIModel model = OBProvider.getInstance().get(CopilotOpenAIModel.class);
-      model.setSearchkey(modelData.optString("id"));
-      model.setName(modelData.optString("id"));
-      model.setActive(true);
-      //get the date in The Unix timestamp (in seconds) when the model was created. Convert to date
-      long creationDate = modelData.optLong("created"); // Unix timestamp (in seconds) when the model was created
-      model.setCreationDate(new java.util.Date(creationDate * 1000L));
-      OBDal.getInstance().save(model);
+    saveNewModels(modelIds);
+  }
+
+  /**
+   * This method is used to save new models into the database.
+   * It iterates over a list of JSONObjects, each representing a model, and creates a new CopilotOpenAIModel instance for each one.
+   * The method sets the client, organization, search key, name, and active status for each new model.
+   * It also retrieves the creation date of the model from the JSONObject, converts it from a Unix timestamp to a Date object, and sets it for the new model.
+   * The new model is then saved into the database.
+   * After all models have been saved, the method flushes the session to ensure that all changes are persisted to the database.
+   * If an exception occurs during the execution of the method, it logs the error message and continues with the next iteration.
+   * The method uses the OBContext to set and restore the admin mode before and after the execution of the method, respectively.
+   *
+   * @param modelIds
+   *     A list of JSONObjects, each representing a model to be saved into the database.
+   */
+  private void saveNewModels(List<JSONObject> modelIds) {
+    try {
+      OBContext.setAdminMode();
+      for (JSONObject modelData : modelIds) {
+        CopilotOpenAIModel model = OBProvider.getInstance().get(CopilotOpenAIModel.class);
+        model.setNewOBObject(true);
+        model.setClient(OBDal.getInstance().get(Client.class, "0"));
+        model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
+        model.setSearchkey(modelData.optString("id"));
+        model.setName(modelData.optString("id"));
+        model.setActive(true);
+        //get the date in The Unix timestamp (in seconds) when the model was created. Convert to date
+        long creationDate = modelData.optLong("created"); // Unix timestamp (in seconds) when the model was created
+        model.setCreationDate(new java.util.Date(creationDate * 1000L));
+        OBDal.getInstance().save(model);
+      }
+      OBDal.getInstance().flush();
+    } catch (Exception e) {
+      log.error("Error in saveNewModels", e);
+    } finally {
+      OBContext.restorePreviousMode();
     }
-    OBDal.getInstance().flush();
-
-    //check for Apps that needs a model and don't have one, set the Default
-    List<CopilotApp> appsWithoutModel = OBDal.getInstance().createCriteria(CopilotApp.class)
-        .add(Restrictions.isNull(CopilotApp.PROPERTY_MODEL))
-        .add(Restrictions.eq(CopilotApp.PROPERTY_APPTYPE, CopilotConstants.APP_TYPE_OPENAI))
-        .list();
-
-    CopilotOpenAIModel defaultModel = (CopilotOpenAIModel) OBDal.getInstance().createCriteria(
-            CopilotOpenAIModel.class)
-        .add(Restrictions.eq(CopilotOpenAIModel.PROPERTY_SEARCHKEY, "gpt-4o"))
-        .addOrder(Order.desc(CopilotOpenAIModel.PROPERTY_CREATIONDATE))
-        .setMaxResults(1).uniqueResult();
-    for (CopilotApp app : appsWithoutModel) {
-      app.setModel(defaultModel);
-      OBDal.getInstance().save(app);
-    }
-    OBDal.getInstance().flush();
-
   }
 
   private Predicate<JSONObject> modelInModelList(CopilotOpenAIModel modelInDB) {

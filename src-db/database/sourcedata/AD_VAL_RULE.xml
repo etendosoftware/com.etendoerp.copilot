@@ -42,7 +42,7 @@ and etcop_file.istemp='N']]></CODE>
     SELECT 1 FROM etcop_team_member tm WHERE tm.etcop_app_id = @ETCOP_App_ID@ 
 and tm.app_member = etcop_app.etcop_app_id 
 and tm.etcop_team_member_id <> coalesce(@Etcop_Team_Member_ID@,'')
-)]]></CODE>
+) and etcop_app.apptype <> 'langgraph']]></CODE>
 <!--914A05B6AF9D4003A36504024CACED19-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--914A05B6AF9D4003A36504024CACED19--></AD_VAL_RULE>
 

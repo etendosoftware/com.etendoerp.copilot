@@ -31,7 +31,7 @@ DEPENDENCIES_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var("DEPEND
 
 class ToolLoader:
     """Responsible for loading the user tools and making them available to the copilot agent."""
-    installed_deps = False
+    installed_deps = []  # Save tools that have already installed dependencies
 
     def __init__(
             self,
@@ -105,7 +105,7 @@ class ToolLoader:
     def _is_tool_implemented(self, tool_name: str) -> bool:
         return tool_name in {tool.__name__ for tool in ToolWrapper.__subclasses__()}
 
-    def load_configured_tools(self, install_dependencies: bool = False) -> LangChainTools:
+    def load_configured_tools(self) -> LangChainTools:
         """Loads the configured tools. If a tool has dependencies, they will be installed dinamically."""
         configured_tools: LangChainTools = []
 
@@ -124,16 +124,13 @@ class ToolLoader:
             if enabled and self._is_tool_implemented(tool_name):
                 class_name = globals()[tool_name]
                 configured_tools.append(class_name())
-
-                if install_dependencies:
-                    if tool_name in self._tools_dependencies.keys():
-                        print_yellow(f"Installing dependencies for {tool_name} tool: ...")
-                        tool_installer.install_dependencies(dependencies=self._tools_dependencies[tool_name])
+                if tool_name in self._tools_dependencies.keys() and (tool_name not in ToolLoader.installed_deps):
+                    print_yellow(f"Installing dependencies for {tool_name} tool: ...")
+                    tool_installer.install_dependencies(dependencies=self._tools_dependencies[tool_name])
+                    ToolLoader.installed_deps.append(tool_name)
                 # nothing todo, tool_name has not dependendies defined
 
             # nothing todo, tool_name is disabled from config
             print_green(SUCCESS_CODE)
-        if not ToolLoader.installed_deps:
-            utils.copilot_info("Dependencies installed successfully")
-            ToolLoader.installed_deps = True
+        utils.copilot_info("Dependencies installed successfully")
         return configured_tools

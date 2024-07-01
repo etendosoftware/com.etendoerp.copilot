@@ -10,15 +10,20 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.concurrent.TransferQueue;
 
+import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.TeamMember;
+import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.ToolsUtil;
 import com.etendoerp.copilot.util.TrackingUtil;
 import com.etendoerp.copilot.util.OpenAIUtils;
@@ -31,6 +36,7 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
@@ -77,7 +83,8 @@ public class RestServiceUtil {
   public static final String APP_ID = "app_id";
   public static final String PROP_ASSISTANT_ID = "assistant_id";
   public static final String PROP_RESPONSE = "response";
-
+  public static final String PROP_TEMPERATURE = "temperature";
+  public static final String PROP_DESCRIPTION = "description";
   public static final String PROP_CONVERSATION_ID = "conversation_id";
   public static final String PROP_QUESTION = "question";
   public static final String PROP_TYPE = "type";
@@ -89,10 +96,6 @@ public class RestServiceUtil {
   public static final String PROP_MODEL = "model";
   public static final String PROP_SYSTEM_PROMPT = "system_prompt";
   private static final String PROP_TOOLS = "tools";
-  private static final String PROVIDER_OPENAI = "openai";
-  private static final String PROVIDER_GEMINI = "gemini";
-  public static final String PROVIDER_OPENAI_VALUE = "O";
-  public static final String PROVIDER_GEMINI_VALUE = "G";
 
   static JSONObject getJSONLabels() {
     try {
@@ -241,7 +244,7 @@ public class RestServiceUtil {
   }
 
   public static void sendData(TransferQueue<String> queue, String data) {
-    if(queue == null) {
+    if (queue == null) {
       return;
     }
     try {
@@ -251,7 +254,8 @@ public class RestServiceUtil {
     }
   }
 
-  static JSONObject handleQuestion(HttpServletResponse queue, JSONObject jsonRequest) throws JSONException, IOException {
+  static JSONObject handleQuestion(HttpServletResponse queue,
+      JSONObject jsonRequest) throws JSONException, IOException {
     String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID);
     String appId = jsonRequest.getString(APP_ID);
     String question = jsonRequest.getString(PROP_QUESTION);
@@ -296,7 +300,8 @@ public class RestServiceUtil {
     }
   }
 
-  public static JSONObject handleQuestion(HttpServletResponse queue, CopilotApp copilotApp, String conversationId, String question,
+  public static JSONObject handleQuestion(HttpServletResponse queue, CopilotApp copilotApp, String conversationId,
+      String question,
       List<String> questionAttachedFileIds) throws IOException, JSONException {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
@@ -359,7 +364,7 @@ public class RestServiceUtil {
       Thread.currentThread().interrupt();
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
-    if(responseFromCopilot == null) {
+    if (responseFromCopilot == null) {
       return null;
     }
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot);
@@ -386,8 +391,8 @@ public class RestServiceUtil {
     //getting the object of the Timestamp class
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
-    TrackingUtil.getInstance().trackQuestion(conversationId, question);
-    TrackingUtil.getInstance().trackResponse(conversationId, responseOriginal.getString(PROP_RESPONSE));
+    TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, responseOriginal.getString(PROP_RESPONSE), copilotApp);
     return responseOriginal;
   }
 
@@ -443,6 +448,7 @@ public class RestServiceUtil {
           buildLangchainRequestForCopilot(teamMember, null, memberData);
         }
         assistantsArray.put(memberData);
+
       } catch (JSONException e) {
         log.error(e);
       }
@@ -452,6 +458,12 @@ public class RestServiceUtil {
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
     }
+    //prompt of the graph supervisor
+    if (StringUtils.isNotEmpty(copilotApp.getPrompt())) {
+      jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
+    }
+    //temperature of the graph supervisor
+    jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
   }
 
 
@@ -518,23 +530,20 @@ public class RestServiceUtil {
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
     }
+    jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
     jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
-    if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_OPENAI_VALUE)) {
-      jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_OPENAI);
-      jsonRequestForCopilot.put(PROP_MODEL, copilotApp.getModel().getIdentifier());
-    } else if (StringUtils.equals(copilotApp.getProvider(), PROVIDER_GEMINI_VALUE)) {
-      jsonRequestForCopilot.put(PROP_PROVIDER, PROVIDER_GEMINI);
-      jsonRequestForCopilot.put(PROP_MODEL, "gemini-1.5-pro-latest");
-    } else {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingProvider"),
-          copilotApp.getName()));
-    }
+    jsonRequestForCopilot.put(PROP_PROVIDER, CopilotUtils.getProvider(copilotApp));
+    jsonRequestForCopilot.put(PROP_MODEL, CopilotUtils.getAppModel(copilotApp));
+
     if (!StringUtils.isEmpty(copilotApp.getPrompt())) {
       prompt = new StringBuilder(copilotApp.getPrompt() + "\n");
       // Lookup in app sources for the prompt
       prompt.append(OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
       if (!StringUtils.isEmpty(prompt.toString())) {
         jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
+      }
+      if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
+        jsonRequestForCopilot.put(PROP_DESCRIPTION, copilotApp.getOpenaiIdAssistant());
       }
     }
   }
@@ -682,14 +691,18 @@ public class RestServiceUtil {
       OBContext.setAdminMode();
       //send json of assistants
       JSONArray assistants = new JSONArray();
-      List<CopilotRoleApp> appList = OBDal.getInstance()
+      OBContext context = OBContext.getOBContext();
+      List<CopilotApp> appList = new HashSet<>(OBDal.getInstance()
           .createCriteria(CopilotRoleApp.class)
-          .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, OBContext.getOBContext().getRole()))
-          .list();
-      for (CopilotRoleApp roleApp : appList) {
+          .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, context.getRole()))
+          .list()).stream().map(CopilotRoleApp::getCopilotApp)
+          .collect(Collectors.toList());
+      appList.sort((app1, app2) -> getLastConversation(context.getUser(), app2)
+          .compareTo(getLastConversation(context.getUser(), app1)));
+      for (CopilotApp app : appList) {
         JSONObject assistantJson = new JSONObject();
-        assistantJson.put(APP_ID, roleApp.getCopilotApp().getId());
-        assistantJson.put("name", roleApp.getCopilotApp().getName());
+        assistantJson.put(APP_ID, app.getId());
+        assistantJson.put("name", app.getName());
         assistants.put(assistantJson);
       }
       return assistants;
@@ -698,6 +711,22 @@ public class RestServiceUtil {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private static Date getLastConversation(User user, CopilotApp copilotApp) {
+    OBCriteria<Conversation> convCriteria = OBDal.getInstance().createCriteria(Conversation.class);
+    convCriteria.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, copilotApp));
+    convCriteria.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, user));
+    convCriteria.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
+    convCriteria.setMaxResults(1);
+    Conversation conversation = (Conversation) convCriteria.uniqueResult();
+    if (conversation == null) {
+      return Date.from(Instant.parse("2024-01-01T00:00:00Z"));
+    }
+    if (conversation.getLastMsg() == null) {
+      return conversation.getCreationDate();
+    }
+    return conversation.getLastMsg();
   }
 
   public static String getGraphImg(CopilotApp copilotApp) throws JSONException, IOException {

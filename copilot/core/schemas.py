@@ -36,6 +36,8 @@ class AssistantSchema(BaseModel):
     model: Optional[str] = None
     system_prompt: Optional[str] = None
     tools: Optional[list[ToolSchema]] = None
+    temperature: Optional[float] = None
+    description: Optional[str] = None
 
 
 class QuestionSchema(AssistantSchema):
@@ -56,3 +58,4 @@ class GraphQuestionSchema(BaseModel):
     extra_info: Optional[dict] = None
     generate_image: Optional[bool] = False
     local_file_ids: Optional[list[str]] = None
+    temperature: Optional[float] = None
