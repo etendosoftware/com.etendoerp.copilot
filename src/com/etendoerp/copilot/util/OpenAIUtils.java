@@ -9,6 +9,7 @@ import java.nio.charset.MalformedInputException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 
@@ -41,6 +42,7 @@ import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import kong.unirest.UnirestException;
 
+import static com.etendoerp.copilot.hook.RemoteFileHook.COPILOT_FILE_TAB_ID;
 import static com.etendoerp.copilot.process.SyncOpenAIAssistant.ERROR;
 
 public class OpenAIUtils {
@@ -344,7 +346,6 @@ public class OpenAIUtils {
     logIfDebug("Syncing file " + appSource.getFile().getName());
     if (CopilotConstants.isHQLQueryFile(appSource.getFile())) {
       syncHQLAppSource(appSource, openaiApiKey);
-      return;
     }
     CopilotFile fileToSync = appSource.getFile();
     WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
@@ -376,7 +377,10 @@ public class OpenAIUtils {
       deleteFile(appSource.getOpenaiIdFile(), openaiApiKey);
     }
     File file = ProcessHQLAppSource.getInstance().generate(appSource);
+    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
     String fileId = uploadFileToOpenAI(openaiApiKey, file);
+    aim.upload(new HashMap<>(), COPILOT_FILE_TAB_ID, appSource.getFile().getId(),
+        appSource.getFile().getOrganization().getId(), file);
     appSource.setOpenaiIdFile(fileId);
     OBDal.getInstance().save(appSource);
     OBDal.getInstance().flush();
