@@ -2,8 +2,6 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 import pytest
-import pytest_asyncio
-import vcr
 
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.langgraph.copilot_langgraph import CopilotLangGraph
@@ -12,9 +10,7 @@ from copilot.core.schemas import GraphQuestionSchema
 
 
 class TestLanggraphAgent(unittest.TestCase):
-    @pytest.fixture()
-    def vcr_config(self):
-        return {"record_mode": "rewrite"}
+
 
     def get_graph_question(self):
         return GraphQuestionSchema.model_validate({
@@ -63,7 +59,6 @@ class TestLanggraphAgent(unittest.TestCase):
         })
 
     @pytest.mark.asyncio
-    @vcr.use_cassette('fixtures/langgraph/test_aexecute.yaml', allow_playback_repeats=True)
     async def test_aexecute(self):
         langgraph_agent = LanggraphAgent()
         responses = []
@@ -75,7 +70,6 @@ class TestLanggraphAgent(unittest.TestCase):
         assert responses[-1].conversation_id == "test_conversation_async"
 
     @pytest.mark.asyncio
-    @vcr.use_cassette('tests/fixtures/langgraph/test_aexecute_with_recording.yaml', allow_playback_repeats=True)
     async def test_aexecute_with_recording(self):
         langgraph_agent = LanggraphAgent()
         responses = []
@@ -87,7 +81,6 @@ class TestLanggraphAgent(unittest.TestCase):
         assert responses[-1].conversation_id == "test_conversation_async_with_recording"
 
     @pytest.mark.asyncio
-    @vcr.use_cassette('tests/fixtures/langgraph/test_aexecute2.yaml', allow_playback_repeats=True)
     async def test_aexecute2(self):
         # Mock the necessary components
         # Instantiate the agent

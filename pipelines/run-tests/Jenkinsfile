@@ -29,7 +29,8 @@ pipeline {
         BUILD_CLASSIC       = false
         DOCKER_HOST         = '/home/jenkins/docker.sock'
         DOCKER_TLS_VERIFY   = 0
-        OPENAI_API_KEY      = '123'
+        OPENAI_API_KEY      = credentials('openai-key')
+
         GOOGLE_API_KEY      = '123'
 
         COMMIT_INPROGRESS_STATUS = "INPROGRESS"
@@ -242,8 +243,8 @@ spec:
                                          sh """
                                          pip3 install poetry
                                          echo "*** Check pylint Errors ***"
-                                         pylint -E copilot --fail-on E
                                          poetry install
+                                         poetry run pylint -E copilot --fail-on E
                                          poetry run coverage run -m pytest --record-mode=rewrite --block-network
                                          """
                                     }
