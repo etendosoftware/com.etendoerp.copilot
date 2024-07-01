@@ -39,9 +39,10 @@ public class ProcessHQLAppSource {
 
   public File generate(CopilotAppSource appSource) throws OBException {
     try {
-      String result = getHQLResult(appSource.getFile().getHql(), "e");
-
       String fileName = getFileName(appSource);
+      String extension = fileName.substring(fileName.lastIndexOf(".") + 1);
+      String result = getHQLResult(appSource.getFile().getHql(), "e", extension);
+
       return createAttachment(fileName, result);
     } catch (IOException e) {
       throw new OBException(
@@ -61,25 +62,39 @@ public class ProcessHQLAppSource {
    */
   private String getFileName(CopilotAppSource appSource) {
     // If the file object within the appSource is not null and it has a non-empty filename, return the filename.
+    String full_name = null; //default name
+    String nameWithoutExtension;
+    String extension;
     if (appSource.getFile() != null && StringUtils.isNotEmpty(appSource.getFile().getFilename())) {
-      return appSource.getFile().getFilename();
+      full_name = appSource.getFile().getFilename();
     }
     // If the file object within the appSource has a non-empty name, sanitize it and return.
     // The sanitization process involves replacing spaces with underscores and removing characters that are not allowed in file names.
-    if (StringUtils.isNotEmpty(appSource.getFile().getName())) {
-      var name = appSource.getFile().getName();
+    if (StringUtils.isEmpty(full_name) && StringUtils.isNotEmpty(appSource.getFile().getName())) {
+      full_name = appSource.getFile().getName();
+      nameWithoutExtension = full_name.substring(0, full_name.lastIndexOf("."));
+      extension = appSource.getFile().getName().substring(appSource.getFile().getName().lastIndexOf("."));
       // Remove characters that are not allowed in file names and spaces
-      name = name.replace(" ", "_");
-      name = name.replaceAll("[^a-zA-Z0-9-_]", "");
-      return name;
+      nameWithoutExtension = nameWithoutExtension.replace(" ", "_");
+
+      nameWithoutExtension = nameWithoutExtension.replaceAll("[^a-zA-Z0-9-_]", "");
+      full_name = nameWithoutExtension + extension;
+
+    }
+    if (StringUtils.isEmpty(full_name)) {
+      full_name = "result" + System.currentTimeMillis() + ".csv";
+    }
+    //check if the file name has an extension
+    if (!full_name.contains(".")) {
+      full_name += ".csv";
     }
     // If the file object within the appSource does not have a name or filename, generate a default name using the current timestamp.
-    return "result" + System.currentTimeMillis();
+    return full_name;
   }
 
   private File createAttachment(String fileName, String result) throws IOException {
     Path tempDirectory = Files.createTempDirectory("temporary_queries");
-    Path tempFile = tempDirectory.resolve(fileName + ".csv");
+    Path tempFile = tempDirectory.resolve(fileName);
     try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile.toFile())) {
       fileOutputStream.write(result.getBytes());
     } catch (FileNotFoundException e) {
@@ -88,7 +103,8 @@ public class ProcessHQLAppSource {
     return new File(tempFile.toString());
   }
 
-  private String getHQLResult(String hql, String entityAlias) {
+  private String getHQLResult(String hql, String entityAlias, String extension) {
+    boolean isCsv = StringUtils.equalsIgnoreCase(extension, "csv");
     final org.hibernate.Session session = OBDal.getInstance().getSession();
     Map<String, String> parameters = new HashMap<>();
     String additionalFilter = entityAlias + ".client.id in ('0', :clientId)";
@@ -127,12 +143,13 @@ public class ProcessHQLAppSource {
     for (Object resultObject : qry.list()) {
       if (resultObject.getClass().isArray()) {
         final Object[] values = (Object[]) resultObject;
-        results.add(Arrays.stream(values).map(this::printObject).collect(Collectors.joining(", ")));
+        //if not csv, add a new line
+        results.add(Arrays.stream(values).map(this::printObject).collect(Collectors.joining(isCsv ? ", " : "\n")));
       } else {
         results.add(printObject(resultObject));
       }
     }
-    return String.join("\n", results);
+    return String.join(isCsv ? "\n" : "\n----------------------------------------------------\n", results);
   }
 
   private String printObject(Object value) {
