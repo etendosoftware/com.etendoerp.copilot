@@ -29,7 +29,8 @@ pipeline {
         BUILD_CLASSIC       = false
         DOCKER_HOST         = '/home/jenkins/docker.sock'
         DOCKER_TLS_VERIFY   = 0
-        OPENAI_API_KEY      = '123'
+        OPENAI_API_KEY      = credentials('openai-key')
+
         GOOGLE_API_KEY      = '123'
 
         COMMIT_INPROGRESS_STATUS = "INPROGRESS"
@@ -241,14 +242,16 @@ spec:
                                     dir("com.etendoerp.copilot") {
                                          sh """
                                          pip3 install poetry
+                                         echo "*** Check pylint Errors ***"
                                          poetry install
+                                         poetry run pylint -E copilot --fail-on E
                                          poetry run coverage run -m pytest
                                          """
                                     }
                                 } catch (Exception e) {
-                                    echo 'Build of Etendo Core FAILED'
-                                    currentBuild.result = 'FAILED'
-                                    error('Build Etendo Core FAILED!')
+                                    echo 'Run of Etendo Copilot Tests FAILED'
+                                    currentBuild.result = 'UNSTABLE'
+                                    unstable('Run of Etendo Copilot Tests FAILED')
                                     env.STATUSCORE = "0"
                                 }
                             }
@@ -273,7 +276,7 @@ spec:
 
     ✅ ERRORS FIXED ✅
 
-    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
+    Commit: ${URL_REPO}/commits/${env.GIT_COMMIT}
     Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
 
     The problems found in the previous run/s have been fixed! 💪
@@ -297,7 +300,7 @@ spec:
 
     ⛔ ERROR ⛔
 
-    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
+    Commit: ${URL_REPO}/commits/${env.GIT_COMMIT}
     Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
 
     The build has failed unexpectedly.
@@ -322,10 +325,10 @@ spec:
 
     ⚠️ BUILD UNSTABLE ⚠️
 
-    Commit: ${URL_REPO}/commit/${env.GIT_COMMIT}
+    Commit: ${URL_REPO}/commits/${env.GIT_COMMIT}
     Author: ${COMMIT_AUTHOR_NAME} <${COMMIT_AUTHOR_EMAIL}>
 
-    Tests have been detected that have failed in Etendo RX.
+    Tests have been detected that have failed in Etendo Copilot.
     💡 These tests were run on a Postgres database environment.
     To more information on the failing run visit:
     ${env.BUILD_URL}
