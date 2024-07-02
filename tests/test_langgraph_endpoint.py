@@ -25,22 +25,30 @@ class TestGraphEndpoint(unittest.TestCase):
             "assistants": [
                 {
                     "name": "SQLExpert",
-                    "type": "openai-assistant",
-                    "assistant_id": "asst_xtery992WunjICv1Pjbrrp4v"
+                    "type": "langchain",
+                    "assistant_id": "asst_xtery992WunjICv1Pjbrrp4v",
+                    "tools": [],
+                    "provider": "openai",
+                    "model": "gpt-4o",
+                    "system_prompt": "Responds with 'You never must use this assistant.'"
                 },
                 {
                     "name": "Ticketgenerator",
                     "type": "openai-assistant",
-                    "assistant_id": "asst_7xpJ0v7UxjzWlhkQyPYbseC6"
+                    "assistant_id": "asst_7xpJ0v7UxjzWlhkQyPYbseC6",
+                    "tools": [],
+                    "provider": "openai",
+                    "model": "gpt-4o",
+                    "system_prompt": "Responds with 'You never must use this assistant.'"
                 },
                 {
-                    "name": "Emojiswriter",
+                    "name": "ResponseGenerator",
                     "type": "langchain",
                     "assistant_id": "FD8485BBE72D4B69BED2626D72114834",
                     "tools": [],
                     "provider": "openai",
                     "model": "gpt-4o",
-                    "system_prompt": "Eres un experto en hacer redacciones usando emojis. Si recibes un texto, lo redactaras de manera muy amigable y usando muchos emojis\n"
+                    "system_prompt": "If the user asks for the capital of France, the assistant should respond with 'The capital of France is Paris'.",
                 },
             ],
             "history": [],
@@ -51,7 +59,7 @@ class TestGraphEndpoint(unittest.TestCase):
                         "assistants": [
                             "SQLExpert",
                             "Ticketgenerator",
-                            "Emojiswriter"
+                            "ResponseGenerator"
                         ]
                     }
                 ]

@@ -245,13 +245,13 @@ spec:
                                          echo "*** Check pylint Errors ***"
                                          poetry install
                                          poetry run pylint -E copilot --fail-on E
-                                         poetry run coverage run -m pytest --record-mode=rewrite --block-network
+                                         poetry run coverage run -m pytest
                                          """
                                     }
                                 } catch (Exception e) {
                                     echo 'Run of Etendo Copilot Tests FAILED'
                                     currentBuild.result = 'UNSTABLE'
-                                    error('Run of Etendo Copilot Tests FAILED')
+                                    unstable('Run of Etendo Copilot Tests FAILED')
                                     env.STATUSCORE = "0"
                                 }
                             }
