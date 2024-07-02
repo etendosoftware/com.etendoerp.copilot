@@ -13,7 +13,6 @@ import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.TeamMember;
-import com.smf.integrations.jira.Issue;
 
 /**
  * This class is responsible for handling validations related to team members.
