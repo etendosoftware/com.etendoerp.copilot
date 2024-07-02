@@ -54,17 +54,6 @@ class AssistantAgent(CopilotAgent):
             ),
         )
 
-    def _response(self, response: AssistantResponse):
-        response_dict = {
-            "answer": {
-                "assistant_id": response.assistant_id,
-                "response": response.response,
-                "conversation_id": response.conversation_id
-            }
-        }
-        json_value = json.dumps(response_dict)
-        return f"data: {json_value}\n"
-
     async def aexecute(self, question: QuestionSchema) -> AsyncGenerator[AssistantResponse, None]:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
         agent_executor = self._prepare_agent_executor(question)
