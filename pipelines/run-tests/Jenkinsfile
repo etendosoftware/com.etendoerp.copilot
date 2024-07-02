@@ -245,7 +245,7 @@ spec:
                                          echo "*** Check pylint Errors ***"
                                          poetry install
                                          poetry run pylint -E copilot --fail-on E
-                                         poetry run coverage run -m pytest --record-mode=rewrite --block-network
+                                         poetry run coverage run -m pytest
                                          """
                                     }
                                 } catch (Exception e) {
