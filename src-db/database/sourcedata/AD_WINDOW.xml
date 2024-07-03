@@ -22,7 +22,7 @@
 <!--6B707CBC90254E08B23F221D37E6E4E5-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--6B707CBC90254E08B23F221D37E6E4E5-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--6B707CBC90254E08B23F221D37E6E4E5-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--6B707CBC90254E08B23F221D37E6E4E5-->  <NAME><![CDATA[Copilot File]]></NAME>
+<!--6B707CBC90254E08B23F221D37E6E4E5-->  <NAME><![CDATA[Knowledge Base File]]></NAME>
 <!--6B707CBC90254E08B23F221D37E6E4E5-->  <DESCRIPTION><![CDATA[Define the files with which the assistants can interact]]></DESCRIPTION>
 <!--6B707CBC90254E08B23F221D37E6E4E5-->  <HELP><![CDATA[The files added can be remote or directly embedded as attachments, and can serve as a knowledge base for the assistants]]></HELP>
 <!--6B707CBC90254E08B23F221D37E6E4E5-->  <WINDOWTYPE><![CDATA[M]]></WINDOWTYPE>
@@ -39,7 +39,7 @@
 <!--7ABB2C9233C14F398F7F19842BC12C1B-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--7ABB2C9233C14F398F7F19842BC12C1B-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--7ABB2C9233C14F398F7F19842BC12C1B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--7ABB2C9233C14F398F7F19842BC12C1B-->  <NAME><![CDATA[Copilot Tool]]></NAME>
+<!--7ABB2C9233C14F398F7F19842BC12C1B-->  <NAME><![CDATA[Skill/Tool]]></NAME>
 <!--7ABB2C9233C14F398F7F19842BC12C1B-->  <DESCRIPTION><![CDATA[Add tools to add functionality to Copilot App]]></DESCRIPTION>
 <!--7ABB2C9233C14F398F7F19842BC12C1B-->  <HELP><![CDATA[These tools are developed in Python and run in the same level as Copilot does. They are created within Etendo Classic modules, and there can be many tools in a single module.
 
