@@ -96,5 +96,5 @@ class AssistantAgent(CopilotAgent):
             if isinstance(output, AgentFinish):
                 return_values = output.return_values
                 yield AssistantResponse(
-                    response=str(return_values["output"]), conversation_id=""
+                    response=str(return_values["output"]), conversation_id=return_values["thread_id"]
                 )
