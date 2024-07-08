@@ -2466,6 +2466,13 @@
 <!--5EC494DE42394840A48BD29C37D4BDEB-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--5EC494DE42394840A48BD29C37D4BDEB-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--5EC494DE42394840A48BD29C37D4BDEB-->  <NAME><![CDATA[Temperature]]></NAME>
+<!--5EC494DE42394840A48BD29C37D4BDEB-->  <DESCRIPTION><![CDATA[Temperature of the Assistant, value between 0 and 2]]></DESCRIPTION>
+<!--5EC494DE42394840A48BD29C37D4BDEB-->  <HELP><![CDATA[In the context of a Large Language Model (LLM) that is used by the assistant, "temperature" is a parameter that controls the randomness of the model's responses:
+
+Low temperature (e.g., 0.1): Produces more predictable and conservative outputs.
+High temperature (e.g., 1.0 or higher): Produces more random and creative outputs.
+
+Temperature adjusts the probability distribution for selecting the next word in a sequence, balancing between coherence and creativity.]]></HELP>
 <!--5EC494DE42394840A48BD29C37D4BDEB-->  <COLUMNNAME><![CDATA[Temperature]]></COLUMNNAME>
 <!--5EC494DE42394840A48BD29C37D4BDEB-->  <AD_TABLE_ID><![CDATA[6344EB0DE29E4E52ACF99F591FFCD07D]]></AD_TABLE_ID>
 <!--5EC494DE42394840A48BD29C37D4BDEB-->  <AD_REFERENCE_ID><![CDATA[22]]></AD_REFERENCE_ID>
