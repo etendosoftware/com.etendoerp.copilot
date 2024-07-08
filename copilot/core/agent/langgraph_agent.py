@@ -101,5 +101,5 @@ class LanggraphAgent(CopilotAgent):
                         message = output["messages"][-1]
                         if type(message) == HumanMessage:
                             yield AssistantResponse(
-                                response=message.content, conversation_id=""
+                                response=message.content, conversation_id=question.conversation_id
                             )

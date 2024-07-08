@@ -377,9 +377,10 @@ public class RestServiceUtil {
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
     if (responseFromCopilot == null) {
-      TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question);
+      TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question,
+          copilotApp);
       TrackingUtil.getInstance().trackResponse(finalResponseAsync.optString(PROP_CONVERSATION_ID),
-          finalResponseAsync.optString(PROP_RESPONSE));
+          finalResponseAsync.optString(PROP_RESPONSE), copilotApp);
       return null;
     }
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot);
