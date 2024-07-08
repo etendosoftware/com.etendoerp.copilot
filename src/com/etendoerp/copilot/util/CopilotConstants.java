@@ -18,7 +18,11 @@ public class CopilotConstants {
   public static final String FILE_TYPE_F = "F";
   public static final String MESSAGE_ASSISTANT = "ASSISTANT";
   public static final String MESSAGE_USER = "USER";
+  public static final String PROVIDER_OPENAI_VALUE = "O";
+  public static final String PROVIDER_GEMINI_VALUE = "G";
   private static final String FILE_TYPE_HQL = "HQL";
+  public static final String PROVIDER_OPENAI = "openai";
+  public static final String PROVIDER_GEMINI = "gemini";
 
   public static boolean isSystemPromptBehaviour(CopilotAppSource source) {
     return StringUtils.equals(source.getBehaviour(), FILE_BEHAVIOUR_SYSTEM);

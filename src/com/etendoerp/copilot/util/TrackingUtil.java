@@ -1,13 +1,16 @@
 package com.etendoerp.copilot.util;
 
 import com.etendoerp.copilot.data.Conversation;
+import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.Message;
+
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 
+import java.util.Date;
 import java.util.List;
 
 public class TrackingUtil {
@@ -25,6 +28,10 @@ public class TrackingUtil {
   }
 
   private Conversation getConversation(String conversationId) {
+    return getConversation(conversationId, null);
+  }
+
+  private Conversation getConversation(String conversationId, CopilotApp app) {
     Conversation conversation = OBDal.getInstance()
         .createQuery(Conversation.class, "as c where c.externalID = :conversationId")
         .setNamedParameter("conversationId", conversationId)
@@ -33,27 +40,31 @@ public class TrackingUtil {
     if (conversation == null) {
       conversation = new Conversation();
       conversation.setExternalID(conversationId);
+      conversation.setCopilotApp(app);
       conversation.setUserContact(OBContext.getOBContext().getUser());
       OBDal.getInstance().save(conversation);
     }
     return conversation;
   }
 
-  private void createMessage(String conversationId, String messageRole, String question) {
+  private void createMessage(String conversationId, String messageRole, String question, CopilotApp app) {
     Message message = new Message();
-    message.setEtcopConversation(getConversation(conversationId));
+    Conversation conversation = getConversation(conversationId, app);
+    conversation.setLastMsg(new Date());
+    message.setEtcopConversation(conversation);
     message.setMessage(question);
     message.setRole(messageRole);
+    OBDal.getInstance().save(conversation);
     OBDal.getInstance().save(message);
     OBDal.getInstance().flush();
   }
 
-  public void trackQuestion(String conversationId, String question) {
-    createMessage(conversationId, CopilotConstants.MESSAGE_USER, question);
+  public void trackQuestion(String conversationId, String question, CopilotApp app) {
+    createMessage(conversationId, CopilotConstants.MESSAGE_USER, question, app);
   }
 
-  public void trackResponse(String conversationId, String string) {
-    createMessage(conversationId, CopilotConstants.MESSAGE_ASSISTANT, string);
+  public void trackResponse(String conversationId, String string, CopilotApp app) {
+    createMessage(conversationId, CopilotConstants.MESSAGE_ASSISTANT, string, app);
   }
 
   public static JSONArray getHistory(String conversationId) throws JSONException {
