@@ -18,10 +18,6 @@ import com.etendoerp.copilot.data.TeamMember;
  * This class is responsible for handling validations related to team members.
  * It extends the EntityPersistenceEventObserver class and observes updates and new events for the TeamMember entity.
  */
-/**
- * This class is responsible for handling validations related to team members.
- * It extends the EntityPersistenceEventObserver class and observes updates and new events for the TeamMember entity.
- */
 public class TeamMemberValidations extends EntityPersistenceEventObserver {
   private static Entity[] entities = {
       ModelProvider.getInstance().getEntity(TeamMember.class) };
