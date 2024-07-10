@@ -12,6 +12,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
@@ -235,7 +236,7 @@ public class OpenAIUtils {
   private static JSONArray getKbArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
-      if (CopilotConstants.isKbBehaviour(source)) {
+      if (!source.isExcludeFromCodeInterpreter() && CopilotConstants.isKbBehaviour(source)) {
         String openaiIdFile;
         if (CopilotConstants.isFileTypeLocalOrRemoteFile(source.getFile())) {
           openaiIdFile = source.getFile().getOpenaiIdFile();
@@ -560,7 +561,7 @@ public class OpenAIUtils {
       throws JSONException {
     List<String> updatedFiles = new ArrayList<>();
     for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
-      if (CopilotConstants.isKbBehaviour(copilotAppSource)) {
+      if (!copilotAppSource.isExcludeFromRetrieval() && CopilotConstants.isKbBehaviour(copilotAppSource)) {
         if (copilotAppSource.getFile() == null) {
           continue;
         }
