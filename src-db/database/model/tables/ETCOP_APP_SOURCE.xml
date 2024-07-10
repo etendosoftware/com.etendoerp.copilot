@@ -49,6 +49,14 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="EXCL_CODE_INT" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EXCL_RETRIEVAL" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETCOP_APP_SOURCE_CLI_FK">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
@@ -62,5 +70,7 @@
         <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
       </foreign-key>
       <check name="ETCOP_APP_SOURCE_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETCOP_APPSO_EXCL_CI_CHK"><![CDATA[EXCL_CODE_INT IN ('Y', 'N')]]></check>
+      <check name="ETCOP_APPSO_EXCL_RETR_CHECK"><![CDATA[EXCL_RETRIEVAL IN ('Y', 'N')]]></check>
     </table>
   </database>

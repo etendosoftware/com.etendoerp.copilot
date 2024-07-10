@@ -14,7 +14,7 @@ import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotApp;
-import com.etendoerp.copilot.purchase.ws.CopilotWSServlet;
+
 
 public class CopilotUtils {
 
