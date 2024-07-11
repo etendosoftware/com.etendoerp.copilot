@@ -3,6 +3,8 @@ import os
 from contextlib import contextmanager
 from typing import Dict
 from unittest.mock import Mock, patch
+from langsmith import unit
+
 
 import pytest
 from copilot.core.exceptions import (
@@ -12,7 +14,7 @@ from copilot.core.exceptions import (
 )
 from copilot.core.tool_loader import ToolLoader
 
-
+@unit
 @pytest.fixture
 def unsupported_config_file():
     temp_file = "/tmp/temp_file.txt"
@@ -21,12 +23,12 @@ def unsupported_config_file():
     yield temp_file
     os.remove(temp_file)
 
-
+@unit
 @pytest.fixture
 def tool_loader(set_fake_openai_api_key) -> ToolLoader:
     return ToolLoader()
 
-
+@unit
 @contextmanager
 def create_json_config_file(content: Dict):
     json_file_path = "/tmp/temp_file.json"
@@ -35,12 +37,12 @@ def create_json_config_file(content: Dict):
     yield json_file_path
     os.remove(json_file_path)
 
-
+@unit
 def test_load_configured_tools_empty_file(unsupported_config_file, set_fake_openai_api_key):
     with pytest.raises(Exception, match="Unsupported tool configuration file format"):
         ToolLoader(config_filename=unsupported_config_file)
 
-
+@unit
 def test_load_configured_tools_no_valid_config(set_fake_openai_api_key):
     with create_json_config_file({"Tools": "Enabled"}) as json_config_file:
         tool_loader = ToolLoader(config_filename=json_config_file)
@@ -48,7 +50,7 @@ def test_load_configured_tools_no_valid_config(set_fake_openai_api_key):
         assert tool_loader.third_party_tool_config == {}
         assert tool_loader.load_configured_tools() == []
 
-
+@unit
 @patch("copilot.core.tool_loader.tool_installer", return_value=Mock())
 def test_load_configured_tools_with_valid_file(fake_valid_config_file, set_fake_openai_api_key):
     from tools import HelloWorldTool
@@ -65,7 +67,7 @@ def test_load_configured_tools_with_valid_file(fake_valid_config_file, set_fake_
         sorted_configured_tools = sorted(configured_tools, key=lambda x: x.name)
         assert isinstance(sorted_configured_tools[0], HelloWorldTool)
 
-
+@unit
 def test_tools_config_file_not_found(monkeypatch, set_fake_openai_api_key):
     with monkeypatch.context() as patch_context:
         patch_context.setenv("CONFIGURED_TOOLS_FILENAME", "")
@@ -76,7 +78,7 @@ def test_tools_config_file_not_found(monkeypatch, set_fake_openai_api_key):
             assert isinstance(exc_info, ToolConfigFileNotFound)
             assert str(exc_info.value) == ToolConfigFileNotFound.message
 
-
+@unit
 def test_get_tool_config_raise_exc(tool_loader):
     with pytest.raises(ToolConfigFileNotFound, match=ToolConfigFileNotFound.message):
         tool_loader._get_tool_config(filepath=None)
@@ -84,7 +86,7 @@ def test_get_tool_config_raise_exc(tool_loader):
     with pytest.raises(ToolConfigFileNotFound, match=ToolConfigFileNotFound.message):
         tool_loader._get_tool_config(filepath="wrong_path")
 
-
+@unit
 def test_get_tool_dependencies_raise_exc(tool_loader):
     with pytest.raises(ToolDependenciesFileNotFound, match=ToolDependenciesFileNotFound.message):
         tool_loader._get_tool_dependencies(filepath=None)
@@ -92,13 +94,13 @@ def test_get_tool_dependencies_raise_exc(tool_loader):
     with pytest.raises(ToolDependenciesFileNotFound, match=ToolDependenciesFileNotFound.message):
         tool_loader._get_tool_dependencies(filepath="wrong_path")
 
-
+@unit
 def test_get_tool_dependencies_wrong_format(unsupported_config_file):
     with pytest.raises(ApplicationError, match="Unsupported tool dependencies file format"):
         with create_json_config_file({"Tools": "Enabled"}) as json_config_file:
             ToolLoader()._get_tool_dependencies(json_config_file)
 
-
+@unit
 def test_is_tool_implemented_raise_false(tool_loader):
     assert tool_loader._is_tool_implemented(tool_name="sarasa") is False
     assert tool_loader._is_tool_implemented(tool_name="HelloWorldTool")
