@@ -18,6 +18,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -127,13 +128,12 @@ public class RestService extends HttpSecureAppServlet {
     json.put("file", request.getParameter("file"));
     try {
       RestServiceUtil.handleQuestion(response, json);
-    } catch (CopilotRestServiceException e) {
-      response.getWriter().write(new JSONObject().put("error", e.getMessage()).toString());
-      if (e.getCode() > -1) {
-        response.setStatus(e.getCode());
-      } else {
-        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-      }
+    } catch (OBException e) {
+      RestServiceUtil.setEventStreamMode(response);
+
+      JSONObject errorEventJSON = RestServiceUtil.getErrorEventJSON(request, e);
+      PrintWriter writerToFront = response.getWriter();
+      RestServiceUtil.sendEventToFront(writerToFront, errorEventJSON, true);
     }
   }
 
