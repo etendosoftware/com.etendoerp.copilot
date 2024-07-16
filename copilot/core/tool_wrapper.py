@@ -1,9 +1,9 @@
 import abc
-from typing import Dict
+from typing import Dict, TypedDict, Union
 
 from langchain.tools import BaseTool
 
-from copilot.core.utils import copilot_debug
+from copilot.core.utils import copilot_debug, copilot_info
 
 
 def accum_params(input_params, k_args):
@@ -31,19 +31,96 @@ def accum_params(input_params, k_args):
     return input_params
 
 
+def parse_response(tool_response):
+    """
+    Parses the tool response and returns the appropriate message.
+
+    Args:
+        tool_response: The response received from the tool.
+
+    Returns:
+        The parsed message from the tool response.
+
+    Raises:
+        None.
+    """
+    if isinstance(tool_response, str):
+        return tool_response
+    if "error" in tool_response:
+        return "ERROR: " + tool_response["error"]
+    elif "message" in tool_response:
+        return tool_response["message"]
+    elif "content" in tool_response:
+        return tool_response["content"]
+    else:
+        copilot_info("Tool response is not a valid format, it will be parsed as a string. The recommended format is "
+                     "an instance of ToolOutputMessage, ToolOutputError, or ToolOutputContent.")
+        return str(tool_response)
+
+
+class ToolOutputMessage(TypedDict):
+    """
+    Typed dictionary for tool output messages.
+
+    This class defines the expected structure of a successful message response from a tool.
+    It contains a single key 'message' which holds the message string.
+
+    Attributes:
+    - message (str): The success message from the tool.
+    """
+    message: str
+
+
+class ToolOutputError(TypedDict):
+    """
+    Typed dictionary for tool output errors.
+
+    This class defines the expected structure of an error response from a tool.
+    It contains a single key 'error' which holds the error message string.
+
+    Attributes:
+    - error (str): The error message from the tool.
+    """
+    error: str
+
+
+class ToolOutputContent(TypedDict):
+    """
+    Typed dictionary for tool output content.
+
+    This class defines the expected structure of a content response from a tool.
+    It contains a single key 'content' which holds the content string.
+
+    Attributes:
+    - content (str): The content provided by the tool.
+    """
+    content: str
+
+
+ToolOutput = Union[ToolOutputMessage, ToolOutputError, ToolOutputContent]
+"""
+Union type for tool output.
+
+This type is a union of ToolOutputMessage, ToolOutputError, and ToolOutputContent,
+allowing for a standardized way to handle different types of responses from tools.
+"""
+
+
 class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def run(self, input_params: Dict = None, *args, **kwarg):
+    def run(self, input_params: Dict = None, *args, **kwarg) -> ToolOutput:
         raise NotImplementedError
 
     def _run(self, input_params: Dict, *args, **kwarg):
         copilot_debug("Running tool synchronously")
         input_params = accum_params(input_params, k_args=kwarg)
-        self.run(input_params, *args, **kwarg)
+        tool_response = self.run(input_params, *args, **kwarg)
+        return parse_response(tool_response)
 
     async def _arun(self, input_params: Dict = None, *args, **kwarg):
         """Use the tool asynchronously."""
         copilot_debug("Running tool asynchronously")
         input_params = accum_params(input_params, k_args=kwarg)
 
-        return self.run(input_params, *args, **kwarg)
+        tool_response = self.run(input_params, *args, **kwarg)
+        return parse_response(tool_response)
