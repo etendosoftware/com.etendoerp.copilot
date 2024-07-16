@@ -1,5 +1,7 @@
 package com.etendoerp.copilot.util;
 
+import static com.etendoerp.copilot.process.SyncOpenAIAssistant.ERROR;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -9,10 +11,9 @@ import java.nio.charset.MalformedInputException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
-
-import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -28,20 +29,21 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
-import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.data.CopilotTool;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
+import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import kong.unirest.UnirestException;
 
+import static com.etendoerp.copilot.hook.RemoteFileHook.COPILOT_FILE_TAB_ID;
 import static com.etendoerp.copilot.process.SyncOpenAIAssistant.ERROR;
 
 public class OpenAIUtils {
@@ -62,6 +64,7 @@ public class OpenAIUtils {
   public static final int MILLIES_SOCKET_TIMEOUT = 5 * 60 * 1000;
   public static final String MESSAGE = "message";
   public static final String INSTRUCTIONS = "instructions";
+  public static final String CODE_INT_TOO_LONG_ERR = "'tool_resources.code_interpreter.file_ids': array too long";
 
   private OpenAIUtils() {
     throw new IllegalStateException("Utility class");
@@ -103,7 +106,10 @@ public class OpenAIUtils {
     body.put("name", app.getName());
     body.put("tool_resources", generateToolsResources(app));
     body.put("tools", buildToolsArray(app));
-    body.put("model", app.getModel().getSearchkey());
+    if (app.getTemperature() != null) {
+      body.put("temperature", app.getTemperature());
+    }
+    body.put("model", CopilotUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI));
     //make the request to openai
     JSONObject response = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null, false);
     logIfDebug(response.toString());
@@ -112,6 +118,14 @@ public class OpenAIUtils {
       if (matchParamAndCode(response, INSTRUCTIONS, "string_above_max_length")) {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_Error_Sync_Instructions"), app.getName(),
+                response.getJSONObject(ERROR).getString(MESSAGE)));
+      }
+      if (response.optJSONObject(ERROR) != null
+          && StringUtils.isNotEmpty(response.getJSONObject(ERROR).optString(MESSAGE))
+          && StringUtils.containsIgnoreCase(response.getJSONObject(ERROR).optString(MESSAGE), CODE_INT_TOO_LONG_ERR)
+      ) {
+        throw new OBException(
+            String.format(OBMessageUtils.messageBD("ETCOP_Error_Code_Int_Too_Long"), app.getName(),
                 response.getJSONObject(ERROR).getString(MESSAGE)));
       }
       throw new OBException(
@@ -231,7 +245,7 @@ public class OpenAIUtils {
   private static JSONArray getKbArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
-      if (CopilotConstants.isKbBehaviour(source)) {
+      if (!source.isExcludeFromCodeInterpreter() && CopilotConstants.isKbBehaviour(source)) {
         String openaiIdFile;
         if (CopilotConstants.isFileTypeLocalOrRemoteFile(source.getFile())) {
           openaiIdFile = source.getFile().getOpenaiIdFile();
@@ -342,7 +356,6 @@ public class OpenAIUtils {
     logIfDebug("Syncing file " + appSource.getFile().getName());
     if (CopilotConstants.isHQLQueryFile(appSource.getFile())) {
       syncHQLAppSource(appSource, openaiApiKey);
-      return;
     }
     CopilotFile fileToSync = appSource.getFile();
     WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
@@ -374,7 +387,10 @@ public class OpenAIUtils {
       deleteFile(appSource.getOpenaiIdFile(), openaiApiKey);
     }
     File file = ProcessHQLAppSource.getInstance().generate(appSource);
+    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
     String fileId = uploadFileToOpenAI(openaiApiKey, file);
+    aim.upload(new HashMap<>(), COPILOT_FILE_TAB_ID, appSource.getFile().getId(),
+        appSource.getFile().getOrganization().getId(), file);
     appSource.setOpenaiIdFile(fileId);
     OBDal.getInstance().save(appSource);
     OBDal.getInstance().flush();
@@ -554,7 +570,7 @@ public class OpenAIUtils {
       throws JSONException {
     List<String> updatedFiles = new ArrayList<>();
     for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
-      if (CopilotConstants.isKbBehaviour(copilotAppSource)) {
+      if (!copilotAppSource.isExcludeFromRetrieval() && CopilotConstants.isKbBehaviour(copilotAppSource)) {
         if (copilotAppSource.getFile() == null) {
           continue;
         }

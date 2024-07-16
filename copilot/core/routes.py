@@ -124,7 +124,6 @@ def serve_graph(question: GraphQuestionSchema):
     copilot_info("  Question: " + question.question)
     copilot_debug("  conversation_id: " + str(question.conversation_id))
 
-    response = None
     try:
         copilot_debug(
             "Thread " + str(threading.get_ident()) + " Saving extra info:" +
