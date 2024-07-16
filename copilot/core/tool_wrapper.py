@@ -114,13 +114,20 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
     def _run(self, input_params: Dict, *args, **kwarg):
         copilot_debug("Running tool synchronously")
         input_params = accum_params(input_params, k_args=kwarg)
-        tool_response = self.run(input_params, *args, **kwarg)
-        return parse_response(tool_response)
+        try:
+            tool_response = self.run(input_params, *args, **kwarg)
+            return parse_response(tool_response)
+        except Exception as e:
+            copilot_debug(f"Error executing tool {self.name}: " + str(e))
+            return ToolOutputError(error=str(e))
 
     async def _arun(self, input_params: Dict = None, *args, **kwarg):
         """Use the tool asynchronously."""
         copilot_debug("Running tool asynchronously")
         input_params = accum_params(input_params, k_args=kwarg)
-
-        tool_response = self.run(input_params, *args, **kwarg)
-        return parse_response(tool_response)
+        try:
+            tool_response = self.run(input_params, *args, **kwarg)
+            return parse_response(tool_response)
+        except Exception as e:
+            copilot_debug(f"Error executing tool {self.name}: " + str(e))
+            return ToolOutputError(error=str(e))
