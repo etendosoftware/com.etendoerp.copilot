@@ -1,4 +1,4 @@
-from copilot.core.tool_wrapper import ToolWrapper
+from copilot.core.tool_wrapper import ToolWrapper, ToolOutputMessage
 from typing import Type, Dict
 
 from pydantic import BaseModel, Field
@@ -16,7 +16,7 @@ class CustomHelloWorldMultiArgsTool(ToolWrapper):
     args_schema: Type[BaseModel] = CalculatorInput
     return_direct: bool = False
 
-    def run(self, input_params: Dict, *args, **kwargs):
+    def run(self, input_params: Dict = None, *args, **kwargs) -> ToolOutputMessage:
         result_message = f"Input params {input_params}, args={args}, kwargs={kwargs}"
         #Implement your tool's logic here
-        return {"message": result_message}
+        return ToolOutputMessage(message=result_message)
