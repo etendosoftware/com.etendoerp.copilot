@@ -44,18 +44,21 @@ def parse_response(tool_response):
     Raises:
         None.
     """
+    is_error = False
     if isinstance(tool_response, str):
-        return tool_response
+        response = tool_response
+        return response
     if "error" in tool_response:
-        return "ERROR: " + tool_response["error"]
+        response = tool_response["error"]
     elif "message" in tool_response:
-        return tool_response["message"]
+        response = tool_response["message"]
     elif "content" in tool_response:
-        return tool_response["content"]
+        response = tool_response["content"]
     else:
         copilot_info("Tool response is not a valid format, it will be parsed as a string. The recommended format is "
                      "an instance of ToolOutputMessage, ToolOutputError, or ToolOutputContent.")
-        return str(tool_response)
+        response = tool_response
+    return ("ERROR: " if is_error else "") + str(response)
 
 
 class ToolOutputMessage(TypedDict):
@@ -119,7 +122,7 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
             return parse_response(tool_response)
         except Exception as e:
             copilot_debug(f"Error executing tool {self.name}: " + str(e))
-            return ToolOutputError(error=str(e))
+            return parse_response(ToolOutputError(error=str(e)))
 
     async def _arun(self, input_params: Dict = None, *args, **kwarg):
         """Use the tool asynchronously."""
@@ -130,4 +133,4 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
             return parse_response(tool_response)
         except Exception as e:
             copilot_debug(f"Error executing tool {self.name}: " + str(e))
-            return ToolOutputError(error=str(e))
+            return parse_response(ToolOutputError(error=str(e)))
