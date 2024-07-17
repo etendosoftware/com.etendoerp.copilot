@@ -3,10 +3,8 @@ import os
 from contextlib import contextmanager
 from typing import Dict
 from unittest.mock import Mock, patch
-from langsmith import unit
-
-
 import pytest
+from langsmith import unit
 from copilot.core.exceptions import (
     ApplicationError,
     ToolConfigFileNotFound,
@@ -14,7 +12,6 @@ from copilot.core.exceptions import (
 )
 from copilot.core.tool_loader import ToolLoader
 
-@unit
 @pytest.fixture
 def unsupported_config_file():
     temp_file = "/tmp/temp_file.txt"
@@ -23,12 +20,10 @@ def unsupported_config_file():
     yield temp_file
     os.remove(temp_file)
 
-@unit
 @pytest.fixture
 def tool_loader(set_fake_openai_api_key) -> ToolLoader:
     return ToolLoader()
 
-@unit
 @contextmanager
 def create_json_config_file(content: Dict):
     json_file_path = "/tmp/temp_file.json"
