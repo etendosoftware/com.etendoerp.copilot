@@ -6,13 +6,15 @@ from unittest.mock import patch, MagicMock
 
 from langchain_core.agents import AgentFinish
 from langchain_core.runnables import RunnableSequence
+from langsmith import unit 
+
 
 from copilot.core.agent.langchain_agent import LangchainAgent
 from copilot.core.agent.langchain_agent import CustomOutputParser
 from copilot.core.schemas import QuestionSchema
 from copilot.core.utils import get_full_question
 
-
+@unit
 @pytest.fixture
 def langchain_agent():
     with patch('copilot.core.tool_loader.ToolLoader') as mock_tool_loader:
@@ -20,7 +22,7 @@ def langchain_agent():
         mock_load_tools.return_value = MagicMock()  # Mock the configured tools
         return LangchainAgent()
 
-
+@unit
 def test_get_agent_openai(langchain_agent):
     with patch('langchain_openai.ChatOpenAI') as MockChatOpenAI:
         mock_openai = MockChatOpenAI.return_value
@@ -30,6 +32,7 @@ def test_get_agent_openai(langchain_agent):
         assert isinstance(agent, RunnableSequence)
 
 
+@unit
 def test_get_agent_gemini(langchain_agent):
     with patch('langchain_google_genai.ChatGoogleGenerativeAI') as MockChatGoogleGenerativeAI:
         mock_gemini = MockChatGoogleGenerativeAI.return_value
@@ -38,7 +41,7 @@ def test_get_agent_gemini(langchain_agent):
         assert agent is not None
         assert isinstance(agent, RunnableSequence)
 
-
+@unit
 def test_get_agent_executor(langchain_agent):
     with patch.object(langchain_agent, 'get_openai_agent') as mock_get_openai_agent:
         agent = langchain_agent.get_agent(provider='gemini', open_ai_model='gpt-4', tools=[],
@@ -47,6 +50,7 @@ def test_get_agent_executor(langchain_agent):
         agent_executor = langchain_agent.get_agent_executor(agent)
         assert agent_executor.agent.runnable == agent
 
+@unit
 def test_execute(langchain_agent):
     question = QuestionSchema(provider='openai', model='gpt-4', tools=[], system_prompt=
         'Test system prompt', history=[], question='Test question', conversation_id='123')
@@ -64,7 +68,7 @@ def test_execute(langchain_agent):
         response = langchain_agent.execute(question)
         assert response.input == get_full_question(question)
 
-
+@unit
 async def test_aexecute():
     langchain_agent = LangchainAgent()
     question = QuestionSchema(
@@ -95,6 +99,7 @@ async def test_aexecute():
         response_generator = langchain_agent.aexecute(question)
         responses = [response async for response in response_generator]
 
+@unit
 def test_custom_output_parser():
     parser = CustomOutputParser()
     output = "Test output"

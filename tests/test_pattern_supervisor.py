@@ -2,6 +2,7 @@ import unittest
 
 from langchain_core.runnables.graph import Edge
 from langgraph.graph import StateGraph
+from langsmith import unit
 
 from copilot.core.langgraph.members_util import MembersUtil
 from copilot.core.langgraph.patterns import SupervisorPattern
@@ -195,6 +196,7 @@ payload5: GraphQuestionSchema = GraphQuestionSchema.model_validate({
 
 class TestPatternSupervisor(unittest.TestCase):
 
+    @unit
     def test_one_stage(self):
         members = MembersUtil().get_members(payload1)
         self.assertEqual(len(members), 4)
@@ -234,6 +236,7 @@ class TestPatternSupervisor(unittest.TestCase):
         # Comparar las listas de tuplas
         self.assertEqual(expected_edges_as_tuples, actual_edges_as_tuples)
 
+    @unit
     def test_two_stages(self):
         members = MembersUtil().get_members(payload2)
         self.assertEqual(len(members), 4)
@@ -276,6 +279,7 @@ class TestPatternSupervisor(unittest.TestCase):
         # Comparar las listas de tuplas
         self.assertEqual(expected_edges_as_tuples, actual_edges_as_tuples)
 
+    @unit
     def test_one_node(self):
         members = MembersUtil().get_members(payload3)
         self.assertEqual(len(members), 1)
@@ -306,6 +310,7 @@ class TestPatternSupervisor(unittest.TestCase):
         # Comparar las listas de tuplas
         self.assertEqual(expected_edges_as_tuples, actual_edges_as_tuples)
 
+    @unit
     def test_one_node_stage1(self):
         members = MembersUtil().get_members(payload4)
         self.assertEqual(len(members), 4)
@@ -342,6 +347,7 @@ class TestPatternSupervisor(unittest.TestCase):
         # Comparar las listas de tuplas
         self.assertEqual(expected_edges_as_tuples, actual_edges_as_tuples)
 
+    @unit
     def test_one_node_each_stage(self):
         members = MembersUtil().get_members(payload5)
         self.assertEqual(len(members), 2)

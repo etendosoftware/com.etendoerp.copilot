@@ -7,6 +7,8 @@ from langchain.agents.openai_assistant.base import OpenAIAssistantAction
 from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
 from langchain_core.agents import AgentFinish
 from langchain_core.runnables import AddableDict
+from langsmith import traceable
+
 
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
 from .. import utils
@@ -26,13 +28,16 @@ class AssistantAgent(CopilotAgent):
     def get_assistant_id(self) -> str:
         return self._assistant_id
 
+    @traceable
     def get_agent(self, assistant_id: str) -> OpenAIAssistantV2Runnable:
         agent = OpenAIAssistantV2Runnable(assistant_id=assistant_id, as_agent=True)
         return agent
 
+    @traceable
     def get_agent_executor(self, agent: OpenAIAssistantV2Runnable) -> AgentExecutor:
         return AgentExecutor(agent=agent, tools=self._configured_tools)
 
+    @traceable
     def execute(self, question: QuestionSchema) -> AgentResponse:
         agent = self.get_agent(question.assistant_id)
         agent_executor = self.get_agent_executor(agent)
@@ -63,10 +68,12 @@ class AssistantAgent(CopilotAgent):
             async for response in self._handle_event(event, copilot_stream_debug):
                 yield response
 
+    @traceable
     def _prepare_agent_executor(self, question: QuestionSchema) -> AgentExecutor:
         agent = self.get_agent(question.assistant_id)
         return self.get_agent_executor(agent)
 
+    @traceable
     def _prepare_input(self, question: QuestionSchema) -> Dict:
         full_question = question.question
         if question.local_file_ids:
