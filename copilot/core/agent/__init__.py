@@ -7,9 +7,10 @@ from ..exceptions import UnsupportedAgent
 from .agent import AgentEnum, AgentResponse
 from .assistant_agent import AssistantAgent
 from .langchain_agent import LangchainAgent
+from langsmith import traceable
 
 
-
+@traceable
 def _get_agent_executors():
     _agents = {
         AgentEnum.OPENAI_ASSISTANT.value: AssistantAgent.__name__,

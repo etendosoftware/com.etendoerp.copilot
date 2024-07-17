@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langsmith import unit
 
 from copilot.app import app
 from copilot.core.agent.langgraph_agent import LanggraphAgent
@@ -16,7 +17,7 @@ from copilot.core.schemas import GraphQuestionSchema
 
 client = TestClient(app)
 
-
+@unit
 @pytest.fixture
 def mock_langgraph_agent():
     with patch('copilot.core.agent.langgraph_agent.LanggraphAgent') as mock_agent:
@@ -24,7 +25,7 @@ def mock_langgraph_agent():
         instance.execute.return_value = MagicMock(output="Paris")
         yield mock_agent
 
-
+@unit
 @pytest.fixture
 def graph_question_payload():
     return GraphQuestionSchema.model_validate({
@@ -75,6 +76,7 @@ def graph_question_payload():
 
 class TestCopilotLangGraph(unittest.TestCase):
 
+    @unit
     @patch('copilot.core.schemas.AssistantGraph')
     @patch('copilot.core.langgraph.patterns.SupervisorPattern')
     @patch('copilot.core.langgraph.patterns.base_pattern.GraphMember')
@@ -101,6 +103,7 @@ class TestCopilotLangGraph(unittest.TestCase):
 
         instance.invoke("Test message", "Test thread_id")
 
+    @unit
     @patch('langchain_core.messages.HumanMessage')
     @patch('copilot.core.langgraph.patterns.SupervisorPattern')
     @patch('langgraph.graph.graph.CompiledGraph')
@@ -119,12 +122,13 @@ class TestCopilotLangGraph(unittest.TestCase):
         # Creating instance
         instance = CopilotLangGraph(members, assistant_graph, pattern, memory)
 
+    @unit
     @patch('copilot.core.agent.assistant_agent.AssistantAgent')
     @patch('copilot.core.agent.langgraph_agent.MembersUtil.get_assistant_agent')
     def test_payload(self, mockAssistantAgent, mock_get_assistant_agent):
         mock_get_assistant_agent.return_value = mockAssistantAgent
 
-
+@unit
 def test_copilot_lang_graph(graph_question_payload):
     pattern = SupervisorPattern()
 
@@ -134,7 +138,7 @@ def test_copilot_lang_graph(graph_question_payload):
     memory = SqliteSaver.from_conn_string(":memory:")
     graph = CopilotLangGraph(members, graph_question_payload.graph, pattern, memory)
 
-
+@unit
 @patch('copilot.core.agent.langgraph_agent.LanggraphAgent.execute')
 def test_serve_question_success(mock_execute, graph_question_payload):
     mock_execute.return_value = MagicMock(output={'conversation_id': 'd2264c6d-14b8-42bd-9cfc-60a552d433b9', 'message_id': None, 'response': 'Paris.', 'role': None})
@@ -142,7 +146,7 @@ def test_serve_question_success(mock_execute, graph_question_payload):
     assert response.status_code == 200
     assert response.json() == {'answer': {'conversation_id': 'd2264c6d-14b8-42bd-9cfc-60a552d433b9', 'message_id': None, 'response': 'Paris.', 'role': None}} != {'answer': 'Paris'}
 
-
+@unit
 def test_initialization(mock_langgraph_agent):
     agent = LanggraphAgent()
     assert agent is not None

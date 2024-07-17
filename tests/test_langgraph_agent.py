@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from langsmith import unit 
 
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.langgraph.copilot_langgraph import CopilotLangGraph
@@ -11,7 +12,7 @@ from copilot.core.schemas import GraphQuestionSchema
 
 class TestLanggraphAgent(unittest.TestCase):
 
-
+    @unit 
     def get_graph_question(self):
         return GraphQuestionSchema.model_validate({
             "assistants": [
@@ -58,6 +59,7 @@ class TestLanggraphAgent(unittest.TestCase):
             }
         })
 
+    @unit
     @pytest.mark.asyncio
     async def test_aexecute(self):
         langgraph_agent = LanggraphAgent()
@@ -69,6 +71,7 @@ class TestLanggraphAgent(unittest.TestCase):
         assert responses[-1].response is not None
         assert responses[-1].conversation_id == "test_conversation_async"
 
+    @unit 
     @pytest.mark.asyncio
     async def test_aexecute_with_recording(self):
         langgraph_agent = LanggraphAgent()
@@ -80,6 +83,7 @@ class TestLanggraphAgent(unittest.TestCase):
         assert responses[-1].response is not None
         assert responses[-1].conversation_id == "test_conversation_async_with_recording"
 
+    @unit 
     @pytest.mark.asyncio
     async def test_aexecute2(self):
         # Mock the necessary components

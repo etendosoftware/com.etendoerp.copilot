@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 from langchain_core.runnables.graph import Edge
 from langgraph.graph import StateGraph
+from langsmith import unit
 
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.langgraph.members_util import MembersUtil
@@ -66,6 +67,7 @@ payload: GraphQuestionSchema = GraphQuestionSchema.model_validate({
 
 class TestPatternBase(unittest.TestCase):
 
+    @unit
     def test_initialization(self):
 
         members = MembersUtil().get_members(payload)

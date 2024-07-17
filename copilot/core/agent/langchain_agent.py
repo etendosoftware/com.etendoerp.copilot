@@ -8,6 +8,8 @@ from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.runnables import AddableDict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
+from langsmith import traceable
+
 
 from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
@@ -33,11 +35,14 @@ class LangchainAgent(CopilotAgent):
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-turbo-preview")
     _memory: MemoryHandler = None
 
+    @traceable
     def __init__(self):
         super().__init__()
         self._memory = MemoryHandler()
 
-    def get_agent(self, provider: str, open_ai_model: str, tools: list[ToolSchema] = None, system_prompt: str = None):
+    @traceable
+    def get_agent(self, provider: str, open_ai_model: str,
+                                      tools: list[ToolSchema] = None, system_prompt: str = None):
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
         Raises:
@@ -54,10 +59,12 @@ class LangchainAgent(CopilotAgent):
 
         return agent
 
+    @traceable
     def get_agent_executor(self, agent) -> AgentExecutor:
         return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True,
                              handle_parsing_errors=True, debug=True)
 
+    @traceable
     def get_openai_agent(self, open_ai_model, tools, system_prompt):
         _llm = ChatOpenAI(temperature=0, streaming=False, model_name=open_ai_model)
         _enabled_tools = self.get_functions(tools)
@@ -85,6 +92,7 @@ class LangchainAgent(CopilotAgent):
             )
         return agent
 
+    @traceable
     def get_functions(self, tools):
         _enabled_tools = []
         if tools:
@@ -95,6 +103,7 @@ class LangchainAgent(CopilotAgent):
                         break
         return _enabled_tools
 
+    @traceable
     def get_gemini_agent(self, open_ai_model):
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -116,6 +125,7 @@ class LangchainAgent(CopilotAgent):
         )
         return agent
 
+    @traceable
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
         agent = self.get_agent(question.provider, question.model, question.tools)
@@ -128,6 +138,7 @@ class LangchainAgent(CopilotAgent):
             conversation_id=question.conversation_id
         ))
 
+    @traceable
     def get_tools(self):
         return self._configured_tools
 

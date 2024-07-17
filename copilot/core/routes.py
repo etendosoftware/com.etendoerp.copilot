@@ -11,6 +11,7 @@ import threading
 
 from fastapi import APIRouter
 from starlette.responses import StreamingResponse
+from langsmith import traceable
 
 from copilot.core import utils
 from copilot.core.agent import AgentResponse, copilot_agents, AgentEnum
@@ -30,13 +31,13 @@ core_router = APIRouter()
 
 current_agent = None
 
-
+@traceable
 def select_copilot_agent(copilot_type: str):
     if copilot_type not in copilot_agents:
         raise UnsupportedAgent()
     return copilot_agents[copilot_type]
 
-
+@traceable
 def _response(response: AssistantResponse):
     if type(response) == AssistantResponse:
         json_value = json.dumps({"answer": {
@@ -53,7 +54,7 @@ def _response(response: AssistantResponse):
     copilot_debug('data: ' + json_value)
     return "data: " + json_value + "\n"
 
-
+@traceable
 async def gather_responses(agent, question, queue):
     try:
         async for agent_response in agent.aexecute(question):
@@ -62,7 +63,7 @@ async def gather_responses(agent, question, queue):
         await queue.put(e)
     await queue.put(None)  # Signal that processing is done
 
-
+@traceable
 def _serve_question_sync(question: QuestionSchema):
     """Copilot endpoint for answering questions synchronously."""
     agent_type, copilot_agent = _initialize_agent(question)
@@ -74,7 +75,7 @@ def _serve_question_sync(question: QuestionSchema):
         response = _handle_exception(e)
     return {"answer": response}
 
-
+@traceable
 def _initialize_agent(question: QuestionSchema):
     """Initialize and return the copilot agent."""
     agent_type = question.type
@@ -91,13 +92,13 @@ def _initialize_agent(question: QuestionSchema):
     ThreadContext.set_data('extra_info', question.extra_info)
     return agent_type, copilot_agent
 
-
+@traceable
 def _execute_agent(copilot_agent, question: QuestionSchema):
     """Execute the agent and return the response."""
     agent_response: AgentResponse = copilot_agent.execute(question)
     return agent_response.output
 
-
+@traceable
 def _handle_exception(e: Exception):
     """Handle exceptions and return an error response."""
     logger.exception(e)
@@ -113,7 +114,7 @@ def _handle_exception(e: Exception):
         "message": error_message}
     }
 
-
+@traceable
 @core_router.post("/graph")
 def serve_graph(question: GraphQuestionSchema):
     """Copilot main endpdoint to answering questions."""
@@ -149,18 +150,18 @@ def serve_graph(question: GraphQuestionSchema):
 
     return {"answer": response}
 
-
+@traceable
 def event_stream_graph(question: GraphQuestionSchema):
     responses = _serve_agraph(question)
     for response in responses:
         yield response
 
-
+@traceable
 @core_router.post("/agraph")
 def serve_async_graph(question: GraphQuestionSchema):
     return StreamingResponse(event_stream_graph(question), media_type="text/event-stream")
 
-
+@traceable
 def _serve_agraph(question: GraphQuestionSchema):
     """Copilot main endpdoint to answering questions."""
     copilot_agent = LanggraphAgent()
@@ -207,12 +208,12 @@ def _serve_agraph(question: GraphQuestionSchema):
         }
         yield "data: {\"answer\": " + json.dumps(response) + "}\n"
 
-
+@traceable
 @core_router.post("/question")
 def serve_question(question: QuestionSchema):
     return _serve_question_sync(question)
 
-
+@traceable
 async def _serve_question_async(question: QuestionSchema):
     """Copilot endpoint for answering questions asynchronously."""
     agent_type, copilot_agent = _initialize_agent(question)
@@ -239,17 +240,17 @@ async def _serve_question_async(question: QuestionSchema):
         response = _handle_exception(e)
         yield {"answer": response}
 
-
+@traceable
 async def event_stream(question: QuestionSchema):
     async for response in _serve_question_async(question):
         yield response
 
-
+@traceable
 @core_router.post("/aquestion")
 async def serve_async_question(question: QuestionSchema):
     return StreamingResponse(event_stream(question), media_type="text/event-stream")
 
-
+@traceable
 @core_router.get("/tools")
 def serve_tools():
     """Show tools available, with their information."""
@@ -263,13 +264,13 @@ def serve_tools():
         }
     return {"answer": tool_dict}
 
-
+@traceable
 @core_router.get("/history")
 def get_chat_history():
     chat_history: ChatHistory = local_history_recorder.get_chat_history()
     return chat_history
 
-
+@traceable
 @core_router.get("/assistant")
 def serve_assistant():
     if not isinstance(current_agent, AssistantAgent):
