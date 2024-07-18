@@ -2,7 +2,6 @@ import os
 from typing import Dict, Final, Union
 
 from langchain.agents import AgentExecutor, AgentOutputParser, create_openai_functions_agent
-from langchain.agents.openai_assistant.base import OpenAIAssistantAction
 from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.agents import AgentAction, AgentFinish
@@ -21,6 +20,7 @@ from ..utils import get_full_question
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 
+
 class CustomOutputParser(AgentOutputParser):
     def parse(self, output) -> Union[AgentAction, AgentFinish]:
         final_answer = output
@@ -33,7 +33,7 @@ class CustomOutputParser(AgentOutputParser):
 
 class LangchainAgent(CopilotAgent):
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-turbo-preview")
-    _memory : MemoryHandler = None
+    _memory: MemoryHandler = None
 
     @traceable
     def __init__(self):
@@ -61,7 +61,8 @@ class LangchainAgent(CopilotAgent):
 
     @traceable
     def get_agent_executor(self, agent) -> AgentExecutor:
-        return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True, handle_parsing_errors=True, debug=True)
+        return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True,
+                             handle_parsing_errors=True, debug=True)
 
     @traceable
     def get_openai_agent(self, open_ai_model, tools, system_prompt):
@@ -142,7 +143,7 @@ class LangchainAgent(CopilotAgent):
         return self._configured_tools
 
     async def aexecute(self, question: QuestionSchema) -> AgentResponse:
-        copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true" # Debug mode
+        copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
         agent = self.get_agent(question.provider, question.model, question.tools)
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         full_question = question.question
@@ -173,5 +174,5 @@ class LangchainAgent(CopilotAgent):
                     if type(output) == AgentFinish:
                         return_values = output.return_values
                         yield AssistantResponse(
-                            response=str(return_values["output"]), conversation_id=""
+                            response=str(return_values["output"]), conversation_id=question.conversation_id
                         )
