@@ -1,5 +1,7 @@
 package com.etendoerp.copilot.util;
 
+import static com.etendoerp.copilot.process.SyncOpenAIAssistant.ERROR;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -12,8 +14,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
-
-import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -37,6 +37,7 @@ import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
+import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
@@ -63,6 +64,7 @@ public class OpenAIUtils {
   public static final int MILLIES_SOCKET_TIMEOUT = 5 * 60 * 1000;
   public static final String MESSAGE = "message";
   public static final String INSTRUCTIONS = "instructions";
+  public static final String CODE_INT_TOO_LONG_ERR = "'tool_resources.code_interpreter.file_ids': array too long";
 
   private OpenAIUtils() {
     throw new IllegalStateException("Utility class");
@@ -116,6 +118,14 @@ public class OpenAIUtils {
       if (matchParamAndCode(response, INSTRUCTIONS, "string_above_max_length")) {
         throw new OBException(
             String.format(OBMessageUtils.messageBD("ETCOP_Error_Sync_Instructions"), app.getName(),
+                response.getJSONObject(ERROR).getString(MESSAGE)));
+      }
+      if (response.optJSONObject(ERROR) != null
+          && StringUtils.isNotEmpty(response.getJSONObject(ERROR).optString(MESSAGE))
+          && StringUtils.containsIgnoreCase(response.getJSONObject(ERROR).optString(MESSAGE), CODE_INT_TOO_LONG_ERR)
+      ) {
+        throw new OBException(
+            String.format(OBMessageUtils.messageBD("ETCOP_Error_Code_Int_Too_Long"), app.getName(),
                 response.getJSONObject(ERROR).getString(MESSAGE)));
       }
       throw new OBException(
@@ -235,7 +245,7 @@ public class OpenAIUtils {
   private static JSONArray getKbArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
-      if (CopilotConstants.isKbBehaviour(source)) {
+      if (!source.isExcludeFromCodeInterpreter() && CopilotConstants.isKbBehaviour(source)) {
         String openaiIdFile;
         if (CopilotConstants.isFileTypeLocalOrRemoteFile(source.getFile())) {
           openaiIdFile = source.getFile().getOpenaiIdFile();
@@ -560,7 +570,7 @@ public class OpenAIUtils {
       throws JSONException {
     List<String> updatedFiles = new ArrayList<>();
     for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
-      if (CopilotConstants.isKbBehaviour(copilotAppSource)) {
+      if (!copilotAppSource.isExcludeFromRetrieval() && CopilotConstants.isKbBehaviour(copilotAppSource)) {
         if (copilotAppSource.getFile() == null) {
           continue;
         }
