@@ -1,13 +1,14 @@
 import os
+from langsmith import unit 
 
-
+@unit
 def test_check_file_is_created(set_fake_openai_api_key):
     from copilot.core.local_history import local_history_recorder
 
     assert os.path.isfile(local_history_recorder._history_filepath)
     os.remove(local_history_recorder._history_filepath)
 
-
+@unit
 def test_record_get_records(set_fake_openai_api_key):
     from copilot.core.local_history import LocalHistoryRecorder
 

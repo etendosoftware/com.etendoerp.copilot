@@ -2,6 +2,7 @@ import abc
 from typing import Dict, TypedDict, Union
 
 from langchain.tools import BaseTool
+from langsmith import traceable
 
 from copilot.core.utils import copilot_debug, copilot_info
 
@@ -110,10 +111,12 @@ allowing for a standardized way to handle different types of responses from tool
 
 
 class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
+    @traceable
     @abc.abstractmethod
     def run(self, input_params: Dict = None, *args, **kwarg) -> ToolOutput:
         raise NotImplementedError
 
+    @traceable
     def _run(self, input_params: Dict, *args, **kwarg):
         copilot_debug("Running tool synchronously")
         input_params = accum_params(input_params, k_args=kwarg)
@@ -124,6 +127,7 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
             copilot_debug(f"Error executing tool {self.name}: " + str(e))
             return parse_response(ToolOutputError(error=str(e)))
 
+    @traceable
     async def _arun(self, input_params: Dict = None, *args, **kwarg):
         """Use the tool asynchronously."""
         copilot_debug("Running tool asynchronously")

@@ -4,6 +4,8 @@ import uuid
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langsmith import traceable
+
 
 from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
@@ -18,11 +20,14 @@ from ..schemas import GraphQuestionSchema
 class LanggraphAgent(CopilotAgent):
     _memory: MemoryHandler = None
 
+    @traceable
     def __init__(self):
         super().__init__()
         self._memory = MemoryHandler()
 
+
     # The agent state is the input to each node in the graph
+    @traceable
     def execute(self, question: GraphQuestionSchema) -> AgentResponse:
         thread_id = question.conversation_id
         _tools = self._configured_tools
@@ -44,7 +49,7 @@ class LanggraphAgent(CopilotAgent):
                 response=final_response, conversation_id=thread_id
             )
         )
-
+    @traceable
     async def aexecute(self, question: GraphQuestionSchema) -> AgentResponse:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
         members: list[GraphMember] = MembersUtil().get_members(question)
@@ -101,5 +106,5 @@ class LanggraphAgent(CopilotAgent):
                         message = output["messages"][-1]
                         if type(message) == HumanMessage:
                             yield AssistantResponse(
-                                response=message.content, conversation_id=""
+                                response=message.content, conversation_id=question.conversation_id
                             )

@@ -4,6 +4,7 @@ import unittest
 
 import pytest
 from fastapi.testclient import TestClient
+from langsmith import unit 
 
 from copilot.app import app
 from copilot.core.agent.agent import AssistantResponse
@@ -14,10 +15,12 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class TestGraphEndpoint(unittest.TestCase):
+    @unit 
     @pytest.fixture()
     def vcr_config(self):
         return {"record_mode": "rewrite"}
 
+    @unit 
     def setUp(self):
         self.client = TestClient(app)
         self.url = "/graph"
@@ -74,6 +77,7 @@ class TestGraphEndpoint(unittest.TestCase):
             }
         }
 
+    @unit 
     def test_graph_endpoint(self):
         response = serve_graph(GraphQuestionSchema.model_validate(self.payload))
         assert response == {'answer': AssistantResponse(response='The capital of France is Paris.',
@@ -81,7 +85,7 @@ class TestGraphEndpoint(unittest.TestCase):
                                                         message_id=None,
                                                         role=None,
                                                         assistant_id=None)}
-
+    @unit
     async def test_agraph_endpoint(self):
         response = await serve_async_graph(GraphQuestionSchema.model_validate(self.payload))
         assert response == {'answer': AssistantResponse(response='The capital of France is Paris.',
