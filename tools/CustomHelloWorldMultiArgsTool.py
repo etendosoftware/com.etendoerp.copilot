@@ -1,7 +1,7 @@
 from copilot.core.tool_wrapper import ToolWrapper
 from typing import Type, Dict
 
-from pydantic import BaseModel, Field
+from langchain_core.pydantic_v1 import Field, BaseModel
 
 
 class CalculatorInput(BaseModel):
