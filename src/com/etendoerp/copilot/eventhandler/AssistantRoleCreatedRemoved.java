@@ -34,7 +34,7 @@ public class AssistantRoleCreatedRemoved extends EntityPersistenceEventObserver 
     OBCriteria<CopilotRoleApp> crit = OBDal.getInstance().createCriteria(CopilotRoleApp.class);
     crit.add(Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, currentAssistant));
     List<CopilotRoleApp> roleAppList = crit.list();
-    for (Object roleApp : roleAppList) {
+    for (CopilotRoleApp roleApp : roleAppList) {
       OBDal.getInstance().remove(roleApp);
     }
   }
