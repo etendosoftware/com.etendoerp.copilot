@@ -7,14 +7,11 @@ import org.apache.log4j.Logger;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
-import org.openbravo.base.provider.OBProvider;
 import org.openbravo.client.kernel.event.EntityDeleteEvent;
-import org.openbravo.client.kernel.event.EntityNewEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEventObserver;
-import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.model.ad.access.Role;
+
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 
@@ -36,8 +33,9 @@ public class AssistantRoleCreatedRemoved extends EntityPersistenceEventObserver 
     final CopilotApp currentAssistant = (CopilotApp) event.getTargetInstance();
     OBCriteria<CopilotRoleApp> crit = OBDal.getInstance().createCriteria(CopilotRoleApp.class);
     crit.add(Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, currentAssistant));
-    crit.setMaxResults(1);
-    CopilotRoleApp copilotRoleApp = (CopilotRoleApp) crit.uniqueResult();
-    OBDal.getInstance().remove(copilotRoleApp);
+    List<CopilotRoleApp> roleAppList = crit.list();
+    for (Object roleApp : roleAppList) {
+      OBDal.getInstance().remove(roleApp);
+    }
   }
 }
