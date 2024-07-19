@@ -155,7 +155,7 @@ public class ProcessHQLAppSource {
           .map(this::printObject).collect(Collectors.toList());
       if (!isCsv) {
         for (int i = 0; i < listColumnValues.size(); i++) {
-          listColumnValues.set(i, (headersArray.length >= i && StringUtils.isNotEmpty(
+          listColumnValues.set(i, (headersArray.length > i && StringUtils.isNotEmpty(
               headersArray[i]) ? headersArray[i] : "?") + ": " + listColumnValues.get(i));
         }
       }

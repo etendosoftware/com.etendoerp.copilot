@@ -54,6 +54,10 @@ for module in ../*; do # for example ../com.etendoerp.copilot.erp
                 echo "The file $test_name already exists in the main module."
             fi
         done
+        if [ -d "$module/tests/resources" ]; then
+            echo "Copying resources folder"
+            cp -r "$module/tests/resources" "tests/"
+        fi
     fi
 done
 
