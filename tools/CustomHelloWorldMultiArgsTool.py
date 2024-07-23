@@ -2,7 +2,7 @@ from copilot.core.tool_wrapper import ToolWrapper
 from typing import Type, Dict
 
 from copilot.core.tool_input import ToolInput, ToolField
-from copilot.core.tool_wrapper import ToolWrapper, ToolOutputMessage
+from copilot.core.tool_wrapper import ToolWrapper
 
 
 class CalculatorInput(ToolInput):

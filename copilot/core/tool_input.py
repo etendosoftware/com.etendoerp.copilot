@@ -1,4 +1,4 @@
-from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain.pydantic_v1 import BaseModel, Field
 
 
 class ToolInput(BaseModel):
@@ -7,4 +7,5 @@ class ToolInput(BaseModel):
 
 
 def ToolField(*args, **kwargs):
-    Field(*args, **kwargs)
+    """ Helper function to create a field in a ToolInput class. """
+    return Field(*args, **kwargs)   
