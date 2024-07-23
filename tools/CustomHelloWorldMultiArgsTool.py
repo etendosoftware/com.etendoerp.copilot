@@ -1,19 +1,20 @@
 from copilot.core.tool_wrapper import ToolWrapper
 from typing import Type, Dict
 
-from langchain_core.pydantic_v1 import Field, BaseModel
+from copilot.core.tool_input import ToolInput, ToolField
+from copilot.core.tool_wrapper import ToolWrapper, ToolOutputMessage
 
 
-class CalculatorInput(BaseModel):
-    a: int = Field(description="first number")
-    b: int = Field(description="second number")
+class CalculatorInput(ToolInput):
+    a: int = ToolField(description="first number")
+    b: int = ToolField(description="second number")
 
 
 class CustomHelloWorldMultiArgsTool(ToolWrapper):
     name = "CustomHelloWorldMultiArgsTool"
     description = "This is the CustomHelloWorldMultiArgsTool tool implementation."
 
-    args_schema: Type[BaseModel] = CalculatorInput
+    args_schema: Type[ToolInput] = CalculatorInput
     return_direct: bool = False
 
     def run(self, input_params: Dict, *args, **kwargs):
