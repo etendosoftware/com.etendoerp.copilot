@@ -2,16 +2,20 @@ import abc
 from typing import Dict
 
 from langchain.tools import BaseTool
+from langsmith import traceable
 
 
 class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
+    @traceable
     @abc.abstractmethod
     def run(self,  input_params: Dict = None, *args, **kwarg) -> str:
         raise NotImplementedError
 
+    @traceable
     def _run(self,  input_params: Dict, *args, **kwarg) -> str:
         self.run(*args, **kwarg)
 
+    @traceable
     async def _arun(self,  input_params: Dict = None, *args, **kwarg) -> str:
         """Use the tool asynchronously."""
         if input_params == None:

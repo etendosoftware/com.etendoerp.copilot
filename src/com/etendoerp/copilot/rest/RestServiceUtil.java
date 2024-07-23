@@ -64,6 +64,8 @@ import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
+import netscape.javascript.JSObject;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -275,19 +277,30 @@ public class RestServiceUtil {
     return handleQuestion(queue, copilotApp, conversationId, question, filesReceived);
   }
 
-  private static void serverSideEvents(HttpServletResponse response, InputStream inputStream) {
+  private static JSONObject serverSideEvents(HttpServletResponse response, InputStream inputStream) {
     setEventStreamMode(response);
-    try (PrintWriter writerToFront = response.getWriter()) {
+    String lastLine = "";
+    try (PrintWriter writerToFront = response.getWriter(); BufferedReader readerFromCopilot = new BufferedReader(
+        new InputStreamReader(inputStream))) {
       sendEventToFront(writerToFront, "{}", true);
-      try (BufferedReader readerFromCopilot = new BufferedReader(new InputStreamReader(inputStream))) {
-        String line;
-        while ((line = readerFromCopilot.readLine()) != null) {
-          if (line.startsWith("data:")) {
-            sendEventToFront(writerToFront, line, false);
-          }
+      String currentLine;
+      while ((currentLine = readerFromCopilot.readLine()) != null) {
+        if (currentLine.startsWith("data:")) {
+          sendEventToFront(writerToFront, currentLine, false);
         }
+        lastLine = currentLine;
       }
-    } catch (IOException e) {
+
+      var jsonLastLine = StringUtils.isNotEmpty(lastLine) ? new JSONObject(lastLine.substring(5)) : null;
+      if (jsonLastLine != null
+          && jsonLastLine.has("answer")
+          && jsonLastLine.getJSONObject("answer").has("role")
+          && StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "null")) {
+        return jsonLastLine.getJSONObject("answer");
+      }
+      return new JSONObject();
+    } catch (JSONException | IOException e) {
+      throw new RuntimeException(e);
     } finally {
       try {
         inputStream.close();
@@ -308,6 +321,7 @@ public class RestServiceUtil {
     String responseFromCopilot = null;
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String appType;
+    JSONObject finalResponseAsync; // For save the response in case of async
     try {
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
@@ -355,13 +369,17 @@ public class RestServiceUtil {
       connection.setDoOutput(true);
       connection.setDoInput(true);
       connection.getOutputStream().write(jsonRequestForCopilot.toString().getBytes());
-      serverSideEvents(queue, connection.getInputStream());
+      finalResponseAsync = serverSideEvents(queue, connection.getInputStream());
     } catch (Exception e) {
       log.error(e);
       Thread.currentThread().interrupt();
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
     if (responseFromCopilot == null) {
+      TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question,
+          copilotApp);
+      TrackingUtil.getInstance().trackResponse(finalResponseAsync.optString(PROP_CONVERSATION_ID),
+          finalResponseAsync.optString(PROP_RESPONSE), copilotApp);
       return null;
     }
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot);

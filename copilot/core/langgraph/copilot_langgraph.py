@@ -2,6 +2,8 @@ import logging
 
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langsmith import traceable
+
 
 from copilot.core.schemas import AssistantGraph
 from .patterns.base_pattern import BasePattern
@@ -16,6 +18,7 @@ class CopilotLangGraph:
     _pattern: BasePattern
     _graph: LoopPattern
 
+    @traceable
     def __init__(self, members, assistant_graph, pattern: BasePattern, memory):
         self._pattern = pattern
         workflow = self.get_pattern().construct_nodes(members, assistant_graph)
@@ -24,9 +27,11 @@ class CopilotLangGraph:
         self._graph = workflow.compile(checkpointer=memory)
         self._graph.get_graph().print_ascii()
 
+    @traceable
     def get_pattern(self):
         return self._pattern
 
+    @traceable
     def invoke(self, question, thread_id, get_image=False):
         config = {
             "configurable": {"thread_id": thread_id},
@@ -41,6 +46,7 @@ class CopilotLangGraph:
             return ""
         return message[list(message.keys())[0]]["messages"][-1].content
 
+    @traceable
     def print_messages(self, config, question):
         message = None
         for message in self._graph.stream(
