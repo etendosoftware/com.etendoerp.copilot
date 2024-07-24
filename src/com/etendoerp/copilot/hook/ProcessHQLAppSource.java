@@ -140,17 +140,31 @@ public class ProcessHQLAppSource {
     }
     parameters.forEach(qry::setParameter);
     List<String> results = new ArrayList<>();
-    for (Object resultObject : qry.list()) {
-      if (resultObject.getClass().isArray()) {
-        final Object[] values = (Object[]) resultObject;
-        //if not csv, add a new line
-        results.add(Arrays.stream(values).map(this::printObject).collect(Collectors.joining(isCsv ? ", " : "\n")));
-      } else {
+    var resultList = qry.getResultList();
+    var headersArray = qry.getReturnAliases();
+    if (isCsv && headersArray != null) {
+      results.add(String.join(", ", headersArray));
+    }
+    for (Object resultObject : resultList) {
+      if (!resultObject.getClass().isArray()) {
         results.add(printObject(resultObject));
+        continue;
       }
+      final Object[] values = (Object[]) resultObject;
+      var listColumnValues = Arrays.stream(values)
+          .map(this::printObject).collect(Collectors.toList());
+      if (!isCsv) {
+        for (int i = 0; i < listColumnValues.size(); i++) {
+          listColumnValues.set(i, (headersArray.length > i && StringUtils.isNotEmpty(
+              headersArray[i]) ? headersArray[i] : "?") + ": " + listColumnValues.get(i));
+        }
+      }
+
+      results.add(String.join(isCsv ? ", " : "\n", listColumnValues));
     }
     return String.join(isCsv ? "\n" : "\n----------------------------------------------------\n", results);
   }
+
 
   private String printObject(Object value) {
     if (value == null) {
