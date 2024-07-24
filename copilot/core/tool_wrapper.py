@@ -111,6 +111,8 @@ allowing for a standardized way to handle different types of responses from tool
 
 
 class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
+    handle_validation_error = True
+
     @traceable
     @abc.abstractmethod
     def run(self, input_params: Dict = None, *args, **kwarg) -> ToolOutput:

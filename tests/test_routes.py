@@ -3,16 +3,16 @@ from http import HTTPStatus
 from typing import Dict, Type
 from unittest import mock
 from unittest.mock import MagicMock, patch
-from langsmith import unit
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, Field
+from langsmith import unit
 from pytest import fixture
 
 from copilot.core import core_router
 from copilot.core.agent import AssistantAgent
 from copilot.core.agent.agent import AssistantResponse
+from copilot.core.tool_input import ToolInput, ToolField
 from copilot.core.tool_wrapper import ToolWrapper
 
 app = FastAPI()
@@ -20,10 +20,12 @@ app.include_router(core_router)
 
 client = TestClient(app)
 
+
 @unit
 @fixture
 def mocked_agent_response() -> AssistantResponse:
     return AssistantResponse(response="Mocked agent response", conversation_id="mocked_conversation_id")
+
 
 @unit
 @fixture
@@ -42,11 +44,13 @@ def mocked_agent(mocked_agent_response, monkeypatch):
 
         routes.select_copilot_agent = mocked_agent_executor
 
+
 @unit
 def test_copilot_question_with_wrong_payload(client):
     response = client.post("/question", json={})
     assert response.status_code == HTTPStatus.BAD_REQUEST
     assert response.json()["detail"][0]["message"] == "Field required"
+
 
 @unit
 def test_copilot_question_with_valid_payload(client, mocked_agent, mocked_agent_response):
@@ -56,19 +60,20 @@ def test_copilot_question_with_valid_payload(client, mocked_agent, mocked_agent_
     assert "answer" in response.json()
     assert response.json()["answer"] == {}
 
+
 @unit
 @fixture
 def mock_langchain_agent():
     mock_agent = MagicMock()
     tools = []
 
-    class DummyInput(BaseModel):
-        query: str = Field(description="query to look up")
+    class DummyInput(ToolInput):
+        query: str = ToolField(description="query to look up")
 
     class Tool1(ToolWrapper):
         name = "HelloWorldTool"
         description = "This is the classic HelloWorld tool implementation."
-        args_schema: Type[BaseModel] = DummyInput
+        args_schema: Type[ToolInput] = DummyInput
         return_direct: bool = False
 
         def run(self, input_params: Dict = None, *args, **kwarg) -> str:
@@ -78,10 +83,12 @@ def mock_langchain_agent():
     mock_agent.get_tools.return_value = tools
     return mock_agent
 
+
 @unit
 @fixture
 def mock_chat_history():
     return {"messages": ["Hello", "How are you?"]}
+
 
 @unit
 @fixture
@@ -89,6 +96,7 @@ def mock_assistant_agent():
     mock_agent = MagicMock(spec=AssistantAgent)
     mock_agent.get_assistant_id.return_value = "assistant_12345"
     return mock_agent
+
 
 @unit
 @patch('copilot.core.routes.select_copilot_agent')

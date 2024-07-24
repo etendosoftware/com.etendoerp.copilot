@@ -1,10 +1,11 @@
-from copilot.core.tool_wrapper import ToolWrapper
-from pydantic import BaseModel, Field
 from typing import Type
 
+from copilot.core.tool_input import ToolInput, ToolField
+from copilot.core.tool_wrapper import ToolWrapper
 
-class DummyInput(BaseModel):
-    query: str = Field(description="query to look up")
+
+class DummyInput(ToolInput):
+    query: str = ToolField(description="query to look up")
 
 
 class HelloWorldTool(ToolWrapper):
@@ -17,7 +18,7 @@ class HelloWorldTool(ToolWrapper):
 
     name = "HelloWorldTool"
     description = "This is the classic HelloWorld tool implementation."
-    args_schema: Type[BaseModel] = DummyInput
+    args_schema: Type[ToolInput] = DummyInput
     return_direct: bool = False
 
     def run(self, query: str, *args, **kwargs) -> str:
