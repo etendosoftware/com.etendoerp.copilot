@@ -64,6 +64,8 @@ import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
+import netscape.javascript.JSObject;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -285,9 +287,10 @@ public class RestServiceUtil {
       while ((currentLine = readerFromCopilot.readLine()) != null) {
         if (currentLine.startsWith("data:")) {
           sendEventToFront(writerToFront, currentLine, false);
-          lastLine = currentLine;
         }
+        lastLine = currentLine;
       }
+
       var jsonLastLine = StringUtils.isNotEmpty(lastLine) ? new JSONObject(lastLine.substring(5)) : null;
       if (jsonLastLine != null
           && jsonLastLine.has("answer")
