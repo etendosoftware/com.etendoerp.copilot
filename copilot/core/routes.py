@@ -10,8 +10,8 @@ import logging
 import threading
 
 from fastapi import APIRouter
-from starlette.responses import StreamingResponse
 from langsmith import traceable
+from starlette.responses import StreamingResponse
 
 from copilot.core import utils
 from copilot.core.agent import AgentResponse, copilot_agents, AgentEnum

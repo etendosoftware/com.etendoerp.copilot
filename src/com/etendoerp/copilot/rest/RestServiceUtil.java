@@ -64,7 +64,10 @@ import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
+import netscape.javascript.JSObject;
+
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class RestServiceUtil {
@@ -275,24 +278,19 @@ public class RestServiceUtil {
   }
 
   private static JSONObject serverSideEvents(HttpServletResponse response, InputStream inputStream) {
-    response.setContentType("text/event-stream");
-    response.setCharacterEncoding("UTF-8");
-    response.setHeader("Cache-Control", "no-cache");
-    response.setHeader("Connection", "keep-alive");
+    setEventStreamMode(response);
     String lastLine = "";
-    try (PrintWriter writer = response.getWriter();
-         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-
-      writer.println("data: {}\n\n");
-      writer.flush();
+    try (PrintWriter writerToFront = response.getWriter(); BufferedReader readerFromCopilot = new BufferedReader(
+        new InputStreamReader(inputStream))) {
+      sendEventToFront(writerToFront, "{}", true);
       String currentLine;
-      while ((currentLine = reader.readLine()) != null) {
+      while ((currentLine = readerFromCopilot.readLine()) != null) {
         if (currentLine.startsWith("data:")) {
-          writer.println(currentLine + "\n\n");
-          writer.flush();
-          lastLine = currentLine;
+          sendEventToFront(writerToFront, currentLine, false);
         }
+        lastLine = currentLine;
       }
+
       var jsonLastLine = StringUtils.isNotEmpty(lastLine) ? new JSONObject(lastLine.substring(5)) : null;
       if (jsonLastLine != null
           && jsonLastLine.has("answer")
@@ -310,6 +308,7 @@ public class RestServiceUtil {
       }
     }
   }
+
 
   public static JSONObject handleQuestion(HttpServletResponse queue, CopilotApp copilotApp, String conversationId,
       String question,
@@ -801,5 +800,76 @@ public class RestServiceUtil {
     JSONObject answer = (JSONObject) responseJsonFromCopilot.get("answer");
     handleErrorMessagesIfExists(answer);
     return answer.getString("response");
+  }
+
+  /**
+   * Constructs a JSON object representing an error event in response to a request.
+   * This method is specifically designed to format error messages for front-end display or logging purposes.
+   * It encapsulates the error message, the conversation ID from the request, and assigns a role of 'error' to the event.
+   *
+   * @param request
+   *     The HttpServletRequest from which the conversation ID is extracted.
+   * @param e
+   *     The OBException containing the error message to be included in the response.
+   * @return A JSONObject structured to convey error information, including the error message, conversation ID, and a role indicator.
+   * @throws JSONException
+   *     If an error occurs during the creation of the JSON object.
+   */
+  public static JSONObject getErrorEventJSON(HttpServletRequest request, OBException e) throws JSONException {
+    return new JSONObject().put("answer", new JSONObject()
+        .put("response", e.getMessage())
+        .put("conversation_id", request.getParameter("conversation_id"))
+        .put("role", "error"));
+  }
+
+  /**
+   * Overloads the {@link #sendEventToFront(PrintWriter, String, boolean)} method to allow sending JSON objects directly.
+   * This method converts the provided JSON object to a string and then delegates the task of sending the event to the front-end
+   * to the original {@code sendEventToFront} method. It is useful for cases where the data to be sent is already structured as a JSON object.
+   *
+   * @param writerToFront
+   *     The {@link PrintWriter} object used to write the event data to the response stream.
+   * @param json
+   *     The {@link JSONObject} containing the data to be sent to the front-end.
+   * @param addData
+   *     A boolean flag indicating whether the "data: " prefix should be added to the event data.
+   */
+  public static void sendEventToFront(PrintWriter writerToFront, JSONObject json, boolean addData) {
+    sendEventToFront(writerToFront, json.toString(), addData);
+  }
+
+  /**
+   * Sets the response headers to configure the HttpServletResponse object for server-sent events (SSE).
+   * This method prepares the response to stream data to a client in a text/event-stream format, which is
+   * used for sending real-time updates to the client without requiring the client to repeatedly poll the server.
+   *
+   * @param response
+   *     The HttpServletResponse object to be configured for SSE.
+   */
+  static void setEventStreamMode(HttpServletResponse response) {
+    response.setContentType("text/event-stream");
+    response.setCharacterEncoding("UTF-8");
+    response.setHeader("Cache-Control", "no-cache");
+    response.setHeader("Connection", "keep-alive");
+  }
+
+  /**
+   * Sends an event to the front-end client. This method formats the message as a server-sent event (SSE)
+   * by optionally prefixing it with "data: " and appending two newline characters. It then writes the message
+   * to the PrintWriter associated with the HttpServletResponse, flushing the stream to ensure the message is sent.
+   * Additionally, it logs the message to the console.
+   *
+   * @param writerToFront
+   *     The PrintWriter to write the event data to.
+   * @param x
+   *     The message to be sent to the client.
+   * @param addData
+   *     A flag indicating whether to prefix the message with "data: " to conform to the SSE protocol.
+   */
+  private static void sendEventToFront(PrintWriter writerToFront, String x, boolean addData) {
+    String line = (addData ? "data: " : "") + x + "\n\n";
+    System.out.println(line);
+    writerToFront.println(line);
+    writerToFront.flush();
   }
 }
