@@ -3,9 +3,23 @@
 # Main module
 main_module="com.etendoerp.copilot"
 
-cd $main_module/tools
+# Parse arguments
+no_local_setup=false
+
+for arg in "$@"; do
+    case $arg in
+        --no-local-setup)
+            no_local_setup=true
+            shift
+            ;;
+    esac
+done
+
+echo "Starting script to create symbolic links for tools and tests"
+cd tools
 #delete all the symbolic links in the tools folder
 find . -type l -delete
+cd ..
 
 # Get the list of submodules, which are at the same level as the main module
 for module in ../*; do # for example ../com.etendoerp.copilot.erp
@@ -38,6 +52,11 @@ for module in ../*; do # for example ../com.etendoerp.copilot.erp
             fi
         done
     fi
+    # delete all the symbolic links in the tests folder
+    cd tests
+    find . -type l -delete
+    cd ..
+    # Check if the submodule has a "tests" folder
     if [ -d "$module/tests/" ]; then # if the folder com.etendoerp.copilot.erp/tools exists
         for _test in "$module/tests"/*; do # for example ../com.etendoerp.copilot.erp/tools/Ejemplo.py
             # Get the filename without the path
@@ -61,8 +80,14 @@ for module in ../*; do # for example ../com.etendoerp.copilot.erp
     fi
 done
 
+
 # come back to the main module
+echo "Going back to the main module"
 cd ../$main_module
 #the tools_config file is created in the main module, the tools_config file is used to store the tools that are going to be used in the main module
-#exec python3 local_setup.py
-exec python3 local_setup.py
+if [ "$no_local_setup" = false ]; then
+    echo "Running local_setup.py"
+    exec python3 local_setup.py
+else
+    echo "Skipping local_setup.py"
+fi
