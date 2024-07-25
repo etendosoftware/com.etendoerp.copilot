@@ -20,9 +20,17 @@ from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
-from copilot.core.schemas import QuestionSchema, GraphQuestionSchema
+from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
+
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
+from langchain_community.document_loaders.parsers import LanguageParser
+
+from langchain_openai import OpenAIEmbeddings
+import os
+from langchain.vectorstores import Chroma
+from langchain.schema import Document
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -31,11 +39,13 @@ core_router = APIRouter()
 
 current_agent = None
 
+
 @traceable
 def select_copilot_agent(copilot_type: str):
     if copilot_type not in copilot_agents:
         raise UnsupportedAgent()
     return copilot_agents[copilot_type]
+
 
 @traceable
 def _response(response: AssistantResponse):
@@ -54,6 +64,7 @@ def _response(response: AssistantResponse):
     copilot_debug('data: ' + json_value)
     return "data: " + json_value + "\n"
 
+
 @traceable
 async def gather_responses(agent, question, queue):
     try:
@@ -62,6 +73,7 @@ async def gather_responses(agent, question, queue):
     except Exception as e:
         await queue.put(e)
     await queue.put(None)  # Signal that processing is done
+
 
 @traceable
 def _serve_question_sync(question: QuestionSchema):
@@ -74,6 +86,7 @@ def _serve_question_sync(question: QuestionSchema):
     except Exception as e:
         response = _handle_exception(e)
     return {"answer": response}
+
 
 @traceable
 def _initialize_agent(question: QuestionSchema):
@@ -92,11 +105,13 @@ def _initialize_agent(question: QuestionSchema):
     ThreadContext.set_data('extra_info', question.extra_info)
     return agent_type, copilot_agent
 
+
 @traceable
 def _execute_agent(copilot_agent, question: QuestionSchema):
     """Execute the agent and return the response."""
     agent_response: AgentResponse = copilot_agent.execute(question)
     return agent_response.output
+
 
 @traceable
 def _handle_exception(e: Exception):
@@ -113,6 +128,7 @@ def _handle_exception(e: Exception):
         "code": e.response.status_code if hasattr(e, "response") else 500,
         "message": error_message}
     }
+
 
 @traceable
 @core_router.post("/graph")
@@ -150,16 +166,19 @@ def serve_graph(question: GraphQuestionSchema):
 
     return {"answer": response}
 
+
 @traceable
 def event_stream_graph(question: GraphQuestionSchema):
     responses = _serve_agraph(question)
     for response in responses:
         yield response
 
+
 @traceable
 @core_router.post("/agraph")
 def serve_async_graph(question: GraphQuestionSchema):
     return StreamingResponse(event_stream_graph(question), media_type="text/event-stream")
+
 
 @traceable
 def _serve_agraph(question: GraphQuestionSchema):
@@ -208,10 +227,12 @@ def _serve_agraph(question: GraphQuestionSchema):
         }
         yield "data: {\"answer\": " + json.dumps(response) + "}\n"
 
+
 @traceable
 @core_router.post("/question")
 def serve_question(question: QuestionSchema):
     return _serve_question_sync(question)
+
 
 @traceable
 async def _serve_question_async(question: QuestionSchema):
@@ -240,15 +261,18 @@ async def _serve_question_async(question: QuestionSchema):
         response = _handle_exception(e)
         yield {"answer": response}
 
+
 @traceable
 async def event_stream(question: QuestionSchema):
     async for response in _serve_question_async(question):
         yield response
 
+
 @traceable
 @core_router.post("/aquestion")
 async def serve_async_question(question: QuestionSchema):
     return StreamingResponse(event_stream(question), media_type="text/event-stream")
+
 
 @traceable
 @core_router.get("/tools")
@@ -264,11 +288,13 @@ def serve_tools():
         }
     return {"answer": tool_dict}
 
+
 @traceable
 @core_router.get("/history")
 def get_chat_history():
     chat_history: ChatHistory = local_history_recorder.get_chat_history()
     return chat_history
+
 
 @traceable
 @core_router.get("/assistant")
@@ -277,3 +303,46 @@ def serve_assistant():
         raise Exception("Copilot is not using AssistantAgent")
 
     return {"assistant_id": current_agent.get_assistant_id()}
+
+
+@traceable
+@core_router.post("/chroma")
+def processTextToChromaDB(body: TextToChromaSchema):
+    db_name = body.db_name
+    text = body.text
+    overwrite = body.overwrite
+    language = Language.MARKDOWN
+    db_path = f"./{db_name}.db"
+
+    if os.path.exists(db_path) and not overwrite:
+        success = False
+        message = f"Database {db_name} already exists."
+        return success, message, db_path
+
+    try:
+        # If overwrite is true and the database exists, delete the existing database
+        if overwrite and os.path.exists(db_path):
+            os.remove(db_path)
+
+        parsed_document = text
+
+        document = Document(page_content=parsed_document)
+
+        text_splitter = RecursiveCharacterTextSplitter.from_language(
+            language=language, chunk_size=2000, chunk_overlap=200
+        )
+        texts = text_splitter.split_documents([document])
+
+        Chroma.from_documents(
+            texts,
+            OpenAIEmbeddings(disallowed_special=(), show_progress_bar=True),
+            persist_directory=db_path
+        )
+        success = True
+        message = f"Database {db_name} created and loaded successfully."
+    except Exception as e:
+        success = False
+        message = f"Error processing text to ChromaDB: {e}"
+        db_path = ""
+
+    return success, message, db_path
