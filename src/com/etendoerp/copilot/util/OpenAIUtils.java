@@ -248,7 +248,7 @@ public class OpenAIUtils {
       if (!source.isExcludeFromCodeInterpreter() && CopilotConstants.isKbBehaviour(source)) {
         String openaiIdFile;
         if (CopilotConstants.isFileTypeLocalOrRemoteFile(source.getFile())) {
-          openaiIdFile = source.getFile().getOpenaiIdFile();
+          openaiIdFile = source.getOpenaiIdFile();
         } else {
           openaiIdFile = source.getOpenaiIdFile();
         }
@@ -257,6 +257,7 @@ public class OpenAIUtils {
     }
     return result;
   }
+
 
   private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint,
       String purpose, File fileToSend) throws JSONException {
@@ -364,14 +365,16 @@ public class OpenAIUtils {
       logIfDebug("File " + fileToSync.getName() + " not has changed, skipping sync");
       return;
     }
-    if (StringUtils.isNotEmpty(fileToSync.getOpenaiIdFile())) {
+    if (StringUtils.isNotEmpty(appSource.getOpenaiIdFile())) {
       //we will delete the file
       logIfDebug("Deleting file " + fileToSync.getName());
-      deleteFile(fileToSync.getOpenaiIdFile(), openaiApiKey);
+      deleteFile(appSource.getOpenaiIdFile(), openaiApiKey);
     }
     logIfDebug("Uploading file " + fileToSync.getName());
     String fileId = OpenAIUtils.downloadAttachmentAndUploadFile(fileToSync, openaiApiKey);
     fileToSync.setOpenaiIdFile(fileId);
+    appSource.setOpenaiIdFile(fileId);
+    OBDal.getInstance().save(appSource);
     fileToSync.setLastSync(new Date());
     fileToSync.setUpdated(new Date());
     OBDal.getInstance().save(fileToSync);
@@ -577,14 +580,13 @@ public class OpenAIUtils {
         if (!CopilotConstants.isFileTypeLocalOrRemoteFile(copilotAppSource.getFile())) {
           continue;
         }
-        CopilotFile file = copilotAppSource.getFile();
         JSONObject fileSearch = new JSONObject();
-        fileSearch.put("file_id", file.getOpenaiIdFile());
+        fileSearch.put("file_id", copilotAppSource.getOpenaiIdFile());
         var response = makeRequestToOpenAI(getOpenaiApiKey(),
             ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES, fileSearch, "POST", null,
             false);
         if (!response.has(ERROR)) {
-          updatedFiles.add(file.getOpenaiIdFile());
+          updatedFiles.add(copilotAppSource.getOpenaiIdFile());
         } else {
           if (app.isCodeInterpreter()) {
             log.warn("Error updating file in vector db: " + response);
