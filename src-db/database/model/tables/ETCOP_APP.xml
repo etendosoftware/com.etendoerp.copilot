@@ -46,7 +46,7 @@
         <onCreateDefault/>
       </column>
       <column name="PROMPT" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
-        <default><![CDATA[''::text]]></default>
+        <default/>
         <onCreateDefault/>
       </column>
       <column name="APPTYPE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
