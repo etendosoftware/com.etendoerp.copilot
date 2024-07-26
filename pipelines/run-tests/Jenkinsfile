@@ -244,12 +244,12 @@ spec:
                                     echo 'Running python tests'
                                     dir("com.etendoerp.copilot") {
                                         if (env.LANGCHAIN_TRACING_V2.toLowerCase()=="false") {
-											sh 'echo "LANGCHAIN_TRACING_V2 is false" so we will remove the @unit decorator'
-											sh """
-											cd tests
-											sed -i 's/@unit//g' *.py
-											"""
-										}
+                                            sh 'echo "LANGCHAIN_TRACING_V2 is false" so we will remove the @unit decorator'
+                                            sh """
+                                            cd tests
+                                            sed -i 's/@unit//g' *.py
+                                            """
+                                        }
                                          sh """
                                          pip3 install poetry
                                          echo "*** Check pylint Errors ***"
