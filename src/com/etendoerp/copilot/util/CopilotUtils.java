@@ -4,17 +4,28 @@ import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI_VALUE;
+import static com.etendoerp.copilot.util.OpenAIUtils.HEADER_CONTENT_TYPE;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotApp;
-
 
 public class CopilotUtils {
 
@@ -131,6 +142,39 @@ public class CopilotUtils {
 
     } catch (Exception e) {
       throw new OBException(e.getMessage());
+    }
+  }
+
+
+
+  public static void textToChroma(String text, String dbName) {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    try {
+      HttpClient client = HttpClient.newBuilder().build();
+      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
+      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      JSONObject jsonRequestForCopilot = new JSONObject();
+      jsonRequestForCopilot.put("text", text);
+      jsonRequestForCopilot.put("db_name", dbName);
+      String requestBody = jsonRequestForCopilot.toString();
+
+      HttpRequest copilotRequest = HttpRequest.newBuilder()
+          .uri(new URI(String.format("http://%s:%s/chroma", copilotHost, copilotPort)))
+          .headers(HEADER_CONTENT_TYPE, "application/json;charset=UTF-8")
+          .version(HttpClient.Version.HTTP_1_1)
+          .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+          .build();
+
+      HttpResponse<String> responseFromCopilot = client.send(copilotRequest,
+          HttpResponse.BodyHandlers.ofString());
+    } catch (JSONException e) {
+      e.printStackTrace();
+    } catch (URISyntaxException e) {
+      e.printStackTrace();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (Exception e) {
+      e.printStackTrace();
     }
   }
 }

@@ -20,9 +20,17 @@ from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
-from copilot.core.schemas import QuestionSchema, GraphQuestionSchema
+from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
+
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
+from langchain_community.document_loaders.parsers import LanguageParser
+
+from langchain_openai import OpenAIEmbeddings
+import os
+from langchain.vectorstores import Chroma
+from langchain.schema import Document
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -295,3 +303,46 @@ def serve_assistant():
         raise Exception("Copilot is not using AssistantAgent")
 
     return {"assistant_id": current_agent.get_assistant_id()}
+
+
+@traceable
+@core_router.post("/chroma")
+def processTextToChromaDB(body: TextToChromaSchema):
+    db_name = body.db_name
+    text = body.text
+    overwrite = body.overwrite
+    language = Language.MARKDOWN
+    db_path = f"./{db_name}.db"
+
+    if os.path.exists(db_path) and not overwrite:
+        success = False
+        message = f"Database {db_name} already exists."
+        return success, message, db_path
+
+    try:
+        # If overwrite is true and the database exists, delete the existing database
+        if overwrite and os.path.exists(db_path):
+            os.remove(db_path)
+
+        parsed_document = text
+
+        document = Document(page_content=parsed_document)
+
+        text_splitter = RecursiveCharacterTextSplitter.from_language(
+            language=language, chunk_size=2000, chunk_overlap=200
+        )
+        texts = text_splitter.split_documents([document])
+
+        Chroma.from_documents(
+            texts,
+            OpenAIEmbeddings(disallowed_special=(), show_progress_bar=True),
+            persist_directory=db_path
+        )
+        success = True
+        message = f"Database {db_name} created and loaded successfully."
+    except Exception as e:
+        success = False
+        message = f"Error processing text to ChromaDB: {e}"
+        db_path = ""
+
+    return success, message, db_path
