@@ -81,6 +81,10 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
+      <column name="SYNC_ASSISTANT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
       <column name="GRAPH_IMG" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
         <default/>
         <onCreateDefault/>
