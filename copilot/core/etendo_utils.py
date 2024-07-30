@@ -80,11 +80,13 @@ def call_webhook(access_token, body_params, url, webhook_name):
         return {"error": post_result.text}
 
 
-def get_etendo_host():
+def get_etendo_host(default=None):
     """
     Retrieves the Etendo host from the environment variables or returns a default value.
 
     Returns:
     str: The Etendo host URL.
     """
-    return read_optional_env_var("ETENDO_HOST", "http://host.docker.internal:8080/etendo")
+    if default is None:
+        default = "http://host.docker.internal:8080/etendo"
+    return read_optional_env_var("ETENDO_HOST", default)
