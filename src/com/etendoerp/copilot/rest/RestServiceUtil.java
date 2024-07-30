@@ -606,11 +606,10 @@ public class RestServiceUtil {
         java.util.stream.Collectors.toList());
   }
 
-  private static void addAppSourceFileIds(CopilotApp copilotApp,
-      List<String> questionAttachedFileIds) {
+  private static void addAppSourceFileIds(CopilotApp copilotApp, List<String> questionAttachedFileIds) {
     for (CopilotAppSource source : copilotApp.getETCOPAppSourceList()) {
       if (CopilotConstants.isAttachBehaviour(source)) {
-        questionAttachedFileIds.add(source.getFile().getOpenaiIdFile());
+        questionAttachedFileIds.add(source.getOpenaiIdFile());
       }
     }
   }
