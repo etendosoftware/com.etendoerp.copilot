@@ -46,8 +46,10 @@ class QuestionSchema(AssistantSchema):
     history: Optional[list[MessageSchema]] = None
     extra_info: Optional[dict] = None
 
+
 class QuestionResponseSchema(BaseModel):
     answer: str
+
 
 class GraphQuestionSchema(BaseModel):
     question: str
@@ -59,3 +61,9 @@ class GraphQuestionSchema(BaseModel):
     generate_image: Optional[bool] = False
     local_file_ids: Optional[list[str]] = None
     temperature: Optional[float] = None
+
+
+class TextToChromaSchema(BaseModel):
+    text: str
+    db_name: str
+    overwrite: bool = False
