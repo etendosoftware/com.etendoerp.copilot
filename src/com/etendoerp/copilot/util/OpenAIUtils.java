@@ -245,7 +245,8 @@ public class OpenAIUtils {
   private static JSONArray getKbArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
-      if (!source.isExcludeFromCodeInterpreter() && CopilotConstants.isKbBehaviour(source)) {
+      if (!source.isExcludeFromCodeInterpreter() && CopilotConstants.isKbBehaviour(source) &&
+          (StringUtils.equalsIgnoreCase(source.getEtcopApp().getAppType(), CopilotConstants.APP_TYPE_OPENAI))) {
         String openaiIdFile;
         if (CopilotConstants.isFileTypeLocalOrRemoteFile(source.getFile())) {
           openaiIdFile = source.getFile().getOpenaiIdFile();

@@ -32,6 +32,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotOpenAIModel;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
@@ -58,17 +59,20 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
 
       List<CopilotApp> appList = new ArrayList<>();
+      //List<CopilotApp> appListLangchainType = new ArrayList<>();
 
       for (int i = 0; i < totalRecords; i++) {
         CopilotApp app = OBDal.getInstance().get(CopilotApp.class, selecterRecords.getString(i));
-        appList.add(app);
+        if (app != null) { // Null check
+          appList.add(app);
+        }
       }
-      List<CopilotApp> appListOpenAI = appList.stream().filter(
-              app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI))
+      /*List<CopilotApp> appList = appList.stream().filter(
+              app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) //eliminar filtro
           .collect(Collectors.toList());
-      if (!appListOpenAI.isEmpty()) {
-        syncOpenaiModels(openaiApiKey);
-      }
+
+       */
+
 
       Set<CopilotAppSource> appSourcesToSync = new HashSet<>();
       for (CopilotApp app : appList) {
@@ -76,24 +80,38 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
         List<CopilotAppSource> listSourcesForKb = appSources.stream().filter(CopilotConstants::isKbBehaviour).collect(
             Collectors.toList());
-        if (!listSourcesForKb.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
-          throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
+        if (StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
+          if (!listSourcesForKb.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
+
+            throw new OBException(
+                String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
+          }
         }
         appSourcesToSync.addAll(appSources);
       }
-      for (CopilotAppSource appSource : appSourcesToSync) {
-        OpenAIUtils.syncAppSource(appSource, openaiApiKey);
+
+      for (CopilotAppSource appSource : appSourcesToSync) { // los dos y borrar el filtrado
+        if (StringUtils.equalsIgnoreCase(appSource.getEtcopApp().getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
+          if (!appList.isEmpty()) {
+            syncOpenaiModels(openaiApiKey);
+          }
+
+          OpenAIUtils.syncAppSource(appSource, openaiApiKey); //CopilotUtils
+
+          for (CopilotApp app : appList) { //openai
+            OBDal.getInstance().refresh(app);
+            OpenAIUtils.refreshVectorDb(app);
+          }
+          for (CopilotApp app : appList) { //openai
+            OBDal.getInstance().refresh(app);
+            syncCount = callSync(syncCount, openaiApiKey, app);
+          }
+
+        } else {
+          CopilotUtils.syncAppLangchainSource(appSource);
+        }
       }
 
-      for (CopilotApp app : appListOpenAI) {
-        OBDal.getInstance().refresh(app);
-        OpenAIUtils.refreshVectorDb(app);
-      }
-      for (CopilotApp app : appListOpenAI) {
-        OBDal.getInstance().refresh(app);
-        syncCount = callSync(syncCount, openaiApiKey, app);
-      }
       returnSuccessMsg(result, syncCount, totalRecords);
     } catch (Exception e) {
       log.error("Error in process", e);
@@ -169,7 +187,9 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         }
         Role role = OBDal.getInstance().get(Role.class, roleId);
         DefinedWebHook hook = OBDal.getInstance().get(DefinedWebHook.class, webhookId);
-        upsertAccess(hook, role, false);
+        if (role != null && hook != null) { // Null check
+          upsertAccess(hook, role, false);
+        }
       }
     }
   }
