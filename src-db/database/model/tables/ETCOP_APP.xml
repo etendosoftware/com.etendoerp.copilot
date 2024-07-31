@@ -46,15 +46,11 @@
         <onCreateDefault/>
       </column>
       <column name="PROMPT" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
-        <default><![CDATA[''::text]]></default>
+        <default/>
         <onCreateDefault/>
       </column>
       <column name="APPTYPE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="SYNC_ASSISTANT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
-        <default><![CDATA[Y]]></default>
         <onCreateDefault/>
       </column>
       <column name="CODE_INTERPRETER" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
@@ -83,6 +79,10 @@
       </column>
       <column name="SYSTEM_APP" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="SYNC_ASSISTANT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
         <onCreateDefault/>
       </column>
       <column name="GRAPH_IMG" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">

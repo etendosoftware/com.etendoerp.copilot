@@ -33,7 +33,7 @@ pipeline {
         OPENAI_API_KEY       = credentials('openai-key')
         LANGCHAIN_API_KEY    = credentials('langchain-key')
         LANGCHAIN_PROJECT    = "TestFuncCop(Jenkins)"
-        LANGCHAIN_TRACING_V2 = "TRUE"
+        LANGCHAIN_TRACING_V2 = "FALSE"
         GOOGLE_API_KEY       = '123'
 
         COMMIT_INPROGRESS_STATUS = "INPROGRESS"
@@ -243,6 +243,13 @@ spec:
                                 try {
                                     echo 'Running python tests'
                                     dir("com.etendoerp.copilot") {
+                                        if (env.LANGCHAIN_TRACING_V2.toLowerCase()=="false") {
+                                            sh 'echo "LANGCHAIN_TRACING_V2 is false" so we will remove the @unit decorator'
+                                            sh """
+                                            cd tests
+                                            sed -i 's/@unit//g' *.py
+                                            """
+                                        }
                                          sh """
                                          pip3 install poetry
                                          echo "*** Check pylint Errors ***"
