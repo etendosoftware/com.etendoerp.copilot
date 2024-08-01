@@ -59,7 +59,6 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
 
       List<CopilotApp> appList = new ArrayList<>();
-      //List<CopilotApp> appListLangchainType = new ArrayList<>();
 
       for (int i = 0; i < totalRecords; i++) {
         CopilotApp app = OBDal.getInstance().get(CopilotApp.class, selecterRecords.getString(i));
@@ -67,12 +66,6 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
           appList.add(app);
         }
       }
-      /*List<CopilotApp> appList = appList.stream().filter(
-              app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) //eliminar filtro
-          .collect(Collectors.toList());
-
-       */
-
 
       Set<CopilotAppSource> appSourcesToSync = new HashSet<>();
       for (CopilotApp app : appList) {
@@ -90,7 +83,16 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         appSourcesToSync.addAll(appSources);
       }
 
-      for (CopilotAppSource appSource : appSourcesToSync) { // los dos y borrar el filtrado
+      //for langchain apps we need to reset chroma DB, so collect all langchain apps and reset the chroma DBs
+      List<CopilotApp> langchainApps = appSourcesToSync.stream()
+          .map(CopilotAppSource::getEtcopApp)
+          .filter(app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN))
+          .distinct().collect(Collectors.toList());
+      for (CopilotApp app : langchainApps) {
+        CopilotUtils.resetChromaDB(app);
+      }
+
+      for (CopilotAppSource appSource : appSourcesToSync) {
         if (StringUtils.equalsIgnoreCase(appSource.getEtcopApp().getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
           if (!appList.isEmpty()) {
             syncOpenaiModels(openaiApiKey);
@@ -107,9 +109,13 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
             syncCount = callSync(syncCount, openaiApiKey, app);
           }
 
-        } else {
+        } else if (StringUtils.equalsIgnoreCase(appSource.getEtcopApp().getAppType(),
+            CopilotConstants.APP_TYPE_LANGCHAIN)) {
           CopilotUtils.syncAppLangchainSource(appSource);
+        } else {
+          // For langgraph apps, nothing to do
         }
+
       }
 
       returnSuccessMsg(result, syncCount, totalRecords);

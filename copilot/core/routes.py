@@ -7,9 +7,14 @@ The routes are responsible for handling the incoming requests and returning the 
 import asyncio
 import json
 import logging
+import os
 import threading
 
 from fastapi import APIRouter
+from langchain.schema import Document
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings
 from langsmith import traceable
 from starlette.responses import StreamingResponse
 
@@ -20,17 +25,9 @@ from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
-from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema
+from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema, ChromaInputSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
-
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
-from langchain_community.document_loaders.parsers import LanguageParser
-
-from langchain_openai import OpenAIEmbeddings
-import os
-from langchain.vectorstores import Chroma
-from langchain.schema import Document
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -306,13 +303,27 @@ def serve_assistant():
 
 
 @traceable
+@core_router.post("/ResetChromaDB")
+def resetChromaDB(body: ChromaInputSchema):
+    # Delete the ChromaDB db if exists and create a new one
+    db_name = body.db_name
+
+    db_path = getChromaDBPath(db_name)
+
+    if os.path.exists(db_path):
+        os.remove(db_path)
+
+    return {"answer": "ChromaDB reset successfully."}
+
+
+@traceable
 @core_router.post("/chroma")
 def processTextToChromaDB(body: TextToChromaSchema):
     db_name = body.db_name
     text = body.text
     overwrite = body.overwrite
     language = Language.MARKDOWN
-    db_path = f"./{db_name}.db"
+    db_path = getChromaDBPath(db_name)
 
     if os.path.exists(db_path) and not overwrite:
         success = False
@@ -345,4 +356,8 @@ def processTextToChromaDB(body: TextToChromaSchema):
         message = f"Error processing text to ChromaDB: {e}"
         db_path = ""
 
-    return success, message, db_path
+    return {"answer": message, "success": success, "db_path": db_path}
+
+
+def getChromaDBPath(db_name):
+    return "./" + db_name + ".db"

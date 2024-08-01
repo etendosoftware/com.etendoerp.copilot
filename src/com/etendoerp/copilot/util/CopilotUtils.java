@@ -11,18 +11,14 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
@@ -168,37 +164,60 @@ public class CopilotUtils {
   }
 
 
-
-  public static void textToChroma(String text, String dbName) {
+  public static void textToChroma(String text, String dbName) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    JSONObject jsonRequestForCopilot = new JSONObject();
+    jsonRequestForCopilot.put("text", text);
+    jsonRequestForCopilot.put("db_name", dbName);
+    String requestBody = jsonRequestForCopilot.toString();
+
+    String endpoint = "/chroma";
+
+    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
+    //Manejo del error / respuesta
+
+  }
+
+  private static HttpResponse<String> getResponseFromCopilot(Properties properties, String endpoint,
+      String requestBody
+  ) {
+
     try {
       HttpClient client = HttpClient.newBuilder().build();
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
-      JSONObject jsonRequestForCopilot = new JSONObject();
-      jsonRequestForCopilot.put("text", text);
-      jsonRequestForCopilot.put("db_name", dbName);
-      String requestBody = jsonRequestForCopilot.toString();
-
       HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s/chroma", copilotHost, copilotPort)))
+          .uri(new URI(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort)))
           .headers(HEADER_CONTENT_TYPE, "application/json;charset=UTF-8")
           .version(HttpClient.Version.HTTP_1_1)
           .POST(HttpRequest.BodyPublishers.ofString(requestBody))
           .build();
 
-      HttpResponse<String> responseFromCopilot = client.send(copilotRequest,
+      return client.send(copilotRequest,
           HttpResponse.BodyHandlers.ofString());
-    } catch (JSONException e) {
-      e.printStackTrace();
-    } catch (URISyntaxException e) {
-      e.printStackTrace();
-    } catch (InterruptedException e) {
-      e.printStackTrace();
     } catch (Exception e) {
-      e.printStackTrace();
+      throw new OBException(e);
     }
+
   }
+
+  public static void resetChromaDB(CopilotApp app) throws JSONException {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String dbName = "KB_" + app.getId();
+    JSONObject jsonRequestForCopilot = new JSONObject();
+
+    jsonRequestForCopilot.put("db_name", dbName);
+    String requestBody = jsonRequestForCopilot.toString();
+    String endpoint = "/ResetChromaDB";
+    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
+    //checkear respuesta
+    if (responseFromCopilot.statusCode() != 200) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetChroma"),
+          responseFromCopilot.body()));
+    }
+
+  }
+
 
   private static boolean fileHasChanged(CopilotFile fileToSync) {
 
@@ -277,23 +296,11 @@ public class CopilotUtils {
   }
 
   public static void syncAppLangchainSource(CopilotAppSource appSource)
-      throws IOException {
+      throws IOException, JSONException {
 
     CopilotFile fileToSync = appSource.getFile();
     WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
         .executeHooks(fileToSync);
-    /*if (!fileHasChanged(fileToSync)) {
-      logIfDebug("File " + fileToSync.getName() + " not has changed, skipping sync");
-      return;
-    }*/
-
-    /*if (StringUtils.isNotEmpty(fileToSync.getIdFile())) {
-      //we will delete the file
-      logIfDebug("Deleting file " + fileToSync.getName());
-      deleteFile(fileToSync.getOpenaiIdFile(), openaiApiKey);
-    }
-    String fileId = OpenAIUtils.downloadAttachmentAndUploadFile(fileToSync, openaiApiKey);
-    fileToSync.setOpenaiIdFile(fileId);*/
 
     logIfDebug("Uploading file " + fileToSync.getName());
     String text = readFileToSync(fileToSync);

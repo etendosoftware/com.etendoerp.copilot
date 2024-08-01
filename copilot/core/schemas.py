@@ -63,7 +63,10 @@ class GraphQuestionSchema(BaseModel):
     temperature: Optional[float] = None
 
 
-class TextToChromaSchema(BaseModel):
-    text: str
+class ChromaInputSchema(BaseModel):
     db_name: str
+
+
+class TextToChromaSchema(ChromaInputSchema):
+    text: str
     overwrite: bool = False
