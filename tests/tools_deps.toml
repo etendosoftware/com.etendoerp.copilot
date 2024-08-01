@@ -1,5 +1,5 @@
 [HelloWorldTool]
 pytz = "==2021.3"
-requests-mock= "*"
-pytest-mock = "*"
+
+
 

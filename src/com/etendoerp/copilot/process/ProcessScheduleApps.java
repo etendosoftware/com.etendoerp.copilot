@@ -3,6 +3,7 @@ package com.etendoerp.copilot.process;
 import static org.openbravo.client.application.process.BaseProcessActionHandler.hasAccess;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.data.ETCOPSchedule;
 import com.etendoerp.copilot.rest.RestServiceUtil;
@@ -106,17 +107,18 @@ public class ProcessScheduleApps extends DalBaseProcess {
         Role role = OBContext.getOBContext().getRole();
         if (!checkRoleAccessApp(role, copilotApp)) {
           logger.log(
-              "<- Error: The Role" + role.getName() + " does not have access to Copilot App " + copilotApp.getName() + "\n");
+                  "<- Error: The Role" + role.getName() + " does not have access to Copilot App " + copilotApp.getName() + "\n");
           break;
         }
         for (var source : copilotApp.getETCOPAppSourceList()) {
           if (CopilotConstants.isAttachBehaviour(source)) {
-            fileIds.add(source.getFile().getOpenaiIdFile());
+            CopilotAppSource copilotAppSource = source;
+            fileIds.add(copilotAppSource.getOpenaiIdFile());
           }
         }
         logger.log("-> Send question to copilot:\n---\n " + schedule.getPrompt() + "\n---\n");
         JSONObject response = RestServiceUtil.handleQuestion(null, copilotApp, schedule.getConversation(),
-            schedule.getPrompt(), fileIds);
+                schedule.getPrompt(), fileIds);
         if (response.has("response")) {
           logger.log("<- Copilot response:\n---\n" + response.getString("response") + "\n---\n");
         }
@@ -129,6 +131,7 @@ public class ProcessScheduleApps extends DalBaseProcess {
       }
     }
   }
+
 
   /**
    * This method checks if a given role has access to a specific CopilotApp.

@@ -53,5 +53,6 @@ repositories {
  */
  dependencies {
     implementation group: 'com.konghq', name: 'unirest-java', version: '3.14.5'
+    implementation('com.etendoerp:webhookevents:1.9.1')
  }
  
