@@ -64,7 +64,12 @@ public class TrackingUtil {
   }
 
   public void trackResponse(String conversationId, String string, CopilotApp app) {
-    createMessage(conversationId, CopilotConstants.MESSAGE_ASSISTANT, string, app);
+    trackResponse(conversationId, string, app, false);
+  }
+
+  public void trackResponse(String conversationId, String string, CopilotApp app, boolean isError) {
+    String messageRole = isError ? CopilotConstants.MESSAGE_ERROR : CopilotConstants.MESSAGE_ASSISTANT;
+    createMessage(conversationId, messageRole, string, app);
   }
 
   public static JSONArray getHistory(String conversationId) throws JSONException {

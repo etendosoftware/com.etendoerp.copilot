@@ -379,8 +379,9 @@ public class RestServiceUtil {
     if (responseFromCopilot == null) {
       TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question,
           copilotApp);
+      boolean isError = finalResponseAsync.has("role") && StringUtils.equalsIgnoreCase(finalResponseAsync.optString("role"), "error");
       TrackingUtil.getInstance().trackResponse(finalResponseAsync.optString(PROP_CONVERSATION_ID),
-          finalResponseAsync.optString(PROP_RESPONSE), copilotApp);
+          finalResponseAsync.optString(PROP_RESPONSE), copilotApp, isError);
       return null;
     }
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot);
