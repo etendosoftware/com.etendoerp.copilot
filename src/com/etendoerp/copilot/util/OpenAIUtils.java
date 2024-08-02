@@ -65,6 +65,7 @@ public class OpenAIUtils {
   public static final String MESSAGE = "message";
   public static final String INSTRUCTIONS = "instructions";
   public static final String CODE_INT_TOO_LONG_ERR = "'tool_resources.code_interpreter.file_ids': array too long";
+  private static final String APP_SOURCE_TAB_ID = "A10DD4D68A0945A3B11AA5433DFE49B6";
 
   private OpenAIUtils() {
     throw new IllegalStateException("Utility class");
@@ -389,11 +390,22 @@ public class OpenAIUtils {
       logIfDebug("Deleting file " + appSource.getFile().getName());
       deleteFile(appSource.getOpenaiIdFile(), openaiApiKey);
     }
+    String fileNameToCheck = ProcessHQLAppSource.getFileName(appSource);
+    if (StringUtils.equalsIgnoreCase("kb", appSource.getBehaviour()) && (StringUtils.isEmpty(
+        fileNameToCheck) || StringUtils.endsWithIgnoreCase(fileNameToCheck, ".csv"))) {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_Error_Csv_KB"), appSource.getFile().getName()));
+    }
+
     File file = ProcessHQLAppSource.getInstance().generate(appSource);
-    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
+
     String fileId = uploadFileToOpenAI(openaiApiKey, file);
-    aim.upload(new HashMap<>(), COPILOT_FILE_TAB_ID, appSource.getFile().getId(),
-        appSource.getFile().getOrganization().getId(), file);
+    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
+
+    aim.upload(new HashMap<>(), APP_SOURCE_TAB_ID, appSource.getId(),
+        appSource.getOrganization().getId(), file);
+
+
     appSource.setOpenaiIdFile(fileId);
     OBDal.getInstance().save(appSource);
     OBDal.getInstance().flush();
@@ -577,16 +589,17 @@ public class OpenAIUtils {
         if (copilotAppSource.getFile() == null) {
           continue;
         }
-        if (!CopilotConstants.isFileTypeLocalOrRemoteFile(copilotAppSource.getFile())) {
-          continue;
-        }
+
+        CopilotFile file = copilotAppSource.getFile();
+        String openAIFileId = StringUtils.isNotEmpty(
+            copilotAppSource.getOpenaiIdFile()) ? copilotAppSource.getOpenaiIdFile() : file.getOpenaiIdFile();
         JSONObject fileSearch = new JSONObject();
-        fileSearch.put("file_id", copilotAppSource.getOpenaiIdFile());
+        fileSearch.put("file_id", openAIFileId);
         var response = makeRequestToOpenAI(getOpenaiApiKey(),
             ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES, fileSearch, "POST", null,
             false);
         if (!response.has(ERROR)) {
-          updatedFiles.add(copilotAppSource.getOpenaiIdFile());
+          updatedFiles.add(openAIFileId);
         } else {
           if (app.isCodeInterpreter()) {
             log.warn("Error updating file in vector db: " + response);
