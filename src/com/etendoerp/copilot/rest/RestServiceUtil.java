@@ -295,7 +295,8 @@ public class RestServiceUtil {
       if (jsonLastLine != null
           && jsonLastLine.has("answer")
           && jsonLastLine.getJSONObject("answer").has("role")
-          && StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "null")) {
+          && (StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "null") ||
+          StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "error"))) {
         return jsonLastLine.getJSONObject("answer");
       }
       return new JSONObject();
