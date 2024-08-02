@@ -7,9 +7,14 @@ The routes are responsible for handling the incoming requests and returning the 
 import asyncio
 import json
 import logging
+import os
 import threading
 
 from fastapi import APIRouter
+from langchain.schema import Document
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
+from langchain.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings
 from langsmith import traceable
 from starlette.responses import StreamingResponse
 
@@ -23,14 +28,6 @@ from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
-
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
-from langchain_community.document_loaders.parsers import LanguageParser
-
-from langchain_openai import OpenAIEmbeddings
-import os
-from langchain.vectorstores import Chroma
-from langchain.schema import Document
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -205,9 +202,9 @@ def _serve_agraph(question: GraphQuestionSchema):
             response = loop.run_until_complete(queue.get())
             if response is None:
                 break
-            if isinstance(response, Exception):
-                copilot_debug(f"Error: {str(response)}")
-                continue
+            elif isinstance(response, Exception):
+                copilot_debug(f"Error ({str(type(response))}): {str(response)}")
+                raise response
             yield _response(response)
         loop.run_until_complete(task)
         loop.close()
@@ -221,11 +218,12 @@ def _serve_agraph(question: GraphQuestionSchema):
         else:
             error_message = str(e)
 
-        response = {"error": {
-            "code": e.response.status_code if hasattr(e, "response") else 500,
-            "message": error_message}
-        }
-        yield "data: {\"answer\": " + json.dumps(response) + "}\n"
+        response_error = AssistantResponse(
+            response=error_message,
+            conversation_id=question.conversation_id,
+            role="error"
+        )
+        yield _response(response_error)
 
 
 @traceable
