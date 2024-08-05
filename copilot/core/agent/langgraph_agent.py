@@ -1,4 +1,3 @@
-import os
 import uuid
 
 from langchain_core.messages import HumanMessage
@@ -6,7 +5,7 @@ from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langsmith import traceable
 
-
+from copilot.core.utils import read_optional_env_var_int, read_optional_env_var
 from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
 from ..langgraph.copilot_langgraph import CopilotLangGraph
@@ -24,7 +23,6 @@ class LanggraphAgent(CopilotAgent):
     def __init__(self):
         super().__init__()
         self._memory = MemoryHandler()
-
 
     # The agent state is the input to each node in the graph
     @traceable
@@ -49,9 +47,10 @@ class LanggraphAgent(CopilotAgent):
                 response=final_response, conversation_id=thread_id
             )
         )
+
     @traceable
     async def aexecute(self, question: GraphQuestionSchema) -> AgentResponse:
-        copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
+        copilot_stream_debug = read_optional_env_var("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
         members: list[GraphMember] = MembersUtil().get_members(question)
         memory = AsyncSqliteSaver.from_conn_string("checkpoints.sqlite")
         lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory)
@@ -62,8 +61,10 @@ class LanggraphAgent(CopilotAgent):
         _input = HumanMessage(content=full_question)
         config = {
             "configurable": {
-            }
+            },
+            "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 50)
         }
+
         if question.conversation_id is not None:
             config["configurable"]["thread_id"] = question.conversation_id
         else:
