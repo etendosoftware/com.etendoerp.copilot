@@ -295,7 +295,8 @@ public class RestServiceUtil {
       if (jsonLastLine != null
           && jsonLastLine.has("answer")
           && jsonLastLine.getJSONObject("answer").has("role")
-          && StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "null")) {
+          && (StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "null") ||
+          StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "error"))) {
         return jsonLastLine.getJSONObject("answer");
       }
       return new JSONObject();
@@ -378,8 +379,9 @@ public class RestServiceUtil {
     if (responseFromCopilot == null) {
       TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question,
           copilotApp);
+      boolean isError = finalResponseAsync.has("role") && StringUtils.equalsIgnoreCase(finalResponseAsync.optString("role"), "error");
       TrackingUtil.getInstance().trackResponse(finalResponseAsync.optString(PROP_CONVERSATION_ID),
-          finalResponseAsync.optString(PROP_RESPONSE), copilotApp);
+          finalResponseAsync.optString(PROP_RESPONSE), copilotApp, isError);
       return null;
     }
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot);

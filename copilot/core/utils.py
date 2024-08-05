@@ -45,6 +45,11 @@ def read_optional_env_var(env_var_name: str, default_value: str) -> str:
     return value
 
 
+def read_optional_env_var_int(env_var_name: str, default_value: int) -> int:
+    """Reads an optional environment variable and returns its value or the default one."""
+    return int(read_optional_env_var(env_var_name, str(default_value)))
+
+
 def copilot_debug(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
     if os.getenv("COPILOT_DEBUG", 'False').lower() in "true":

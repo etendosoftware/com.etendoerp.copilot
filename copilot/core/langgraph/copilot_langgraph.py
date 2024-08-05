@@ -1,16 +1,15 @@
 import logging
 
 from langchain_core.messages import HumanMessage
-from langgraph.checkpoint.sqlite import SqliteSaver
 from langsmith import traceable
 
-
+import copilot
 from copilot.core.schemas import AssistantGraph
 from .patterns.base_pattern import BasePattern
 from .patterns.loop_pattern import LoopPattern
+from ..utils import read_optional_env_var_int
 
 logger = logging.getLogger(__name__)
-
 
 
 class CopilotLangGraph:
@@ -35,7 +34,7 @@ class CopilotLangGraph:
     def invoke(self, question, thread_id, get_image=False):
         config = {
             "configurable": {"thread_id": thread_id},
-            "recursion_limit": 50
+            "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 50)
         }
         if get_image:
             import base64
