@@ -67,6 +67,6 @@
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
       <check name="ETCOP_MSG_ISACTIVE"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
-      <check name="ETCOP_MSG_ROLE"><![CDATA[ROLE IN ('SYSTEM', 'USER', 'ASSISTANT')]]></check>
+      <check name="ETCOP_MSG_ROLE"><![CDATA[ROLE IN ('SYSTEM', 'USER', 'ASSISTANT', 'ERROR')]]></check>
     </table>
   </database>

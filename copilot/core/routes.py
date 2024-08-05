@@ -17,6 +17,8 @@ from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import MarkdownTextSplitter, CharacterTextSplitter
+from langchain.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings
 from langsmith import traceable
 from starlette.responses import StreamingResponse
 
@@ -207,9 +209,9 @@ def _serve_agraph(question: GraphQuestionSchema):
             response = loop.run_until_complete(queue.get())
             if response is None:
                 break
-            if isinstance(response, Exception):
-                copilot_debug(f"Error: {str(response)}")
-                continue
+            elif isinstance(response, Exception):
+                copilot_debug(f"Error ({str(type(response))}): {str(response)}")
+                raise response
             yield _response(response)
         loop.run_until_complete(task)
         loop.close()
@@ -223,11 +225,12 @@ def _serve_agraph(question: GraphQuestionSchema):
         else:
             error_message = str(e)
 
-        response = {"error": {
-            "code": e.response.status_code if hasattr(e, "response") else 500,
-            "message": error_message}
-        }
-        yield "data: {\"answer\": " + json.dumps(response) + "}\n"
+        response_error = AssistantResponse(
+            response=error_message,
+            conversation_id=question.conversation_id,
+            role="error"
+        )
+        yield _response(response_error)
 
 
 @traceable
