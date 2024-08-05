@@ -59,11 +59,11 @@ public class ToolAddedToSystemApp extends EntityPersistenceEventObserver {
 
   private static void checkRightClient(CopilotAppTool currentAppTool) {
     CopilotApp currentAssistant = currentAppTool.getCopilotApp();
-    String currentClient = currentAssistant.getClient().getName();
+    Client currentClient = currentAssistant.getClient();
 
-    String contextClient = OBContext.getOBContext().getCurrentClient().getName();
+    Client contextClient = OBContext.getOBContext().getCurrentClient();
 
-    if (!StringUtils.equals(contextClient, currentClient)) {
+    if (contextClient != currentClient) {
       throw new OBException(OBMessageUtils.messageBD("ETCOP_WrongClientApp"));
     }
   }
