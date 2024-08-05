@@ -17,6 +17,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
@@ -24,6 +27,7 @@ import java.util.Properties;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
@@ -44,7 +48,6 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 
 public class CopilotUtils {
-
 
   public static final HashMap<String, String> PROVIDER_MAP_CODE_NAME = buildProviderCodeMap();
   public static final HashMap<String, String> PROVIDER_MAP_CODE_DEFAULT_PROP = buildProviderCodeDefaulMap();
@@ -163,18 +166,35 @@ public class CopilotUtils {
     }
   }
 
-
-  public static void textToChroma(String text, String dbName) throws JSONException {
+  public static void textToChroma(Base64 text, String dbName, String format) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     JSONObject jsonRequestForCopilot = new JSONObject();
     jsonRequestForCopilot.put("text", text);
     jsonRequestForCopilot.put("db_name", dbName);
+    jsonRequestForCopilot.put("format", format);
     String requestBody = jsonRequestForCopilot.toString();
 
     String endpoint = "/chroma";
 
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
     //Manejo del error / respuesta
+
+  }
+
+  public static void textToChroma(String text, String dbName, String format) throws JSONException {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    JSONObject jsonRequestForCopilot = new JSONObject();
+    jsonRequestForCopilot.put("text", text);
+    jsonRequestForCopilot.put("db_name", dbName);
+    jsonRequestForCopilot.put("format", format);
+    String requestBody = jsonRequestForCopilot.toString();
+
+    String endpoint = "/chroma";
+
+    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
+    if (responseFromCopilot == null) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach")));
+    }
 
   }
 
@@ -269,6 +289,7 @@ public class CopilotUtils {
     String filename = attach.getName();
     String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
     String extension = filename.substring(filename.lastIndexOf(".") + 1);
+
     File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
     boolean setW = tempFile.setWritable(true);
     if (!setW) {
@@ -279,10 +300,28 @@ public class CopilotUtils {
     return tempFile;
   }
 
+  private static String pdfToBase64(File fileInPDF) {
+    try {
+      FileInputStream fileInputStream = new FileInputStream(fileInPDF);
+      byte[] fileBytes = new byte[(int) fileInPDF.length()];
+      fileInputStream.read(fileBytes);
+      fileInputStream.close();
+
+      String base64EncodedPDF = Base64.getEncoder().encodeToString(fileBytes);
+
+      return base64EncodedPDF;
+
+    } catch (IOException e) {
+      return null;
+    }
+  }
+
   private static String readFileToSync(CopilotFile fileToSync)
       throws IOException {
     File tempFile = getFileFromCopilotFile(fileToSync);
-    StringBuilder text = new StringBuilder();
+
+    String extension = tempFile.getName().substring(tempFile.getName().lastIndexOf(".") + 1);
+    StringBuilder text = new StringBuilder(extension + "-");
     try (FileInputStream fis = new FileInputStream(tempFile);
          InputStreamReader isr = new InputStreamReader(fis);
          BufferedReader br = new BufferedReader(isr)) {
@@ -301,12 +340,33 @@ public class CopilotUtils {
     CopilotFile fileToSync = appSource.getFile();
     WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
         .executeHooks(fileToSync);
-
     logIfDebug("Uploading file " + fileToSync.getName());
-    String text = readFileToSync(fileToSync);
-    String dbName = "KB_" + appSource.getEtcopApp().getId();
 
-    textToChroma(text, dbName);
+    String filename = fileToSync.getName();
+
+    String extension = filename.substring(filename.lastIndexOf(".") + 1);
+
+    String dbName = "KB_" + appSource.getEtcopApp().getId();
+    String format;
+
+    if (StringUtils.equalsIgnoreCase(extension, "pdf")) {
+      format = "pdf";
+      File tempFile = getFileFromCopilotFile(fileToSync);
+      String text = pdfToBase64(tempFile);
+      textToChroma(text, dbName, format);
+    } else if (StringUtils.equalsIgnoreCase(extension, "md")) {
+      format = "md";
+      String text = readFileToSync(fileToSync);
+      textToChroma(text, dbName, format);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "txt")) {
+      format = "txt";
+      String text = readFileToSync(fileToSync);
+      textToChroma(text, dbName, format);
+    } else {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"),
+          extension));
+    }
 
     fileToSync.setLastSync(new Date());
     fileToSync.setUpdated(new Date());

@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 import threading
 
 from fastapi import APIRouter
@@ -15,6 +16,7 @@ from langchain.schema import Document
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import MarkdownTextSplitter, CharacterTextSplitter
 from langsmith import traceable
 from starlette.responses import StreamingResponse
 
@@ -28,6 +30,9 @@ from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema, ChromaInputSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
+
+import base64
+import fitz  # PyMuPDF
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -311,7 +316,7 @@ def resetChromaDB(body: ChromaInputSchema):
     db_path = getChromaDBPath(db_name)
 
     if os.path.exists(db_path):
-        os.remove(db_path)
+        shutil.rmtree(db_path)
 
     return {"answer": "ChromaDB reset successfully."}
 
@@ -321,8 +326,21 @@ def resetChromaDB(body: ChromaInputSchema):
 def processTextToChromaDB(body: TextToChromaSchema):
     db_name = body.db_name
     text = body.text
+    extension = body.format
     overwrite = body.overwrite
-    language = Language.MARKDOWN
+
+    if extension == "pdf":
+        base64_pdf = text
+        pdf_data = base64.b64decode(base64_pdf)
+
+        with open('temp.pdf', 'wb') as f:
+            f.write(pdf_data)
+
+        doc = fitz.open('temp.pdf')
+        text = ''
+        for page in doc:
+            text += page.get_text()
+
     db_path = getChromaDBPath(db_name)
 
     if os.path.exists(db_path) and not overwrite:
@@ -338,10 +356,14 @@ def processTextToChromaDB(body: TextToChromaSchema):
         parsed_document = text
 
         document = Document(page_content=parsed_document)
+        text_splitter = ""
 
-        text_splitter = RecursiveCharacterTextSplitter.from_language(
-            language=language, chunk_size=2000, chunk_overlap=200
-        )
+        if format == "md":
+            text_splitter = MarkdownTextSplitter.from_language(language=Language.MARKDOWN, chunk_size=2000,
+                                                               chunk_overlap=200)
+        elif format == "txt" or format == "pdf":
+            text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
+
         texts = text_splitter.split_documents([document])
 
         Chroma.from_documents(

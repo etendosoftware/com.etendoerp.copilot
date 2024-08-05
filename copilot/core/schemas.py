@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel
 
@@ -68,5 +68,6 @@ class ChromaInputSchema(BaseModel):
 
 
 class TextToChromaSchema(ChromaInputSchema):
-    text: str
+    text: Union[str, bytes]
     overwrite: bool = False
+    format: str
