@@ -45,6 +45,7 @@ class QuestionSchema(AssistantSchema):
     conversation_id: Optional[str] = None
     history: Optional[list[MessageSchema]] = None
     extra_info: Optional[dict] = None
+    kb_chroma_id: Optional[str] = None
 
 
 class QuestionResponseSchema(BaseModel):
@@ -71,3 +72,4 @@ class TextToChromaSchema(ChromaInputSchema):
     text: Union[str, bytes]
     overwrite: bool = False
     format: str
+    kb_chroma_id: Optional[str]
