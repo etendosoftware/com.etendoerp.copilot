@@ -57,3 +57,9 @@ class MembersUtil:
     @traceable
     def get_assistant_agent(self):
         return AssistantAgent()
+
+    @traceable
+    def get_assistant_supervisor_info(assistant_name, members):
+        member_name_description_map = {member.name: member.description for member in members}
+        return (": " + member_name_description_map[
+            assistant_name]) if assistant_name in member_name_description_map else ""

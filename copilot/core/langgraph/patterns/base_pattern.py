@@ -9,15 +9,14 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph
 from langsmith import traceable
 
-
 from copilot.core import utils
 
 
-class BasePattern():
+class BasePattern:
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
 
     @traceable
-    def construct_nodes(self, members, assistant_graph = None) -> StateGraph:
+    def construct_nodes(self, members, assistant_graph=None, full_question=None) -> StateGraph:
         class AgentState(TypedDict):
             # The annotation tells the graph that new messages will always
             # be added to the current states
@@ -51,6 +50,7 @@ class BasePattern():
     @abstractmethod
     def connect_graph(self, assistant_graph, workflow):
         raise NotImplementedError
+
 
 class GraphMember:
     name: str
