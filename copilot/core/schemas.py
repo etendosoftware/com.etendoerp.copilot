@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel
 
@@ -64,7 +64,11 @@ class GraphQuestionSchema(BaseModel):
     system_prompt: Optional[str] = None
 
 
-class TextToChromaSchema(BaseModel):
-    text: str
+class ChromaInputSchema(BaseModel):
     db_name: str
+
+
+class TextToChromaSchema(ChromaInputSchema):
+    text: Union[str, bytes]
     overwrite: bool = False
+    format: str
