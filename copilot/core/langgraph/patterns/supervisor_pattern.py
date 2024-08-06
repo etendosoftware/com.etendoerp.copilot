@@ -18,7 +18,7 @@ class SupervisorPattern(BasePattern):
             for assistant_name in stage.assistants:
                 members_names.append(assistant_name)
 
-                description = MembersUtil.get_assistant_supervisor_info(assistant_name, full_question)
+                description = MembersUtil().get_assistant_supervisor_info(assistant_name, full_question)
                 members_description.append(description)
             if len(members_names) > 1:
                 # if stage is not assistant_graph.stages[-1]:

@@ -58,7 +58,7 @@ class MembersUtil:
         return AssistantAgent()
 
     @traceable
-    def get_assistant_supervisor_info(assistant_name, full_question):
+    def get_assistant_supervisor_info(self, assistant_name, full_question):
         if full_question is None:
             return None
         for member_info in full_question.assistants:
