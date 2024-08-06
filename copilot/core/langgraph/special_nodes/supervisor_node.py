@@ -80,9 +80,13 @@ class SupervisorNode:
 
 
 def get_supervisor_system_prompt(full_question):
-    return full_question.system_prompt if hasattr(full_question, "system_prompt") and str(
-        full_question.system_prompt).strip() != "" else None
+    if full_question is not None and hasattr(full_question,
+                                             "system_prompt") and full_question.system_prompt is not None:
+        return full_question.system_prompt
+    return None
 
 
 def get_supervisor_temperature(full_question):
-    return full_question.temperature if hasattr(full_question, "temperature") else 1
+    if full_question is not None and hasattr(full_question, "temperature") and full_question.temperature is not None:
+        return full_question.temperature
+    return 1

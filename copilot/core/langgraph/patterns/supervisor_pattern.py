@@ -14,14 +14,17 @@ class SupervisorPattern(BasePattern):
         for stage in assistant_graph.stages:
             members_names = []
             members_description = []
+
             for assistant_name in stage.assistants:
                 members_names.append(assistant_name)
-                members_description.append(MembersUtil.get_assistant_supervisor_info(assistant_name, members))
+
+                description = MembersUtil.get_assistant_supervisor_info(assistant_name, full_question)
+                members_description.append(description)
             if len(members_names) > 1:
                 # if stage is not assistant_graph.stages[-1]:
                 # connect with next supervisor
                 members_names.append("FINISH")
-                members_description.append("End of response cycle")
+                members_description.append("End of response cycle.")
                 sv_temperature = get_supervisor_temperature(full_question)
                 sv_prompt = get_supervisor_system_prompt(full_question)
                 supervisor_chain = SupervisorNode().build(members_names=members_names,

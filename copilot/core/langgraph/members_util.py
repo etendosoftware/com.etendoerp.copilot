@@ -5,7 +5,6 @@ from langchain.agents import AgentExecutor
 from langchain_core.messages import BaseMessage, HumanMessage
 from langsmith import traceable
 
-
 from copilot.core.agent import LangchainAgent, AssistantAgent
 from copilot.core.langgraph.patterns.base_pattern import GraphMember
 from copilot.core.schemas import AssistantSchema
@@ -59,7 +58,10 @@ class MembersUtil:
         return AssistantAgent()
 
     @traceable
-    def get_assistant_supervisor_info(assistant_name, members):
-        member_name_description_map = {member.name: member.description for member in members}
-        return (": " + member_name_description_map[
-            assistant_name]) if assistant_name in member_name_description_map else ""
+    def get_assistant_supervisor_info(assistant_name, full_question):
+        if full_question is None:
+            return None
+        for member_info in full_question.assistants:
+            if member_info.name == assistant_name:
+                return ": " + member_info.description
+        return None
