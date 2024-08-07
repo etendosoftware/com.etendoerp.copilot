@@ -64,3 +64,9 @@ copilotTempFiles/*
 build/
 !build/classes/
 etendo.artifact.properties
+venv/
+
+graph.png
+
+/**/checkpoints.sqlite
+/.scannerwork/**

@@ -1,108 +1,137 @@
-import os
-import openai
-from unittest.mock import Mock
+
+import asyncio
+import unittest
+from unittest.mock import MagicMock
+from unittest.mock import patch, AsyncMock
 
 import pytest
+from langchain.utils import openai
+from langchain_community.adapters.openai import ChatCompletion
+from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
+from langsmith import unit 
+
+from openai import OpenAI
+
+from copilot.core.agent import AgentResponse
 from copilot.core.agent import AssistantAgent
-from copilot.core.exceptions import (
-    AssistantIdNotFound,
-    AssistantTimeout,
-    OpenAIApiKeyNotFound,
-)
+from copilot.core.agent.agent import AssistantResponse
 from copilot.core.schemas import QuestionSchema
 
-if os.getenv("AGENT_TYPE") != "openai-assistant":
-    pytest.skip("Skipping open 1.2.4 is required", allow_module_level=True)
-
-
+@unit 
 @pytest.fixture
-def assistant_agent() -> AssistantAgent:
-    from copilot.core import agent
-    agent.AGENT_TYPE_ENVAR = agent.AgentEnum.OPENAI_ASSISTANT.value
-    agent.agent.CopilotAgent.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    return AssistantAgent()
+def mock_openai_chatcompletion(monkeypatch):
 
+    class AsyncChatCompletionIterator:
+        def __init__(answer: str):
+            self.answer_index = 0
+            self.answer_deltas = answer.split(" ")
 
-def test_missing_api_key(monkeypatch):
-    """
-    Test Case 2: Missing API Key
-    Given: The OpenAI API key is not set in the environment variables.
-    When: The assistant function is called.
-    Then: The function fails gracefully, providing a clear error message about the missing API key.
-    """
-    with pytest.raises(OpenAIApiKeyNotFound, match=OpenAIApiKeyNotFound.message):
-        from copilot.core.agent.agent import CopilotAgent
+        def __aiter__(self):
+            return self
 
-        CopilotAgent.OPENAI_API_KEY = None
-        AssistantAgent()
+        async def __anext__(self):
+            if self.answer_index < len(self.answer_deltas):
+                answer_chunk = self.answer_deltas[self.answer_index]
+                self.answer_index += 1
+                return openai.util.convert_to_openai_object(
+                    {"choices": [{"delta": {"content": answer_chunk}}]})
+            else:
+                raise StopAsyncIteration
 
+    async def mock_acreate(*args, **kwargs):
+        return AsyncChatCompletionIterator("The capital of France is Paris.")
 
-def test_invalid_assistant_id(assistant_agent):
-    """
-    Test Case 3: Invalid Assistant ID
-    Given: An invalid assistant_id is provided (e.g., a non-existent or malformed ID).
-    When: The assistant function is called with this invalid assistant_id.
-    Then: The function handles the error gracefully and returns an appropriate error message.
-    """
-    with pytest.raises(AssistantIdNotFound, match="No assistant found with id 'sarasa'"):
-        assistant_agent.execute(QuestionSchema(question="Fake question", assistant_id="sarasa"))
+    monkeypatch.setattr(ChatCompletion, "acreate", mock_acreate)
 
+@unit 
+@patch("copilot.core.agent.AssistantAgent.get_agent", autospec=True)
+def test_get_agent(mock_get_agent):
+    assistant_agent = AssistantAgent()
+    assistant_id = "test_id"
+    agent_instance = MagicMock(spec=OpenAIAssistantV2Runnable)
+    mock_get_agent.return_value = agent_instance
 
-def test_assistant_openai_down(assistant_agent):
-    """
-    Test Case 4: OpenAI API Down
-    Given: The OpenAI Assistant API is temporarily unavailable or down.
-    When: The assistant function is called.
-    Then: The function detects the API unavailability.
-          It returns a meaningful error message or falls back to a predefined behavior.
-    """
-    assistant_agent._client.beta.threads.create = Mock(side_effect=openai.APIConnectionError(request=Mock()))
-    with pytest.raises(AssistantTimeout, match=AssistantTimeout.message):
-        assistant_agent.execute(QuestionSchema(question="Fake question"))
+    agent = assistant_agent.get_agent(assistant_id)
 
+    mock_get_agent.assert_called_once_with(assistant_agent, assistant_id)
+    assert agent == agent_instance
 
-def test_empty_question(assistant_agent):
-    """
-    Test Case 5: Empty Question
-    Given: A valid assistant_id and conversation_id are provided.
-           The question parameter is an empty string.
-    When: The assistant function is called with these parameters.
-    Then: The function returns an error or a prompt asking for a valid question.
-    """
-    response = assistant_agent.execute(
-        QuestionSchema(question="", assistant_id=assistant_agent._assistant.id)
+@unit 
+@patch("langchain.agents.AgentExecutor.invoke")
+def test_execute(mock_invoke):
+    assistant_agent = AssistantAgent()
+    question = QuestionSchema(assistant_id="test_id", question="test question", local_file_ids=None)
+    mock_invoke.return_value = {"output": "test response", "thread_id": "test_thread_id"}
+
+    response = assistant_agent.execute(question)
+
+    assert response.input == question.model_dump_json()
+    assert response.output.response == "test response"
+    assert response.output.conversation_id == "test_thread_id"
+
+@unit 
+@patch('copilot.core.utils.read_optional_env_var')
+@patch('langchain_community.agents.openai_assistant.OpenAIAssistantV2Runnable')
+def setUp(mock_openai_assistant, mock_read_optional_env_var):
+    client = OpenAI()
+
+    assistant = client.beta.assistants.create(
+        name="Math Tutor",
+        instructions="You are a personal math tutor. Write and run code to answer math questions.",
+        tools=[{"type": "code_interpreter"}],
+        model="gpt-4o",
     )
-    assert "assist you" in response.output.message or "you need assistance" in response.output.message
+    assistant_id = assistant.id
 
+    def mock_read_optional_env_var_side_effect(var_name):
+        if var_name == "model":
+            return "gpt-4o"
+        return None
 
-def test_timeout_assistant_openai(assistant_agent):
-    """
-    Test Case 6: Timeout Scenario
-    Given: The OpenAI Assistant API is experiencing high latency.
-    When: The assistant function is called and the response from the API takes longer than the expected timeout threshold.
-    Then: The function times out and returns an appropriate error message indicating the timeout issue.
-    """
-    assistant_agent._client.beta.threads.create = Mock(side_effect=openai.APITimeoutError(request=Mock()))
-    with pytest.raises(AssistantTimeout, match=AssistantTimeout.message):
-        assistant_agent.execute(QuestionSchema(question="Fake question"))
+    mock_read_optional_env_var = mock_read_optional_env_var
+    mock_read_optional_env_var.side_effect = mock_read_optional_env_var_side_effect
 
+    mock_openai_assistant_instance = mock_openai_assistant.return_value
+    question = QuestionSchema(
+        assistant_id=assistant_id,
+        question="What is the capital of France?",
+        local_file_ids=[],
+        conversation_id=None,
+        system_prompt="",
+    )
+    
+@unit
+@patch('langchain.agents.AgentExecutor')
+def test_aexecute(mock_agent_executor):
+    client = OpenAI()
+    assistant = client.beta.assistants.create(
+        name="Math Tutor",
+        instructions="You are a personal math tutor. Write and run code to answer math questions.",
+        tools=[{"type": "code_interpreter"}],
+        model="gpt-4o",
+    )
+    assistant_id = assistant.id
+    question = QuestionSchema(
+        assistant_id=assistant_id,
+        question="What is the capital of France?",
+        local_file_ids=[],
+        conversation_id=None,
+        system_prompt="",
+    )
+    agent = AssistantAgent()
+    mock_agent_executor_instance = mock_agent_executor.return_value
+    mock_agent_executor_instance.astream_events = AsyncMock(return_value=AsyncMock())
+    mock_event = {"event": "on_tool_start", "parent_ids": [1], "name": "Test Tool"}
 
-def test_update_assistant():
-    """
-    Test Case 7: Successful Update of Assistant
-    Given: A valid assistant_id is provided for an existing assistant.
-           The function is expected to update the assistant with new parameters.
-    When: The assistant function is called with the assistant_id and new parameters.
-    Then: The assistant is successfully updated.
-          The function returns confirmation of the update along with the updated
-          assistant_id and any other relevant information.
-    """
-    copilot_assistant_agent = AssistantAgent()
+    async def mock_async_generator():
+        yield mock_event
 
-    _client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    new_assistant = _client.beta.assistants.create(name="test", model=copilot_assistant_agent.OPENAI_MODEL)
+    mock_agent_executor_instance.astream_events.return_value = mock_async_generator()
 
-    old_assistant_id = copilot_assistant_agent._assistant.id
-    copilot_assistant_agent.execute(QuestionSchema(question="Fake question", assistant_id=new_assistant.id))
-    assert copilot_assistant_agent._assistant.id != old_assistant_id
-    assert copilot_assistant_agent._assistant.id == new_assistant.id
+    async def test_coroutine():
+        async for response in agent.aexecute(question):
+            assert isinstance(response, AssistantResponse)
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(test_coroutine())
+

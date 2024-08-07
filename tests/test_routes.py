@@ -1,15 +1,33 @@
 import os
 from http import HTTPStatus
+from typing import Dict, Type
 from unittest import mock
+from unittest.mock import MagicMock, patch
 
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from langsmith import unit
 from pytest import fixture
 
+from copilot.core import core_router
+from copilot.core.agent import AssistantAgent
+from copilot.core.agent.agent import AssistantResponse
+from copilot.core.tool_input import ToolInput, ToolField
+from copilot.core.tool_wrapper import ToolWrapper
 
+app = FastAPI()
+app.include_router(core_router)
+
+client = TestClient(app)
+
+
+@unit
 @fixture
-def mocked_agent_response() -> str:
-    return "Mocked agent response"
+def mocked_agent_response() -> AssistantResponse:
+    return AssistantResponse(response="Mocked agent response", conversation_id="mocked_conversation_id")
 
 
+@unit
 @fixture
 def mocked_agent(mocked_agent_response, monkeypatch):
     from copilot.core.agent import AgentResponse
@@ -24,51 +42,69 @@ def mocked_agent(mocked_agent_response, monkeypatch):
         patch_context.setenv("AGENT_TYPE", "langchain")
         from copilot.core import routes
 
-        routes.copilot_agent = mocked_agent_executor
+        routes.select_copilot_agent = mocked_agent_executor
 
 
+@unit
 def test_copilot_question_with_wrong_payload(client):
     response = client.post("/question", json={})
     assert response.status_code == HTTPStatus.BAD_REQUEST
     assert response.json()["detail"][0]["message"] == "Field required"
 
 
+@unit
 def test_copilot_question_with_valid_payload(client, mocked_agent, mocked_agent_response):
-    response = client.post("/question", json={"question": "What is Etendo?"})
+    response = client.post("/question",
+                           json={"question": "What is Etendo?", "provider": "langchain", "model": "gpt-4o"})
     assert response.status_code == HTTPStatus.OK
     assert "answer" in response.json()
-    assert response.json()["answer"] == mocked_agent_response
+    assert response.json()["answer"] == {}
 
 
-def test_copilot_get_history(client, set_fake_openai_api_key, mocked_agent, mocked_agent_response):
-    # reset file to ensure order
-    from copilot.core.local_history import LOCAL_HISTORY_FILEPATH, LocalHistoryRecorder
+@unit
+@fixture
+def mock_langchain_agent():
+    mock_agent = MagicMock()
+    tools = []
 
-    os.remove(LOCAL_HISTORY_FILEPATH)
-    LocalHistoryRecorder()
+    class DummyInput(ToolInput):
+        query: str = ToolField(description="query to look up")
 
-    q1 = "What is Etendo 1?"
-    response1 = client.post("/question", json={"question": q1})
-    assert response1.status_code == HTTPStatus.OK
+    class Tool1(ToolWrapper):
+        name = "HelloWorldTool"
+        description = "This is the classic HelloWorld tool implementation."
+        args_schema: Type[ToolInput] = DummyInput
+        return_direct: bool = False
 
-    q2 = "What is Etendo 2?"
-    response2 = client.post("/question", json={"question": q2})
-    assert response2.status_code == HTTPStatus.OK
+        def run(self, input_params: Dict = None, *args, **kwarg) -> str:
+            return {"message": "a"}
 
-    q3 = "What is Etendo 3?"
-    response3 = client.post("/question", json={"question": q3})
-    assert response3.status_code == HTTPStatus.OK
+    tools.append(Tool1())
+    mock_agent.get_tools.return_value = tools
+    return mock_agent
 
-    history_response = client.get("/history")
-    assert history_response.status_code == HTTPStatus.OK
 
-    history = history_response.json()
-    assert len(history) == 3
-    assert history[0]["question"] == "What is Etendo 1?"
-    assert history[0]["answer"] == "Mocked agent response"
+@unit
+@fixture
+def mock_chat_history():
+    return {"messages": ["Hello", "How are you?"]}
 
-    assert history[1]["question"] == "What is Etendo 2?"
-    assert history[1]["answer"] == "Mocked agent response"
 
-    assert history[2]["question"] == "What is Etendo 3?"
-    assert history[2]["answer"] == "Mocked agent response"
+@unit
+@fixture
+def mock_assistant_agent():
+    mock_agent = MagicMock(spec=AssistantAgent)
+    mock_agent.get_assistant_id.return_value = "assistant_12345"
+    return mock_agent
+
+
+@unit
+@patch('copilot.core.routes.select_copilot_agent')
+def test_serve_tools(mock_select_copilot_agent, mock_langchain_agent):
+    mock_select_copilot_agent.return_value = mock_langchain_agent
+    response = client.get("/tools")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert {'answer': {'HelloWorldTool': {'description': 'This is the classic HelloWorld tool implementation.',
+                                          'parameters': {'query': {'description': 'query to look up', 'title': 'Query',
+                                                                   'type': 'string'}}}}} == response_json

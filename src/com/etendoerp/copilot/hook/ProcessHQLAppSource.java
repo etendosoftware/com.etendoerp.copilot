@@ -25,6 +25,7 @@ import org.openbravo.service.datasource.DataSourceUtils;
 import org.openbravo.service.json.JsonConstants;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.data.CopilotFile;
 
 public class ProcessHQLAppSource {
   private static final ProcessHQLAppSource INSTANCE = new ProcessHQLAppSource();
@@ -39,9 +40,13 @@ public class ProcessHQLAppSource {
 
   public File generate(CopilotAppSource appSource) throws OBException {
     try {
-      String result = getHQLResult(appSource.getFile().getHql(), "e");
-
       String fileName = getFileName(appSource);
+      String extension = fileName.substring(fileName.lastIndexOf(".") + 1);
+      String hql = appSource.getFile().getHql();
+      hql = hql.replaceAll("\\r\\n|\\r|\\n", " ");
+
+      String result = getHQLResult(hql, "e", extension);
+
       return createAttachment(fileName, result);
     } catch (IOException e) {
       throw new OBException(
@@ -59,27 +64,45 @@ public class ProcessHQLAppSource {
    *     The CopilotAppSource object for which the file name is to be generated.
    * @return A string representing the file name.
    */
-  private String getFileName(CopilotAppSource appSource) {
+  public static String getFileName(CopilotAppSource appSource) {
     // If the file object within the appSource is not null and it has a non-empty filename, return the filename.
-    if (appSource.getFile() != null && StringUtils.isNotEmpty(appSource.getFile().getFilename())) {
-      return appSource.getFile().getFilename();
+    String full_name = null; //default name
+    String nameWithoutExtension;
+    String extension;
+    CopilotFile file = appSource.getFile();
+    if (file != null && StringUtils.isNotEmpty(file.getFilename())) {
+      full_name = file.getFilename();
     }
     // If the file object within the appSource has a non-empty name, sanitize it and return.
     // The sanitization process involves replacing spaces with underscores and removing characters that are not allowed in file names.
-    if (StringUtils.isNotEmpty(appSource.getFile().getName())) {
-      var name = appSource.getFile().getName();
-      // Remove characters that are not allowed in file names and spaces
-      name = name.replace(" ", "_");
-      name = name.replaceAll("[^a-zA-Z0-9-_]", "");
-      return name;
+    if (StringUtils.isEmpty(full_name) && StringUtils.isNotEmpty(file.getName())) {
+      full_name = file.getName();
     }
+    if (full_name == null) {
+      full_name = "result" + System.currentTimeMillis() + ".csv";
+    }
+    if (full_name.contains(".")) {
+      nameWithoutExtension = full_name.substring(0, full_name.lastIndexOf("."));
+      extension = full_name.substring(full_name.lastIndexOf("."));
+    } else {
+      nameWithoutExtension = full_name;
+      extension = ".csv";
+    }
+
+    // Remove characters that are not allowed in file names and spaces
+    nameWithoutExtension = nameWithoutExtension.replace(" ", "_");
+
+    nameWithoutExtension = nameWithoutExtension.replaceAll("[^a-zA-Z0-9-_]", "");
+    full_name = nameWithoutExtension + extension;
+
+
     // If the file object within the appSource does not have a name or filename, generate a default name using the current timestamp.
-    return "result" + System.currentTimeMillis();
+    return full_name;
   }
 
   private File createAttachment(String fileName, String result) throws IOException {
     Path tempDirectory = Files.createTempDirectory("temporary_queries");
-    Path tempFile = tempDirectory.resolve(fileName + ".csv");
+    Path tempFile = tempDirectory.resolve(fileName);
     try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile.toFile())) {
       fileOutputStream.write(result.getBytes());
     } catch (FileNotFoundException e) {
@@ -88,7 +111,8 @@ public class ProcessHQLAppSource {
     return new File(tempFile.toString());
   }
 
-  private String getHQLResult(String hql, String entityAlias) {
+  private String getHQLResult(String hql, String entityAlias, String extension) {
+    boolean isCsv = StringUtils.equalsIgnoreCase(extension, "csv");
     final org.hibernate.Session session = OBDal.getInstance().getSession();
     Map<String, String> parameters = new HashMap<>();
     String additionalFilter = entityAlias + ".client.id in ('0', :clientId)";
@@ -124,16 +148,31 @@ public class ProcessHQLAppSource {
     }
     parameters.forEach(qry::setParameter);
     List<String> results = new ArrayList<>();
-    for (Object resultObject : qry.list()) {
-      if (resultObject.getClass().isArray()) {
-        final Object[] values = (Object[]) resultObject;
-        results.add(Arrays.stream(values).map(this::printObject).collect(Collectors.joining(", ")));
-      } else {
-        results.add(printObject(resultObject));
-      }
+    var resultList = qry.getResultList();
+    var headersArray = qry.getReturnAliases();
+    if (isCsv && headersArray != null) {
+      results.add(String.join(", ", headersArray));
     }
-    return String.join("\n", results);
+    for (Object resultObject : resultList) {
+      if (!resultObject.getClass().isArray()) {
+        results.add(printObject(resultObject));
+        continue;
+      }
+      final Object[] values = (Object[]) resultObject;
+      var listColumnValues = Arrays.stream(values)
+          .map(this::printObject).collect(Collectors.toList());
+      if (!isCsv) {
+        for (int i = 0; i < listColumnValues.size(); i++) {
+          listColumnValues.set(i, (headersArray.length > i && StringUtils.isNotEmpty(
+              headersArray[i]) ? headersArray[i] : "?") + ": " + listColumnValues.get(i));
+        }
+      }
+
+      results.add(String.join(isCsv ? ", " : "\n", listColumnValues));
+    }
+    return String.join(isCsv ? "\n" : "\n----------------------------------------------------\n", results);
   }
+
 
   private String printObject(Object value) {
     if (value == null) {

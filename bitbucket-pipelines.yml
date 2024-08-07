@@ -1,5 +1,4 @@
 # Template docker-push
-
 # This template allows you to build and push your docker image to a Docker Hub account.
 # The workflow allows running tests, code linting y security scans on feature branches (as well as master).
 # The docker image will be validated and pushed to the docker registry after the code is merged to master.
@@ -134,6 +133,12 @@ pipelines:
           - step: *build-push-arm64
       - step: *create-push-manifest
     experimental:
+      - step: *build-step
+      - parallel:
+          - step: *build-push-amd64
+          - step: *build-push-arm64
+      - step: *create-push-manifest
+    "epic/*":
       - step: *build-step
       - parallel:
           - step: *build-push-amd64
