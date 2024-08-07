@@ -38,6 +38,7 @@ class AssistantSchema(BaseModel):
     tools: Optional[list[ToolSchema]] = None
     temperature: Optional[float] = None
     description: Optional[str] = None
+    kb_vectordb_id: Optional[str] = None
 
 
 class QuestionSchema(AssistantSchema):
@@ -45,7 +46,6 @@ class QuestionSchema(AssistantSchema):
     conversation_id: Optional[str] = None
     history: Optional[list[MessageSchema]] = None
     extra_info: Optional[dict] = None
-    kb_chroma_id: Optional[str] = None
 
 
 class QuestionResponseSchema(BaseModel):
@@ -64,12 +64,11 @@ class GraphQuestionSchema(BaseModel):
     temperature: Optional[float] = None
 
 
-class ChromaInputSchema(BaseModel):
-    db_name: str
+class VectorDBInputSchema(BaseModel):
+    kb_vectordb_id: str
 
 
-class TextToChromaSchema(ChromaInputSchema):
+class TextToVectorDBSchema(VectorDBInputSchema):
     text: Union[str, bytes]
     overwrite: bool = False
     format: str
-    kb_chroma_id: Optional[str]

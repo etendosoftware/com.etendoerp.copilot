@@ -17,8 +17,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
@@ -166,34 +164,34 @@ public class CopilotUtils {
     }
   }
 
-  public static void textToChroma(Base64 text, String dbName, String format) throws JSONException {
+  public static void textToVectorDB(Base64 text, String dbName, String format) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     JSONObject jsonRequestForCopilot = new JSONObject();
     jsonRequestForCopilot.put("text", text);
-    jsonRequestForCopilot.put("db_name", dbName);
+    jsonRequestForCopilot.put("kb_vectordb_id", dbName);
     jsonRequestForCopilot.put("format", format);
     String requestBody = jsonRequestForCopilot.toString();
 
-    String endpoint = "/chroma";
+    String endpoint = "/addToVectorDB";
 
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
     //Manejo del error / respuesta
 
   }
 
-  public static void textToChroma(String text, String dbName, String format) throws JSONException {
+  public static void textToVectorDB(String text, String dbName, String format) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     JSONObject jsonRequestForCopilot = new JSONObject();
     jsonRequestForCopilot.put("text", text);
-    jsonRequestForCopilot.put("db_name", dbName);
+    jsonRequestForCopilot.put("kb_vectordb_id", dbName);
     jsonRequestForCopilot.put("format", format);
     String requestBody = jsonRequestForCopilot.toString();
 
-    String endpoint = "/chroma";
+    String endpoint = "/addToVectorDB";
 
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
-    if (responseFromCopilot == null) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach")));
+    if (responseFromCopilot == null || responseFromCopilot.statusCode() != 200) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")));
     }
 
   }
@@ -221,18 +219,18 @@ public class CopilotUtils {
 
   }
 
-  public static void resetChromaDB(CopilotApp app) throws JSONException {
+  public static void resetVectorDB(CopilotApp app) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String dbName = "KB_" + app.getId();
     JSONObject jsonRequestForCopilot = new JSONObject();
 
-    jsonRequestForCopilot.put("db_name", dbName);
+    jsonRequestForCopilot.put("kb_vectordb_id", dbName);
     String requestBody = jsonRequestForCopilot.toString();
-    String endpoint = "/ResetChromaDB";
+    String endpoint = "/ResetVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
     //checkear respuesta
     if (responseFromCopilot.statusCode() != 200) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetChroma"),
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
           responseFromCopilot.body()));
     }
 
@@ -342,7 +340,7 @@ public class CopilotUtils {
         .executeHooks(fileToSync);
     logIfDebug("Uploading file " + fileToSync.getName());
 
-    String filename = fileToSync.getName();
+    String filename = fileToSync.getFilename();
 
     String extension = filename.substring(filename.lastIndexOf(".") + 1);
 
@@ -353,16 +351,16 @@ public class CopilotUtils {
       format = "pdf";
       File tempFile = getFileFromCopilotFile(fileToSync);
       String text = pdfToBase64(tempFile);
-      textToChroma(text, dbName, format);
+      textToVectorDB(text, dbName, format);
     } else if (StringUtils.equalsIgnoreCase(extension, "md")) {
       format = "md";
       String text = readFileToSync(fileToSync);
-      textToChroma(text, dbName, format);
+      textToVectorDB(text, dbName, format);
 
     } else if (StringUtils.equalsIgnoreCase(extension, "txt")) {
       format = "txt";
       String text = readFileToSync(fileToSync);
-      textToChroma(text, dbName, format);
+      textToVectorDB(text, dbName, format);
     } else {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"),
           extension));

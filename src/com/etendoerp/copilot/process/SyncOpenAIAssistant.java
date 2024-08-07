@@ -14,7 +14,6 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
@@ -83,13 +82,12 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         appSourcesToSync.addAll(appSources);
       }
 
-      //for langchain apps we need to reset chroma DB, so collect all langchain apps and reset the chroma DBs
-      List<CopilotApp> langchainApps = appSourcesToSync.stream()
-          .map(CopilotAppSource::getEtcopApp)
-          .filter(app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN))
+      //for langchain apps we need to reset vector DB, so collect all langchain apps and reset the vector DBs
+      List<CopilotApp> langchainApps = appList.stream().filter(
+              app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN))
           .distinct().collect(Collectors.toList());
       for (CopilotApp app : langchainApps) {
-        CopilotUtils.resetChromaDB(app);
+        CopilotUtils.resetVectorDB(app);
       }
 
       for (CopilotAppSource appSource : appSourcesToSync) {
