@@ -16,7 +16,6 @@ definitions:
           - docker push ${IMAGE}
         services:
           - docker
-
     - step: &docker-build-push-arm64
         runs-on:
           - self.hosted
@@ -28,7 +27,6 @@ definitions:
           - docker push ${IMAGE}
         services:
           - docker
-
     - step: &create-push-manifest
         script:
           - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
@@ -44,18 +42,30 @@ definitions:
 pipelines:
   branches:
     master:
+      - step:
+          name: Set BRANCH_NAME variable
+          script:
+            - export BRANCH_NAME=master
       - parallel:
           - step: *docker-build-push-amd64
           - step: *docker-build-push-arm64
           - step: *create-push-manifest
 
     develop:
+      - step:
+          name: Set BRANCH_NAME variable
+          script:
+            - export BRANCH_NAME=develop
       - parallel:
           - step: *docker-build-push-amd64
           - step: *docker-build-push-arm64
           - step: *create-push-manifest
 
     experimental:
+      - step:
+          name: Set BRANCH_NAME variable
+          script:
+            - export BRANCH_NAME=experimental
       - parallel:
           - step: *docker-build-push-amd64
           - step: *docker-build-push-arm64
@@ -120,6 +130,9 @@ pipelines:
                 variables:
                   SONAR_HOST_URL: ${SONAR_HOST_URL} # Get the value from the repository/workspace variable.
                   SONAR_TOKEN: ${SONAR_TOKEN}    # Get the value from the repository/workspace variable. You shouldn't set secret in clear text here.
+          - step: 
+              script:
+                - export BRANCH_NAME=${BITBUCKET_BRANCH} # O reemplázalo por alguna lógica para obtener la rama correcta
           - step: *docker-build-push-amd64
           - step: *docker-build-push-arm64
           - step: *create-push-manifest
