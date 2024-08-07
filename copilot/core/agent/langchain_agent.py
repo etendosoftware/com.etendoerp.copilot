@@ -43,7 +43,7 @@ class LangchainAgent(CopilotAgent):
 
     @traceable
     def get_agent(self, provider: str, open_ai_model: str,
-                  tools: list[ToolSchema] = None, system_prompt: str = None, kb_chroma_id: Optional[str] = None):
+                  tools: list[ToolSchema] = None, system_prompt: str = None, kb_chroma_id: Optional[str] = None, temperature: float = 1):
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
         Raises:
@@ -56,7 +56,7 @@ class LangchainAgent(CopilotAgent):
         if provider == "gemini":
             agent = self.get_gemini_agent(open_ai_model)
         else:
-            agent = self.get_openai_agent(open_ai_model, tools, system_prompt, kb_chroma_id)
+            agent = self.get_openai_agent(open_ai_model, tools, system_prompt, kb_chroma_id, temperature)
 
         return agent
 
@@ -66,10 +66,11 @@ class LangchainAgent(CopilotAgent):
                              handle_parsing_errors=True, debug=True)
 
     @traceable
-    def get_openai_agent(self, open_ai_model, tools, system_prompt, kb_chroma_id):
+    def get_openai_agent(self, open_ai_model, tools, system_prompt, kb_chroma_id, temperature=1):
         from ..routes import getChromaDBPath
 
-        _llm = ChatOpenAI(temperature=0, streaming=False, model_name=open_ai_model)
+        _llm = ChatOpenAI(temperature=temperature, streaming=False, model_name=open_ai_model)
+
         _enabled_tools = self.get_functions(tools)
         db_name = getChromaDBPath(kb_chroma_id)
         if kb_chroma_id and os.path.exists(db_name):
@@ -117,14 +118,15 @@ class LangchainAgent(CopilotAgent):
         return _enabled_tools
 
     @traceable
-    def get_gemini_agent(self, open_ai_model):
+    def get_gemini_agent(self, open_ai_model, temperature=1):
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "{system_prompt}"),
                 ("user", "{input}"),
             ]
         )
-        _llm = ChatGoogleGenerativeAI(temperature=1, model=open_ai_model, convert_system_message_to_human=True)
+        _llm = ChatGoogleGenerativeAI(temperature=temperature, model=open_ai_model,
+                                      convert_system_message_to_human=True)
         llm = _llm.bind(
         )
         agent = (
@@ -141,7 +143,9 @@ class LangchainAgent(CopilotAgent):
     @traceable
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
-        agent = self.get_agent(question.provider, question.model, question.tools, question.kb_chroma_id)
+        agent = self.get_agent(question.provider, question.model, question.tools, question.kb_chroma_id, question.system_prompt,
+                               question.temperature)
+        
         executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         messages = self._memory.get_memory(question.history, full_question)
         langchain_respose: Dict = executor.invoke({"system_prompt": question.system_prompt, "messages": messages})
@@ -157,7 +161,8 @@ class LangchainAgent(CopilotAgent):
 
     async def aexecute(self, question: QuestionSchema) -> AgentResponse:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
-        agent = self.get_agent(question.provider, question.model, question.tools, question.kb_chroma_id)
+        agent = self.get_agent(question.provider, question.model, question.tools, question.kb_chroma_id, question.system_prompt,
+                               question.temperature)
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         full_question = question.question
         if question.local_file_ids is not None and len(question.local_file_ids) > 0:
