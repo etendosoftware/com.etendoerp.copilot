@@ -1,15 +1,17 @@
 import os
+
 import pytest
-from fastapi.testclient import TestClient
-from copilot.core.routes import core_router, TextToChromaSchema
 from dotenv import load_dotenv
+from fastapi.testclient import TestClient
+
+from copilot.core.routes import core_router, TextToChromaSchema
 
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path)
 
 client = TestClient(core_router)
 
-body = TextToChromaSchema(db_name="test_db", text="Some text to process", overwrite=False)
+body = TextToChromaSchema(db_name="test_db", text="Some text to process", overwrite=False, format="txt")
 
 
 @pytest.fixture
@@ -26,7 +28,10 @@ def test_processTextToChromaDB_existing_db(mock_os_path_exists):
     mock_os_path_exists.return_value = True
 
     response = client.post("/chroma", json=body.dict())
-    success, message, db_path = response.json()
+    response_json = response.json()
+    success = response_json["success"]
+    message = response_json["answer"]
+    db_path = response_json["db_path"]
 
     assert success == False
     assert message == "Database test_db already exists."
@@ -41,7 +46,10 @@ def test_processTextToChromaDB_overwrite(mock_os_path_exists, mock_chroma, mocke
 
     body_with_overwrite = body.copy(update={"overwrite": True})
     response = client.post("/chroma", json=body_with_overwrite.dict())
-    success, message, db_path = response.json()
+    response_json = response.json()
+    success = response_json["success"]
+    message = response_json["answer"]
+    db_path = response_json["db_path"]
 
     assert success == True
     assert message == "Database test_db created and loaded successfully."
@@ -55,8 +63,11 @@ def test_processTextToChromaDB_success(mock_os_path_exists, mock_chroma):
     mock_chroma.return_value = None
 
     response = client.post("/chroma", json=body.dict())
-    success, message, db_path = response.json()
 
+    response_json = response.json()
+    success = response_json["success"]
+    message = response_json["answer"]
+    db_path = response_json["db_path"]
     assert success == True
     assert message == "Database test_db created and loaded successfully."
     assert db_path == "./test_db.db"
@@ -68,7 +79,10 @@ def test_processTextToChromaDB_exception(mock_os_path_exists, mock_chroma):
     mock_chroma.side_effect = Exception("Mocked exception")
 
     response = client.post("/chroma", json=body.dict())
-    success, message, db_path = response.json()
+    response_json = response.json()
+    success = response_json["success"]
+    message = response_json["answer"]
+    db_path = response_json["db_path"]
 
     assert success == False
     assert "Error processing text to ChromaDB" in message
