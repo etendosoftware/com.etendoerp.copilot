@@ -99,6 +99,7 @@ public class RestServiceUtil {
   public static final String PROP_MODEL = "model";
   public static final String PROP_SYSTEM_PROMPT = "system_prompt";
   private static final String PROP_TOOLS = "tools";
+  private static final String PROP_KB_CHROMA_ID = "kb_chroma_id";
 
   static JSONObject getJSONLabels() {
     try {
@@ -295,7 +296,8 @@ public class RestServiceUtil {
       if (jsonLastLine != null
           && jsonLastLine.has("answer")
           && jsonLastLine.getJSONObject("answer").has("role")
-          && StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "null")) {
+          && (StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "null") ||
+          StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "error"))) {
         return jsonLastLine.getJSONObject("answer");
       }
       return new JSONObject();
@@ -377,8 +379,9 @@ public class RestServiceUtil {
     if (responseFromCopilot == null) {
       TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question,
           copilotApp);
+      boolean isError = finalResponseAsync.has("role") && StringUtils.equalsIgnoreCase(finalResponseAsync.optString("role"), "error");
       TrackingUtil.getInstance().trackResponse(finalResponseAsync.optString(PROP_CONVERSATION_ID),
-          finalResponseAsync.optString(PROP_RESPONSE), copilotApp);
+          finalResponseAsync.optString(PROP_RESPONSE), copilotApp, isError);
       return null;
     }
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot);
@@ -548,7 +551,7 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
     jsonRequestForCopilot.put(PROP_PROVIDER, CopilotUtils.getProvider(copilotApp));
     jsonRequestForCopilot.put(PROP_MODEL, CopilotUtils.getAppModel(copilotApp));
-
+    jsonRequestForCopilot.put(PROP_KB_CHROMA_ID, "KB_" + copilotApp.getId());
     if (!StringUtils.isEmpty(copilotApp.getPrompt())) {
       prompt = new StringBuilder(copilotApp.getPrompt() + "\n");
       // Lookup in app sources for the prompt

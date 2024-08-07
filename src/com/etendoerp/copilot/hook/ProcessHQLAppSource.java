@@ -25,6 +25,7 @@ import org.openbravo.service.datasource.DataSourceUtils;
 import org.openbravo.service.json.JsonConstants;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.data.CopilotFile;
 
 public class ProcessHQLAppSource {
   private static final ProcessHQLAppSource INSTANCE = new ProcessHQLAppSource();
@@ -41,7 +42,10 @@ public class ProcessHQLAppSource {
     try {
       String fileName = getFileName(appSource);
       String extension = fileName.substring(fileName.lastIndexOf(".") + 1);
-      String result = getHQLResult(appSource.getFile().getHql(), "e", extension);
+      String hql = appSource.getFile().getHql();
+      hql = hql.replaceAll("\\r\\n|\\r|\\n", " ");
+
+      String result = getHQLResult(hql, "e", extension);
 
       return createAttachment(fileName, result);
     } catch (IOException e) {
@@ -60,34 +64,38 @@ public class ProcessHQLAppSource {
    *     The CopilotAppSource object for which the file name is to be generated.
    * @return A string representing the file name.
    */
-  private String getFileName(CopilotAppSource appSource) {
+  public static String getFileName(CopilotAppSource appSource) {
     // If the file object within the appSource is not null and it has a non-empty filename, return the filename.
     String full_name = null; //default name
     String nameWithoutExtension;
     String extension;
-    if (appSource.getFile() != null && StringUtils.isNotEmpty(appSource.getFile().getFilename())) {
-      full_name = appSource.getFile().getFilename();
+    CopilotFile file = appSource.getFile();
+    if (file != null && StringUtils.isNotEmpty(file.getFilename())) {
+      full_name = file.getFilename();
     }
     // If the file object within the appSource has a non-empty name, sanitize it and return.
     // The sanitization process involves replacing spaces with underscores and removing characters that are not allowed in file names.
-    if (StringUtils.isEmpty(full_name) && StringUtils.isNotEmpty(appSource.getFile().getName())) {
-      full_name = appSource.getFile().getName();
-      nameWithoutExtension = full_name.substring(0, full_name.lastIndexOf("."));
-      extension = appSource.getFile().getName().substring(appSource.getFile().getName().lastIndexOf("."));
-      // Remove characters that are not allowed in file names and spaces
-      nameWithoutExtension = nameWithoutExtension.replace(" ", "_");
-
-      nameWithoutExtension = nameWithoutExtension.replaceAll("[^a-zA-Z0-9-_]", "");
-      full_name = nameWithoutExtension + extension;
-
+    if (StringUtils.isEmpty(full_name) && StringUtils.isNotEmpty(file.getName())) {
+      full_name = file.getName();
     }
-    if (StringUtils.isEmpty(full_name)) {
+    if (full_name == null) {
       full_name = "result" + System.currentTimeMillis() + ".csv";
     }
-    //check if the file name has an extension
-    if (!full_name.contains(".")) {
-      full_name += ".csv";
+    if (full_name.contains(".")) {
+      nameWithoutExtension = full_name.substring(0, full_name.lastIndexOf("."));
+      extension = full_name.substring(full_name.lastIndexOf("."));
+    } else {
+      nameWithoutExtension = full_name;
+      extension = ".csv";
     }
+
+    // Remove characters that are not allowed in file names and spaces
+    nameWithoutExtension = nameWithoutExtension.replace(" ", "_");
+
+    nameWithoutExtension = nameWithoutExtension.replaceAll("[^a-zA-Z0-9-_]", "");
+    full_name = nameWithoutExtension + extension;
+
+
     // If the file object within the appSource does not have a name or filename, generate a default name using the current timestamp.
     return full_name;
   }

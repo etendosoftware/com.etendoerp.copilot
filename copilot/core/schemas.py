@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel
 
@@ -45,6 +45,7 @@ class QuestionSchema(AssistantSchema):
     conversation_id: Optional[str] = None
     history: Optional[list[MessageSchema]] = None
     extra_info: Optional[dict] = None
+    kb_chroma_id: Optional[str] = None
 
 
 class QuestionResponseSchema(BaseModel):
@@ -63,7 +64,12 @@ class GraphQuestionSchema(BaseModel):
     temperature: Optional[float] = None
 
 
-class TextToChromaSchema(BaseModel):
-    text: str
+class ChromaInputSchema(BaseModel):
     db_name: str
+
+
+class TextToChromaSchema(ChromaInputSchema):
+    text: Union[str, bytes]
     overwrite: bool = False
+    format: str
+    kb_chroma_id: Optional[str]

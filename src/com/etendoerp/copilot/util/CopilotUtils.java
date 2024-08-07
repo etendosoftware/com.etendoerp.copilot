@@ -11,23 +11,23 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
@@ -48,7 +48,6 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 
 public class CopilotUtils {
-
 
   public static final HashMap<String, String> PROVIDER_MAP_CODE_NAME = buildProviderCodeMap();
   public static final HashMap<String, String> PROVIDER_MAP_CODE_DEFAULT_PROP = buildProviderCodeDefaulMap();
@@ -167,38 +166,78 @@ public class CopilotUtils {
     }
   }
 
-
-
-  public static void textToChroma(String text, String dbName) {
+  public static void textToChroma(Base64 text, String dbName, String format) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    JSONObject jsonRequestForCopilot = new JSONObject();
+    jsonRequestForCopilot.put("text", text);
+    jsonRequestForCopilot.put("db_name", dbName);
+    jsonRequestForCopilot.put("format", format);
+    String requestBody = jsonRequestForCopilot.toString();
+
+    String endpoint = "/chroma";
+
+    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
+    //Manejo del error / respuesta
+
+  }
+
+  public static void textToChroma(String text, String dbName, String format) throws JSONException {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    JSONObject jsonRequestForCopilot = new JSONObject();
+    jsonRequestForCopilot.put("text", text);
+    jsonRequestForCopilot.put("db_name", dbName);
+    jsonRequestForCopilot.put("format", format);
+    String requestBody = jsonRequestForCopilot.toString();
+
+    String endpoint = "/chroma";
+
+    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
+    if (responseFromCopilot == null) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach")));
+    }
+
+  }
+
+  private static HttpResponse<String> getResponseFromCopilot(Properties properties, String endpoint,
+      String requestBody
+  ) {
+
     try {
       HttpClient client = HttpClient.newBuilder().build();
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
-      JSONObject jsonRequestForCopilot = new JSONObject();
-      jsonRequestForCopilot.put("text", text);
-      jsonRequestForCopilot.put("db_name", dbName);
-      String requestBody = jsonRequestForCopilot.toString();
-
       HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s/chroma", copilotHost, copilotPort)))
+          .uri(new URI(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort)))
           .headers(HEADER_CONTENT_TYPE, "application/json;charset=UTF-8")
           .version(HttpClient.Version.HTTP_1_1)
           .POST(HttpRequest.BodyPublishers.ofString(requestBody))
           .build();
 
-      HttpResponse<String> responseFromCopilot = client.send(copilotRequest,
+      return client.send(copilotRequest,
           HttpResponse.BodyHandlers.ofString());
-    } catch (JSONException e) {
-      e.printStackTrace();
-    } catch (URISyntaxException e) {
-      e.printStackTrace();
-    } catch (InterruptedException e) {
-      e.printStackTrace();
     } catch (Exception e) {
-      e.printStackTrace();
+      throw new OBException(e);
     }
+
   }
+
+  public static void resetChromaDB(CopilotApp app) throws JSONException {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String dbName = "KB_" + app.getId();
+    JSONObject jsonRequestForCopilot = new JSONObject();
+
+    jsonRequestForCopilot.put("db_name", dbName);
+    String requestBody = jsonRequestForCopilot.toString();
+    String endpoint = "/ResetChromaDB";
+    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
+    //checkear respuesta
+    if (responseFromCopilot.statusCode() != 200) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetChroma"),
+          responseFromCopilot.body()));
+    }
+
+  }
+
 
   private static boolean fileHasChanged(CopilotFile fileToSync) {
 
@@ -250,6 +289,7 @@ public class CopilotUtils {
     String filename = attach.getName();
     String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
     String extension = filename.substring(filename.lastIndexOf(".") + 1);
+
     File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
     boolean setW = tempFile.setWritable(true);
     if (!setW) {
@@ -260,10 +300,28 @@ public class CopilotUtils {
     return tempFile;
   }
 
+  private static String pdfToBase64(File fileInPDF) {
+    try {
+      FileInputStream fileInputStream = new FileInputStream(fileInPDF);
+      byte[] fileBytes = new byte[(int) fileInPDF.length()];
+      fileInputStream.read(fileBytes);
+      fileInputStream.close();
+
+      String base64EncodedPDF = Base64.getEncoder().encodeToString(fileBytes);
+
+      return base64EncodedPDF;
+
+    } catch (IOException e) {
+      return null;
+    }
+  }
+
   private static String readFileToSync(CopilotFile fileToSync)
       throws IOException {
     File tempFile = getFileFromCopilotFile(fileToSync);
-    StringBuilder text = new StringBuilder();
+
+    String extension = tempFile.getName().substring(tempFile.getName().lastIndexOf(".") + 1);
+    StringBuilder text = new StringBuilder(extension + "-");
     try (FileInputStream fis = new FileInputStream(tempFile);
          InputStreamReader isr = new InputStreamReader(fis);
          BufferedReader br = new BufferedReader(isr)) {
@@ -277,29 +335,38 @@ public class CopilotUtils {
   }
 
   public static void syncAppLangchainSource(CopilotAppSource appSource)
-      throws IOException {
+      throws IOException, JSONException {
 
     CopilotFile fileToSync = appSource.getFile();
     WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
         .executeHooks(fileToSync);
-    /*if (!fileHasChanged(fileToSync)) {
-      logIfDebug("File " + fileToSync.getName() + " not has changed, skipping sync");
-      return;
-    }*/
-
-    /*if (StringUtils.isNotEmpty(fileToSync.getIdFile())) {
-      //we will delete the file
-      logIfDebug("Deleting file " + fileToSync.getName());
-      deleteFile(fileToSync.getOpenaiIdFile(), openaiApiKey);
-    }
-    String fileId = OpenAIUtils.downloadAttachmentAndUploadFile(fileToSync, openaiApiKey);
-    fileToSync.setOpenaiIdFile(fileId);*/
-
     logIfDebug("Uploading file " + fileToSync.getName());
-    String text = readFileToSync(fileToSync);
-    String dbName = "KB_" + appSource.getEtcopApp().getId();
 
-    textToChroma(text, dbName);
+    String filename = fileToSync.getName();
+
+    String extension = filename.substring(filename.lastIndexOf(".") + 1);
+
+    String dbName = "KB_" + appSource.getEtcopApp().getId();
+    String format;
+
+    if (StringUtils.equalsIgnoreCase(extension, "pdf")) {
+      format = "pdf";
+      File tempFile = getFileFromCopilotFile(fileToSync);
+      String text = pdfToBase64(tempFile);
+      textToChroma(text, dbName, format);
+    } else if (StringUtils.equalsIgnoreCase(extension, "md")) {
+      format = "md";
+      String text = readFileToSync(fileToSync);
+      textToChroma(text, dbName, format);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "txt")) {
+      format = "txt";
+      String text = readFileToSync(fileToSync);
+      textToChroma(text, dbName, format);
+    } else {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"),
+          extension));
+    }
 
     fileToSync.setLastSync(new Date());
     fileToSync.setUpdated(new Date());

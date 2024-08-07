@@ -7,9 +7,18 @@ The routes are responsible for handling the incoming requests and returning the 
 import asyncio
 import json
 import logging
+import os
+import shutil
 import threading
 
 from fastapi import APIRouter
+from langchain.schema import Document
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import MarkdownTextSplitter, CharacterTextSplitter
+from langchain.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings
 from langsmith import traceable
 from starlette.responses import StreamingResponse
 
@@ -20,17 +29,12 @@ from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
-from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema
+from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema, ChromaInputSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
 
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
-from langchain_community.document_loaders.parsers import LanguageParser
-
-from langchain_openai import OpenAIEmbeddings
-import os
-from langchain.vectorstores import Chroma
-from langchain.schema import Document
+import base64
+import fitz  # PyMuPDF
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -205,9 +209,9 @@ def _serve_agraph(question: GraphQuestionSchema):
             response = loop.run_until_complete(queue.get())
             if response is None:
                 break
-            if isinstance(response, Exception):
-                copilot_debug(f"Error: {str(response)}")
-                continue
+            elif isinstance(response, Exception):
+                copilot_debug(f"Error ({str(type(response))}): {str(response)}")
+                raise response
             yield _response(response)
         loop.run_until_complete(task)
         loop.close()
@@ -221,11 +225,12 @@ def _serve_agraph(question: GraphQuestionSchema):
         else:
             error_message = str(e)
 
-        response = {"error": {
-            "code": e.response.status_code if hasattr(e, "response") else 500,
-            "message": error_message}
-        }
-        yield "data: {\"answer\": " + json.dumps(response) + "}\n"
+        response_error = AssistantResponse(
+            response=error_message,
+            conversation_id=question.conversation_id,
+            role="error"
+        )
+        yield _response(response_error)
 
 
 @traceable
@@ -306,13 +311,40 @@ def serve_assistant():
 
 
 @traceable
+@core_router.post("/ResetChromaDB")
+def resetChromaDB(body: ChromaInputSchema):
+    # Delete the ChromaDB db if exists and create a new one
+    db_name = body.db_name
+
+    db_path = getChromaDBPath(db_name)
+
+    if os.path.exists(db_path):
+        shutil.rmtree(db_path)
+
+    return {"answer": "ChromaDB reset successfully."}
+
+
+@traceable
 @core_router.post("/chroma")
 def processTextToChromaDB(body: TextToChromaSchema):
     db_name = body.db_name
     text = body.text
+    extension = body.format
     overwrite = body.overwrite
-    language = Language.MARKDOWN
-    db_path = f"./{db_name}.db"
+
+    if extension == "pdf":
+        base64_pdf = text
+        pdf_data = base64.b64decode(base64_pdf)
+
+        with open('temp.pdf', 'wb') as f:
+            f.write(pdf_data)
+
+        doc = fitz.open('temp.pdf')
+        text = ''
+        for page in doc:
+            text += page.get_text()
+
+    db_path = getChromaDBPath(db_name)
 
     if os.path.exists(db_path) and not overwrite:
         success = False
@@ -327,10 +359,14 @@ def processTextToChromaDB(body: TextToChromaSchema):
         parsed_document = text
 
         document = Document(page_content=parsed_document)
+        text_splitter = ""
 
-        text_splitter = RecursiveCharacterTextSplitter.from_language(
-            language=language, chunk_size=2000, chunk_overlap=200
-        )
+        if format == "md":
+            text_splitter = MarkdownTextSplitter.from_language(language=Language.MARKDOWN, chunk_size=2000,
+                                                               chunk_overlap=200)
+        elif format == "txt" or format == "pdf":
+            text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
+
         texts = text_splitter.split_documents([document])
 
         Chroma.from_documents(
@@ -345,4 +381,8 @@ def processTextToChromaDB(body: TextToChromaSchema):
         message = f"Error processing text to ChromaDB: {e}"
         db_path = ""
 
-    return success, message, db_path
+    return {"answer": message, "success": success, "db_path": db_path}
+
+
+def getChromaDBPath(db_name):
+    return "./" + db_name + ".db"
