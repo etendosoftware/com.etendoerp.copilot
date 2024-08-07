@@ -138,6 +138,12 @@ pipelines:
           - step: *build-push-amd64
           - step: *build-push-arm64
       - step: *create-push-manifest
+    "epic/*":
+      - step: *build-step
+      - parallel:
+          - step: *build-push-amd64
+          - step: *build-push-arm64
+      - step: *create-push-manifest
   pull-requests:
     "**":
       - step: *git-police
