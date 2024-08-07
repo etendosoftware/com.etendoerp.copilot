@@ -5,20 +5,19 @@ The routes are responsible for handling the incoming requests and returning the 
 
 """
 import asyncio
+import base64
 import json
 import logging
 import os
 import shutil
 import threading
 
+import fitz  # PyMuPDF
 from fastapi import APIRouter
 from langchain.schema import Document
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
-from langchain_text_splitters import MarkdownTextSplitter, CharacterTextSplitter
+from langchain.text_splitter import Language
 from langchain.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import MarkdownTextSplitter, CharacterTextSplitter
 from langsmith import traceable
 from starlette.responses import StreamingResponse
 
@@ -27,14 +26,12 @@ from copilot.core.agent import AgentResponse, copilot_agents, AgentEnum
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
+from copilot.core.vectordb_utils import get_embedding, get_vector_db_path
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
-from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema, ChromaInputSchema
+from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToVectorDBSchema, VectorDBInputSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
-
-import base64
-import fitz  # PyMuPDF
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -311,23 +308,23 @@ def serve_assistant():
 
 
 @traceable
-@core_router.post("/ResetChromaDB")
-def resetChromaDB(body: ChromaInputSchema):
-    # Delete the ChromaDB db if exists and create a new one
-    db_name = body.db_name
+@core_router.post("/ResetVectorDB")
+def resetVectorDB(body: VectorDBInputSchema):
+    # Delete the VectorDB db if exists and create a new one
+    kb_vectordb_id = body.kb_vectordb_id
 
-    db_path = getChromaDBPath(db_name)
+    db_path = get_vector_db_path(kb_vectordb_id)
 
     if os.path.exists(db_path):
         shutil.rmtree(db_path)
 
-    return {"answer": "ChromaDB reset successfully."}
+    return {"answer": "VectorDB reset successfully."}
 
 
 @traceable
-@core_router.post("/chroma")
-def processTextToChromaDB(body: TextToChromaSchema):
-    db_name = body.db_name
+@core_router.post("/addToVectorDB")
+def processTextToVectorDB(body: TextToVectorDBSchema):
+    kb_vectordb_id = body.kb_vectordb_id
     text = body.text
     extension = body.format
     overwrite = body.overwrite
@@ -344,11 +341,11 @@ def processTextToChromaDB(body: TextToChromaSchema):
         for page in doc:
             text += page.get_text()
 
-    db_path = getChromaDBPath(db_name)
+    db_path = get_vector_db_path(kb_vectordb_id)
 
     if os.path.exists(db_path) and not overwrite:
         success = False
-        message = f"Database {db_name} already exists."
+        message = f"Database {kb_vectordb_id} already exists."
         return {"answer": message, "success": success, "db_path": db_path}
 
     try:
@@ -371,18 +368,14 @@ def processTextToChromaDB(body: TextToChromaSchema):
 
         Chroma.from_documents(
             texts,
-            OpenAIEmbeddings(disallowed_special=(), show_progress_bar=True),
+            get_embedding(),
             persist_directory=db_path
         )
         success = True
-        message = f"Database {db_name} created and loaded successfully."
+        message = f"Database {kb_vectordb_id} created and loaded successfully."
     except Exception as e:
         success = False
-        message = f"Error processing text to ChromaDB: {e}"
+        message = f"Error processing text to VectorDB: {e}"
         db_path = ""
 
     return {"answer": message, "success": success, "db_path": db_path}
-
-
-def getChromaDBPath(db_name):
-    return "./" + db_name + ".db"
