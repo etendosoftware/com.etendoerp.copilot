@@ -1,7 +1,7 @@
 # Template docker-push
 
 # This template allows you to build and push your docker image to a Docker Hub account.
-# The workflow allows running tests, code linting and security scans on feature branches (as well as master).
+# The workflow allows running tests, code linting y security scans on feature branches (as well as master).
 # The docker image will be validated and pushed to the docker registry after the code is merged to master.
 
 # Prerequisites: $DOCKERHUB_USERNAME, $DOCKERHUB_PASSWORD setup as deployment variables
@@ -64,6 +64,57 @@ definitions:
           - cat response.txt
         services:
           - docker
+    - &build-push-amd64
+      name: Build and Push for amd64
+      script:
+        - |
+          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
+            BRANCH_NAME=${BITBUCKET_BRANCH}
+          else
+            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
+          fi
+        - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+        - IMAGE=etendo/etendo_copilot_core:${BRANCH_NAME}-amd64
+        - docker build --platform linux/amd64 -t ${IMAGE} .
+        - docker push ${IMAGE}
+      services:
+        - docker
+    - &build-push-arm64
+      name: Build and Push for arm64
+      runs-on:
+        - self.hosted
+        - linux.arm64
+      script:
+        - |
+          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
+            BRANCH_NAME=${BITBUCKET_BRANCH}
+          else
+            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
+          fi
+        - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+        - IMAGE=etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
+        - docker build --platform linux/arm64/v8 -t ${IMAGE} .
+        - docker push ${IMAGE}
+      services:
+        - docker
+    - &create-push-manifest
+      name: Create and Push Manifest
+      script:
+        - |
+          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
+            BRANCH_NAME=${BITBUCKET_BRANCH}
+          else
+            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
+          fi
+        - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+        - docker pull etendo/etendo_copilot_core:${BRANCH_NAME}-amd64
+        - docker pull etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
+        - docker manifest create etendo/etendo_copilot_core:${BRANCH_NAME} etendo/etendo_copilot_core:${BRANCH_NAME}-amd64 etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
+        - docker manifest annotate etendo/etendo_copilot_core:${BRANCH_NAME} etendo/etendo_copilot_core:${BRANCH_NAME}-amd64 --os linux --arch amd64
+        - docker manifest annotate etendo/etendo_copilot_core:${BRANCH_NAME} etendo/etendo_copilot_core:${BRANCH_NAME}-arm64 --os linux --arch arm64
+        - docker manifest push etendo/etendo_copilot_core:${BRANCH_NAME}
+      services:
+        - docker
   caches:
     sonar: ~/.sonar
 clone:
@@ -73,109 +124,21 @@ pipelines:
     master:
       - step: *build-step
       - parallel:
-          - step:
-              name: Build and Push for amd64
-              script:
-                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-                - IMAGE=etendo/etendo_copilot_core:master-amd64
-                - docker build --platform linux/amd64 -t ${IMAGE} .
-                - docker push ${IMAGE}
-              services:
-                - docker
-          - step:
-              name: Build and Push for arm64
-              runs-on:
-                - self.hosted
-                - linux.arm64
-              script:
-                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-                - IMAGE=etendo/etendo_copilot_core:master-arm64
-                - docker build --platform linux/arm64/v8 -t ${IMAGE} .
-                - docker push ${IMAGE}
-              services:
-                - docker
-      - step:
-          name: Create and Push Manifest
-          script:
-            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-            - docker pull etendo/etendo_copilot_core:master-amd64
-            - docker pull etendo/etendo_copilot_core:master-arm64
-            - docker manifest create etendo/etendo_copilot_core:master etendo/etendo_copilot_core:master-amd64 etendo/etendo_copilot_core:master-arm64
-            - docker manifest annotate etendo/etendo_copilot_core:master etendo/etendo_copilot_core:master-amd64 --os linux --arch amd64
-            - docker manifest annotate etendo/etendo_copilot_core:master etendo/etendo_copilot_core:master-arm64 --os linux --arch arm64
-            - docker manifest push etendo/etendo_copilot_core:master
-          services:
-            - docker
+          - step: *build-push-amd64
+          - step: *build-push-arm64
+      - step: *create-push-manifest
     develop:
+      - step: *build-step
       - parallel:
-          - step:
-              name: Build and Push for amd64
-              script:
-                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-                - IMAGE=etendo/etendo_copilot_core:develop-amd64
-                - docker build --platform linux/amd64 -t ${IMAGE} .
-                - docker push ${IMAGE}
-              services:
-                - docker
-          - step:
-              name: Build and Push for arm64
-              runs-on:
-                - self.hosted
-                - linux.arm64
-              script:
-                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-                - IMAGE=etendo/etendo_copilot_core:develop-arm64
-                - docker build --platform linux/arm64/v8 -t ${IMAGE} .
-                - docker push ${IMAGE}
-              services:
-                - docker
-      - step:
-          name: Create and Push Manifest
-          script:
-            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-            - docker pull etendo/etendo_copilot_core:develop-amd64
-            - docker pull etendo/etendo_copilot_core:develop-arm64
-            - docker manifest create etendo/etendo_copilot_core:develop etendo/etendo_copilot_core:develop-amd64 etendo/etendo_copilot_core:develop-arm64
-            - docker manifest annotate etendo/etendo_copilot_core:develop etendo/etendo_copilot_core:develop-amd64 --os linux --arch amd64
-            - docker manifest annotate etendo/etendo_copilot_core:develop etendo/etendo_copilot_core:develop-arm64 --os linux --arch arm64
-            - docker manifest push etendo/etendo_copilot_core:develop
-          services:
-            - docker
+          - step: *build-push-amd64
+          - step: *build-push-arm64
+      - step: *create-push-manifest
     experimental:
+      - step: *build-step
       - parallel:
-          - step:
-              name: Build and Push for amd64
-              script:
-                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-                - IMAGE=etendo/etendo_copilot_core:experimental-amd64
-                - docker build --platform linux/amd64 -t ${IMAGE} .
-                - docker push ${IMAGE}
-              services:
-                - docker
-          - step:
-              name: Build and Push for arm64
-              runs-on:
-                - self.hosted
-                - linux.arm64
-              script:
-                - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-                - IMAGE=etendo/etendo_copilot_core:experimental-arm64
-                - docker build --platform linux/arm64/v8 -t ${IMAGE} .
-                - docker push ${IMAGE}
-              services:
-                - docker
-      - step:
-          name: Create and Push Manifest
-          script:
-            - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-            - docker pull etendo/etendo_copilot_core:experimental-amd64
-            - docker pull etendo/etendo_copilot_core:experimental-arm64
-            - docker manifest create etendo/etendo_copilot_core:experimental etendo/etendo_copilot_core:experimental-amd64 etendo/etendo_copilot_core:experimental-arm64
-            - docker manifest annotate etendo/etendo_copilot_core:experimental etendo/etendo_copilot_core:experimental-amd64 --os linux --arch amd64
-            - docker manifest annotate etendo/etendo_copilot_core:experimental etendo/etendo_copilot_core:experimental-arm64 --os linux --arch arm64
-            - docker manifest push etendo/etendo_copilot_core:experimental
-          services:
-            - docker
+          - step: *build-push-amd64
+          - step: *build-push-arm64
+      - step: *create-push-manifest
   pull-requests:
     "**":
       - step: *git-police
