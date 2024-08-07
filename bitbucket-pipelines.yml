@@ -1,7 +1,7 @@
 # Template docker-push
 
 # This template allows you to build and push your docker image to a Docker Hub account.
-# The workflow allows running tests, code linting and security scans on feature branches (as well as master).
+# The workflow allows running tests, code linting y security scans on feature branches (as well as master).
 # The docker image will be validated and pushed to the docker registry after the code is merged to master.
 
 # Prerequisites: $DOCKERHUB_USERNAME, $DOCKERHUB_PASSWORD setup as deployment variables
@@ -67,6 +67,12 @@ definitions:
     - &build-push-amd64
       name: Build and Push for amd64
       script:
+        - |
+          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
+            BRANCH_NAME=${BITBUCKET_BRANCH}
+          else
+            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
+          fi
         - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
         - IMAGE=etendo/etendo_copilot_core:${BRANCH_NAME}-amd64
         - docker build --platform linux/amd64 -t ${IMAGE} .
@@ -79,6 +85,12 @@ definitions:
         - self.hosted
         - linux.arm64
       script:
+        - |
+          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
+            BRANCH_NAME=${BITBUCKET_BRANCH}
+          else
+            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
+          fi
         - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
         - IMAGE=etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
         - docker build --platform linux/arm64/v8 -t ${IMAGE} .
@@ -88,6 +100,12 @@ definitions:
     - &create-push-manifest
       name: Create and Push Manifest
       script:
+        - |
+          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
+            BRANCH_NAME=${BITBUCKET_BRANCH}
+          else
+            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
+          fi
         - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
         - docker pull etendo/etendo_copilot_core:${BRANCH_NAME}-amd64
         - docker pull etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
