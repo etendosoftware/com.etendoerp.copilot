@@ -11,6 +11,7 @@ import logging
 import os
 import shutil
 import threading
+import time
 
 import fitz  # PyMuPDF
 from fastapi import APIRouter
@@ -333,20 +334,16 @@ def processTextToVectorDB(body: TextToVectorDBSchema):
         base64_pdf = text
         pdf_data = base64.b64decode(base64_pdf)
 
-        with open('temp.pdf', 'wb') as f:
+        temp_pdf = '/tmp/temp'+str(round(time.time()))+'.pdf'
+        with open(temp_pdf, 'wb') as f:
             f.write(pdf_data)
 
-        doc = fitz.open('temp.pdf')
+        doc = fitz.open(temp_pdf)
         text = ''
         for page in doc:
             text += page.get_text()
 
     db_path = get_vector_db_path(kb_vectordb_id)
-
-    if os.path.exists(db_path) and not overwrite:
-        success = False
-        message = f"Database {kb_vectordb_id} already exists."
-        return {"answer": message, "success": success, "db_path": db_path}
 
     try:
         # If overwrite is true and the database exists, delete the existing database
