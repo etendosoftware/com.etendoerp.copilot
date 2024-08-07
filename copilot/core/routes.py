@@ -349,7 +349,7 @@ def processTextToChromaDB(body: TextToChromaSchema):
     if os.path.exists(db_path) and not overwrite:
         success = False
         message = f"Database {db_name} already exists."
-        return success, message, db_path
+        return {"answer": message, "success": success, "db_path": db_path}
 
     try:
         # If overwrite is true and the database exists, delete the existing database
@@ -359,12 +359,12 @@ def processTextToChromaDB(body: TextToChromaSchema):
         parsed_document = text
 
         document = Document(page_content=parsed_document)
-        text_splitter = ""
+        text_splitter = None
 
-        if format == "md":
+        if extension == "md":
             text_splitter = MarkdownTextSplitter.from_language(language=Language.MARKDOWN, chunk_size=2000,
                                                                chunk_overlap=200)
-        elif format == "txt" or format == "pdf":
+        elif extension == "txt" or extension == "pdf":
             text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
 
         texts = text_splitter.split_documents([document])
