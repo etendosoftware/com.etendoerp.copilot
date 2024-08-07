@@ -8,7 +8,62 @@
 
 definitions:
   steps:
-    - step: &git-police
+    - step: &docker-build-push-amd64
+        script:
+          - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+          - IMAGE=etendo/etendo_copilot_core:${BRANCH_NAME}-amd64
+          - docker build --platform linux/amd64 -t ${IMAGE} .
+          - docker push ${IMAGE}
+        services:
+          - docker
+
+    - step: &docker-build-push-arm64
+        runs-on:
+          - self.hosted
+          - linux.arm64
+        script:
+          - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+          - IMAGE=etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
+          - docker build --platform linux/arm64/v8 -t ${IMAGE} .
+          - docker push ${IMAGE}
+        services:
+          - docker
+
+    - step: &create-push-manifest
+        script:
+          - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+          - docker pull etendo/etendo_copilot_core:${BRANCH_NAME}-amd64
+          - docker pull etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
+          - docker manifest create etendo/etendo_copilot_core:${BRANCH_NAME} etendo/etendo_copilot_core:${BRANCH_NAME}-amd64 etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
+          - docker manifest annotate etendo/etendo_copilot_core:${BRANCH_NAME} etendo/etendo_copilot_core:${BRANCH_NAME}-amd64 --os linux --arch amd64
+          - docker manifest annotate etendo/etendo_copilot_core:${BRANCH_NAME} etendo/etendo_copilot_core:${BRANCH_NAME}-arm64 --os linux --arch arm64
+          - docker manifest push etendo/etendo_copilot_core:${BRANCH_NAME}
+        services:
+          - docker
+
+pipelines:
+  branches:
+    master:
+      - parallel:
+          - step: *docker-build-push-amd64
+          - step: *docker-build-push-arm64
+          - step: *create-push-manifest
+
+    develop:
+      - parallel:
+          - step: *docker-build-push-amd64
+          - step: *docker-build-push-arm64
+          - step: *create-push-manifest
+
+    experimental:
+      - parallel:
+          - step: *docker-build-push-amd64
+          - step: *docker-build-push-arm64
+          - step: *create-push-manifest
+
+  pull-requests:
+    "**":
+      - step: &git-police
         name: Git Police Step
         script:
           - printenv
@@ -35,113 +90,36 @@ definitions:
           - cat response.txt
         services:
           - docker
-    - step: &build-step
-        image: maven:3.3.9
-        name: SonarQube analysis
-        script:
-          - pipe: sonarsource/sonarqube-scan:1.0.0
-            variables:
-              SONAR_HOST_URL: ${SONAR_HOST_URL} # Get the value from the repository/workspace variable.
-              SONAR_TOKEN: ${SONAR_TOKEN} # Get the value from the repository/workspace variable. You shouldn't set secret in clear text here.
-    - step: &make-review
-        name: Make Review Step
-        script:
-          - printenv
-          -  echo "-------------------------------------------------------------------------"
-          -  echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-          -  docker run -d -p 5000:5000 -e REPO_API_TOKEN="${ETENDOBOT_TOKEN}" -e PULL_REQUEST=$BITBUCKET_PR_ID -e PROJECT=$BITBUCKET_REPO_OWNER -e REPO_SLUG=$BITBUCKET_REPO_SLUG -e OPENAI_API_KEY=$OPENAI_API_KEY etendo/code-reviewer:${REVIEWER_VERSION}
-          -  echo "-------------------------------------------------------------------------"
-          -  sleep 10s
-          - response=$(curl -s -o response.txt -w "%{http_code}" -X GET http://localhost:5000/review/bitbucket)
-          - if [ $response -ne 200 ]; then
-          - echo "API call failed with status code $response"
-          - echo "Response text:"
-          - cat response.txt
-          - exit 1
-          - fi
-          - echo "API call successful with status code $response"
-          - echo "Response text:"
-          - cat response.txt
-        services:
-          - docker
-    - &build-push-amd64
-      name: Build and Push for amd64
-      script:
-        - |
-          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
-            BRANCH_NAME=${BITBUCKET_BRANCH}
-          else
-            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
-          fi
-        - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-        - IMAGE=etendo/etendo_copilot_core:${BRANCH_NAME}-amd64
-        - docker build --platform linux/amd64 -t ${IMAGE} .
-        - docker push ${IMAGE}
-      services:
-        - docker
-    - &build-push-arm64
-      name: Build and Push for arm64
-      runs-on:
-        - self.hosted
-        - linux.arm64
-      script:
-        - |
-          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
-            BRANCH_NAME=${BITBUCKET_BRANCH}
-          else
-            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
-          fi
-        - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-        - IMAGE=etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
-        - docker build --platform linux/arm64/v8 -t ${IMAGE} .
-        - docker push ${IMAGE}
-      services:
-        - docker
-    - &create-push-manifest
-      name: Create and Push Manifest
-      script:
-        - |
-          if [[ "${BITBUCKET_BRANCH}" == "develop" || "${BITBUCKET_BRANCH}" == "master" || "${BITBUCKET_BRANCH}" == "experimental" ]]; then
-            BRANCH_NAME=${BITBUCKET_BRANCH}
-          else
-            BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
-          fi
-        - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-        - docker pull etendo/etendo_copilot_core:${BRANCH_NAME}-amd64
-        - docker pull etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
-        - docker manifest create etendo/etendo_copilot_core:${BRANCH_NAME} etendo/etendo_copilot_core:${BRANCH_NAME}-amd64 etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
-        - docker manifest annotate etendo/etendo_copilot_core:${BRANCH_NAME} etendo/etendo_copilot_core:${BRANCH_NAME}-amd64 --os linux --arch amd64
-        - docker manifest annotate etendo/etendo_copilot_core:${BRANCH_NAME} etendo/etendo_copilot_core:${BRANCH_NAME}-arm64 --os linux --arch arm64
-        - docker manifest push etendo/etendo_copilot_core:${BRANCH_NAME}
-      services:
-        - docker
-  caches:
-    sonar: ~/.sonar
-clone:
-  depth: full
-pipelines:
-  branches:
-    master:
-      - step: *build-step
       - parallel:
-          - step: *build-push-amd64
-          - step: *build-push-arm64
-      - step: *create-push-manifest
-    develop:
-      - step: *build-step
-      - parallel:
-          - step: *build-push-amd64
-          - step: *build-push-arm64
-      - step: *create-push-manifest
-    experimental:
-      - step: *build-step
-      - parallel:
-          - step: *build-push-amd64
-          - step: *build-push-arm64
-      - step: *create-push-manifest
-  pull-requests:
-    "**":
-      - step: *git-police
-      - parallel:
-          - step: *make-review
-          - step: *build-step
+          - step: &make-review
+            name: Make Review Step
+            script:
+              - printenv
+              - echo "-------------------------------------------------------------------------"
+              - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+              - docker run -d -p 5000:5000 -e REPO_API_TOKEN="${ETENDOBOT_TOKEN}" -e PULL_REQUEST=$BITBUCKET_PR_ID -e PROJECT=$BITBUCKET_REPO_OWNER -e REPO_SLUG=$BITBUCKET_REPO_SLUG -e OPENAI_API_KEY=$OPENAI_API_KEY etendo/code-reviewer:${REVIEWER_VERSION}
+              - echo "-------------------------------------------------------------------------"
+              - sleep 10s
+              - response=$(curl -s -o response.txt -w "%{http_code}" -X GET http://localhost:5000/review/bitbucket)
+              - if [ $response -ne 200 ]; then
+                  echo "API call failed with status code $response"
+                  echo "Response text:"
+                  cat response.txt
+                  exit 1
+                fi
+              - echo "API call successful with status code $response"
+              - echo "Response text:"
+              - cat response.txt
+            services:
+              - docker
+          - step: &build-step
+            image: maven:3.3.9
+            name: SonarQube analysis
+            script:
+              - pipe: sonarsource/sonarqube-scan:1.0.0
+                variables:
+                  SONAR_HOST_URL: ${SONAR_HOST_URL} # Get the value from the repository/workspace variable.
+                  SONAR_TOKEN: ${SONAR_TOKEN}    # Get the value from the repository/workspace variable. You shouldn't set secret in clear text here.
+          - step: *docker-build-push-amd64
+          - step: *docker-build-push-arm64
+          - step: *create-push-manifest
