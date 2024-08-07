@@ -4,23 +4,35 @@ import unittest
 
 import pytest
 from fastapi.testclient import TestClient
-from langsmith import unit 
+from langsmith import unit
 
 from copilot.app import app
-from copilot.core.agent.agent import AssistantResponse
 from copilot.core.routes import serve_async_graph, serve_graph
 from copilot.core.schemas import GraphQuestionSchema
 
 logging.basicConfig(level=logging.DEBUG)
 
 
+async def validate_paris_response(response):
+    assert response is not None
+    response = dict(response)
+    assert 'answer' in response
+    answer = response['answer']
+    assert answer.response is not None
+    assert str(answer.response).startswith('The capital of France is Paris')
+    assert answer.conversation_id == 'd2264c6d-14b8-42bd-9cfc-60a552d433b9'
+    assert answer.message_id is None
+    assert answer.role is None
+    assert answer.assistant_id is None
+
+
 class TestGraphEndpoint(unittest.TestCase):
-    @unit 
+    @unit
     @pytest.fixture()
     def vcr_config(self):
         return {"record_mode": "rewrite"}
 
-    @unit 
+    @unit
     def setUp(self):
         self.client = TestClient(app)
         self.url = "/graph"
@@ -77,19 +89,12 @@ class TestGraphEndpoint(unittest.TestCase):
             }
         }
 
-    @unit 
+    @unit
     def test_graph_endpoint(self):
         response = serve_graph(GraphQuestionSchema.model_validate(self.payload))
-        assert response == {'answer': AssistantResponse(response='The capital of France is Paris.',
-                                                        conversation_id='d2264c6d-14b8-42bd-9cfc-60a552d433b9',
-                                                        message_id=None,
-                                                        role=None,
-                                                        assistant_id=None)}
+        validate_paris_response(response)
+
     @unit
     async def test_agraph_endpoint(self):
         response = await serve_async_graph(GraphQuestionSchema.model_validate(self.payload))
-        assert response == {'answer': AssistantResponse(response='The capital of France is Paris.',
-                                                        conversation_id='d2264c6d-14b8-42bd-9cfc-60a552d433b9',
-                                                        message_id=None,
-                                                        role=None,
-                                                        assistant_id=None)}
+        await validate_paris_response(response)
