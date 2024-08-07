@@ -33,7 +33,7 @@ class AssistantAgent(CopilotAgent):
         agent = OpenAIAssistantV2Runnable(assistant_id=assistant_id, as_agent=True)
         return agent
 
-    @traceableassistant_id
+    @traceable
     def get_agent_executor(self, agent: OpenAIAssistantV2Runnable) -> AgentExecutor:
         return AgentExecutor(agent=agent, tools=self._configured_tools)
 
