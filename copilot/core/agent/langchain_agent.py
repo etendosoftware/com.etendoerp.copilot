@@ -4,14 +4,13 @@ from typing import Dict, Final, Union, Optional
 from langchain.agents import AgentExecutor, AgentOutputParser, create_openai_functions_agent
 from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.tools.retriever import create_retriever_tool
 from langchain_community.vectorstores import Chroma
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.runnables import AddableDict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-from langchain.tools.retriever import create_retriever_tool
 from langsmith import traceable
-
 
 from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
@@ -148,7 +147,7 @@ class LangchainAgent(CopilotAgent):
     @traceable
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
-        agent = self.get_agent(question.provider, question.model, question.tools, question.kb_vectordb_id, question.system_prompt,
+        agent = self.get_agent(question.provider, question.model, question.tools,  question.system_prompt, question.kb_vectordb_id,
                                question.temperature)
         
         executor: Final[AgentExecutor] = self.get_agent_executor(agent)
@@ -166,7 +165,7 @@ class LangchainAgent(CopilotAgent):
 
     async def aexecute(self, question: QuestionSchema) -> AgentResponse:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
-        agent = self.get_agent(question.provider, question.model, question.tools, question.kb_vectordb_id, question.system_prompt,
+        agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt, question.kb_vectordb_id,
                                question.temperature)
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         full_question = question.question
