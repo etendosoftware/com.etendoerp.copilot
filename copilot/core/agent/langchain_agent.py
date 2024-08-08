@@ -43,8 +43,8 @@ class LangchainAgent(CopilotAgent):
         self._memory = MemoryHandler()
 
     @traceable
-    def get_agent(self, provider: str, open_ai_model: str, tools: list[ToolSchema] = None, system_prompt: str = None, temperature: float = 1,
-                  kb_vectordb_id: Optional[str] = None):
+    def get_agent(self, provider: str, open_ai_model: str, tools: list[ToolSchema] = None, system_prompt: str = None,
+                  temperature: float = 1, kb_vectordb_id: Optional[str] = None):
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
         Raises:
@@ -67,7 +67,8 @@ class LangchainAgent(CopilotAgent):
                              handle_parsing_errors=True, debug=True)
 
     @traceable
-    def get_openai_agent(self, open_ai_model, tools, system_prompt,temperature=1, kb_vectordb_id: Optional[str] = None):
+    def get_openai_agent(self, open_ai_model, tools, system_prompt, temperature=1,
+                         kb_vectordb_id: Optional[str] = None):
 
         _llm = ChatOpenAI(temperature=temperature, streaming=False, model_name=open_ai_model)
         _enabled_tools = self.get_functions(tools)
@@ -146,7 +147,8 @@ class LangchainAgent(CopilotAgent):
     @traceable
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
-        agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt, question.temperature, question.kb_vectordb_id)
+        agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt,
+                               question.temperature, question.kb_vectordb_id)
         executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         messages = self._memory.get_memory(question.history, full_question)
         langchain_respose: Dict = executor.invoke({"system_prompt": question.system_prompt, "messages": messages})
