@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel
 
@@ -38,6 +38,7 @@ class AssistantSchema(BaseModel):
     tools: Optional[list[ToolSchema]] = None
     temperature: Optional[float] = None
     description: Optional[str] = None
+    kb_vectordb_id: Optional[str] = None
 
 
 class QuestionSchema(AssistantSchema):
@@ -63,7 +64,11 @@ class GraphQuestionSchema(BaseModel):
     temperature: Optional[float] = None
 
 
-class TextToChromaSchema(BaseModel):
-    text: str
-    db_name: str
+class VectorDBInputSchema(BaseModel):
+    kb_vectordb_id: str
+
+
+class TextToVectorDBSchema(VectorDBInputSchema):
+    text: Union[str, bytes]
     overwrite: bool = False
+    format: str

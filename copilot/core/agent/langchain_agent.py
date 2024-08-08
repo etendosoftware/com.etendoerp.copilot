@@ -1,15 +1,16 @@
 import os
-from typing import Dict, Final, Union
+from typing import Dict, Final, Union, Optional
 
 from langchain.agents import AgentExecutor, AgentOutputParser, create_openai_functions_agent
 from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.tools.retriever import create_retriever_tool
+from langchain_community.vectorstores import Chroma
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.runnables import AddableDict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langsmith import traceable
-
 
 from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
@@ -17,6 +18,7 @@ from .. import utils
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import QuestionSchema, ToolSchema
 from ..utils import get_full_question
+from ..vectordb_utils import get_embedding, get_vector_db_path
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 
@@ -41,8 +43,8 @@ class LangchainAgent(CopilotAgent):
         self._memory = MemoryHandler()
 
     @traceable
-    def get_agent(self, provider: str, open_ai_model: str,
-                                      tools: list[ToolSchema] = None, system_prompt: str = None):
+    def get_agent(self, provider: str, open_ai_model: str, tools: list[ToolSchema] = None, system_prompt: str = None,
+                  kb_vectordb_id: Optional[str] = None):
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
         Raises:
@@ -55,7 +57,7 @@ class LangchainAgent(CopilotAgent):
         if provider == "gemini":
             agent = self.get_gemini_agent(open_ai_model)
         else:
-            agent = self.get_openai_agent(open_ai_model, tools, system_prompt)
+            agent = self.get_openai_agent(open_ai_model, tools, system_prompt, kb_vectordb_id)
 
         return agent
 
@@ -65,9 +67,24 @@ class LangchainAgent(CopilotAgent):
                              handle_parsing_errors=True, debug=True)
 
     @traceable
-    def get_openai_agent(self, open_ai_model, tools, system_prompt):
+    def get_openai_agent(self, open_ai_model, tools, system_prompt, kb_vectordb_id: Optional[str] = None):
+
         _llm = ChatOpenAI(temperature=0, streaming=False, model_name=open_ai_model)
         _enabled_tools = self.get_functions(tools)
+
+        if kb_vectordb_id is not None and os.path.exists(get_vector_db_path(kb_vectordb_id)):
+            db_path = get_vector_db_path(kb_vectordb_id)
+            db = Chroma(persist_directory=db_path, embedding_function=get_embedding())
+
+            retriever = db.as_retriever()
+            tool = create_retriever_tool(
+                retriever,
+                "KnowledgeBaseRetriever",
+                "Search for documents in the knowledge base."
+            )
+            _enabled_tools.append(tool)
+            self._configured_tools.append(tool)
+
         if len(_enabled_tools):
             prompt = ChatPromptTemplate.from_messages(
                 [
@@ -128,7 +145,7 @@ class LangchainAgent(CopilotAgent):
     @traceable
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
-        agent = self.get_agent(question.provider, question.model, question.tools)
+        agent = self.get_agent(question.provider, question.model, question.tools, question.kb_vectordb_id)
         executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         messages = self._memory.get_memory(question.history, full_question)
         langchain_respose: Dict = executor.invoke({"system_prompt": question.system_prompt, "messages": messages})
@@ -144,7 +161,9 @@ class LangchainAgent(CopilotAgent):
 
     async def aexecute(self, question: QuestionSchema) -> AgentResponse:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
-        agent = self.get_agent(question.provider, question.model, question.tools)
+
+        agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt,
+                               question.kb_vectordb_id)
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         full_question = question.question
         if question.local_file_ids is not None and len(question.local_file_ids) > 0:
