@@ -26,17 +26,25 @@ def mock_chroma(mocker):
 
 
 def test_processTextToChromaDB_existing_db(mock_os_path_exists):
-    mock_os_path_exists.return_value = True
+    mock_os_path_exists.return_value = False
 
     response = client.post("/addToVectorDB", json=body.dict())
     response_json = response.json()
     success = response_json["success"]
     message = response_json["answer"]
     db_path = response_json["db_path"]
+    assert success
 
-    assert success == False
-    assert message == "Database test_db already exists."
-    assert db_path == "./vectordbs/test_db.db"
+    mock_os_path_exists.return_value = True
+
+    body2 = body.copy(update={"text": "Another Text"})
+    response = client.post("/addToVectorDB", json=body2.dict())
+    response_json = response.json()
+    success = response_json["success"]
+    message = response_json["answer"]
+    db_path = response_json["db_path"]
+
+    assert success
 
 
 def test_processTextToChromaDB_overwrite(mock_os_path_exists, mock_chroma, mocker):
