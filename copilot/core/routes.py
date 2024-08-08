@@ -27,12 +27,12 @@ from copilot.core.agent import AgentResponse, copilot_agents, AgentEnum
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
-from copilot.core.vectordb_utils import get_embedding, get_vector_db_path
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToVectorDBSchema, VectorDBInputSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
+from copilot.core.vectordb_utils import get_embedding, get_vector_db_path
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -334,7 +334,7 @@ def processTextToVectorDB(body: TextToVectorDBSchema):
         base64_pdf = text
         pdf_data = base64.b64decode(base64_pdf)
 
-        temp_pdf = '/tmp/temp'+str(round(time.time()))+'.pdf'
+        temp_pdf = '/tmp/temp' + str(round(time.time())) + '.pdf'
         with open(temp_pdf, 'wb') as f:
             f.write(pdf_data)
 
