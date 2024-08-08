@@ -43,8 +43,8 @@ class LangchainAgent(CopilotAgent):
         self._memory = MemoryHandler()
 
     @traceable
-    def get_agent(self, provider: str, open_ai_model: str,
-                  tools: list[ToolSchema] = None, system_prompt: str = None, kb_vectordb_id: Optional[str] = None, temperature: float = 1):
+    def get_agent(self, provider: str, open_ai_model: str, tools: list[ToolSchema] = None, system_prompt: str = None,
+                  temperature: float = 1, kb_vectordb_id: Optional[str] = None):
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
         Raises:
@@ -57,7 +57,7 @@ class LangchainAgent(CopilotAgent):
         if provider == "gemini":
             agent = self.get_gemini_agent(open_ai_model)
         else:
-            agent = self.get_openai_agent(open_ai_model, tools, system_prompt, kb_vectordb_id, temperature)
+            agent = self.get_openai_agent(open_ai_model, tools, system_prompt, temperature, kb_vectordb_id)
 
         return agent
 
@@ -67,10 +67,10 @@ class LangchainAgent(CopilotAgent):
                              handle_parsing_errors=True, debug=True)
 
     @traceable
-    def get_openai_agent(self, open_ai_model, tools, system_prompt, kb_vectordb_id: Optional[str] = None, temperature=1):
+    def get_openai_agent(self, open_ai_model, tools, system_prompt, temperature=1,
+                         kb_vectordb_id: Optional[str] = None):
 
         _llm = ChatOpenAI(temperature=temperature, streaming=False, model_name=open_ai_model)
-
         _enabled_tools = self.get_functions(tools)
 
         if kb_vectordb_id is not None and os.path.exists(get_vector_db_path(kb_vectordb_id)):
@@ -147,9 +147,8 @@ class LangchainAgent(CopilotAgent):
     @traceable
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
-        agent = self.get_agent(question.provider, question.model, question.tools,  question.system_prompt, question.kb_vectordb_id,
-                               question.temperature)
-        
+        agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt,
+                               question.temperature, question.kb_vectordb_id)
         executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         messages = self._memory.get_memory(question.history, full_question)
         langchain_respose: Dict = executor.invoke({"system_prompt": question.system_prompt, "messages": messages})
@@ -165,8 +164,8 @@ class LangchainAgent(CopilotAgent):
 
     async def aexecute(self, question: QuestionSchema) -> AgentResponse:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
-        agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt, question.kb_vectordb_id,
-                               question.temperature)
+        agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt,
+                               question.temperature, question.kb_vectordb_id)
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         full_question = question.question
         if question.local_file_ids is not None and len(question.local_file_ids) > 0:

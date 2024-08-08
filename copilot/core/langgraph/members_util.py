@@ -48,7 +48,7 @@ class MembersUtil:
             langchain_agent = LangchainAgent()
             kb_vectordb_id = assistant.kb_vectordb_id if hasattr(assistant, "kb_vectordb_id") else None
             _agent = langchain_agent.get_agent(assistant.provider, assistant.model, assistant.tools,
-                                               assistant.system_prompt, kb_vectordb_id)
+                                               assistant.system_prompt, assistant.temperature, kb_vectordb_id)
             agent_executor = langchain_agent.get_agent_executor(_agent)
             model_node = functools.partial(self.model_langchain_invoker(), _agent=agent_executor, _name=assistant.name)
             member = GraphMember(assistant.name, model_node)
