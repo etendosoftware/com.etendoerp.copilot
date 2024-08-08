@@ -3,7 +3,6 @@ import logging
 from langchain_core.messages import HumanMessage
 from langsmith import traceable
 
-import copilot
 from copilot.core.schemas import AssistantGraph
 from .patterns.base_pattern import BasePattern
 from .patterns.loop_pattern import LoopPattern
@@ -18,9 +17,10 @@ class CopilotLangGraph:
     _graph: LoopPattern
 
     @traceable
-    def __init__(self, members, assistant_graph, pattern: BasePattern, memory):
+    def __init__(self, members, assistant_graph, pattern: BasePattern, memory, full_question=None):
         self._pattern = pattern
-        workflow = self.get_pattern().construct_nodes(members, assistant_graph)
+        self._full_question = full_question
+        workflow = self.get_pattern().construct_nodes(members, assistant_graph, full_question)
         self.get_pattern().connect_graph(assistant_graph, workflow)
         self._assistant_graph = assistant_graph
         self._graph = workflow.compile(checkpointer=memory)

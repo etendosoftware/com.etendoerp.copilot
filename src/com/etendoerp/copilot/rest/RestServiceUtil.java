@@ -432,6 +432,9 @@ public class RestServiceUtil {
     HashMap<String, ArrayList<String>> stagesAssistants = new HashMap<>();
     loadStagesAssistants(copilotApp, jsonRequestForCopilot, conversationId, stagesAssistants);
     setStages(jsonRequestForCopilot, stagesAssistants);
+    //add data for the supervisor
+    jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
+    jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
   }
 
   /**
@@ -460,6 +463,7 @@ public class RestServiceUtil {
         memberData.put("name", name);
         teamMembersIdentifier.add(name);
         memberData.put("type", teamMember.getAppType());
+        memberData.put("description", teamMember.getDescription());
         if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
           memberData.put(PROP_ASSISTANT_ID, teamMember.getOpenaiIdAssistant());
         } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)) {
@@ -561,7 +565,7 @@ public class RestServiceUtil {
         jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
       }
       if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
-        jsonRequestForCopilot.put(PROP_DESCRIPTION, copilotApp.getOpenaiIdAssistant());
+        jsonRequestForCopilot.put(PROP_DESCRIPTION, copilotApp.getDescription());
       }
     }
   }

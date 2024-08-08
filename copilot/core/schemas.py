@@ -62,6 +62,7 @@ class GraphQuestionSchema(BaseModel):
     generate_image: Optional[bool] = False
     local_file_ids: Optional[list[str]] = None
     temperature: Optional[float] = None
+    system_prompt: Optional[str] = None
 
 
 class VectorDBInputSchema(BaseModel):
