@@ -164,20 +164,6 @@ public class CopilotUtils {
     }
   }
 
-  public static void textToVectorDB(Base64 text, String dbName, String format) throws JSONException {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    JSONObject jsonRequestForCopilot = new JSONObject();
-    jsonRequestForCopilot.put("text", text);
-    jsonRequestForCopilot.put("kb_vectordb_id", dbName);
-    jsonRequestForCopilot.put("format", format);
-    String requestBody = jsonRequestForCopilot.toString();
-
-    String endpoint = "/addToVectorDB";
-
-    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
-    //Manejo del error / respuesta
-
-  }
 
   public static void textToVectorDB(String text, String dbName, String format) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
@@ -187,10 +173,10 @@ public class CopilotUtils {
     jsonRequestForCopilot.put("format", format);
     String requestBody = jsonRequestForCopilot.toString();
 
-    String endpoint = "/addToVectorDB";
+    String endpoint = "addToVectorDB";
 
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
-    if (responseFromCopilot == null || responseFromCopilot.statusCode() != 200) {
+    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")));
     }
 
@@ -205,7 +191,7 @@ public class CopilotUtils {
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
       HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort)))
+          .uri(new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint)))
           .headers(HEADER_CONTENT_TYPE, "application/json;charset=UTF-8")
           .version(HttpClient.Version.HTTP_1_1)
           .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -226,10 +212,9 @@ public class CopilotUtils {
 
     jsonRequestForCopilot.put("kb_vectordb_id", dbName);
     String requestBody = jsonRequestForCopilot.toString();
-    String endpoint = "/ResetVectorDB";
+    String endpoint = "ResetVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
-    //checkear respuesta
-    if (responseFromCopilot.statusCode() != 200) {
+    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
           responseFromCopilot.body()));
     }
@@ -282,7 +267,6 @@ public class CopilotUtils {
     }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);
-    //save os to temp file
     //create a temp file
     String filename = attach.getName();
     String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
@@ -291,7 +275,8 @@ public class CopilotUtils {
     File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
     boolean setW = tempFile.setWritable(true);
     if (!setW) {
-      logIfDebug("The temp file is not writable");
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorTempFile"),
+          fileToSync.getName()));
     }
     tempFile.deleteOnExit();
     os.writeTo(new FileOutputStream(tempFile));

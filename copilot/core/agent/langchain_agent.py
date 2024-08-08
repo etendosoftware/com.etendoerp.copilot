@@ -4,14 +4,13 @@ from typing import Dict, Final, Union, Optional
 from langchain.agents import AgentExecutor, AgentOutputParser, create_openai_functions_agent
 from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.tools.retriever import create_retriever_tool
 from langchain_community.vectorstores import Chroma
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.runnables import AddableDict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-from langchain.tools.retriever import create_retriever_tool
 from langsmith import traceable
-
 
 from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
@@ -44,8 +43,8 @@ class LangchainAgent(CopilotAgent):
         self._memory = MemoryHandler()
 
     @traceable
-    def get_agent(self, provider: str, open_ai_model: str,
-                  tools: list[ToolSchema] = None, system_prompt: str = None, kb_vectordb_id: Optional[str] = None):
+    def get_agent(self, provider: str, open_ai_model: str, tools: list[ToolSchema] = None, system_prompt: str = None,
+                  kb_vectordb_id: Optional[str] = None):
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
         Raises:
@@ -163,7 +162,8 @@ class LangchainAgent(CopilotAgent):
     async def aexecute(self, question: QuestionSchema) -> AgentResponse:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
 
-        agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt, question.kb_vectordb_id)
+        agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt,
+                               question.kb_vectordb_id)
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         full_question = question.question
         if question.local_file_ids is not None and len(question.local_file_ids) > 0:
