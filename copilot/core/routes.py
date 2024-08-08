@@ -5,16 +5,20 @@ The routes are responsible for handling the incoming requests and returning the 
 
 """
 import asyncio
+import base64
 import json
 import logging
 import os
+import shutil
 import threading
+import time
 
+import fitz  # PyMuPDF
 from fastapi import APIRouter
 from langchain.schema import Document
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
+from langchain.text_splitter import Language
 from langchain.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import MarkdownTextSplitter, CharacterTextSplitter
 from langsmith import traceable
 from starlette.responses import StreamingResponse
 
@@ -25,9 +29,10 @@ from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
-from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema
+from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToVectorDBSchema, VectorDBInputSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
+from copilot.core.vectordb_utils import get_embedding, get_vector_db_path
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -304,18 +309,41 @@ def serve_assistant():
 
 
 @traceable
-@core_router.post("/chroma")
-def processTextToChromaDB(body: TextToChromaSchema):
-    db_name = body.db_name
-    text = body.text
-    overwrite = body.overwrite
-    language = Language.MARKDOWN
-    db_path = f"./{db_name}.db"
+@core_router.post("/ResetVectorDB")
+def resetVectorDB(body: VectorDBInputSchema):
+    # Delete the VectorDB db if exists and create a new one
+    kb_vectordb_id = body.kb_vectordb_id
 
-    if os.path.exists(db_path) and not overwrite:
-        success = False
-        message = f"Database {db_name} already exists."
-        return success, message, db_path
+    db_path = get_vector_db_path(kb_vectordb_id)
+
+    if os.path.exists(db_path):
+        shutil.rmtree(db_path)
+
+    return {"answer": "VectorDB reset successfully."}
+
+
+@traceable
+@core_router.post("/addToVectorDB")
+def processTextToVectorDB(body: TextToVectorDBSchema):
+    kb_vectordb_id = body.kb_vectordb_id
+    text = body.text
+    extension = body.format
+    overwrite = body.overwrite
+
+    if extension == "pdf":
+        base64_pdf = text
+        pdf_data = base64.b64decode(base64_pdf)
+
+        temp_pdf = '/tmp/temp' + str(round(time.time())) + '.pdf'
+        with open(temp_pdf, 'wb') as f:
+            f.write(pdf_data)
+
+        doc = fitz.open(temp_pdf)
+        text = ''
+        for page in doc:
+            text += page.get_text()
+
+    db_path = get_vector_db_path(kb_vectordb_id)
 
     try:
         # If overwrite is true and the database exists, delete the existing database
@@ -325,22 +353,26 @@ def processTextToChromaDB(body: TextToChromaSchema):
         parsed_document = text
 
         document = Document(page_content=parsed_document)
+        text_splitter = None
 
-        text_splitter = RecursiveCharacterTextSplitter.from_language(
-            language=language, chunk_size=2000, chunk_overlap=200
-        )
+        if extension == "md":
+            text_splitter = MarkdownTextSplitter.from_language(language=Language.MARKDOWN, chunk_size=2000,
+                                                               chunk_overlap=200)
+        elif extension == "txt" or extension == "pdf":
+            text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
+
         texts = text_splitter.split_documents([document])
 
         Chroma.from_documents(
             texts,
-            OpenAIEmbeddings(disallowed_special=(), show_progress_bar=True),
+            get_embedding(),
             persist_directory=db_path
         )
         success = True
-        message = f"Database {db_name} created and loaded successfully."
+        message = f"Database {kb_vectordb_id} created and loaded successfully."
     except Exception as e:
         success = False
-        message = f"Error processing text to ChromaDB: {e}"
+        message = f"Error processing text to VectorDB: {e}"
         db_path = ""
 
-    return success, message, db_path
+    return {"answer": message, "success": success, "db_path": db_path}

@@ -63,7 +63,7 @@ public class ToolAddedToSystemApp extends EntityPersistenceEventObserver {
 
     Client contextClient = OBContext.getOBContext().getCurrentClient();
 
-    if (contextClient != currentClient) {
+    if (!StringUtils.equals(contextClient.getId(), currentClient.getId())) {
       throw new OBException(OBMessageUtils.messageBD("ETCOP_WrongClientApp"));
     }
   }
