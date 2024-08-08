@@ -457,7 +457,7 @@ public class RestServiceUtil {
                 if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
                     String assistantId = teamMember.getOpenaiIdAssistant();
                     if (StringUtils.isEmpty(assistantId)) {
-                        throw new OBException(String.format("The assistant [%s] needs to be synchronized to be used.", teamMember.getName()));
+                        throw new OBException(String.format("The assistant '%s' needs to be synchronized to be used.", teamMember.getName()));
                     }
                     memberData.put(PROP_ASSISTANT_ID, assistantId);
                 } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)) {
