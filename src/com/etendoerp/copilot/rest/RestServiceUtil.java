@@ -324,47 +324,48 @@ public class RestServiceUtil {
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String appType;
     JSONObject finalResponseAsync; // For save the response in case of async
-    try {
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
-      JSONObject jsonRequestForCopilot = new JSONObject();
-      boolean isGraph = checkIfGraphQuestion(copilotApp);
-      //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
-      // and we need to add the type of the assistant (openai or langchain)
-      appType = copilotApp.getAppType();
-      List<String> allowedAppTypes = List.of(CopilotConstants.APP_TYPE_LANGCHAIN, CopilotConstants.APP_TYPE_LANGGRAPH,
-          CopilotConstants.APP_TYPE_OPENAI);
+    String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
+    String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+    JSONObject jsonRequestForCopilot = new JSONObject();
+    boolean isGraph = checkIfGraphQuestion(copilotApp);
+    //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
+    // and we need to add the type of the assistant (openai or langchain)
+    appType = copilotApp.getAppType();
+    List<String> allowedAppTypes = List.of(CopilotConstants.APP_TYPE_LANGCHAIN, CopilotConstants.APP_TYPE_LANGGRAPH,
+        CopilotConstants.APP_TYPE_OPENAI);
 
-      if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)
-          || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGGRAPH)
-      ) {
-        if (StringUtils.isEmpty(conversationId)) {
-          conversationId = UUID.randomUUID().toString();
-        }
-        if (!isGraph) {
-          buildLangchainRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
-        } else {
-          buildLangraphRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
-        }
-      } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
-        buildOpenAIrequestForCopilot(copilotApp, jsonRequestForCopilot);
+    if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)
+        || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGGRAPH)
+    ) {
+      if (StringUtils.isEmpty(conversationId)) {
+        conversationId = UUID.randomUUID().toString();
+      }
+      if (!isGraph) {
+        buildLangchainRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
       } else {
-        throw new OBException(
-            String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
+        buildLangraphRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
       }
-      if (StringUtils.isNotEmpty(conversationId)) {
-        jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
-      }
-      question += OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
-      jsonRequestForCopilot.put(PROP_QUESTION, question);
-      addAppSourceFileIds(copilotApp, questionAttachedFileIds);
-      handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
-      addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
-      String bodyReq = jsonRequestForCopilot.toString();
-      String endpoint = isGraph ? AGRAPH : AQUESTION;
-      logIfDebug("Request to Copilot:);");
-      logIfDebug(new JSONObject(bodyReq).toString(2));
-      URL url = new URL(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort));
+    } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
+      buildOpenAIrequestForCopilot(copilotApp, jsonRequestForCopilot);
+    } else {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
+    }
+    if (StringUtils.isNotEmpty(conversationId)) {
+      jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
+    }
+    question += OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
+    jsonRequestForCopilot.put(PROP_QUESTION, question);
+    addAppSourceFileIds(copilotApp, questionAttachedFileIds);
+    handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
+    addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
+    String bodyReq = jsonRequestForCopilot.toString();
+    String endpoint = isGraph ? AGRAPH : AQUESTION;
+    logIfDebug("Request to Copilot:);");
+    logIfDebug(new JSONObject(bodyReq).toString(2));
+    URL url = new URL(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort));
+    try {
+
       HttpURLConnection connection = (HttpURLConnection) url.openConnection();
       connection.setRequestMethod("POST");
       connection.setRequestProperty("Content-Type", "application/json");
@@ -380,7 +381,8 @@ public class RestServiceUtil {
     if (responseFromCopilot == null) {
       TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question,
           copilotApp);
-      boolean isError = finalResponseAsync.has("role") && StringUtils.equalsIgnoreCase(finalResponseAsync.optString("role"), "error");
+      boolean isError = finalResponseAsync.has("role") && StringUtils.equalsIgnoreCase(
+          finalResponseAsync.optString("role"), "error");
       TrackingUtil.getInstance().trackResponse(finalResponseAsync.optString(PROP_CONVERSATION_ID),
           finalResponseAsync.optString(PROP_RESPONSE), copilotApp, isError);
       return null;
@@ -451,10 +453,10 @@ public class RestServiceUtil {
    *     A HashMap mapping stage names to a list of assistant names for each stage.
    */
   private static void loadStagesAssistants(CopilotApp copilotApp, JSONObject jsonRequestForCopilot,
-      String conversationId,
-      HashMap<String, ArrayList<String>> stagesAssistants) throws JSONException {
+      String conversationId, HashMap<String, ArrayList<String>> stagesAssistants) throws JSONException {
     ArrayList<String> teamMembersIdentifier = new ArrayList<>();
     JSONArray assistantsArray = new JSONArray();
+
     for (CopilotApp teamMember : getTeamMembers(copilotApp)) {
       JSONObject memberData = new JSONObject();
       try {
@@ -464,11 +466,18 @@ public class RestServiceUtil {
         teamMembersIdentifier.add(name);
         memberData.put("type", teamMember.getAppType());
         memberData.put("description", teamMember.getDescription());
+
         if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
-          memberData.put(PROP_ASSISTANT_ID, teamMember.getOpenaiIdAssistant());
+          String assistantId = teamMember.getOpenaiIdAssistant();
+          if (StringUtils.isEmpty(assistantId)) {
+            throw new OBException(
+                String.format("The assistant '%s' needs to be synchronized to be used.", teamMember.getName()));
+          }
+          memberData.put(PROP_ASSISTANT_ID, assistantId);
         } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)) {
           buildLangchainRequestForCopilot(teamMember, null, memberData);
         }
+
         assistantsArray.put(memberData);
 
       } catch (JSONException e) {
@@ -487,7 +496,6 @@ public class RestServiceUtil {
     //temperature of the graph supervisor
     jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
   }
-
 
   /**
    * This method is used to set the stages for a given request to the Langchain assistant.
