@@ -36,7 +36,7 @@ class AssistantSchema(BaseModel):
     model: Optional[str] = None
     system_prompt: Optional[str] = None
     tools: Optional[list[ToolSchema]] = None
-    temperature: Optional[float] = None
+    temperature: Optional[float] = 1
     description: Optional[str] = None
     kb_vectordb_id: Optional[str] = None
 
