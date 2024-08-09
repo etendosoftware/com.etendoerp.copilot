@@ -421,7 +421,9 @@ public class OpenAIUtils {
   }
 
   private static boolean fileHasChanged(CopilotFile fileToSync) {
-
+    if (StringUtils.isEmpty(fileToSync.getOpenaiIdFile())){
+      return true;
+    }
     Date lastSyncDate = fileToSync.getLastSync();
     if (lastSyncDate == null) {
       return true;
