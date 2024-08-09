@@ -25,7 +25,7 @@ def mock_chroma(mocker):
     return mocker.patch("copilot.core.routes.Chroma.from_documents")
 
 
-def test_processTextToChromaDB_existing_db(mock_os_path_exists):
+def test_processTextToChromaDB_existing_db(mock_os_path_exists, mock_chroma):
     mock_os_path_exists.return_value = False
 
     response = client.post("/addToVectorDB", json=body.dict())

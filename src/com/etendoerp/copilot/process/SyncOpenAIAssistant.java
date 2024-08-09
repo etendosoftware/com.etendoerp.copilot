@@ -96,16 +96,8 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
             syncOpenaiModels(openaiApiKey);
           }
 
-          OpenAIUtils.syncAppSource(appSource, openaiApiKey); //CopilotUtils
+          OpenAIUtils.syncAppSource(appSource, openaiApiKey);
 
-          for (CopilotApp app : appList) { //openai
-            OBDal.getInstance().refresh(app);
-            OpenAIUtils.refreshVectorDb(app);
-          }
-          for (CopilotApp app : appList) { //openai
-            OBDal.getInstance().refresh(app);
-            syncCount = callSync(syncCount, openaiApiKey, app);
-          }
 
         } else if (StringUtils.equalsIgnoreCase(appSource.getEtcopApp().getAppType(),
             CopilotConstants.APP_TYPE_LANGCHAIN)) {
@@ -114,6 +106,18 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
           // For langgraph apps, nothing to do
         }
 
+      }
+      // For OpenAI apps, we need to sync his VectorDB and the Assistant itself.
+      List<CopilotApp> openAIAppList = appList.stream().filter(
+          app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI)).collect(
+          Collectors.toList());
+      for (CopilotApp app : openAIAppList) {
+        OBDal.getInstance().refresh(app);
+        OpenAIUtils.refreshVectorDb(app);
+      }
+      for (CopilotApp app : openAIAppList) {
+        OBDal.getInstance().refresh(app);
+        syncCount = callSync(syncCount, openaiApiKey, app);
       }
 
       returnSuccessMsg(result, syncCount, totalRecords);
