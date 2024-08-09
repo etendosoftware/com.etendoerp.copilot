@@ -39,8 +39,10 @@ def get_full_question(question: QuestionSchema) -> str:
 
 def read_optional_env_var(env_var_name: str, default_value: str) -> str:
     """Reads an optional environment variable and returns its value or the default one."""
+    copilot_debug(f"Reading optional environment variable {env_var_name} with default value {default_value}")
     value = os.getenv(env_var_name, default_value)
     if not value:
+        copilot_debug(f"Environment variable {env_var_name} is not set, using default value {default_value}")
         return default_value
     return value
 
