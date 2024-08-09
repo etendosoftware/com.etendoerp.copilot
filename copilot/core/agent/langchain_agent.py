@@ -18,7 +18,7 @@ from .. import utils
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import QuestionSchema, ToolSchema
 from ..utils import get_full_question
-from ..vectordb_utils import get_embedding, get_vector_db_path
+from ..vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 
@@ -75,7 +75,8 @@ class LangchainAgent(CopilotAgent):
 
         if kb_vectordb_id is not None and os.path.exists(get_vector_db_path(kb_vectordb_id)):
             db_path = get_vector_db_path(kb_vectordb_id)
-            db = Chroma(persist_directory=db_path, embedding_function=get_embedding())
+            db = Chroma(persist_directory=db_path, embedding_function=get_embedding(),
+                        client_settings=get_chroma_settings())
 
             retriever = db.as_retriever()
             tool = create_retriever_tool(

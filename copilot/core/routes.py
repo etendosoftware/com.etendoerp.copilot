@@ -13,7 +13,9 @@ import shutil
 import threading
 import time
 
+import chromadb
 import fitz  # PyMuPDF
+from chromadb import Settings
 from fastapi import APIRouter
 from langchain.schema import Document
 from langchain.text_splitter import Language
@@ -32,7 +34,7 @@ from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToVectorDBSchema, VectorDBInputSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
-from copilot.core.vectordb_utils import get_embedding, get_vector_db_path
+from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -316,6 +318,10 @@ def resetVectorDB(body: VectorDBInputSchema):
 
     db_path = get_vector_db_path(kb_vectordb_id)
 
+    db_client = chromadb.Client(settings=get_chroma_settings(db_path))
+    db_client.reset()  # this will delete the db
+    db_client.clear_system_cache()
+    db_client = None
     if os.path.exists(db_path):
         shutil.rmtree(db_path)
 
@@ -366,7 +372,8 @@ def processTextToVectorDB(body: TextToVectorDBSchema):
         Chroma.from_documents(
             texts,
             get_embedding(),
-            persist_directory=db_path
+            persist_directory=db_path,
+            client_settings=get_chroma_settings()
         )
         success = True
         message = f"Database {kb_vectordb_id} created and loaded successfully."
