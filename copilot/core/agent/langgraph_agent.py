@@ -5,7 +5,6 @@ from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langsmith import traceable
 
-from copilot.core.utils import read_optional_env_var_int, read_optional_env_var
 from .agent import AgentResponse, CopilotAgent
 from .agent import AssistantResponse
 from ..langgraph.copilot_langgraph import CopilotLangGraph
@@ -14,6 +13,7 @@ from ..langgraph.patterns import SupervisorPattern
 from ..langgraph.patterns.base_pattern import GraphMember
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import GraphQuestionSchema
+from ..utils import read_optional_env_var, read_optional_env_var_int
 
 
 class LanggraphAgent(CopilotAgent):
@@ -53,7 +53,8 @@ class LanggraphAgent(CopilotAgent):
         copilot_stream_debug = read_optional_env_var("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
         members: list[GraphMember] = MembersUtil().get_members(question)
         memory = AsyncSqliteSaver.from_conn_string("checkpoints.sqlite")
-        lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory)
+        lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory,
+                                      full_question=question)
 
         full_question = question.question
         if question.local_file_ids is not None and len(question.local_file_ids) > 0:

@@ -14,7 +14,6 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
@@ -32,6 +31,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotOpenAIModel;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
@@ -61,13 +61,9 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
 
       for (int i = 0; i < totalRecords; i++) {
         CopilotApp app = OBDal.getInstance().get(CopilotApp.class, selecterRecords.getString(i));
-        appList.add(app);
-      }
-      List<CopilotApp> appListOpenAI = appList.stream().filter(
-              app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI))
-          .collect(Collectors.toList());
-      if (!appListOpenAI.isEmpty()) {
-        syncOpenaiModels(openaiApiKey);
+        if (app != null) { // Null check
+          appList.add(app);
+        }
       }
 
       Set<CopilotAppSource> appSourcesToSync = new HashSet<>();
@@ -76,24 +72,50 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
         List<CopilotAppSource> listSourcesForKb = appSources.stream().filter(CopilotConstants::isKbBehaviour).collect(
             Collectors.toList());
-        if (!listSourcesForKb.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
-          throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
+        if (StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
+          if (!listSourcesForKb.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
+
+            throw new OBException(
+                String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
+          }
         }
         appSourcesToSync.addAll(appSources);
       }
-      for (CopilotAppSource appSource : appSourcesToSync) {
-        OpenAIUtils.syncAppSource(appSource, openaiApiKey);
+
+      //for langchain apps we need to reset vector DB, so collect all langchain apps and reset the vector DBs
+      List<CopilotApp> langchainApps = appList.stream().filter(
+              app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN))
+          .distinct().collect(Collectors.toList());
+      for (CopilotApp app : langchainApps) {
+        CopilotUtils.resetVectorDB(app);
       }
 
-      for (CopilotApp app : appListOpenAI) {
-        OBDal.getInstance().refresh(app);
-        OpenAIUtils.refreshVectorDb(app);
+      for (CopilotAppSource appSource : appSourcesToSync) {
+        if (StringUtils.equalsIgnoreCase(appSource.getEtcopApp().getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
+          if (!appList.isEmpty()) {
+            syncOpenaiModels(openaiApiKey);
+          }
+
+          OpenAIUtils.syncAppSource(appSource, openaiApiKey); //CopilotUtils
+
+          for (CopilotApp app : appList) { //openai
+            OBDal.getInstance().refresh(app);
+            OpenAIUtils.refreshVectorDb(app);
+          }
+          for (CopilotApp app : appList) { //openai
+            OBDal.getInstance().refresh(app);
+            syncCount = callSync(syncCount, openaiApiKey, app);
+          }
+
+        } else if (StringUtils.equalsIgnoreCase(appSource.getEtcopApp().getAppType(),
+            CopilotConstants.APP_TYPE_LANGCHAIN)) {
+          CopilotUtils.syncAppLangchainSource(appSource);
+        } else {
+          // For langgraph apps, nothing to do
+        }
+
       }
-      for (CopilotApp app : appListOpenAI) {
-        OBDal.getInstance().refresh(app);
-        syncCount = callSync(syncCount, openaiApiKey, app);
-      }
+
       returnSuccessMsg(result, syncCount, totalRecords);
     } catch (Exception e) {
       log.error("Error in process", e);
@@ -169,7 +191,9 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         }
         Role role = OBDal.getInstance().get(Role.class, roleId);
         DefinedWebHook hook = OBDal.getInstance().get(DefinedWebHook.class, webhookId);
-        upsertAccess(hook, role, false);
+        if (role != null && hook != null) { // Null check
+          upsertAccess(hook, role, false);
+        }
       }
     }
   }
