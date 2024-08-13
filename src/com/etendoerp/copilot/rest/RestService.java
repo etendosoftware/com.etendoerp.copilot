@@ -11,6 +11,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -148,10 +149,10 @@ public class RestService {
       }
     }
     if(!json.has("question")) {
-      throw new OBException("Missing question in request");
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), "question"));
     }
     if(!json.has("app_id")) {
-      throw new OBException("Missing app_id in request");
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), "app_id"));
     }
     boolean isAsyncRequest = isAsyncRequest(request);
     if (isAsyncRequest) {

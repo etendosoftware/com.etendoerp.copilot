@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import org.openbravo.base.HttpBaseServlet;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -66,9 +67,8 @@ public class CopilotJwtServlet extends HttpBaseServlet {
     String warehouseId = decodedToken.getClaim("warehouse").asString();
     String clientId = decodedToken.getClaim("client").asString();
     if (userId == null || userId.isEmpty() || roleId == null || roleId.isEmpty() || orgId == null || orgId.isEmpty() || warehouseId == null || warehouseId.isEmpty() || clientId == null || clientId.isEmpty()) {
-      throw new OBException("SWS - Token is not valid");
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_SWS_TokenInvalid"));
     }
-    log4j.debug("SWS accessed by userId {}", userId);
     OBContext.setOBContext(
         SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
     OBContext.setOBContextInSession(request, OBContext.getOBContext());
