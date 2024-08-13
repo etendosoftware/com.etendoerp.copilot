@@ -311,18 +311,21 @@ def serve_assistant():
 @traceable
 @core_router.post("/ResetVectorDB")
 def resetVectorDB(body: VectorDBInputSchema):
-    # Delete the VectorDB db if exists and create a new one
-    kb_vectordb_id = body.kb_vectordb_id
+    try:
+        # Delete the VectorDB db if exists and create a new one
+        kb_vectordb_id = body.kb_vectordb_id
 
-    db_path = get_vector_db_path(kb_vectordb_id)
+        db_path = get_vector_db_path(kb_vectordb_id)
 
-    db_client = chromadb.Client(settings=get_chroma_settings(db_path))
-    db_client.reset()  # this will delete the db
-    db_client.clear_system_cache()
-    db_client = None
-    if os.path.exists(db_path):
-        shutil.rmtree(db_path)
-
+        db_client = chromadb.Client(settings=get_chroma_settings(db_path))
+        db_client.reset()  # this will delete the db
+        db_client.clear_system_cache()
+        db_client = None
+        if os.path.exists(db_path):
+            shutil.rmtree(db_path)
+    except Exception as e:
+        copilot_debug(f"Error resetting VectorDB: {e}")
+        raise e
     return {"answer": "VectorDB reset successfully."}
 
 
