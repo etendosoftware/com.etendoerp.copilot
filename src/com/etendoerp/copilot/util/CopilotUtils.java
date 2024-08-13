@@ -4,7 +4,9 @@ import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI_VALUE;
+import static com.etendoerp.copilot.util.CopilotConstants.isHQLQueryFile;
 import static com.etendoerp.copilot.util.OpenAIUtils.HEADER_CONTENT_TYPE;
+import static com.etendoerp.copilot.util.OpenAIUtils.deleteFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -46,6 +48,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
+import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
 
 public class CopilotUtils {
@@ -302,13 +305,12 @@ public class CopilotUtils {
     }
   }
 
-  private static String readFileToSync(CopilotFile fileToSync)
+  private static String readFileToSync(File file)
       throws IOException {
-    File tempFile = getFileFromCopilotFile(fileToSync);
 
-    String extension = tempFile.getName().substring(tempFile.getName().lastIndexOf(".") + 1);
+    String extension = file.getName().substring(file.getName().lastIndexOf(".") + 1);
     StringBuilder text = new StringBuilder(extension + "-");
-    try (FileInputStream fis = new FileInputStream(tempFile);
+    try (FileInputStream fis = new FileInputStream(file);
          InputStreamReader isr = new InputStreamReader(fis);
          BufferedReader br = new BufferedReader(isr)) {
 
@@ -330,10 +332,27 @@ public class CopilotUtils {
 
     String filename = fileToSync.getFilename();
 
-    String extension = filename.substring(filename.lastIndexOf(".") + 1);
+    String extension = StringUtils.isNotEmpty(filename) ? filename.substring(filename.lastIndexOf(".") + 1) : null;
+
+    File fileFromCopilotFile = null;
+    if (isHQLQueryFile(fileToSync)) {
+      String openaiFileId = appSource.getOpenaiIdFile();
+      if (StringUtils.isNotEmpty(openaiFileId)) {
+        logIfDebug("Deleting file " + appSource.getFile().getName());
+        deleteFile(appSource.getOpenaiIdFile(), OpenAIUtils.getOpenaiApiKey());
+      }
+
+
+      fileFromCopilotFile = generateHQLFile(appSource);
+
+    } else {
+      fileFromCopilotFile = getFileFromCopilotFile(fileToSync);
+    }
 
     String dbName = "KB_" + appSource.getEtcopApp().getId();
-    String format;
+    if (StringUtils.isEmpty(extension)) {
+      extension = fileFromCopilotFile.getName().substring(fileFromCopilotFile.getName().lastIndexOf(".") + 1);
+    }
 
     if (StringUtils.equalsIgnoreCase(extension, "pdf")) {
       format = "pdf";
@@ -341,9 +360,8 @@ public class CopilotUtils {
       String text = fileToBase64(tempFile);
       textToVectorDB(text, dbName, format);
     } else if (StringUtils.equalsIgnoreCase(extension, "md")) {
-      format = "md";
-      String text = readFileToSync(fileToSync);
-      textToVectorDB(text, dbName, format);
+      String text = readFileToSync(fileFromCopilotFile);
+      textToVectorDB(text, dbName, extension);
 
     } else if (StringUtils.equalsIgnoreCase(extension, "txt")) {
       format = "txt";
@@ -365,5 +383,16 @@ public class CopilotUtils {
     fileToSync.setUpdated(new Date());
     OBDal.getInstance().save(fileToSync);
     OBDal.getInstance().flush();
+  }
+
+  static File generateHQLFile(CopilotAppSource appSource) {
+    String fileNameToCheck = ProcessHQLAppSource.getFileName(appSource);
+    if (StringUtils.equalsIgnoreCase("kb", appSource.getBehaviour()) && (StringUtils.isEmpty(
+        fileNameToCheck) || StringUtils.endsWithIgnoreCase(fileNameToCheck, ".csv"))) {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_Error_Csv_KB"), appSource.getFile().getName()));
+    }
+
+    return ProcessHQLAppSource.getInstance().generate(appSource);
   }
 }
