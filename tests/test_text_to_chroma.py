@@ -12,7 +12,7 @@ load_dotenv(dotenv_path)
 
 client = TestClient(core_router)
 
-body = TextToVectorDBSchema(kb_vectordb_id="test_db", text="Some text to process", overwrite=False, format="txt")
+body = TextToVectorDBSchema(kb_vectordb_id="test_db", text="Some text to process", overwrite=False, extension="txt")
 
 
 @pytest.fixture
@@ -94,5 +94,5 @@ def test_processTextToChromaDB_exception(mock_os_path_exists, mock_chroma):
     db_path = response_json["db_path"]
 
     assert success == False
-    assert "Error processing text to VectorDB" in message
+    assert "Error processing text to VectorDb" in message
     assert db_path == ""

@@ -21,6 +21,8 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -44,6 +46,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
+
 
 public class CopilotUtils {
 
@@ -170,7 +173,7 @@ public class CopilotUtils {
     JSONObject jsonRequestForCopilot = new JSONObject();
     jsonRequestForCopilot.put("text", text);
     jsonRequestForCopilot.put("kb_vectordb_id", dbName);
-    jsonRequestForCopilot.put("format", format);
+    jsonRequestForCopilot.put("extension", format);
     String requestBody = jsonRequestForCopilot.toString();
 
     String endpoint = "addToVectorDB";
@@ -283,16 +286,16 @@ public class CopilotUtils {
     return tempFile;
   }
 
-  private static String pdfToBase64(File fileInPDF) {
+  private static String fileToBase64(File fileInPDF) {
     try {
       FileInputStream fileInputStream = new FileInputStream(fileInPDF);
       byte[] fileBytes = new byte[(int) fileInPDF.length()];
       fileInputStream.read(fileBytes);
       fileInputStream.close();
 
-      String base64EncodedPDF = Base64.getEncoder().encodeToString(fileBytes);
+      String base64EncodedFile = Base64.getEncoder().encodeToString(fileBytes);
 
-      return base64EncodedPDF;
+      return base64EncodedFile;
 
     } catch (IOException e) {
       return null;
@@ -335,7 +338,7 @@ public class CopilotUtils {
     if (StringUtils.equalsIgnoreCase(extension, "pdf")) {
       format = "pdf";
       File tempFile = getFileFromCopilotFile(fileToSync);
-      String text = pdfToBase64(tempFile);
+      String text = fileToBase64(tempFile);
       textToVectorDB(text, dbName, format);
     } else if (StringUtils.equalsIgnoreCase(extension, "md")) {
       format = "md";
@@ -346,6 +349,13 @@ public class CopilotUtils {
       format = "txt";
       String text = readFileToSync(fileToSync);
       textToVectorDB(text, dbName, format);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "zip")) {
+      format = "zip";
+      File tempFile = getFileFromCopilotFile(fileToSync);
+      String zipEncoded = fileToBase64(tempFile);
+      textToVectorDB(zipEncoded, dbName, format);
+
     } else {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"),
           extension));
