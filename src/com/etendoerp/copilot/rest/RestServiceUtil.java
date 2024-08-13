@@ -882,7 +882,7 @@ public class RestServiceUtil {
    */
   private static void sendEventToFront(PrintWriter writerToFront, String x, boolean addData) {
     String line = (addData ? "data: " : "") + x + "\n\n";
-    System.out.println(line);
+    logIfDebug(line);
     writerToFront.println(line);
     writerToFront.flush();
   }

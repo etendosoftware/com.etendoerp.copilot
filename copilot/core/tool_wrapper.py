@@ -59,6 +59,7 @@ def parse_response(tool_response):
         copilot_info("Tool response is not a valid format, it will be parsed as a string. The recommended format is "
                      "an instance of ToolOutputMessage, ToolOutputError, or ToolOutputContent.")
         response = tool_response
+    copilot_debug(f"Tool response: {str(response)}")
     return ("ERROR: " if is_error else "") + str(response)
 
 
