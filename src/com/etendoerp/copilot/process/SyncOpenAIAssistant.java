@@ -90,11 +90,11 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         CopilotUtils.resetVectorDB(app);
       }
 
+      if (!appList.isEmpty()) {
+        syncOpenaiModels(openaiApiKey);
+      }
       for (CopilotAppSource appSource : appSourcesToSync) {
         if (StringUtils.equalsIgnoreCase(appSource.getEtcopApp().getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
-          if (!appList.isEmpty()) {
-            syncOpenaiModels(openaiApiKey);
-          }
 
           OpenAIUtils.syncAppSource(appSource, openaiApiKey);
 
