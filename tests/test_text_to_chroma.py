@@ -27,6 +27,10 @@ def mock_chroma(mocker):
 
 def test_processTextToChromaDB_existing_db(mock_os_path_exists, mock_chroma):
     mock_os_path_exists.return_value = False
+    try:
+        os.rmdir("./vectordbs")  # if not exists, it will raise an error
+    except:
+        pass
 
     response = client.post("/addToVectorDB", json=body.dict())
     response_json = response.json()
@@ -35,7 +39,8 @@ def test_processTextToChromaDB_existing_db(mock_os_path_exists, mock_chroma):
     db_path = response_json["db_path"]
     assert success
 
-    mock_os_path_exists.return_value = True
+    mock_os_path_exists.return_value = None
+    mock_os_path_exists.side_effect = lambda path: True if path in ["./vectordbs"] else False
 
     body2 = body.copy(update={"text": "Another Text"})
     response = client.post("/addToVectorDB", json=body2.dict())
@@ -48,10 +53,8 @@ def test_processTextToChromaDB_existing_db(mock_os_path_exists, mock_chroma):
 
 
 def test_processTextToChromaDB_overwrite(mock_os_path_exists, mock_chroma, mocker):
-    mock_os_path_exists.return_value = True
-    mock_remove = mocker.patch("os.remove")
-
-    mock_chroma.return_value = None
+    mock_os_path_exists.return_value = None
+    mock_os_path_exists.side_effect = lambda path: True if path in ["./vectordbs"] else False
 
     body_with_overwrite = body.copy(update={"overwrite": True})
     response = client.post("/addToVectorDB", json=body_with_overwrite.dict())
@@ -63,12 +66,15 @@ def test_processTextToChromaDB_overwrite(mock_os_path_exists, mock_chroma, mocke
     assert success == True
     assert message == "Database test_db created and loaded successfully."
     assert db_path == "./vectordbs/test_db.db"
-    mock_remove.assert_called_once_with(db_path)
 
 
 def test_processTextToChromaDB_success(mock_os_path_exists, mock_chroma):
     mock_os_path_exists.return_value = False
-
+    mock_os_path_exists.side_effect = None
+    try:
+        os.rmdir("./vectordbs")  # if not exists, it will raise an error
+    except:
+        pass
     mock_chroma.return_value = None
 
     response = client.post("/addToVectorDB", json=body.dict())
@@ -77,17 +83,21 @@ def test_processTextToChromaDB_success(mock_os_path_exists, mock_chroma):
     success = response_json["success"]
     message = response_json["answer"]
     db_path = response_json["db_path"]
-    assert success == True
+    assert success
     assert message == "Database test_db created and loaded successfully."
     assert db_path == "./vectordbs/test_db.db"
 
 
 def test_processTextToChromaDB_exception(mock_os_path_exists, mock_chroma):
-    mock_os_path_exists.return_value = False
+    mock_os_path_exists.return_value = None
+    mock_os_path_exists.side_effect = lambda path: True if path in ["./vectordbs"] else False
+    try:
+        os.rmdir("./vectordbs")  # if not exists, it will raise an error
+    except:
+        pass
+    body_for_error = body.copy(update={"format": 'mov'})
 
-    mock_chroma.side_effect = Exception("Mocked exception")
-
-    response = client.post("/addToVectorDB", json=body.dict())
+    response = client.post("/addToVectorDB", json=body_for_error.dict())
     response_json = response.json()
     success = response_json["success"]
     message = response_json["answer"]

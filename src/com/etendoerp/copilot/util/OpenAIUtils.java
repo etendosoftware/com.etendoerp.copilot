@@ -29,7 +29,6 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -42,9 +41,6 @@ import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import kong.unirest.UnirestException;
-
-import static com.etendoerp.copilot.hook.RemoteFileHook.COPILOT_FILE_TAB_ID;
-import static com.etendoerp.copilot.process.SyncOpenAIAssistant.ERROR;
 
 public class OpenAIUtils {
   private static final Logger log = LogManager.getLogger(OpenAIUtils.class);
@@ -392,14 +388,7 @@ public class OpenAIUtils {
       logIfDebug("Deleting file " + appSource.getFile().getName());
       deleteFile(appSource.getOpenaiIdFile(), openaiApiKey);
     }
-    String fileNameToCheck = ProcessHQLAppSource.getFileName(appSource);
-    if (StringUtils.equalsIgnoreCase("kb", appSource.getBehaviour()) && (StringUtils.isEmpty(
-        fileNameToCheck) || StringUtils.endsWithIgnoreCase(fileNameToCheck, ".csv"))) {
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_Error_Csv_KB"), appSource.getFile().getName()));
-    }
-
-    File file = ProcessHQLAppSource.getInstance().generate(appSource);
+    File file = CopilotUtils.generateHQLFile(appSource);
 
     String fileId = uploadFileToOpenAI(openaiApiKey, file);
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
@@ -450,7 +439,7 @@ public class OpenAIUtils {
     return updatedAtt.after(lastSyncDate);
   }
 
-  private static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
+  static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
     if (existsRemoteFile(openaiIdFile, openaiApiKey)) {
       JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiIdFile,
           null, METHOD_DELETE, null);

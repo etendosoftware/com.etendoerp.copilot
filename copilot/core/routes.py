@@ -15,10 +15,8 @@ import time
 
 import chromadb
 import fitz  # PyMuPDF
-from chromadb import Settings
 from fastapi import APIRouter
 from langchain.schema import Document
-from langchain.text_splitter import Language
 from langchain.vectorstores import Chroma
 from langchain_text_splitters import MarkdownTextSplitter, CharacterTextSplitter
 from langsmith import traceable
@@ -362,12 +360,14 @@ def processTextToVectorDB(body: TextToVectorDBSchema):
         text_splitter = None
 
         if extension == "md":
-            text_splitter = MarkdownTextSplitter.from_language(language=Language.MARKDOWN, chunk_size=2000,
-                                                               chunk_overlap=200)
+            copilot_debug("Indexing markdown")
+            text_splitter = MarkdownTextSplitter()
         elif extension == "txt" or extension == "pdf":
+            copilot_debug("Indexing text")
             text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
 
         texts = text_splitter.split_documents([document])
+        copilot_debug(f"Documents count: {len(texts)}")
 
         Chroma.from_documents(
             texts,
@@ -377,9 +377,11 @@ def processTextToVectorDB(body: TextToVectorDBSchema):
         )
         success = True
         message = f"Database {kb_vectordb_id} created and loaded successfully."
+        copilot_debug(message)
     except Exception as e:
         success = False
         message = f"Error processing text to VectorDB: {e}"
+        copilot_debug(message)
         db_path = ""
 
     return {"answer": message, "success": success, "db_path": db_path}

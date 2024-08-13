@@ -21,6 +21,7 @@ def get_vector_db_path(vector_db_id):
         os.makedirs(vectordb_folder)
     return vectordb_folder + "/" + vector_db_id + ".db"
 
+
 def get_chroma_settings(db_path=None):
     settings = Settings()
     if db_path is not None:
