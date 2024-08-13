@@ -14,6 +14,7 @@ EXCLUDES=(
   "doToolSymLinks.sh"       # specific file
   "README.md"               # specific file
   "etendo-resources"        # specific directory
+  "referencedata"           # specific directory
   "src"                     # specific directory
   "src-db"                  # specific directory
   "tests"                   # specific directory
