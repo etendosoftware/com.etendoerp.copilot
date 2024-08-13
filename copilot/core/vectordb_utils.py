@@ -1,5 +1,9 @@
+import os
+
 from chromadb import Settings
 from langchain_openai import OpenAIEmbeddings
+
+from copilot.core.utils import copilot_debug
 
 
 def get_embedding():
@@ -7,8 +11,15 @@ def get_embedding():
 
 
 def get_vector_db_path(vector_db_id):
-    return "./vectordbs/" + vector_db_id + ".db"
-
+    copilot_debug(f"Retrieving vector db path for {vector_db_id}, the current working directory is {os.getcwd()}")
+    # check if exists /app
+    if os.path.exists("/app"):
+        vectordb_folder = "/app/vectordbs"
+    else:
+        vectordb_folder = "./vectordbs"
+    if not os.path.exists(vectordb_folder):
+        os.makedirs(vectordb_folder)
+    return vectordb_folder + "/" + vector_db_id + ".db"
 
 def get_chroma_settings(db_path=None):
     settings = Settings()

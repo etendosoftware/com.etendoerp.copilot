@@ -357,9 +357,6 @@ public class OpenAIUtils {
     //first we need to get the file
     //if the file not has an id, we need to create it
     logIfDebug("Syncing file " + appSource.getFile().getName());
-    if (CopilotConstants.isHQLQueryFile(appSource.getFile())) {
-      syncHQLAppSource(appSource, openaiApiKey);
-    }
     CopilotFile fileToSync = appSource.getFile();
     WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
         .executeHooks(fileToSync);
@@ -371,6 +368,10 @@ public class OpenAIUtils {
       //we will delete the file
       logIfDebug("Deleting file " + fileToSync.getName());
       deleteFile(appSource.getOpenaiIdFile(), openaiApiKey);
+    }
+    if (CopilotConstants.isHQLQueryFile(appSource.getFile())) {
+      syncHQLAppSource(appSource, openaiApiKey);
+      return;
     }
     logIfDebug("Uploading file " + fileToSync.getName());
     String fileId = OpenAIUtils.downloadAttachmentAndUploadFile(fileToSync, openaiApiKey);
@@ -421,7 +422,7 @@ public class OpenAIUtils {
   }
 
   private static boolean fileHasChanged(CopilotFile fileToSync) {
-    if (StringUtils.isEmpty(fileToSync.getOpenaiIdFile())){
+    if (StringUtils.isEmpty(fileToSync.getOpenaiIdFile())) {
       return true;
     }
     Date lastSyncDate = fileToSync.getLastSync();
