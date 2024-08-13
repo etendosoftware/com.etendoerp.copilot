@@ -86,26 +86,18 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       List<CopilotApp> langchainApps = appList.stream().filter(
               app -> StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN))
           .distinct().collect(Collectors.toList());
-      for (CopilotApp app : langchainApps) {
-        CopilotUtils.resetVectorDB(app);
+      for (CopilotApp langApp : langchainApps) {
+        CopilotUtils.resetVectorDB(langApp);
       }
 
+      if (!appList.isEmpty()) {
+        syncOpenaiModels(openaiApiKey);
+      }
       for (CopilotAppSource appSource : appSourcesToSync) {
         if (StringUtils.equalsIgnoreCase(appSource.getEtcopApp().getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
-          if (!appList.isEmpty()) {
-            syncOpenaiModels(openaiApiKey);
-          }
 
-          OpenAIUtils.syncAppSource(appSource, openaiApiKey); //CopilotUtils
+          OpenAIUtils.syncAppSource(appSource, openaiApiKey);
 
-          for (CopilotApp app : appList) { //openai
-            OBDal.getInstance().refresh(app);
-            OpenAIUtils.refreshVectorDb(app);
-          }
-          for (CopilotApp app : appList) { //openai
-            OBDal.getInstance().refresh(app);
-            syncCount = callSync(syncCount, openaiApiKey, app);
-          }
 
         } else if (StringUtils.equalsIgnoreCase(appSource.getEtcopApp().getAppType(),
             CopilotConstants.APP_TYPE_LANGCHAIN)) {
@@ -115,6 +107,18 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         }
 
       }
+
+      for (CopilotApp app : appList) {
+        if (StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
+          OBDal.getInstance().refresh(app);
+          OpenAIUtils.refreshVectorDb(app);
+          OBDal.getInstance().refresh(app);
+          syncCount = callSync(syncCount, openaiApiKey, app);
+        } else {
+          syncCount++;
+        }
+      }
+
 
       returnSuccessMsg(result, syncCount, totalRecords);
     } catch (Exception e) {
