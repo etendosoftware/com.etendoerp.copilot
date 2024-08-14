@@ -130,11 +130,17 @@ public class RestService {
   private void handleQuestion(HttpServletRequest request, HttpServletResponse response)
       throws IOException, JSONException {
     // read the json sent
-    JSONObject json = new JSONObject();
+    JSONObject json = null;
     // get body from request
     if ("POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null) {
-      json = new JSONObject(request.getReader().lines().reduce("",String::concat));
-    } else {
+      try {
+        json = new JSONObject(request.getReader().lines().reduce("", String::concat));
+      } catch (JSONException ignore) {
+        // Body is not a valid json, try with params
+      }
+    }
+    if (json == null) {
+      json = new JSONObject();
       if(request.getParameter("question") != null) {
         json.put("question", request.getParameter("question"));
       }

@@ -514,21 +514,31 @@ public class RestServiceUtil {
           message = ((JSONObject) detail.get(0)).getString("message");
         }
       }
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
+      if(!message.isEmpty()) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
+      }
     }
-    JSONObject answer = (JSONObject) finalResponseAsync.get("answer");
-    handleErrorMessagesIfExists(answer);
-    conversationId = answer.optString(PROP_CONVERSATION_ID);
-    if (StringUtils.isNotEmpty(conversationId)) {
-      responseOriginal.put(PROP_CONVERSATION_ID, conversationId);
+    String response = null;
+    if(finalResponseAsync.has("answer")) {
+      JSONObject answer = (JSONObject) finalResponseAsync.get("answer");
+      handleErrorMessagesIfExists(answer);
+      conversationId = answer.optString(PROP_CONVERSATION_ID);
+      if (StringUtils.isNotEmpty(conversationId)) {
+        responseOriginal.put(PROP_CONVERSATION_ID, conversationId);
+      }
+      responseOriginal.put(PROP_RESPONSE, answer.get(PROP_RESPONSE));
+      response = responseOriginal.getString(PROP_RESPONSE);
+    } else if(finalResponseAsync.has(PROP_RESPONSE)) {
+      response = finalResponseAsync.getString(PROP_RESPONSE);
     }
-    responseOriginal.put(PROP_RESPONSE, answer.get(PROP_RESPONSE));
+    if (StringUtils.isEmpty(response)) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), "Empty response"));
+    }
     Date date = new Date();
-    //getting the object of the Timestamp class
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
     TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
-    TrackingUtil.getInstance().trackResponse(conversationId, responseOriginal.getString(PROP_RESPONSE), copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp);
     return responseOriginal;
   }
 
