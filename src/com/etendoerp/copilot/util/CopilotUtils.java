@@ -354,24 +354,23 @@ public class CopilotUtils {
       extension = fileFromCopilotFile.getName().substring(fileFromCopilotFile.getName().lastIndexOf(".") + 1);
     }
 
+    String format;
     if (StringUtils.equalsIgnoreCase(extension, "pdf")) {
       format = "pdf";
-      File tempFile = getFileFromCopilotFile(fileToSync);
-      String text = fileToBase64(tempFile);
+      String text = fileToBase64(fileFromCopilotFile);
       textToVectorDB(text, dbName, format);
-    } else if (StringUtils.equalsIgnoreCase(extension, "md")) {
+    } else if (StringUtils.equalsIgnoreCase(extension, "md") || (StringUtils.equalsIgnoreCase(extension, "markdown"))) {
       String text = readFileToSync(fileFromCopilotFile);
       textToVectorDB(text, dbName, extension);
 
     } else if (StringUtils.equalsIgnoreCase(extension, "txt")) {
       format = "txt";
-      String text = readFileToSync(fileToSync);
+      String text = readFileToSync(fileFromCopilotFile);
       textToVectorDB(text, dbName, format);
 
     } else if (StringUtils.equalsIgnoreCase(extension, "zip")) {
       format = "zip";
-      File tempFile = getFileFromCopilotFile(fileToSync);
-      String zipEncoded = fileToBase64(tempFile);
+      String zipEncoded = fileToBase64(fileFromCopilotFile);
       textToVectorDB(zipEncoded, dbName, format);
 
     } else {
