@@ -175,12 +175,19 @@ function App() {
         };
 
         eventSource.onerror = function (err) {
+          setIsBotLoading(false);
           console.error('EventSource failed:', err);
           eventSource.close();
         };
-
-        setIsBotLoading(false);
         setStatusIcon(botIcon);
+        const intervalTimeOut = setInterval(() => {
+          if(eventSource.readyState === EventSourcePolyfill.CLOSED) {
+            setIsBotLoading(false);
+            eventSource.close();
+            setTimeout(() => scrollToBottom(), 100);
+            clearInterval(intervalTimeOut);
+          }
+        }, 1000);
       } catch (error: any) {
         console.error('Error fetching data: ', error);
         setIsBotLoading(false);
