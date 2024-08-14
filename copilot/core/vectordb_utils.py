@@ -29,7 +29,7 @@ def get_vector_db_path(vector_db_id):
     else:
         vectordb_folder = "./vectordbs"
     if not os.path.exists(vectordb_folder):
-        os.makedirs(vectordb_folder)
+        os.makedirs(vectordb_folder, exist_ok=True)
     return vectordb_folder + "/" + vector_db_id + ".db"
 
 
@@ -71,7 +71,7 @@ def handle_other_formats(extension, text):
 
 def process_directory(directory):
     texts = []
-    extensions = ["pdf","txt","md", "markdown"]
+    extensions = ["pdf", "txt", "md", "markdown"]
     for item in os.listdir(directory):
         item_path = os.path.join(directory, item)
         if os.path.isdir(item_path):
@@ -88,8 +88,7 @@ def process_directory(directory):
 
 def get_text_splitter(ext):
     if ext == "md" or ext == "markdown":
-        return MarkdownTextSplitter.from_language(
-            language=Language.MARKDOWN, chunk_size=2000, chunk_overlap=200)
+        return MarkdownTextSplitter()
     elif ext in ["txt", "pdf"]:
         return CharacterTextSplitter(chunk_size=2000,chunk_overlap=200)
 
@@ -113,31 +112,3 @@ def process_pdf(pdf_data):
     for page in doc:
         content += page.get_text()
     return content
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

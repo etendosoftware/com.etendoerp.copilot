@@ -92,10 +92,11 @@ def test_processTextToChromaDB_exception(mock_os_path_exists, mock_chroma):
     mock_os_path_exists.return_value = None
     mock_os_path_exists.side_effect = lambda path: True if path in ["./vectordbs"] else False
     try:
-        os.rmdir("./vectordbs")  # if not exists, it will raise an error
+        os.rmdir("./vectordbs")
     except:
         pass
-    body_for_error = body.copy(update={"format": 'mov'})
+
+    body_for_error = body.copy(update={"extension": 'mov'})
 
     response = client.post("/addToVectorDB", json=body_for_error.dict())
     response_json = response.json()
