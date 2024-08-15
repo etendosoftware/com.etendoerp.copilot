@@ -350,28 +350,34 @@ public class CopilotUtils {
     }
 
     String dbName = "KB_" + appSource.getEtcopApp().getId();
+
     if (StringUtils.isEmpty(extension)) {
       extension = fileFromCopilotFile.getName().substring(fileFromCopilotFile.getName().lastIndexOf(".") + 1);
     }
 
-    String format;
     if (StringUtils.equalsIgnoreCase(extension, "pdf")) {
-      format = "pdf";
-      String text = fileToBase64(fileFromCopilotFile);
-      textToVectorDB(text, dbName, format);
+      encodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
     } else if (StringUtils.equalsIgnoreCase(extension, "md") || (StringUtils.equalsIgnoreCase(extension, "markdown"))) {
-      String text = readFileToSync(fileFromCopilotFile);
-      textToVectorDB(text, dbName, extension);
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
 
     } else if (StringUtils.equalsIgnoreCase(extension, "txt")) {
-      format = "txt";
-      String text = readFileToSync(fileFromCopilotFile);
-      textToVectorDB(text, dbName, format);
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
 
     } else if (StringUtils.equalsIgnoreCase(extension, "zip")) {
-      format = "zip";
-      String zipEncoded = fileToBase64(fileFromCopilotFile);
-      textToVectorDB(zipEncoded, dbName, format);
+      encodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "java")) {
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "py")) {
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "js")) {
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "xml")) {
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
 
     } else {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"),
@@ -382,6 +388,18 @@ public class CopilotUtils {
     fileToSync.setUpdated(new Date());
     OBDal.getInstance().save(fileToSync);
     OBDal.getInstance().flush();
+  }
+
+  private static void notEncodedFileToVectorDB(File fileFromCopilotFile, String dbName, String extension)
+      throws IOException, JSONException {
+    String text = readFileToSync(fileFromCopilotFile);
+    textToVectorDB(text, dbName, extension);
+  }
+
+  private static void encodedFileToVectorDB(File fileFromCopilotFile, String dbName, String extension)
+      throws JSONException {
+    String fileEncoded = fileToBase64(fileFromCopilotFile);
+    textToVectorDB(fileEncoded, dbName, extension);
   }
 
   static File generateHQLFile(CopilotAppSource appSource) {

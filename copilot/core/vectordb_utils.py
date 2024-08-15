@@ -71,7 +71,7 @@ def handle_other_formats(extension, text):
 
 def process_directory(directory):
     texts = []
-    extensions = ["pdf", "txt", "md", "markdown"]
+    extensions = ["pdf", "txt", "md", "markdown", "java", "js", "py", "xml"]
     for item in os.listdir(directory):
         item_path = os.path.join(directory, item)
         if os.path.isdir(item_path):
@@ -87,10 +87,10 @@ def process_directory(directory):
 
 
 def get_text_splitter(ext):
-    if ext == "md" or ext == "markdown":
+    if ext in ["md", "markdown"]:
         return MarkdownTextSplitter()
-    elif ext in ["txt", "pdf"]:
-        return CharacterTextSplitter(chunk_size=2000,chunk_overlap=200)
+    elif ext in ["txt", "pdf", "java", "js", "py", "xml"]:
+        return CharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
 
 
 def process_file(file_path, ext):
