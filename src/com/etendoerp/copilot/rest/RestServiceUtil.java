@@ -530,6 +530,10 @@ public class RestServiceUtil {
       response = responseOriginal.getString(PROP_RESPONSE);
     } else if(finalResponseAsync.has(PROP_RESPONSE)) {
       response = finalResponseAsync.getString(PROP_RESPONSE);
+      if (finalResponseAsync.has(PROP_CONVERSATION_ID)) {
+        responseOriginal.put(PROP_CONVERSATION_ID, finalResponseAsync.get(PROP_CONVERSATION_ID));
+        conversationId = finalResponseAsync.optString(PROP_CONVERSATION_ID);
+      }
     }
     if (StringUtils.isEmpty(response)) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), "Empty response"));
