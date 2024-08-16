@@ -106,7 +106,9 @@ public class OpenAIUtils {
     if (app.getTemperature() != null) {
       body.put("temperature", app.getTemperature());
     }
-    body.put("model", CopilotUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI));
+    String model = CopilotUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI);
+    logIfDebug("Selected model: " + model);
+    body.put("model", model);
     //make the request to openai
     JSONObject response = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null, false);
     logIfDebug(response.toString());
