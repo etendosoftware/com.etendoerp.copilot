@@ -41,11 +41,11 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_ROLE_APP_APP_FK">
-        <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
-      </foreign-key>
       <foreign-key foreignTable="AD_CLIENT" name="ETCOP_ROLE_APP_CLI_FK">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_ROLE_APP_FK" onDelete="cascade">
+        <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
       </foreign-key>
       <foreign-key foreignTable="AD_ORG" name="ETCOP_ROLE_APP_ORG_FK">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
