@@ -45,7 +45,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_TMEMB_APP_FK">
+      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_TMEMB_APP_FK" onDelete="cascade">
         <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
       </foreign-key>
       <foreign-key foreignTable="ETCOP_APP" name="ETCOP_TMEMB_APPM_FK">
