@@ -1,5 +1,7 @@
 package com.etendoerp.copilot.rest;
 
+import static com.etendoerp.copilot.util.CopilotConstants.LANGCHAIN_MAX_LENGTH_QUESTION;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -68,8 +70,6 @@ import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
-
-import netscape.javascript.JSObject;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -451,6 +451,7 @@ public class RestServiceUtil {
       jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
     }
     question += OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
+    checkQuestionPrompt(question);
     jsonRequestForCopilot.put(PROP_QUESTION, question);
     addAppSourceFileIds(copilotApp, questionAttachedFileIds);
     handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
@@ -542,6 +543,12 @@ public class RestServiceUtil {
     TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
     TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp);
     return responseOriginal;
+  }
+
+  private static void checkQuestionPrompt(String question) {
+    if (question.length() > LANGCHAIN_MAX_LENGTH_QUESTION) {
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_MaxLengthQuestion"));
+    }
   }
 
   /**
@@ -698,6 +705,7 @@ public class RestServiceUtil {
       // Lookup in app sources for the prompt
       prompt.append(OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
       if (!StringUtils.isEmpty(prompt.toString())) {
+        CopilotUtils.checkPromptLength(prompt);
         jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
       }
       if (StringUtils.isNotEmpty(copilotApp.getDescription())) {

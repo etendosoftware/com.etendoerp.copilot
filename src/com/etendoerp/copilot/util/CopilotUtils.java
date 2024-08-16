@@ -116,7 +116,9 @@ public class CopilotUtils {
    */
   public static String getAppModel(CopilotApp app) {
     try {
-      return getAppModel(app, getProvider(app));
+      String model= getAppModel(app, getProvider(app));
+      logIfDebug("Selected model: " + model);
+      return model;
     } catch (Exception e) {
       throw new OBException(e.getMessage());
     }
@@ -381,5 +383,11 @@ public class CopilotUtils {
     }
 
     return ProcessHQLAppSource.getInstance().generate(appSource);
+  }
+
+  public static void checkPromptLength(StringBuilder prompt) {
+    if (prompt.length() > CopilotConstants.LANGCHAIN_MAX_LENGTH_PROMPT) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MaxLengthPrompt")));
+    }
   }
 }
