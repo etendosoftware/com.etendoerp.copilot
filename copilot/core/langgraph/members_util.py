@@ -2,12 +2,13 @@ import functools
 from typing import List, Sequence
 
 from langchain.agents import AgentExecutor
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, AIMessage
 from langsmith import traceable
 
 from copilot.core.agent import LangchainAgent, AssistantAgent
 from copilot.core.langgraph.patterns.base_pattern import GraphMember
 from copilot.core.schemas import AssistantSchema
+from copilot.core.utils import copilot_debug
 
 
 class MembersUtil:
@@ -22,16 +23,24 @@ class MembersUtil:
     @traceable
     def model_openai_invoker(self):
         def invoke_model_openai(state: List[BaseMessage], _agent: AgentExecutor, _name: str):
+            copilot_debug(f"Invoking model OPENAI: {_name} with state: {str(state)}")
+            copilot_debug(f"The response is called with: {state['messages'][-1].content}")
             response = _agent.invoke({"content": state["messages"][-1].content})
-            return {"messages": [HumanMessage(content=response["output"], name=_name)]}
+            response_msg = response["output"]
+            copilot_debug(f"Response from OPENAI: {_name} is: {response_msg}")
+            return {"messages": [AIMessage(content=response_msg, name=_name)]}
 
         return invoke_model_openai
 
     @traceable
     def model_langchain_invoker(self):
-        def invoke_model_langchain(state: Sequence[BaseMessage], _agent, _name: str):
-            response = _agent.invoke({"messages": state["messages"]})
-            return {"messages": [HumanMessage(content=response["output"], name=_name)]}
+        def invoke_model_langchain(state: Sequence[BaseMessage], _agent, _name: str, **kwargs):
+            copilot_debug(f"Invoking model LANGCHAIN: {_name} with state: {str(state)}")
+            messages = state["messages"]
+            response = _agent.invoke({"messages": messages})
+            response_msg = response["output"]
+            copilot_debug(f"Response from LANGCHAIN: {_name} is: {response_msg}")
+            return {"messages": [AIMessage(content=response_msg, name=_name)]}
 
         return invoke_model_langchain
 
