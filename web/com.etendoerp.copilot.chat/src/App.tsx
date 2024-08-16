@@ -50,11 +50,11 @@ function App() {
     }
 
     setMessages(prevMessages => {
-      const lastMessage = prevMessages[prevMessages.length - 1];
+      const lastMessage = prevMessages[prevMessages.length - 1];      
       if (
         lastMessage &&
-        (lastMessage.sender === ROLE_TOOL || lastMessage.sender === ROLE_NODE) &&
-        (role === lastMessage.sender || role === ROLE_BOT)
+        (lastMessage.sender === ROLE_TOOL || lastMessage.sender === ROLE_NODE || lastMessage.sender === ROLE_WAIT) &&
+        (role === lastMessage.sender || role === ROLE_BOT || lastMessage.sender === ROLE_WAIT)
       ) {
         // Replace the last message if the role is the same
         return [
@@ -64,6 +64,7 @@ function App() {
             text: _text,
             sender: role,
             timestamp: formatTimeNewDate(new Date()),
+            file: message.file,
           },
         ];
       } else {
@@ -75,10 +76,19 @@ function App() {
             text: _text,
             sender: role,
             timestamp: formatTimeNewDate(new Date()),
+            file: message.file,
           },
         ];
       }
     });
+    if( role === ROLE_USER ){
+      setTimeout(() => 
+      handleNewMessage( ROLE_WAIT, {
+        text: 'Processing...',
+        sender: ROLE_WAIT,
+        timestamp: formatTimeNewDate(new Date()),
+      }), 100);
+    }
     scrollToBottom();
   };
 
@@ -402,7 +412,7 @@ function App() {
                       time={message.timestamp}
                       type="left-user"
                     />
-                  ) : message.sender === ROLE_TOOL || message.sender === ROLE_NODE ? (
+                  ) : message.sender === ROLE_TOOL || message.sender === ROLE_NODE || message.sender === ROLE_WAIT ? (
                     <div className={`flex items-center`}>
                       <img
                         src={statusIcon}
