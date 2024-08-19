@@ -1,5 +1,7 @@
 package com.etendoerp.copilot.hook;
 
+import static com.etendoerp.copilot.util.CopilotUtils.replaceCopilotPromptVariables;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -21,7 +23,6 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.util.OpenAIUtils;
 
 import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.utility.Attachment;
@@ -52,7 +53,7 @@ public class RemoteFileHook implements CopilotFileHook {
       log.debug(String.format("RemoteFileHook for file: %s executed start", hookObject.getName()));
     }
     String url = hookObject.getUrl();
-    url = OpenAIUtils.replaceCopilotPromptVariables(url);
+    url = replaceCopilotPromptVariables(url);
     String fileName = hookObject.getFilename();
     //download the file from the URL, preserving the original name, if filename is not empty, use it instead. The file must be
     //stored in a temporary folder.

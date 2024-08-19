@@ -1,6 +1,9 @@
 package com.etendoerp.copilot.rest;
 
 import static com.etendoerp.copilot.util.CopilotConstants.LANGCHAIN_MAX_LENGTH_QUESTION;
+import static com.etendoerp.copilot.util.CopilotUtils.getAppSourceContent;
+import static com.etendoerp.copilot.util.CopilotUtils.getAssistantPrompt;
+import static com.etendoerp.copilot.util.CopilotUtils.replaceCopilotPromptVariables;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -450,7 +453,7 @@ public class RestServiceUtil {
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
     }
-    question += OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
+    question += getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
     checkQuestionPrompt(question);
     jsonRequestForCopilot.put(PROP_QUESTION, question);
     addAppSourceFileIds(copilotApp, questionAttachedFileIds);
@@ -700,13 +703,14 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_PROVIDER, CopilotUtils.getProvider(copilotApp));
     jsonRequestForCopilot.put(PROP_MODEL, CopilotUtils.getAppModel(copilotApp));
     jsonRequestForCopilot.put(PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
-    if (!StringUtils.isEmpty(copilotApp.getPrompt())) {
-      prompt = new StringBuilder(copilotApp.getPrompt() + "\n");
+    String promptApp = getAssistantPrompt(copilotApp);
+    if (!StringUtils.isEmpty(promptApp)) {
+      prompt = new StringBuilder(prompt + "\n");
       // Lookup in app sources for the prompt
-      prompt.append(OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
+      prompt.append(getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
       if (!StringUtils.isEmpty(prompt.toString())) {
         CopilotUtils.checkPromptLength(prompt);
-        jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
+        jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, replaceCopilotPromptVariables(prompt.toString()));
       }
       if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
         jsonRequestForCopilot.put(PROP_DESCRIPTION, copilotApp.getDescription());
