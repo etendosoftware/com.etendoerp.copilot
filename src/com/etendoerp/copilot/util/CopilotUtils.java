@@ -437,10 +437,6 @@ public class CopilotUtils {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_BalancedBrackets")));
     }
 
-
-    System.out.println("-------------");
-    System.out.println(stringParsed);
-    System.out.println("-------------");
     return stringParsed;
   }
 

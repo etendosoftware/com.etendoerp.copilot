@@ -79,7 +79,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
                 String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
           }
         }
-        appSourcesToSync.addAll(appSources);
+        appSourcesToSync.addAll(listSourcesForKb);
       }
 
       //for langchain apps we need to reset vector DB, so collect all langchain apps and reset the vector DBs
@@ -94,6 +94,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         syncOpenaiModels(openaiApiKey);
       }
       for (CopilotAppSource appSource : appSourcesToSync) {
+
         if (StringUtils.equalsIgnoreCase(appSource.getEtcopApp().getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
 
           OpenAIUtils.syncAppSource(appSource, openaiApiKey);
