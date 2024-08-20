@@ -17,7 +17,7 @@ done
 
 echo "Starting script to create symbolic links for tools and tests"
 
-# Navegar al main_module y limpiar los enlaces simbólicos en tools y tests
+# Navigate to the main_module and clean the symbolic links in tools and tests
 cd "$main_module"
 
 echo "Cleaning symbolic links in tools and tests folders"
@@ -27,21 +27,21 @@ cd ../tests
 find . -type l -delete
 cd ..
 
-# Volver al directorio de trabajo original para iterar sobre los submódulos
+# Go back to the original working directory to iterate over the submodules
 cd ..
 echo "Going back to the original working directory"
 echo "Current directory: $(pwd)"
 
 
-# Iterar sobre los submódulos, excluyendo el main_module
+# Iterate over the submodules, excluding the main_module
 for module in ./*; do
-    # Saltar el main_module
+    # Skip the main_module
     if [[ "$module" == "$main_module" ]]; then
         echo "Skipping main module: $module"
         continue
     fi
 
-    # Crear enlaces simbólicos en la carpeta tools del main_module
+    # Create symbolic links in the tools folder of the main_module
     if [ -d "$module/tools" ]; then
         echo "Creating symbolic links for tools from $module"
         for tool in "$module/tools"/*; do
@@ -56,7 +56,7 @@ for module in ./*; do
         done
     fi
 
-    # Crear enlaces simbólicos en la carpeta tests del main_module
+    # Create symbolic links in the tests folder of the main_module
     if [ -d "$module/tests" ]; then
         echo "Creating symbolic links for tests from $module"
         for _test in "$module/tests"/*; do
@@ -76,11 +76,11 @@ for module in ./*; do
     fi
 done
 
-# Volver a la carpeta del main_module
+# Go back to the main_module
 echo "Going back to the main module"
 cd "$main_module"
 
-# Ejecutar el script local_setup.py si no se pasó la opción --no-local-setup
+# Execute the local_setup.py script if the --no-local-setup option was not passed
 if [ "$no_local_setup" = false ]; then
     echo "Running local_setup.py"
     exec python3 local_setup.py
