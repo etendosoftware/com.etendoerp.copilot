@@ -19,12 +19,16 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.MalformedInputException;
+import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -48,6 +52,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
+import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
 
@@ -119,7 +124,9 @@ public class CopilotUtils {
    */
   public static String getAppModel(CopilotApp app) {
     try {
-      return getAppModel(app, getProvider(app));
+      String model = getAppModel(app, getProvider(app));
+      logIfDebug("Selected model: " + model);
+      return model;
     } catch (Exception e) {
       throw new OBException(e.getMessage());
     }
@@ -412,4 +419,95 @@ public class CopilotUtils {
 
     return ProcessHQLAppSource.getInstance().generate(appSource);
   }
+
+  public static void checkPromptLength(StringBuilder prompt) {
+    if (prompt.length() > CopilotConstants.LANGCHAIN_MAX_LENGTH_PROMPT) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MaxLengthPrompt")));
+    }
+  }
+
+  public static String getAssistantPrompt(CopilotApp app) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(app.getPrompt());
+    sb.append("\n");
+    try {
+      sb.append(WeldUtils.getInstanceFromStaticBeanManager(OpenAIPromptHookManager.class)
+          .executeHooks(app));
+    } catch (OBException e) {
+      log.error("Error executing hooks", e);
+    }
+    //
+    sb.append(getAppSourceContent(app, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
+
+    return replaceCopilotPromptVariables(sb.toString());
+  }
+
+  /**
+   * This method is used to replace a specific placeholder in a string with the host name of Etendo.
+   * The placeholder is "@ETENDO_HOST@" and it is replaced with the value returned by the getEtendoHost() method.
+   *
+   * @param string
+   *     The string in which the placeholder is to be replaced. It is expected to contain "@ETENDO_HOST@".
+   * @return The string with the placeholder "@ETENDO_HOST@" replaced by the host name of Etendo.
+   */
+  public static String replaceCopilotPromptVariables(String string) {
+    String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
+
+    //check the If exists something like {SOMETHING} and replace it with {{SOMETHING}}, preserving the content inside
+    // replace { with {{
+    Pattern pattern = Pattern.compile("\\{");
+    Matcher matcher = pattern.matcher(stringParsed);
+    stringParsed = matcher.replaceAll("\\{\\{");
+    // replace } with }}
+    pattern = Pattern.compile("\\}");
+    matcher = pattern.matcher(stringParsed);
+    stringParsed = matcher.replaceAll("\\}\\}");
+    // check that the result is correctly balanced
+    if (StringUtils.countMatches(stringParsed, "{{") != StringUtils.countMatches(stringParsed, "}}")) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_BalancedBrackets")));
+    }
+
+    return stringParsed;
+  }
+
+  /**
+   * This method retrieves the host name of Etendo from the system properties.
+   * It uses the key "ETENDO_HOST" to fetch the value from the properties.
+   * If the key is not found in the properties, it retu rns "ERROR" as a default value.
+   *
+   * @return The host name of Etendo if found, otherwise "ERROR".
+   */
+  private static String getEtendoHost() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
+  }
+
+  public static String getAppSourceContent(CopilotApp copilotApp, String type) {
+    StringBuilder content = new StringBuilder();
+    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+      if (StringUtils.equals(appSource.getBehaviour(), type) && appSource.getFile() != null) {
+        try {
+          File tempFile;
+          if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
+            tempFile = getFileFromCopilotFile(appSource.getFile());
+          } else {
+            tempFile = ProcessHQLAppSource.getInstance().generate(appSource);
+          }
+          content.append("\n---\n");
+          content.append(appSource.getFile().getName()).append("\n");
+          content.append(Files.readString(tempFile.toPath())).append("\n");
+          content.append("\n---\n");
+        } catch (MalformedInputException e) {
+          throw new OBException(
+              String.format(OBMessageUtils.messageBD("ETCOP_Error_MalformedSourceContent"),
+                  appSource.getFile().getName(), appSource.getEtcopApp().getName()));
+        } catch (IOException e) {
+          log.error(e);
+          throw new OBException(e);
+        }
+      }
+    }
+    return content.toString();
+  }
+
 }

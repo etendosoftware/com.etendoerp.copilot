@@ -10,10 +10,9 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -27,12 +26,12 @@ import java.util.concurrent.TransferQueue;
 import static com.etendoerp.copilot.rest.RestServiceUtil.*;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
 
-public class RestService extends HttpSecureAppServlet {
+public class RestService {
+  private static final Logger log4j = LogManager.getLogger(RestService.class);
   static final Map<String, TransferQueue<String>> asyncRequests = new HashMap<>();
 
-  @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response)
-      throws IOException, ServletException {
+      throws IOException {
     String path = request.getPathInfo();
     try {
       if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
@@ -62,9 +61,8 @@ public class RestService extends HttpSecureAppServlet {
     }
   }
 
-  @Override
   public void doPost(HttpServletRequest request, HttpServletResponse response)
-      throws IOException, ServletException {
+      throws IOException {
     String path = request.getPathInfo();
     try {
       OBContext.setAdminMode();
@@ -118,22 +116,73 @@ public class RestService extends HttpSecureAppServlet {
     response.getWriter().write(responseJson.toString());
   }
 
+  private boolean isAsyncRequest(HttpServletRequest request) {
+    String path = request.getPathInfo();
+    if(StringUtils.equals(path, AQUESTION)) {
+      return true;
+    }
+    if(StringUtils.equals(path, AGRAPH)) {
+      return true;
+    }
+    return false;
+  }
+
   private void handleQuestion(HttpServletRequest request, HttpServletResponse response)
       throws IOException, JSONException {
     // read the json sent
-    JSONObject json = new JSONObject();
-    json.put("question", request.getParameter("question"));
-    json.put("app_id", request.getParameter("app_id"));
-    json.put("conversation_id", request.getParameter("conversation_id"));
-    json.put("file", request.getParameter("file"));
-    try {
-      RestServiceUtil.handleQuestion(response, json);
-    } catch (OBException e) {
-      RestServiceUtil.setEventStreamMode(response);
-
-      JSONObject errorEventJSON = RestServiceUtil.getErrorEventJSON(request, e);
-      PrintWriter writerToFront = response.getWriter();
-      RestServiceUtil.sendEventToFront(writerToFront, errorEventJSON, true);
+    JSONObject json = null;
+    // get body from request
+    if ("POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null) {
+      try {
+        json = new JSONObject(request.getReader().lines().reduce("", String::concat));
+      } catch (JSONException ignore) {
+        // Body is not a valid json, try with params
+      }
+    }
+    if (json == null) {
+      json = new JSONObject();
+      if(request.getParameter("question") != null) {
+        json.put("question", request.getParameter("question"));
+      }
+      if(request.getParameter("app_id") != null) {
+        json.put("app_id", request.getParameter("app_id"));
+      }
+      if(request.getParameter("conversation_id") != null) {
+        json.put("conversation_id", request.getParameter("conversation_id"));
+      }
+      if(request.getParameter("file") != null) {
+        json.put("file", request.getParameter("file"));
+      }
+    }
+    if(!json.has("question")) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), "question"));
+    }
+    if(!json.has("app_id")) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), "app_id"));
+    }
+    boolean isAsyncRequest = isAsyncRequest(request);
+    if (isAsyncRequest) {
+      try {
+        RestServiceUtil.handleQuestion(true, response, json);
+      } catch (OBException e) {
+        RestServiceUtil.setEventStreamMode(response);
+        JSONObject errorEventJSON = RestServiceUtil.getErrorEventJSON(request, e);
+        PrintWriter writerToFront = response.getWriter();
+        RestServiceUtil.sendEventToFront(writerToFront, errorEventJSON, true);
+      }
+    } else {
+      try {
+        var responseOriginal = RestServiceUtil.handleQuestion(false, response, json);
+        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+        response.getWriter().write(responseOriginal.toString());
+      } catch (CopilotRestServiceException e) {
+        response.getWriter().write(new JSONObject().put("error", e.getMessage()).toString());
+        if (e.getCode() > -1) {
+          response.setStatus(e.getCode());
+        } else {
+          response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+      }
     }
   }
 

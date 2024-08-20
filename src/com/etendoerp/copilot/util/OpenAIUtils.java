@@ -1,6 +1,7 @@
 package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.process.SyncOpenAIAssistant.ERROR;
+import static com.etendoerp.copilot.util.CopilotUtils.getAssistantPrompt;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -106,7 +107,9 @@ public class OpenAIUtils {
     if (app.getTemperature() != null) {
       body.put("temperature", app.getTemperature());
     }
-    body.put("model", CopilotUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI));
+    String model = CopilotUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI);
+    logIfDebug("Selected model: " + model);
+    body.put("model", model);
     //make the request to openai
     JSONObject response = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null, false);
     logIfDebug(response.toString());
@@ -195,45 +198,6 @@ public class OpenAIUtils {
     logIfDebug(json.toString());
   }
 
-  private static String getAssistantPrompt(CopilotApp app) {
-    StringBuilder sb = new StringBuilder();
-    sb.append(app.getPrompt());
-    sb.append("\n");
-    try {
-      sb.append(WeldUtils.getInstanceFromStaticBeanManager(OpenAIPromptHookManager.class)
-          .executeHooks(app));
-    } catch (OBException e) {
-      log.error("Error executing hooks", e);
-    }
-    //
-    sb.append(getAppSourceContent(app, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
-
-    return replaceCopilotPromptVariables(sb.toString());
-  }
-
-  /**
-   * This method is used to replace a specific placeholder in a string with the host name of Etendo.
-   * The placeholder is "@ETENDO_HOST@" and it is replaced with the value returned by the getEtendoHost() method.
-   *
-   * @param string
-   *     The string in which the placeholder is to be replaced. It is expected to contain "@ETENDO_HOST@".
-   * @return The string with the placeholder "@ETENDO_HOST@" replaced by the host name of Etendo.
-   */
-  public static String replaceCopilotPromptVariables(String string) {
-    return StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
-  }
-
-  /**
-   * This method retrieves the host name of Etendo from the system properties.
-   * It uses the key "ETENDO_HOST" to fetch the value from the properties.
-   * If the key is not found in the properties, it returns "ERROR" as a default value.
-   *
-   * @return The host name of Etendo if found, otherwise "ERROR".
-   */
-  private static String getEtendoHost() {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
-  }
 
   public static JSONObject wrappWithJSONSchema(JSONObject parameters) throws JSONException {
     return new JSONObject().put("type", "object").put("properties", parameters);
@@ -623,32 +587,5 @@ public class OpenAIUtils {
     }
   }
 
-  public static String getAppSourceContent(CopilotApp copilotApp, String type) {
-    StringBuilder content = new StringBuilder();
-    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
-      if (StringUtils.equals(appSource.getBehaviour(), type) && appSource.getFile() != null) {
-        try {
-          File tempFile;
-          if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
-            tempFile = getFileFromCopilotFile(appSource.getFile());
-          } else {
-            tempFile = ProcessHQLAppSource.getInstance().generate(appSource);
-          }
-          content.append("\n---\n");
-          content.append(appSource.getFile().getName()).append("\n");
-          content.append(Files.readString(tempFile.toPath())).append("\n");
-          content.append("\n---\n");
-        } catch (MalformedInputException e) {
-          throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_Error_MalformedSourceContent"),
-                  appSource.getFile().getName(), appSource.getEtcopApp().getName()));
-        } catch (IOException e) {
-          log.error(e);
-          throw new OBException(e);
-        }
-      }
-    }
-    return content.toString();
-  }
 }
 

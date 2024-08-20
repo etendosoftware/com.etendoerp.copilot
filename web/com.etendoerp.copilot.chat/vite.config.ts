@@ -12,14 +12,10 @@ export default defineConfig(({ mode }) => {
       })
     ],
     build: {
+      emptyOutDir: true,
       outDir: "../com.etendoerp.copilot.dist",
       rollupOptions: {
         external: "react-native-document-picker",
-        output: {
-          entryFileNames: `copilot.js`,
-          chunkFileNames: `copilot.js`,
-          assetFileNames: `copilot.[ext]`
-        }
       },
     },
     server: mode === 'development' ? {

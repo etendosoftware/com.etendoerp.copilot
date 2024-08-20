@@ -1,6 +1,16 @@
 package com.etendoerp.copilot.rest;
 
-import java.io.*;
+import static com.etendoerp.copilot.util.CopilotConstants.LANGCHAIN_MAX_LENGTH_QUESTION;
+import static com.etendoerp.copilot.util.CopilotUtils.getAppSourceContent;
+import static com.etendoerp.copilot.util.CopilotUtils.getAssistantPrompt;
+import static com.etendoerp.copilot.util.CopilotUtils.replaceCopilotPromptVariables;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -64,14 +74,11 @@ import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
-import netscape.javascript.JSObject;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class RestServiceUtil {
-
 
   private RestServiceUtil() {
   }
@@ -101,6 +108,10 @@ public class RestServiceUtil {
   private static final String PROP_TOOLS = "tools";
   private static final String PROP_KB_VECTORDB_ID = "kb_vectordb_id";
 
+  /**
+   * This method is used to add extra context to the request for Copilot, based on the hooks defined
+   * for the CopilotApp.
+   */
   static JSONObject getJSONLabels() {
     try {
       OBContext.setAdminMode(false);
@@ -142,6 +153,13 @@ public class RestServiceUtil {
 
   }
 
+  /**
+   * This method is used to add extra context to the request for Copilot, based on the hooks defined
+   * for the CopilotApp.
+   *
+   * @param items
+   * @throws Exception
+   */
   static JSONObject handleFile(List<FileItem> items) throws Exception {
     logIfDebug(String.format("items: %d", items.size()));
     JSONObject responseJson = new JSONObject();
@@ -186,6 +204,14 @@ public class RestServiceUtil {
     return responseJson;
   }
 
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param f
+   * @param originalFileName
+   * @throws IOException
+   */
   private static String handleFile(File f, String originalFileName) throws IOException {
     String fileUUID = UUID.randomUUID().toString();
     //print the current directory of the class
@@ -211,6 +237,10 @@ public class RestServiceUtil {
     return filePath;
   }
 
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   */
   private static boolean isDevelopment() {
     try {
       SystemInfo.load(new DalConnectionProvider(false));
@@ -221,6 +251,12 @@ public class RestServiceUtil {
     return StringUtils.equalsIgnoreCase("D", purpose);
   }
 
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param f
+   */
   private static void checkSizeFile(File f) {
     //check the size of the file: must be max 512mb
     long size = f.length();
@@ -230,12 +266,27 @@ public class RestServiceUtil {
     }
   }
 
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param msg
+   */
   private static void logIfDebug(String msg) {
     if (log.isDebugEnabled()) {
       log.debug(msg);
     }
   }
 
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param queue
+   * @param role
+   * @param msg
+   * @throws JSONException
+   */
   public static void sendMsg(TransferQueue<String> queue, String role, String msg)
       throws JSONException {
     JSONObject data = new JSONObject();
@@ -247,6 +298,13 @@ public class RestServiceUtil {
     sendData(queue, data.toString());
   }
 
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param queue
+   * @param data
+   */
   public static void sendData(TransferQueue<String> queue, String data) {
     if (queue == null) {
       return;
@@ -258,7 +316,17 @@ public class RestServiceUtil {
     }
   }
 
-  static JSONObject handleQuestion(HttpServletResponse queue,
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param isAsyncRequest
+   * @param queue
+   * @param jsonRequest
+   * @throws JSONException
+   * @throws IOException
+   */
+  static JSONObject handleQuestion(boolean isAsyncRequest, HttpServletResponse queue,
       JSONObject jsonRequest) throws JSONException, IOException {
     String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID);
     String appId = jsonRequest.getString(APP_ID);
@@ -275,24 +343,43 @@ public class RestServiceUtil {
 
     List<String> filesReceived = new ArrayList<>();
     filesReceived.add(questionAttachedFileId); // File path in temp folder. This files were attached in the pop-up.
-    return handleQuestion(queue, copilotApp, conversationId, question, filesReceived);
+    return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived);
   }
 
-  private static JSONObject serverSideEvents(HttpServletResponse response, InputStream inputStream) {
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param asyncRequest
+   * @param response
+   * @param inputStream
+   */
+  private static JSONObject serverSideEvents(boolean asyncRequest, HttpServletResponse response,
+      InputStream inputStream) {
     setEventStreamMode(response);
     String lastLine = "";
     try (PrintWriter writerToFront = response.getWriter(); BufferedReader readerFromCopilot = new BufferedReader(
         new InputStreamReader(inputStream))) {
-      sendEventToFront(writerToFront, "{}", true);
+      if (asyncRequest) {
+        sendEventToFront(writerToFront, "{}", true);
+      }
       String currentLine;
       while ((currentLine = readerFromCopilot.readLine()) != null) {
-        if (currentLine.startsWith("data:")) {
-          sendEventToFront(writerToFront, currentLine, false);
+        if (asyncRequest) {
+          if (currentLine.startsWith("data:")) {
+            sendEventToFront(writerToFront, currentLine, false);
+          }
         }
         lastLine = currentLine;
       }
 
-      var jsonLastLine = StringUtils.isNotEmpty(lastLine) ? new JSONObject(lastLine.substring(5)) : null;
+      if (!asyncRequest) {
+        writerToFront.write(lastLine);
+      }
+      writerToFront.close();
+
+      var jsonLastLine = StringUtils.isNotEmpty(lastLine) ? new JSONObject(
+          asyncRequest ? lastLine.substring(5) : lastLine) : null;
       if (jsonLastLine != null
           && jsonLastLine.has("answer")
           && jsonLastLine.getJSONObject("answer").has("role")
@@ -311,8 +398,21 @@ public class RestServiceUtil {
     }
   }
 
-
-  public static JSONObject handleQuestion(HttpServletResponse queue, CopilotApp copilotApp, String conversationId,
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param asyncRequest
+   * @param queue
+   * @param copilotApp
+   * @param conversationId
+   * @param question
+   * @param questionAttachedFileIds
+   * @throws IOException
+   * @throws JSONException
+   */
+  public static JSONObject handleQuestion(boolean asyncRequest, HttpServletResponse queue, CopilotApp copilotApp,
+      String conversationId,
       String question,
       List<String> questionAttachedFileIds) throws IOException, JSONException {
     if (copilotApp == null) {
@@ -320,7 +420,6 @@ public class RestServiceUtil {
     }
     refreshDynamicFiles(copilotApp);
     // read the json sent
-    String responseFromCopilot = null;
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String appType;
     JSONObject finalResponseAsync; // For save the response in case of async
@@ -354,31 +453,51 @@ public class RestServiceUtil {
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
     }
-    question += OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
+    question += getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
+    checkQuestionPrompt(question);
     jsonRequestForCopilot.put(PROP_QUESTION, question);
     addAppSourceFileIds(copilotApp, questionAttachedFileIds);
     handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
+    question += appendLocalFileIds(questionAttachedFileIds);
     addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
     String bodyReq = jsonRequestForCopilot.toString();
-    String endpoint = isGraph ? AGRAPH : AQUESTION;
+    String endpoint;
+    if (isGraph) {
+      if (asyncRequest) {
+        endpoint = AGRAPH;
+      } else {
+        endpoint = GRAPH;
+      }
+    } else {
+      if (asyncRequest) {
+        endpoint = AQUESTION;
+      } else {
+        endpoint = QUESTION;
+      }
+    }
     logIfDebug("Request to Copilot:);");
     logIfDebug(new JSONObject(bodyReq).toString(2));
     URL url = new URL(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort));
     try {
-
       HttpURLConnection connection = (HttpURLConnection) url.openConnection();
       connection.setRequestMethod("POST");
       connection.setRequestProperty("Content-Type", "application/json");
       connection.setDoOutput(true);
       connection.setDoInput(true);
       connection.getOutputStream().write(jsonRequestForCopilot.toString().getBytes());
-      finalResponseAsync = serverSideEvents(queue, connection.getInputStream());
+      if (asyncRequest) {
+        finalResponseAsync = serverSideEvents(asyncRequest, queue, connection.getInputStream());
+      } else {
+        String responseFromCopilot = new BufferedReader(new InputStreamReader(connection.getInputStream()))
+            .lines().collect(Collectors.joining("\n"));
+        finalResponseAsync = new JSONObject(responseFromCopilot);
+      }
     } catch (Exception e) {
       log.error(e);
       Thread.currentThread().interrupt();
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
-    if (responseFromCopilot == null) {
+    if (finalResponseAsync == null) {
       TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question,
           copilotApp);
       boolean isError = finalResponseAsync.has("role") && StringUtils.equalsIgnoreCase(
@@ -387,33 +506,52 @@ public class RestServiceUtil {
           finalResponseAsync.optString(PROP_RESPONSE), copilotApp, isError);
       return null;
     }
-    JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot);
     JSONObject responseOriginal = new JSONObject();
     responseOriginal.put(APP_ID, copilotApp.getId());
-    if (!responseJsonFromCopilot.has("answer")) {
+    if (!finalResponseAsync.has("answer")) {
       String message = "";
-      if (responseJsonFromCopilot.has("detail")) {
-        JSONArray detail = responseJsonFromCopilot.getJSONArray("detail");
+      if (finalResponseAsync.has("detail")) {
+        JSONArray detail = finalResponseAsync.getJSONArray("detail");
         if (detail.length() > 0) {
           message = ((JSONObject) detail.get(0)).getString("message");
         }
       }
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
+      if (!message.isEmpty()) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
+      }
     }
-    JSONObject answer = (JSONObject) responseJsonFromCopilot.get("answer");
-    handleErrorMessagesIfExists(answer);
-    conversationId = answer.optString(PROP_CONVERSATION_ID);
-    if (StringUtils.isNotEmpty(conversationId)) {
-      responseOriginal.put(PROP_CONVERSATION_ID, conversationId);
+    String response = null;
+    if (finalResponseAsync.has("answer")) {
+      JSONObject answer = (JSONObject) finalResponseAsync.get("answer");
+      handleErrorMessagesIfExists(answer);
+      conversationId = answer.optString(PROP_CONVERSATION_ID);
+      if (StringUtils.isNotEmpty(conversationId)) {
+        responseOriginal.put(PROP_CONVERSATION_ID, conversationId);
+      }
+      responseOriginal.put(PROP_RESPONSE, answer.get(PROP_RESPONSE));
+      response = responseOriginal.getString(PROP_RESPONSE);
+    } else if (finalResponseAsync.has(PROP_RESPONSE)) {
+      response = finalResponseAsync.getString(PROP_RESPONSE);
+      if (finalResponseAsync.has(PROP_CONVERSATION_ID)) {
+        responseOriginal.put(PROP_CONVERSATION_ID, finalResponseAsync.get(PROP_CONVERSATION_ID));
+        conversationId = finalResponseAsync.optString(PROP_CONVERSATION_ID);
+      }
     }
-    responseOriginal.put(PROP_RESPONSE, answer.get(PROP_RESPONSE));
+    if (StringUtils.isEmpty(response)) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), "Empty response"));
+    }
     Date date = new Date();
-    //getting the object of the Timestamp class
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
     TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
-    TrackingUtil.getInstance().trackResponse(conversationId, responseOriginal.getString(PROP_RESPONSE), copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp);
     return responseOriginal;
+  }
+
+  private static void checkQuestionPrompt(String question) {
+    if (question.length() > LANGCHAIN_MAX_LENGTH_QUESTION) {
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_MaxLengthQuestion"));
+    }
   }
 
   /**
@@ -565,12 +703,14 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_PROVIDER, CopilotUtils.getProvider(copilotApp));
     jsonRequestForCopilot.put(PROP_MODEL, CopilotUtils.getAppModel(copilotApp));
     jsonRequestForCopilot.put(PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
-    if (!StringUtils.isEmpty(copilotApp.getPrompt())) {
-      prompt = new StringBuilder(copilotApp.getPrompt() + "\n");
+    String promptApp = getAssistantPrompt(copilotApp);
+    if (!StringUtils.isEmpty(promptApp)) {
+      prompt = new StringBuilder(prompt + "\n");
       // Lookup in app sources for the prompt
-      prompt.append(OpenAIUtils.getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
+      prompt.append(getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
       if (!StringUtils.isEmpty(prompt.toString())) {
-        jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, prompt.toString());
+        CopilotUtils.checkPromptLength(prompt);
+        jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, replaceCopilotPromptVariables(prompt.toString()));
       }
       if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
         jsonRequestForCopilot.put(PROP_DESCRIPTION, copilotApp.getDescription());
@@ -621,6 +761,13 @@ public class RestServiceUtil {
         java.util.stream.Collectors.toList());
   }
 
+  /**
+   * This method is used to add the file IDs of the app sources with the behaviour "attach" to the
+   * list of question attached file IDs.
+   *
+   * @param copilotApp
+   * @param questionAttachedFileIds
+   */
   private static void addAppSourceFileIds(CopilotApp copilotApp, List<String> questionAttachedFileIds) {
     for (CopilotAppSource source : copilotApp.getETCOPAppSourceList()) {
       if (CopilotConstants.isAttachBehaviour(source)) {
@@ -629,6 +776,13 @@ public class RestServiceUtil {
     }
   }
 
+  /**
+   * This method is used to refresh the dynamic files of the given CopilotApp instance.
+   *
+   * @param copilotApp
+   * @throws JSONException
+   * @throws IOException
+   */
   private static void refreshDynamicFiles(CopilotApp copilotApp) throws JSONException, IOException {
     String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
     for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
@@ -638,6 +792,13 @@ public class RestServiceUtil {
     }
   }
 
+  /**
+   * This method is used to handle the file IDs of the question attached files.
+   *
+   * @param questionAttachedFileIds
+   * @param jsonRequestForCopilot
+   * @throws JSONException
+   */
   private static void handleFileIds(List<String> questionAttachedFileIds,
       JSONObject jsonRequestForCopilot) throws JSONException {
     if (questionAttachedFileIds != null && !questionAttachedFileIds.isEmpty()) {
@@ -663,6 +824,35 @@ public class RestServiceUtil {
     }
   }
 
+  private static String appendLocalFileIds(List<String> questionAttachedFileIds) throws JSONException {
+    if (questionAttachedFileIds == null || questionAttachedFileIds.isEmpty()) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder();
+    for (String questionAttachedFileId : questionAttachedFileIds) {
+      if (StringUtils.isNotEmpty(questionAttachedFileId)) {
+        CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
+            .createCriteria(CopilotFile.class)
+            .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
+            .setMaxResults(1)
+            .uniqueResult();
+        if (copilotFile == null) {
+          if (sb.length() == 0) {
+            sb.append("\n Local files: ");
+          }
+          sb.append(questionAttachedFileId).append("\n");
+        }
+      }
+    }
+    return sb.length() > 0 ? sb.toString() : "";
+  }
+
+  /**
+   * This method is used to handle the error messages in the response from Copilot.
+   *
+   * @param answer
+   * @throws JSONException
+   */
   private static void handleErrorMessagesIfExists(JSONObject answer) throws JSONException {
     if (answer.has("error")) {
       JSONObject errorJson = answer.getJSONObject("error");
@@ -675,6 +865,13 @@ public class RestServiceUtil {
     }
   }
 
+  /**
+   * This method is used to add extra context to the request for Copilot, based on the hooks defined
+   * for the CopilotApp.
+   *
+   * @param copilotApp
+   * @param jsonRequest
+   */
   private static void addExtraContextWithHooks(CopilotApp copilotApp, JSONObject jsonRequest) {
     OBContext context = OBContext.getOBContext();
     JSONObject jsonExtraInfo = new JSONObject();
@@ -694,17 +891,21 @@ public class RestServiceUtil {
         log.error("Error adding auth token to extraInfo", e);
       }
     }
-
-    //execute the hooks
     try {
       WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class).executeHooks(copilotApp,
           jsonRequest);
     } catch (OBException e) {
       log.error("Error executing hooks", e);
     }
-
   }
 
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param f
+   * @param fileId
+   */
   private static void saveFileTemp(File f, String fileId) {
     CopilotFile fileCop = OBProvider.getInstance().get(CopilotFile.class);
     fileCop.setOpenaiIdFile(fileId);
@@ -715,6 +916,10 @@ public class RestServiceUtil {
     OBDal.getInstance().save(fileCop);
   }
 
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   */
   static JSONArray handleAssistants() {
     try {
       OBContext.setAdminMode();
@@ -742,6 +947,13 @@ public class RestServiceUtil {
     }
   }
 
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param user
+   * @param copilotApp
+   */
   private static Date getLastConversation(User user, CopilotApp copilotApp) {
     OBCriteria<Conversation> convCriteria = OBDal.getInstance().createCriteria(Conversation.class);
     convCriteria.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, copilotApp));
@@ -758,6 +970,14 @@ public class RestServiceUtil {
     return conversation.getLastMsg();
   }
 
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param copilotApp
+   * @throws JSONException
+   * @throws IOException
+   */
   public static String getGraphImg(CopilotApp copilotApp) throws JSONException, IOException {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
@@ -771,8 +991,6 @@ public class RestServiceUtil {
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
       JSONObject jsonRequestForCopilot = new JSONObject();
-      //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
-      // and we need to add the type of the assistant (openai or langchain)
       appType = copilotApp.getAppType();
       String conversationId = UUID.randomUUID().toString();
 

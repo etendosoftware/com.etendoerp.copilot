@@ -1,6 +1,6 @@
 import uuid
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, BaseMessage, AIMessage
 from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langsmith import traceable
@@ -13,7 +13,7 @@ from ..langgraph.patterns import SupervisorPattern
 from ..langgraph.patterns.base_pattern import GraphMember
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import GraphQuestionSchema
-from ..utils import read_optional_env_var, read_optional_env_var_int
+from ..utils import read_optional_env_var, read_optional_env_var_int, copilot_debug
 
 
 class LanggraphAgent(CopilotAgent):
@@ -71,42 +71,48 @@ class LanggraphAgent(CopilotAgent):
         else:
             config["configurable"]["thread_id"] = str(uuid.uuid4())
         async for event in lang_graph._graph.astream_events({"messages": [_input]}, version="v2", config=config):
-            if copilot_stream_debug:
-                yield AssistantResponse(
-                    response=str(event), conversation_id=question.conversation_id, role="debug"
-                )
-            kind = event["event"]
-            if kind == "on_chain_start":
-                if event.get("metadata") != None:
-                    metadata = event["metadata"]
-                    if metadata.get("langgraph_node") != None:
-                        if event.get("tags") != None:
-                            graph_step = False
-                            for tag in event["tags"]:
-                                if tag.startswith("graph:step") and tag != 'graph:step:0':
-                                    graph_step = True
-                            if graph_step:
-                                node = metadata["langgraph_node"]
-                                if node.startswith("supervisor-stage"):
-                                    message = "Thinking what to do next ..."
-                                elif node == "output":
-                                    message = "Got it! Writing the answer ..."
-                                else:
-                                    message = "Asking for this to the agent '" + node + "'"
-                                yield AssistantResponse(
-                                    response=message, conversation_id=question.conversation_id, role="node"
-                                )
-            if kind == "on_tool_start":
-                if len(event["parent_ids"]) == 1:
+            try:
+                if copilot_stream_debug:
                     yield AssistantResponse(
-                        response=event["name"], conversation_id=question.conversation_id, role="tool"
+                        response=str(event), conversation_id=question.conversation_id, role="debug"
                     )
-            elif kind == "on_chain_end":
-                if len(event["parent_ids"]) == 0:
-                    output = event["data"]["output"]
-                    if output.get("messages") != None and len(output["messages"]) > 0:
-                        message = output["messages"][-1]
-                        if type(message) == HumanMessage:
-                            yield AssistantResponse(
-                                response=message.content, conversation_id=question.conversation_id
-                            )
+                copilot_debug(f"Event: {str(event)}")
+                kind = event["event"]
+                if kind == "on_chain_start":
+                    if event.get("metadata") != None:
+                        metadata = event["metadata"]
+                        if metadata.get("langgraph_node") != None:
+                            if event.get("tags") != None:
+                                graph_step = False
+                                for tag in event["tags"]:
+                                    if tag.startswith("graph:step") and tag != 'graph:step:0':
+                                        graph_step = True
+                                if graph_step:
+                                    node = metadata["langgraph_node"]
+                                    if node.startswith("supervisor-stage"):
+                                        message = "Thinking what to do next ..."
+                                    elif node == "output":
+                                        message = "Got it! Writing the answer ..."
+                                    else:
+                                        message = "Asking for this to the agent '" + node + "'"
+                                    yield AssistantResponse(
+                                        response=message, conversation_id=question.conversation_id, role="node"
+                                    )
+                elif kind == "on_tool_start":
+                    if len(event["parent_ids"]) == 1:
+                        yield AssistantResponse(
+                            response=event["name"], conversation_id=question.conversation_id, role="tool"
+                        )
+                elif kind == "on_chain_end":
+                    if len(event["parent_ids"]) == 0:
+                        output = event["data"]["output"]
+                        if output.get("messages") != None and len(output["messages"]) > 0:
+                            message = output["messages"][-1]
+                            if type(message) == HumanMessage or type(message) == AIMessage:
+                                yield AssistantResponse(
+                                    response=message.content, conversation_id=question.conversation_id
+                                )
+                else:
+                    copilot_debug(f"Event kind not recognized: {kind}")
+            except Exception as e:
+                copilot_debug(f"Error in event processing: {str(e)}")
