@@ -1,7 +1,10 @@
 import abc
-from typing import Dict, TypedDict, Union
+import uuid
+from typing import Dict, TypedDict, Union, Any, Optional, List
 
 from langchain.tools import BaseTool
+from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables.config import Callbacks
 from langsmith import traceable
 
 from copilot.core.utils import copilot_debug, copilot_info
@@ -118,6 +121,49 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def run(self, input_params: Dict = None, *args, **kwarg) -> ToolOutput:
         raise NotImplementedError
+
+    @traceable
+    async def arun(
+            self,
+            tool_input: Union[str, Dict],
+            verbose: Optional[bool] = None,
+            start_color: Optional[str] = "green",
+            color: Optional[str] = "green",
+            callbacks: Callbacks = None,
+            *,
+            tags: Optional[List[str]] = None,
+            metadata: Optional[Dict[str, Any]] = None,
+            run_name: Optional[str] = None,
+            run_id: Optional[uuid.UUID] = None,
+            config: Optional[RunnableConfig] = None,
+            tool_call_id: Optional[str] = None,
+            **kwargs: Any,
+    ) -> Any:
+        if self.input_schema is not None:
+            copilot_debug("Parsing input with schema to check for errors")
+            try:
+                self._parse_input(tool_input)
+            except Exception as e:
+                copilot_debug(f"Error parsing input: {str(e)}")
+                return parse_response(ToolOutputError(error=str(e)))
+        else:
+            copilot_debug("No input schema provided, skipping input validation")
+
+        result = await super().arun(
+            tool_input=tool_input,
+            verbose=verbose,
+            start_color=start_color,
+            color=color,
+            callbacks=callbacks,
+            tags=tags,
+            metadata=metadata,
+            run_name=run_name,
+            run_id=run_id,
+            config=config,
+            tool_call_id=tool_call_id,
+            **kwargs
+        )
+        return result
 
     @traceable
     def _run(self, input_params: Dict, *args, **kwarg):
