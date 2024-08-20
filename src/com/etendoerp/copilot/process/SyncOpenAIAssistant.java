@@ -17,6 +17,7 @@ import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
+import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
@@ -29,7 +30,9 @@ import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotOpenAIModel;
+import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
@@ -65,7 +68,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
           appList.add(app);
         }
       }
-
+      Set<CopilotAppSource> appSourcesToRefresh = new HashSet<>();
       Set<CopilotAppSource> appSourcesToSync = new HashSet<>();
       for (CopilotApp app : appList) {
         checkWebHookAccess(app);
@@ -80,6 +83,13 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
           }
         }
         appSourcesToSync.addAll(listSourcesForKb);
+        appSourcesToRefresh.addAll(appSources);
+      }
+      for (CopilotAppSource as : appSourcesToRefresh) {
+        log.debug("Syncing file " + as.getFile().getName());
+        CopilotFile fileToSync = as.getFile();
+        WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
+            .executeHooks(fileToSync);
       }
 
       //for langchain apps we need to reset vector DB, so collect all langchain apps and reset the vector DBs
