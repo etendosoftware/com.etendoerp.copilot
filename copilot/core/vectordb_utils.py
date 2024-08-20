@@ -1,16 +1,13 @@
 import base64
 import os
-
-import zipfile
+import shutil
 import tempfile
-import fitz
 import time
+import zipfile
 
-from langchain.text_splitter import MarkdownTextSplitter, CharacterTextSplitter
-from langchain.text_splitter import Language
-
-
+import fitz
 from chromadb import Settings
+from langchain.text_splitter import MarkdownTextSplitter, CharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 
@@ -55,8 +52,8 @@ def handle_zip_file(zip_encoded):
 
     texts = process_directory(temp_dir)
 
-    os.remove(temp_dir)
-    os.remove(temp_zip)
+    # Remove the entire temporary directory
+    shutil.rmtree(temp_dir)
 
     return texts
 
