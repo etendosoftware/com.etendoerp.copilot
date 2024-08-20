@@ -360,9 +360,9 @@ def processTextToVectorDB(body: TextToVectorDBSchema):
         message = f"Database {kb_vectordb_id} created and loaded successfully."
         copilot_debug(message)
     except Exception as e:
-        copilot_debug(message)
         success = False
         message = f"Error processing text to VectorDb: {e}"
+        copilot_debug(message)
         db_path = ""
 
     return {"answer": message, "success": success, "db_path": db_path}

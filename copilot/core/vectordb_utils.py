@@ -10,6 +10,7 @@ from chromadb import Settings
 from langchain.text_splitter import MarkdownTextSplitter, CharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
 
 from copilot.core.utils import copilot_debug
 
@@ -86,8 +87,22 @@ def process_directory(directory):
 def get_text_splitter(ext):
     if ext in ["md", "markdown"]:
         return MarkdownTextSplitter()
-    elif ext in ["txt", "pdf", "java", "js", "py", "xml"]:
+    elif ext in ["txt", "pdf", "xml"]:
         return CharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
+    elif ext in ["java"]:
+        return RecursiveCharacterTextSplitter.from_language(
+            language=Language.JAVA, chunk_size=60, chunk_overlap=0
+        )
+    elif ext in ["js"]:
+        return RecursiveCharacterTextSplitter.from_language(
+            language=Language.JS, chunk_size=60, chunk_overlap=0
+        )
+    elif ext in ["py"]:
+        return RecursiveCharacterTextSplitter.from_language(
+            language=Language.PYTHON, chunk_size=60, chunk_overlap=0
+        )
+    else:
+        raise ValueError(f"Unsupported file extension: {ext}")
 
 
 def process_file(file_path, ext):
