@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Final, AsyncGenerator, Dict
 
@@ -8,7 +7,6 @@ from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnabl
 from langchain_core.agents import AgentFinish
 from langchain_core.runnables import AddableDict
 from langsmith import traceable
-
 
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
 from .. import utils
