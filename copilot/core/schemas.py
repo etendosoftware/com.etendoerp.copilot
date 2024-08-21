@@ -72,4 +72,4 @@ class VectorDBInputSchema(BaseModel):
 class TextToVectorDBSchema(VectorDBInputSchema):
     text: Union[str, bytes]
     overwrite: bool = False
-    format: str
+    extension: str

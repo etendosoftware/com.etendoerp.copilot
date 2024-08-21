@@ -12,7 +12,7 @@ load_dotenv(dotenv_path)
 
 client = TestClient(core_router)
 
-body = TextToVectorDBSchema(kb_vectordb_id="test_db", text="Some text to process", overwrite=False, format="txt")
+body = TextToVectorDBSchema(kb_vectordb_id="test_db", text="Some text to process", overwrite=False, extension="txt")
 
 
 @pytest.fixture
@@ -92,10 +92,11 @@ def test_processTextToChromaDB_exception(mock_os_path_exists, mock_chroma):
     mock_os_path_exists.return_value = None
     mock_os_path_exists.side_effect = lambda path: True if path in ["./vectordbs"] else False
     try:
-        os.rmdir("./vectordbs")  # if not exists, it will raise an error
+        os.rmdir("./vectordbs")
     except:
         pass
-    body_for_error = body.copy(update={"format": 'mov'})
+
+    body_for_error = body.copy(update={"extension": 'mov'})
 
     response = client.post("/addToVectorDB", json=body_for_error.dict())
     response_json = response.json()
@@ -104,5 +105,5 @@ def test_processTextToChromaDB_exception(mock_os_path_exists, mock_chroma):
     db_path = response_json["db_path"]
 
     assert success == False
-    assert "Error processing text to VectorDB" in message
+    assert "Error processing text to VectorDb" in message
     assert db_path == ""
