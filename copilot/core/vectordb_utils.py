@@ -88,18 +88,18 @@ def get_text_splitter(ext):
     if ext in ["md", "markdown"]:
         return MarkdownTextSplitter()
     elif ext in ["txt", "pdf", "xml"]:
-        return CharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
+        return CharacterTextSplitter()
     elif ext in ["java"]:
         return RecursiveCharacterTextSplitter.from_language(
-            language=Language.JAVA, chunk_size=60, chunk_overlap=0
+            language=Language.JAVA
         )
     elif ext in ["js"]:
         return RecursiveCharacterTextSplitter.from_language(
-            language=Language.JS, chunk_size=60, chunk_overlap=0
+            language=Language.JS
         )
     elif ext in ["py"]:
         return RecursiveCharacterTextSplitter.from_language(
-            language=Language.PYTHON, chunk_size=60, chunk_overlap=0
+            language=Language.PYTHON
         )
     else:
         raise ValueError(f"Unsupported file extension: {ext}")
