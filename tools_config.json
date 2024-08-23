@@ -3,6 +3,22 @@
     "third_party_tools": {
         "HelloWorldTool": true,
         "BastianFetcher": true,
-        "CustomHelloWorldMultiArgsTool": true
+        "CustomHelloWorldMultiArgsTool": true,
+        "PdfToImagesTool": true,
+        "CodbarTool": true,
+        "OcrTool": true,
+        "TavilySearchTool": true,
+        "UncompressTool": true,
+        "ReadFileTool": true,
+        "WriteFileTool": true,
+        "FileCopyTool": true,
+        "CodeRunTool": true,
+        "DBQueryGenerator": true,
+        "CreateReferencesTool": true,
+        "PrintDirectoryTool": true,
+        "TemplateTool": true,
+        "DDLTool": true,
+        "SendEmailTool": true,
+        "FileDownloaderTool": true
     }
 }
