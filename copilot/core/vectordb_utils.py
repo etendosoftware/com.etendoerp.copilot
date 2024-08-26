@@ -40,14 +40,9 @@ def get_chroma_settings(db_path=None):
     return settings
 
 
-def handle_zip_file(zip_encoded):
-    zip_decoded = base64.b64decode(zip_encoded)
+def handle_zip_file(zip_file_path):
+    temp_zip = zip_file_path
     temp_dir = tempfile.mkdtemp()
-    temp_zip = os.path.join(temp_dir, 'temp.zip')
-
-    with open(temp_zip, 'wb') as f:
-        f.write(zip_decoded)
-
     with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
         zip_ref.extractall(temp_dir)
 
@@ -77,10 +72,14 @@ def process_directory(directory):
         else:
             ext = item.split('.')[-1].lower()
             if ext in extensions:
-                file_content = process_file(item_path, ext)
-                document = Document(page_content=file_content)
-                text_splitter = get_text_splitter(ext)
-                texts.extend(text_splitter.split_documents([document]))
+                copilot_debug(f"Processing file {item_path}")
+                try:
+                    file_content = process_file(item_path, ext)
+                    document = Document(page_content=file_content)
+                    text_splitter = get_text_splitter(ext)
+                    texts.extend(text_splitter.split_documents([document]))
+                except Exception as e:
+                    copilot_debug(f"Error processing file {item_path}: {e}")
     return texts
 
 

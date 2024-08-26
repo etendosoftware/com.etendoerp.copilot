@@ -32,6 +32,7 @@ chromadb = "^0.5.5"
 pymupdf = "^1.24.9"
 langchain-core = "^0.2.29"
 langsmith = "^0.1.99"
+python-multipart = "^0.0.9"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
