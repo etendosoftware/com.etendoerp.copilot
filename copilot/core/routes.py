@@ -383,12 +383,12 @@ def process_text_to_vector_db(
             os.remove(db_path)
 
         if extension == "zip" and file is not None:
-            # Guardamos el archivo ZIP en una ruta temporal
+            # Save the ZIP file to a temporary path
             temp_zip_path = Path(f"/tmp/{file.filename}")
             with temp_zip_path.open("wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
 
-            # Procesamos el archivo ZIP
+            # Process the ZIP file
             texts = handle_zip_file(temp_zip_path)
 
             # Eliminamos el archivo temporal después de su uso

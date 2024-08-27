@@ -5,14 +5,13 @@ import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.isHQLQueryFile;
-import static com.etendoerp.copilot.util.OpenAIUtils.HEADER_CONTENT_TYPE;
 import static com.etendoerp.copilot.util.OpenAIUtils.deleteFile;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -27,7 +26,6 @@ import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -36,7 +34,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
@@ -58,8 +55,6 @@ import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
-import kong.unirest.json.JSONArray;
-
 
 public class CopilotUtils {
 
@@ -68,7 +63,6 @@ public class CopilotUtils {
 
   private static final Logger log = LogManager.getLogger(OpenAIUtils.class);
   private static final String BOUNDARY = UUID.randomUUID().toString();
-
 
   private static HashMap<String, String> buildProviderCodeMap() {
     HashMap<String, String> map = new HashMap<>();
@@ -195,13 +189,9 @@ public class CopilotUtils {
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
 
-    if (isBinary) {
-      // Send as binary file
-      responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot, fileToSend);
-    } else {
-      // Send as text
-      responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot, null);
-    }
+    responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
+        isBinary ? fileToSend : null);
+
     if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")));
     }
@@ -249,7 +239,6 @@ public class CopilotUtils {
     String extension = jsonBody.getString("extension");
     boolean overwrite = jsonBody.optBoolean("overwrite", false);
 
-
     writer.append("--").append(BOUNDARY).append("\r\n");
     writer.append("Content-Disposition: form-data; name=\"kb_vectordb_id\"\r\n\r\n");
     writer.append(kb_vectordb_id).append("\r\n");
@@ -264,7 +253,6 @@ public class CopilotUtils {
     writer.append("Content-Disposition: form-data; name=\"extension\"\r\n\r\n");
     writer.append(extension).append("\r\n");
 
-
     writer.append("--").append(BOUNDARY).append("\r\n");
     writer.append("Content-Disposition: form-data; name=\"overwrite\"\r\n\r\n");
     writer.append(String.valueOf(overwrite)).append("\r\n");
@@ -277,7 +265,6 @@ public class CopilotUtils {
       writer.flush();
 
       Files.copy(file.toPath(), byteArrays);
-
       writer.append("\r\n").flush();
     }
 
@@ -299,7 +286,7 @@ public class CopilotUtils {
         null);
     if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
-          responseFromCopilot.body()));
+          responseFromCopilot != null ? responseFromCopilot.body() : ""));
     }
 
   }
