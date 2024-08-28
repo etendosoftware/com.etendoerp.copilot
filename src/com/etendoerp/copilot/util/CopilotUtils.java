@@ -25,6 +25,8 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -52,6 +54,7 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
+
 
 public class CopilotUtils {
 
@@ -180,7 +183,7 @@ public class CopilotUtils {
     JSONObject jsonRequestForCopilot = new JSONObject();
     jsonRequestForCopilot.put("text", text);
     jsonRequestForCopilot.put("kb_vectordb_id", dbName);
-    jsonRequestForCopilot.put("format", format);
+    jsonRequestForCopilot.put("extension", format);
     String requestBody = jsonRequestForCopilot.toString();
 
     String endpoint = "addToVectorDB";
@@ -293,16 +296,16 @@ public class CopilotUtils {
     return tempFile;
   }
 
-  private static String pdfToBase64(File fileInPDF) {
+  private static String fileToBase64(File fileInPDF) {
     try {
       FileInputStream fileInputStream = new FileInputStream(fileInPDF);
       byte[] fileBytes = new byte[(int) fileInPDF.length()];
       fileInputStream.read(fileBytes);
       fileInputStream.close();
 
-      String base64EncodedPDF = Base64.getEncoder().encodeToString(fileBytes);
+      String base64EncodedFile = Base64.getEncoder().encodeToString(fileBytes);
 
-      return base64EncodedPDF;
+      return base64EncodedFile;
 
     } catch (IOException e) {
       return null;
@@ -354,20 +357,35 @@ public class CopilotUtils {
     }
 
     String dbName = "KB_" + appSource.getEtcopApp().getId();
+
     if (StringUtils.isEmpty(extension)) {
       extension = fileFromCopilotFile.getName().substring(fileFromCopilotFile.getName().lastIndexOf(".") + 1);
     }
 
     if (StringUtils.equalsIgnoreCase(extension, "pdf")) {
-      String text = pdfToBase64(fileFromCopilotFile);
-      textToVectorDB(text, dbName, extension);
-    } else if (StringUtils.equalsIgnoreCase(extension, "md")) {
-      String text = readFileToSync(fileFromCopilotFile);
-      textToVectorDB(text, dbName, extension);
+      encodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "md") || (StringUtils.equalsIgnoreCase(extension, "markdown"))) {
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
 
     } else if (StringUtils.equalsIgnoreCase(extension, "txt")) {
-      String text = readFileToSync(fileFromCopilotFile);
-      textToVectorDB(text, dbName, extension);
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "zip")) {
+      encodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "java")) {
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "py")) {
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "js")) {
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
+    } else if (StringUtils.equalsIgnoreCase(extension, "xml")) {
+      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+
     } else {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"),
           extension));
@@ -377,6 +395,18 @@ public class CopilotUtils {
     fileToSync.setUpdated(new Date());
     OBDal.getInstance().save(fileToSync);
     OBDal.getInstance().flush();
+  }
+
+  private static void notEncodedFileToVectorDB(File fileFromCopilotFile, String dbName, String extension)
+      throws IOException, JSONException {
+    String text = readFileToSync(fileFromCopilotFile);
+    textToVectorDB(text, dbName, extension);
+  }
+
+  private static void encodedFileToVectorDB(File fileFromCopilotFile, String dbName, String extension)
+      throws JSONException {
+    String fileEncoded = fileToBase64(fileFromCopilotFile);
+    textToVectorDB(fileEncoded, dbName, extension);
   }
 
   static File generateHQLFile(CopilotAppSource appSource) {
