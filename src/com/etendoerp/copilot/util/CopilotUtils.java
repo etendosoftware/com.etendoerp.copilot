@@ -5,35 +5,35 @@ import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.isHQLQueryFile;
-import static com.etendoerp.copilot.util.OpenAIUtils.HEADER_CONTENT_TYPE;
 import static com.etendoerp.copilot.util.OpenAIUtils.deleteFile;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.MalformedInputException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
@@ -62,6 +62,7 @@ public class CopilotUtils {
   public static final HashMap<String, String> PROVIDER_MAP_CODE_DEFAULT_PROP = buildProviderCodeDefaulMap();
 
   private static final Logger log = LogManager.getLogger(OpenAIUtils.class);
+  private static final String BOUNDARY = UUID.randomUUID().toString();
 
   private static HashMap<String, String> buildProviderCodeMap() {
     HashMap<String, String> map = new HashMap<>();
@@ -164,8 +165,7 @@ public class CopilotUtils {
       }
       String preference;
       if (!PROVIDER_MAP_CODE_DEFAULT_PROP.containsKey(current_provider)) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingModel"),
-            app.getName()));
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingModel"), app.getName()));
       }
       preference = PROVIDER_MAP_CODE_DEFAULT_PROP.get(current_provider);
 
@@ -178,45 +178,102 @@ public class CopilotUtils {
   }
 
 
-  public static void textToVectorDB(String text, String dbName, String format) throws JSONException {
+  public static void toVectorDB(String content, File fileToSend, String dbName, String format,
+      boolean isBinary) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String endpoint = "addToVectorDB";
+    HttpResponse<String> responseFromCopilot;
     JSONObject jsonRequestForCopilot = new JSONObject();
-    jsonRequestForCopilot.put("text", text);
+    jsonRequestForCopilot.put("text", content);
     jsonRequestForCopilot.put("kb_vectordb_id", dbName);
     jsonRequestForCopilot.put("extension", format);
-    String requestBody = jsonRequestForCopilot.toString();
+    jsonRequestForCopilot.put("overwrite", false);
 
-    String endpoint = "addToVectorDB";
+    responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
+        isBinary ? fileToSend : null);
 
-    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
     if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")));
     }
-
   }
 
+
   private static HttpResponse<String> getResponseFromCopilot(Properties properties, String endpoint,
-      String requestBody
-  ) {
+      JSONObject jsonBody, File fileToSend) {
 
     try {
       HttpClient client = HttpClient.newBuilder().build();
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+
+      HttpRequest.BodyPublisher requestBodyPublisher;
+      String contentType;
+
+      if (fileToSend != null) {
+        requestBodyPublisher = createMultipartBody(jsonBody, fileToSend);
+        contentType = "multipart/form-data;boundary=" + BOUNDARY;
+      } else {
+        requestBodyPublisher = HttpRequest.BodyPublishers.ofString(jsonBody.toString());
+        contentType = "application/json;charset=UTF-8";
+      }
+
       HttpRequest copilotRequest = HttpRequest.newBuilder()
           .uri(new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint)))
-          .headers(HEADER_CONTENT_TYPE, "application/json;charset=UTF-8")
+          .header("Content-Type", contentType)
           .version(HttpClient.Version.HTTP_1_1)
-          .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+          .POST(requestBodyPublisher)
           .build();
 
-      return client.send(copilotRequest,
-          HttpResponse.BodyHandlers.ofString());
+      return client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
     } catch (Exception e) {
       throw new OBException(e);
     }
-
   }
+
+  private static HttpRequest.BodyPublisher createMultipartBody(JSONObject jsonBody, File file) throws Exception {
+    var byteArrays = new ByteArrayOutputStream();
+    var writer = new PrintWriter(new OutputStreamWriter(byteArrays, StandardCharsets.UTF_8), true);
+
+    String kb_vectordb_id = jsonBody.getString("kb_vectordb_id");
+    String text = jsonBody.optString("text", null);
+    String extension = jsonBody.getString("extension");
+    boolean overwrite = jsonBody.optBoolean("overwrite", false);
+
+    writer.append("--").append(BOUNDARY).append("\r\n");
+    writer.append("Content-Disposition: form-data; name=\"kb_vectordb_id\"\r\n\r\n");
+    writer.append(kb_vectordb_id).append("\r\n");
+
+    if (text != null) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"text\"\r\n\r\n");
+      writer.append(text).append("\r\n");
+    }
+
+    writer.append("--").append(BOUNDARY).append("\r\n");
+    writer.append("Content-Disposition: form-data; name=\"extension\"\r\n\r\n");
+    writer.append(extension).append("\r\n");
+
+    writer.append("--").append(BOUNDARY).append("\r\n");
+    writer.append("Content-Disposition: form-data; name=\"overwrite\"\r\n\r\n");
+    writer.append(String.valueOf(overwrite)).append("\r\n");
+    // File part
+    if (file != null) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"").append(file.getName()).append(
+          "\"\r\n");
+      writer.append("Content-Type: application/octet-stream\r\n\r\n");
+      writer.flush();
+
+      Files.copy(file.toPath(), byteArrays);
+      writer.append("\r\n").flush();
+    }
+
+    writer.append("--").append(BOUNDARY).append("--\r\n");
+    writer.close();
+
+    return HttpRequest.BodyPublishers.ofByteArray(byteArrays.toByteArray());
+  }
+
 
   public static void resetVectorDB(CopilotApp app) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
@@ -224,12 +281,12 @@ public class CopilotUtils {
     JSONObject jsonRequestForCopilot = new JSONObject();
 
     jsonRequestForCopilot.put("kb_vectordb_id", dbName);
-    String requestBody = jsonRequestForCopilot.toString();
     String endpoint = "ResetVectorDB";
-    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, requestBody);
+    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
+        null);
     if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
-          responseFromCopilot.body()));
+          responseFromCopilot != null ? responseFromCopilot.body() : ""));
     }
 
   }
@@ -269,14 +326,12 @@ public class CopilotUtils {
   }
 
   public static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
-    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(
-        AttachImplementationManager.class);
+    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
     OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
     Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
     if (attach == null) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
-          fileToSync.getName()));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"), fileToSync.getName()));
     }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);
@@ -288,8 +343,7 @@ public class CopilotUtils {
     File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
     boolean setW = tempFile.setWritable(true);
     if (!setW) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorTempFile"),
-          fileToSync.getName()));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorTempFile"), fileToSync.getName()));
     }
     tempFile.deleteOnExit();
     os.writeTo(new FileOutputStream(tempFile));
@@ -312,14 +366,12 @@ public class CopilotUtils {
     }
   }
 
-  private static String readFileToSync(File file)
-      throws IOException {
+  private static String readFileToSync(File file) throws IOException {
 
     String extension = file.getName().substring(file.getName().lastIndexOf(".") + 1);
     StringBuilder text = new StringBuilder(extension + "-");
-    try (FileInputStream fis = new FileInputStream(file);
-         InputStreamReader isr = new InputStreamReader(fis);
-         BufferedReader br = new BufferedReader(isr)) {
+    try (FileInputStream fis = new FileInputStream(file); InputStreamReader isr = new InputStreamReader(
+        fis); BufferedReader br = new BufferedReader(isr)) {
 
       String line;
       while ((line = br.readLine()) != null) {
@@ -329,12 +381,10 @@ public class CopilotUtils {
     return text.toString();
   }
 
-  public static void syncAppLangchainSource(CopilotAppSource appSource)
-      throws IOException, JSONException {
+  public static void syncAppLangchainSource(CopilotAppSource appSource) throws IOException, JSONException {
 
     CopilotFile fileToSync = appSource.getFile();
-    WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
-        .executeHooks(fileToSync);
+    WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
     logIfDebug("Uploading file " + fileToSync.getName());
 
     String filename = fileToSync.getFilename();
@@ -363,7 +413,7 @@ public class CopilotUtils {
     }
 
     if (StringUtils.equalsIgnoreCase(extension, "pdf")) {
-      encodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+      binaryFileToVectorDB(fileFromCopilotFile, dbName, extension);
 
     } else if (StringUtils.equalsIgnoreCase(extension, "md") || (StringUtils.equalsIgnoreCase(extension, "markdown"))) {
       notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
@@ -372,7 +422,7 @@ public class CopilotUtils {
       notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
 
     } else if (StringUtils.equalsIgnoreCase(extension, "zip")) {
-      encodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
+      binaryFileToVectorDB(fileFromCopilotFile, dbName, extension);
 
     } else if (StringUtils.equalsIgnoreCase(extension, "java")) {
       notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
@@ -387,8 +437,7 @@ public class CopilotUtils {
       notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
 
     } else {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"),
-          extension));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
     }
 
     fileToSync.setLastSync(new Date());
@@ -397,16 +446,15 @@ public class CopilotUtils {
     OBDal.getInstance().flush();
   }
 
-  private static void notEncodedFileToVectorDB(File fileFromCopilotFile, String dbName, String extension)
-      throws IOException, JSONException {
+  private static void notEncodedFileToVectorDB(File fileFromCopilotFile, String dbName,
+      String extension) throws IOException, JSONException {
     String text = readFileToSync(fileFromCopilotFile);
-    textToVectorDB(text, dbName, extension);
+    toVectorDB(text, fileFromCopilotFile, dbName, extension, false);
   }
 
-  private static void encodedFileToVectorDB(File fileFromCopilotFile, String dbName, String extension)
-      throws JSONException {
-    String fileEncoded = fileToBase64(fileFromCopilotFile);
-    textToVectorDB(fileEncoded, dbName, extension);
+  private static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName,
+      String extension) throws JSONException {
+    toVectorDB(null, fileFromCopilotFile, dbName, extension, true);
   }
 
   static File generateHQLFile(CopilotAppSource appSource) {
@@ -431,8 +479,7 @@ public class CopilotUtils {
     sb.append(app.getPrompt());
     sb.append("\n");
     try {
-      sb.append(WeldUtils.getInstanceFromStaticBeanManager(OpenAIPromptHookManager.class)
-          .executeHooks(app));
+      sb.append(WeldUtils.getInstanceFromStaticBeanManager(OpenAIPromptHookManager.class).executeHooks(app));
     } catch (OBException e) {
       log.error("Error executing hooks", e);
     }
@@ -498,9 +545,8 @@ public class CopilotUtils {
           content.append(Files.readString(tempFile.toPath())).append("\n");
           content.append("\n---\n");
         } catch (MalformedInputException e) {
-          throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_Error_MalformedSourceContent"),
-                  appSource.getFile().getName(), appSource.getEtcopApp().getName()));
+          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_MalformedSourceContent"),
+              appSource.getFile().getName(), appSource.getEtcopApp().getName()));
         } catch (IOException e) {
           log.error(e);
           throw new OBException(e);
