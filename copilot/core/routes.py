@@ -391,7 +391,7 @@ def process_text_to_vector_db(
             # Process the ZIP file
             texts = handle_zip_file(temp_zip_path)
 
-            # Eliminamos el archivo temporal después de su uso
+            # Remove the temporary file after use
             temp_zip_path.unlink()
         else:
             parsed_document = handle_other_formats(extension, text)
