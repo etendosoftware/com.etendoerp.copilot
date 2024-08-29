@@ -26,6 +26,8 @@ public class CopilotConstants {
   private static final String FILE_TYPE_HQL = "HQL";
   public static final String PROVIDER_OPENAI = "openai";
   public static final String PROVIDER_GEMINI = "gemini";
+  public static final String PENDING_SYNCHRONIZATION_STATE = "pending_sychronization";
+  public static final String SYNCHRONIZED_STATE = "synchronized";
 
   public static boolean isSystemPromptBehaviour(CopilotAppSource source) {
     return StringUtils.equals(source.getBehaviour(), FILE_BEHAVIOUR_SYSTEM);
