@@ -7,8 +7,8 @@
 <!--517D7E47FDB3448E9A6AF58C12DAEE0A-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--517D7E47FDB3448E9A6AF58C12DAEE0A-->  <NAME><![CDATA[Role-App Selector]]></NAME>
 <!--517D7E47FDB3448E9A6AF58C12DAEE0A-->  <TYPE><![CDATA[S]]></TYPE>
-<!--517D7E47FDB3448E9A6AF58C12DAEE0A-->  <CODE><![CDATA[NOT EXISTS (SELECT 1 FROM etcop_role_app rp WHERE rp.ad_role_id = @AD_Role_ID@ 
-and rp.etcop_app_id = etcop_app.etcop_app_id and rp.etcop_role_app_id <> coalesce(@Etcop_Role_App_ID@,'')
+<!--517D7E47FDB3448E9A6AF58C12DAEE0A-->  <CODE><![CDATA[EXISTS (SELECT 1 FROM etcop_role_app rp WHERE rp.ad_role_id = @AD_Role_ID@ 
+    and rp.etcop_app_id = etcop_app.etcop_app_id 
 )
 and (etcop_app.system_app ='N' or (etcop_app.system_app ='Y' and '0' in (@AD_Role_ID@ ))
  )]]></CODE>
@@ -42,7 +42,13 @@ and etcop_file.istemp='N']]></CODE>
     SELECT 1 FROM etcop_team_member tm WHERE tm.etcop_app_id = @ETCOP_App_ID@ 
 and tm.app_member = etcop_app.etcop_app_id 
 and tm.etcop_team_member_id <> coalesce(@Etcop_Team_Member_ID@,'')
-) and etcop_app.apptype <> 'langgraph']]></CODE>
+) 
+AND
+EXISTS (SELECT 1 FROM etcop_role_app rp WHERE rp.ad_role_id = @AD_Role_ID@ 
+    and rp.etcop_app_id = etcop_app.etcop_app_id 
+)
+AND
+etcop_app.apptype <> 'langgraph']]></CODE>
 <!--914A05B6AF9D4003A36504024CACED19-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--914A05B6AF9D4003A36504024CACED19--></AD_VAL_RULE>
 
