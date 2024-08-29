@@ -10,15 +10,14 @@ import logging
 import os
 import shutil
 import threading
+from pathlib import Path
 
 import chromadb
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File, Form
 from langchain.schema import Document
 from langchain.vectorstores import Chroma
 from langsmith import traceable
 from starlette.responses import StreamingResponse
-
-
 
 from copilot.core import utils
 from copilot.core.agent import AgentResponse, copilot_agents, AgentEnum
@@ -27,7 +26,7 @@ from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
-from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToVectorDBSchema, VectorDBInputSchema
+from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, VectorDBInputSchema, TextToVectorDBSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
 from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file, \
@@ -343,6 +342,57 @@ def processTextToVectorDB(body: TextToVectorDBSchema):
             os.remove(db_path)
         if extension == "zip":
             texts = handle_zip_file(text)
+        else:
+            parsed_document = handle_other_formats(extension, text)
+            document = Document(page_content=parsed_document)
+            text_splitter = get_text_splitter(extension)
+            texts = text_splitter.split_documents([document])
+
+        Chroma.from_documents(
+            texts,
+            get_embedding(),
+            persist_directory=db_path,
+            client_settings=get_chroma_settings()
+        )
+
+        success = True
+        message = f"Database {kb_vectordb_id} created and loaded successfully."
+        copilot_debug(message)
+    except Exception as e:
+        success = False
+        message = f"Error processing text to VectorDb: {e}"
+        copilot_debug(message)
+        db_path = ""
+
+    return {"answer": message, "success": success, "db_path": db_path}
+
+
+@traceable
+@core_router.post("/addBinaryToVectorDB")
+def process_text_to_vector_db(
+        kb_vectordb_id: str = Form(...),
+        text: str = Form(None),
+        extension: str = Form(...),
+        overwrite: bool = Form(...),
+        file: UploadFile = File(None)
+):
+    db_path = get_vector_db_path(kb_vectordb_id)
+
+    try:
+        if overwrite and os.path.exists(db_path):
+            os.remove(db_path)
+
+        if extension == "zip" and file is not None:
+            # Save the ZIP file to a temporary path
+            temp_zip_path = Path(f"/tmp/{file.filename}")
+            with temp_zip_path.open("wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            # Process the ZIP file
+            texts = handle_zip_file(temp_zip_path)
+
+            # Remove the temporary file after use
+            temp_zip_path.unlink()
         else:
             parsed_document = handle_other_formats(extension, text)
             document = Document(page_content=parsed_document)
