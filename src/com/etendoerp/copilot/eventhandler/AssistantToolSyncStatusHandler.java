@@ -12,10 +12,12 @@ import org.openbravo.client.kernel.event.EntityDeleteEvent;
 import org.openbravo.client.kernel.event.EntityNewEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEventObserver;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
+import org.openbravo.dal.service.OBDal;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
 
 
 public class AssistantToolSyncStatusHandler extends EntityPersistenceEventObserver {
@@ -32,29 +34,36 @@ public class AssistantToolSyncStatusHandler extends EntityPersistenceEventObserv
     if (!isValidEvent(event)) {
       return;
     }
-
-    /*final CopilotAppTool currentAppTool = (CopilotAppTool) event.getTargetInstance();
-    final Entity appEntity = currentAppTool.getCopilotApp().getEntity();
-    final Property syncStatusProp = appEntity.getProperty(CopilotApp.PROPERTY_SYNCSTATUS);
-    Object previousTool = appEntity.getProperty()
-    if (!Objects.equals(previousTool, ))
-
-    if (checkPropertiesChanged(event, appEntity)) {
+    final CopilotAppTool currentAppTool = (CopilotAppTool) event.getTargetInstance();
+    Object previousValue = event.getPreviousState(currentAppTool.getEntity().getProperty(CopilotAppTool.PROPERTY_COPILOTTOOL));
+    Object currentValue = event.getCurrentState(currentAppTool.getEntity().getProperty(CopilotAppTool.PROPERTY_COPILOTTOOL));
+    if (previousValue != currentValue) {
+      CopilotApp currentAssistant = currentAppTool.getCopilotApp();
+      Property syncStatusProp = currentAssistant.getEntity().getProperty(CopilotApp.PROPERTY_SYNCSTATUS);
       event.setCurrentState(syncStatusProp, CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-    } else {
-      event.setCurrentState(syncStatusProp, CopilotConstants.SYNCHRONIZED_STATE);
-    }*/
+      CopilotUtils.logIfDebug("The register was updated and the sync status changed to PS");
+    }
   }
 
   public void onSave(@Observes EntityNewEvent event) {
     if (!isValidEvent(event)) {
       return;
     }
+    final CopilotAppTool currentAppTool = (CopilotAppTool) event.getTargetInstance();
+    CopilotApp currentAssistant = currentAppTool.getCopilotApp();
+    currentAssistant.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
+    OBDal.getInstance().save(currentAssistant);
+    CopilotUtils.logIfDebug("The register was saved and the sync status changed to PS");
   }
 
   public void onDelete(@Observes EntityDeleteEvent event) {
     if (!isValidEvent(event)) {
       return;
     }
+    final CopilotAppTool currentAppTool = (CopilotAppTool) event.getTargetInstance();
+    CopilotApp currentAssistant = currentAppTool.getCopilotApp();
+    currentAssistant.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
+    OBDal.getInstance().save(currentAssistant);
+    CopilotUtils.logIfDebug("The register was deleted and the sync status changed to PS");
   }
 }

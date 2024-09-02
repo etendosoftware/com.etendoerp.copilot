@@ -97,8 +97,8 @@
         <default><![CDATA[1]]></default>
         <onCreateDefault/>
       </column>
-      <column name="SYNC_STATUS" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
-        <default><![CDATA[Pending Synchronization]]></default>
+      <column name="SYNC_STATUS" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default><![CDATA[PS]]></default>
         <onCreateDefault/>
       </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETCOP_APP_CLI_FK">
