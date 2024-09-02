@@ -20,12 +20,10 @@ and (etcop_app.system_app ='N' or (etcop_app.system_app ='Y' and '0' in (@AD_Rol
 <!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <NAME><![CDATA[Role App System App]]></NAME>
+<!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <NAME><![CDATA[Assistant enabled for Role]]></NAME>
 <!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <TYPE><![CDATA[S]]></TYPE>
 <!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <CODE><![CDATA[EXISTS (SELECT 1 FROM etcop_role_app rp WHERE rp.ad_role_id = @AD_Role_ID@ 
-    and rp.etcop_app_id = etcop_app.etcop_app_id )
-and (etcop_app.system_app ='N' or (etcop_app.system_app ='Y' and '0' in (@AD_Role_ID@ ))
- ) ]]></CODE>
+    and rp.etcop_app_id = etcop_app.etcop_app_id )]]></CODE>
 <!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--5E449DA08FC541A6AC8C27CD677BA5DB--></AD_VAL_RULE>
 
