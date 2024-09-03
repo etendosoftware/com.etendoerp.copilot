@@ -836,7 +836,8 @@ public class RestServiceUtil {
             .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
             .setMaxResults(1)
             .uniqueResult();
-        if (copilotFile == null) {
+
+        if (copilotFile == null || StringUtils.startsWith(questionAttachedFileId, "file")){
           if (sb.length() == 0) {
             sb.append("\n Local files: ");
           }
