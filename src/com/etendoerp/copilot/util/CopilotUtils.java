@@ -46,7 +46,11 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.ad.access.User;
 import org.openbravo.model.ad.utility.Attachment;
+import org.openbravo.model.common.enterprise.Organization;
+import org.openbravo.model.common.enterprise.Warehouse;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
@@ -54,6 +58,8 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
+import com.etendoerp.sequences.dimensions.SequenceDimension;
+import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 
 public class CopilotUtils {
@@ -499,6 +505,8 @@ public class CopilotUtils {
    */
   public static String replaceCopilotPromptVariables(String string) {
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    stringParsed = StringUtils.replace(stringParsed, "@sources.path@", properties.getProperty("source.path"));
 
     //check the If exists something like {SOMETHING} and replace it with {{SOMETHING}}, preserving the content inside
     // replace { with {{
@@ -556,4 +564,15 @@ public class CopilotUtils {
     return content.toString();
   }
 
+  public static String generateEtendoToken() throws Exception {
+
+    OBContext context = OBContext.getOBContext();
+    Organization currentOrganization = OBDal.getInstance().get(Organization.class,
+        context.getCurrentOrganization().getId());
+    Role role = OBDal.getInstance().get(Role.class, context.getRole().getId());
+    User user = OBDal.getInstance().get(User.class, context.getUser().getId());
+    Warehouse warehouse = OBDal.getInstance().get(Warehouse.class, context.getWarehouse().getId());
+    return SecureWebServicesUtils.generateToken(user, role, currentOrganization,
+        warehouse);
+  }
 }

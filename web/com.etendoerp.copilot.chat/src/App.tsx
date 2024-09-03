@@ -153,7 +153,7 @@ function App() {
 
       try {
         const params = Object.keys(requestBody)
-          .map(key => `${key}=${requestBody[key]}`)
+          .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(requestBody[key])}`)
           .join('&');
         const eventSourceUrl = isDevelopment()
           ? `${References.DEV}${References.url.SEND_AQUESTION}?${params}`
