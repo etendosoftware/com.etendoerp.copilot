@@ -41,7 +41,7 @@ public class AssistantToolSyncStatusHandler extends EntityPersistenceEventObserv
       CopilotApp currentAssistant = currentAppTool.getCopilotApp();
       currentAssistant.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
       OBDal.getInstance().save(currentAssistant);
-      CopilotUtils.logIfDebug("The register was updated and the sync status changed to PS");
+      CopilotUtils.logIfDebug("The AppTool was updated and the sync status of " + currentAssistant + " changed to PS");
     }
   }
 
@@ -53,7 +53,7 @@ public class AssistantToolSyncStatusHandler extends EntityPersistenceEventObserv
     CopilotApp currentAssistant = currentAppTool.getCopilotApp();
     currentAssistant.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
     OBDal.getInstance().save(currentAssistant);
-    CopilotUtils.logIfDebug("The register was saved and the sync status changed to PS");
+    CopilotUtils.logIfDebug("The AppTool was saved and the sync status of " + currentAssistant + " changed to PS");
   }
 
   public void onDelete(@Observes EntityDeleteEvent event) {
@@ -64,6 +64,6 @@ public class AssistantToolSyncStatusHandler extends EntityPersistenceEventObserv
     CopilotApp currentAssistant = currentAppTool.getCopilotApp();
     currentAssistant.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
     OBDal.getInstance().save(currentAssistant);
-    CopilotUtils.logIfDebug("The register was deleted and the sync status changed to PS");
+    CopilotUtils.logIfDebug("The AppTool was deleted and the sync status of " + currentAssistant + " changed to PS");
   }
 }
