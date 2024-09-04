@@ -506,7 +506,7 @@ public class CopilotUtils {
   public static String replaceCopilotPromptVariables(String string) {
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    stringParsed = StringUtils.replace(stringParsed, "@sources.path@", properties.getProperty("source.path"));
+    stringParsed = StringUtils.replace(stringParsed, "@source.path@", properties.getProperty("source.path"));
 
     //check the If exists something like {SOMETHING} and replace it with {{SOMETHING}}, preserving the content inside
     // replace { with {{
