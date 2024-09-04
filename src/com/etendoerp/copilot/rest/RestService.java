@@ -34,6 +34,7 @@ public class RestService {
       throws IOException {
     String path = request.getPathInfo();
     try {
+      OBContext.setAdminMode();
       if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
         handleAssistants(response);
         return;
@@ -58,6 +59,8 @@ public class RestService {
         log4j.error(ioException);
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
       }
+    } finally {
+      OBContext.restorePreviousMode();
     }
   }
 
@@ -118,10 +121,10 @@ public class RestService {
 
   private boolean isAsyncRequest(HttpServletRequest request) {
     String path = request.getPathInfo();
-    if(StringUtils.equals(path, AQUESTION)) {
+    if (StringUtils.equals(path, AQUESTION)) {
       return true;
     }
-    if(StringUtils.equals(path, AGRAPH)) {
+    if (StringUtils.equals(path, AGRAPH)) {
       return true;
     }
     return false;
@@ -141,23 +144,23 @@ public class RestService {
     }
     if (json == null) {
       json = new JSONObject();
-      if(request.getParameter("question") != null) {
+      if (request.getParameter("question") != null) {
         json.put("question", request.getParameter("question"));
       }
-      if(request.getParameter("app_id") != null) {
+      if (request.getParameter("app_id") != null) {
         json.put("app_id", request.getParameter("app_id"));
       }
-      if(request.getParameter("conversation_id") != null) {
+      if (request.getParameter("conversation_id") != null) {
         json.put("conversation_id", request.getParameter("conversation_id"));
       }
-      if(request.getParameter("file") != null) {
+      if (request.getParameter("file") != null) {
         json.put("file", request.getParameter("file"));
       }
     }
-    if(!json.has("question")) {
+    if (!json.has("question")) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), "question"));
     }
-    if(!json.has("app_id")) {
+    if (!json.has("app_id")) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), "app_id"));
     }
     boolean isAsyncRequest = isAsyncRequest(request);
