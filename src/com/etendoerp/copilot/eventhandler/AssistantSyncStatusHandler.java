@@ -17,17 +17,35 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 
-
+/**
+ * This class handles synchronization status updates for CopilotApp entities.
+ * It observes and reacts to create, update, and delete events for the CopilotApp entity.
+ */
 public class AssistantSyncStatusHandler extends EntityPersistenceEventObserver {
+
   private static Entity[] entities = {
-      ModelProvider.getInstance().getEntity(CopilotApp.class) };
+      ModelProvider.getInstance().getEntity(CopilotApp.class)
+  };
+
   protected Logger logger = Logger.getLogger(AssistantSyncStatusHandler.class);
 
+  /**
+   * Returns the entities that this observer listens to.
+   *
+   * @return an array of entities observed by this handler
+   */
   @Override
   protected Entity[] getObservedEntities() {
     return entities;
   }
 
+  /**
+   * Handles the update event for CopilotApp entities. If any important properties
+   * of the CopilotApp entity have been modified, it sets the synchronization status
+   * of the CopilotApp to 'Pending Synchronization'.
+   *
+   * @param event the entity update event to be observed
+   */
   public void onUpdate(@Observes EntityUpdateEvent event) {
     if (!isValidEvent(event)) {
       return;
@@ -40,18 +58,37 @@ public class AssistantSyncStatusHandler extends EntityPersistenceEventObserver {
     }
   }
 
+  /**
+   * Handles the save event for CopilotApp entities. This method currently
+   * does not perform any specific actions on save.
+   *
+   * @param event the entity save event to be observed
+   */
   public void onSave(@Observes EntityNewEvent event) {
     if (!isValidEvent(event)) {
       return;
     }
   }
 
+  /**
+   * Handles the delete event for CopilotApp entities. This method currently
+   * does not perform any specific actions on delete.
+   *
+   * @param event the entity delete event to be observed
+   */
   public void onDelete(@Observes EntityDeleteEvent event) {
     if (!isValidEvent(event)) {
       return;
     }
   }
 
+  /**
+   * Checks if any of the monitored properties of the CopilotApp entity have changed.
+   *
+   * @param event the entity update event
+   * @param appEntity the CopilotApp entity to be checked
+   * @return true if any of the monitored properties have changed, false otherwise
+   */
   private static boolean checkPropertiesChanged(EntityUpdateEvent event, Entity appEntity) {
     String[] properties = {
         CopilotApp.PROPERTY_PROMPT,
@@ -77,7 +114,4 @@ public class AssistantSyncStatusHandler extends EntityPersistenceEventObserver {
 
     return false;
   }
-
-
-
 }

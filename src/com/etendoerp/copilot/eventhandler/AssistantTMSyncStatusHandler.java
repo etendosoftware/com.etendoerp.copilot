@@ -17,19 +17,34 @@ import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 
 /**
- * This class is responsible for handling validations related to team members.
- * It extends the EntityPersistenceEventObserver class and observes updates and new events for the TeamMember entity.
+ * Handles synchronization status updates for the Copilot application whenever
+ * certain events occur on TeamMember entities, such as creation, update, or deletion.
  */
 public class AssistantTMSyncStatusHandler extends EntityPersistenceEventObserver {
+
   private static Entity[] entities = {
-      ModelProvider.getInstance().getEntity(TeamMember.class) };
+      ModelProvider.getInstance().getEntity(TeamMember.class)
+  };
+
   protected Logger logger = Logger.getLogger(AssistantTMSyncStatusHandler.class);
 
+  /**
+   * Returns the entities that this observer listens to.
+   *
+   * @return an array of entities observed by this handler
+   */
   @Override
   protected Entity[] getObservedEntities() {
     return entities;
   }
 
+  /**
+   * Handles the update event for TeamMember entities. If the TeamMember's associated
+   * member or CopilotApp has changed, it updates the synchronization status of the
+   * associated CopilotApp to 'Pending Synchronization'.
+   *
+   * @param event the entity update event to be observed
+   */
   public void onUpdate(@Observes EntityUpdateEvent event) {
     if (!isValidEvent(event)) {
       return;
@@ -40,34 +55,53 @@ public class AssistantTMSyncStatusHandler extends EntityPersistenceEventObserver
     Object currentMember = event.getCurrentState(currentTeamMember.getEntity().getProperty(TeamMember.PROPERTY_MEMBER));
     Object currentApp = event.getCurrentState(currentTeamMember.getEntity().getProperty(TeamMember.PROPERTY_COPILOTAPP));
 
-    if (previousMember != currentMember || previousApp != currentApp) {
-      CopilotApp currentAssistant = currentTeamMember.getCopilotApp();
-      currentAssistant.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-      OBDal.getInstance().save(currentAssistant);
+    if (!previousMember.equals(currentMember) || !previousApp.equals(currentApp)) {
+      changeAssistantStatus(currentTeamMember);
       CopilotUtils.logIfDebug("The Member or App was updated and the sync status changed to PS");
     }
   }
 
+  /**
+   * Handles the save event for TeamMember entities. When a new TeamMember entity
+   * is saved, it updates the synchronization status of the associated CopilotApp
+   * to 'Pending Synchronization'.
+   *
+   * @param event the entity save event to be observed
+   */
   public void onSave(@Observes EntityNewEvent event) {
     if (!isValidEvent(event)) {
       return;
     }
     final TeamMember currentTeamMember = (TeamMember) event.getTargetInstance();
-    CopilotApp currentAssistant = currentTeamMember.getCopilotApp();
-    currentAssistant.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-    OBDal.getInstance().save(currentAssistant);
+    changeAssistantStatus(currentTeamMember);
     CopilotUtils.logIfDebug("The Member was saved and the sync status changed to PS");
-
   }
 
+  /**
+   * Handles the delete event for TeamMember entities. When a TeamMember entity
+   * is deleted, it updates the synchronization status of the associated CopilotApp
+   * to 'Pending Synchronization'.
+   *
+   * @param event the entity delete event to be observed
+   */
   public void onDelete(@Observes EntityDeleteEvent event) {
     if (!isValidEvent(event)) {
       return;
     }
     final TeamMember currentTeamMember = (TeamMember) event.getTargetInstance();
+    changeAssistantStatus(currentTeamMember);
+    CopilotUtils.logIfDebug("The member was deleted and the sync status changed to PS");
+  }
+
+  /**
+   * Updates the synchronization status of the CopilotApp entity associated with the
+   * given TeamMember to 'Pending Synchronization'.
+   *
+   * @param currentTeamMember the TeamMember entity for which to update the associated CopilotApp
+   */
+  private static void changeAssistantStatus(TeamMember currentTeamMember) {
     CopilotApp currentAssistant = currentTeamMember.getCopilotApp();
     currentAssistant.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
     OBDal.getInstance().save(currentAssistant);
-    CopilotUtils.logIfDebug("The member was deleted and the sync status changed to PS");
   }
 }
