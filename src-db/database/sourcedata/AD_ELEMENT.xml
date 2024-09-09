@@ -555,6 +555,20 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--C83F2C87025649F9B3847C5CF9878EB8-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--C83F2C87025649F9B3847C5CF9878EB8--></AD_ELEMENT>
 
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F--><AD_ELEMENT>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <AD_ELEMENT_ID><![CDATA[D1CD602ECBFF4F149B07430A2F5A7F7F]]></AD_ELEMENT_ID>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <COLUMNNAME><![CDATA[sync_status]]></COLUMNNAME>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <NAME><![CDATA[Sync Status]]></NAME>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <PRINTNAME><![CDATA[Sync Status]]></PRINTNAME>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <DESCRIPTION><![CDATA[Indicates the synchronization status of the assistant. This column holds two possible values: 'synchronized' when the assistant is fully synchronized with the system, and 'pending synchronization' when the synchronization process is still incomplete or aw]]></DESCRIPTION>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <HELP><![CDATA[This column indicates the current status of the assistant. This field will not be modified manually; it changes to 'Pending Synchronization' when there is a modification or modifications in related groups (assistants, tools, knowledge files, team members, etc.). To change it to 'Synchronized,' it is necessary to synchronize the assistant using the 'Sync Assistant' button.]]></HELP>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F--></AD_ELEMENT>
+
 <!--D966D5BBDCBA4810AA39F9B6F08D5DE7--><AD_ELEMENT>
 <!--D966D5BBDCBA4810AA39F9B6F08D5DE7-->  <AD_ELEMENT_ID><![CDATA[D966D5BBDCBA4810AA39F9B6F08D5DE7]]></AD_ELEMENT_ID>
 <!--D966D5BBDCBA4810AA39F9B6F08D5DE7-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
