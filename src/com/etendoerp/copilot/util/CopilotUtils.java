@@ -188,6 +188,7 @@ public class CopilotUtils {
       boolean isBinary) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String endpoint = "addToVectorDB";
+    String endpointBinary = "addBinaryToVectorDB";
     HttpResponse<String> responseFromCopilot;
     JSONObject jsonRequestForCopilot = new JSONObject();
     jsonRequestForCopilot.put("text", content);
@@ -195,7 +196,7 @@ public class CopilotUtils {
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
 
-    responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
+    responseFromCopilot = getResponseFromCopilot(properties, isBinary ? endpointBinary:endpoint, jsonRequestForCopilot,
         isBinary ? fileToSend : null);
 
     if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
