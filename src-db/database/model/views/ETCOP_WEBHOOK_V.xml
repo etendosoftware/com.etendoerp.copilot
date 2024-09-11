@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+  <database name="VIEW ETCOP_WEBHOOK_V">
+    <view name="ETCOP_WEBHOOK_V"><![CDATA[SELECT etcop_tool_wbhk.etcop_tool_wbhk_id AS etcop_webhook_v_id, etcop_tool_wbhk.etcop_tool_id, etcop_tool_wbhk.ad_client_id, etcop_tool_wbhk.ad_org_id, etcop_tool_wbhk.isactive, etcop_tool_wbhk.created, etcop_tool_wbhk.createdby, etcop_tool_wbhk.updated, etcop_tool_wbhk.updatedby, etcop_tool_wbhk.smfwhe_definedwebhook_id FROM etcop_tool_wbhk]]></view>
+  </database>
