@@ -1,5 +1,6 @@
 package com.etendoerp.copilot.util;
 
+import static com.etendoerp.copilot.rest.RestServiceUtil.replaceAliasInPrompt;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
@@ -26,10 +27,12 @@ import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -58,7 +61,6 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
-import com.etendoerp.sequences.dimensions.SequenceDimension;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 
@@ -196,7 +198,8 @@ public class CopilotUtils {
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
 
-    responseFromCopilot = getResponseFromCopilot(properties, isBinary ? endpointBinary:endpoint, jsonRequestForCopilot,
+    responseFromCopilot = getResponseFromCopilot(properties, isBinary ? endpointBinary : endpoint,
+        jsonRequestForCopilot,
         isBinary ? fileToSend : null);
 
     if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
@@ -481,7 +484,7 @@ public class CopilotUtils {
     }
   }
 
-  public static String getAssistantPrompt(CopilotApp app) {
+  public static String getAssistantPrompt(CopilotApp app) throws IOException {
     StringBuilder sb = new StringBuilder();
     sb.append(app.getPrompt());
     sb.append("\n");
@@ -490,8 +493,17 @@ public class CopilotUtils {
     } catch (OBException e) {
       log.error("Error executing hooks", e);
     }
-    //
-    sb.append(getAppSourceContent(app, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
+    List<CopilotAppSource> appSourcesToAppend = app.getETCOPAppSourceList();
+    //app sources to replace with an alias
+    List<CopilotAppSource> appSourcesWithAlias = appSourcesToAppend.stream()
+        .filter(appSource -> StringUtils.equalsIgnoreCase(appSource.getBehaviour(),
+            CopilotConstants.FILE_BEHAVIOUR_SYSTEM) && StringUtils.isNotEmpty(appSource.getAlias()))
+        .collect(Collectors.toList());
+    //the app sources to append are the ones that are not with an alias
+    appSourcesToAppend = appSourcesToAppend.stream().filter(
+        appSource -> !appSourcesWithAlias.contains(appSource)).collect(Collectors.toList());
+    sb = replaceAliasInPrompt(sb, appSourcesWithAlias);
+    sb.append(getAppSourceContent(appSourcesToAppend, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
 
     return replaceCopilotPromptVariables(sb.toString());
   }
@@ -538,20 +550,15 @@ public class CopilotUtils {
     return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
   }
 
-  public static String getAppSourceContent(CopilotApp copilotApp, String type) {
+  public static String getAppSourceContent(List<CopilotAppSource> appSourceList, String type) {
     StringBuilder content = new StringBuilder();
-    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+    for (CopilotAppSource appSource : appSourceList) {
       if (StringUtils.equals(appSource.getBehaviour(), type) && appSource.getFile() != null) {
         try {
-          File tempFile;
-          if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
-            tempFile = getFileFromCopilotFile(appSource.getFile());
-          } else {
-            tempFile = ProcessHQLAppSource.getInstance().generate(appSource);
-          }
+          String ContentString = getAppSourceContent(appSource);
           content.append("\n---\n");
           content.append(appSource.getFile().getName()).append("\n");
-          content.append(Files.readString(tempFile.toPath())).append("\n");
+          content.append(ContentString).append("\n");
           content.append("\n---\n");
         } catch (MalformedInputException e) {
           throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_MalformedSourceContent"),
@@ -563,6 +570,16 @@ public class CopilotUtils {
       }
     }
     return content.toString();
+  }
+
+  public static String getAppSourceContent(CopilotAppSource appSource) throws IOException {
+    File tempFile;
+    if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
+      tempFile = getFileFromCopilotFile(appSource.getFile());
+    } else {
+      tempFile = ProcessHQLAppSource.getInstance().generate(appSource);
+    }
+    return Files.readString(tempFile.toPath());
   }
 
   public static String generateEtendoToken() throws Exception {
