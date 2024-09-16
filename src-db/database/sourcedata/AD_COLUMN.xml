@@ -4980,6 +4980,8 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--C92ACD5C3EC045EFAF5ED7378CA647C3-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--C92ACD5C3EC045EFAF5ED7378CA647C3-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--C92ACD5C3EC045EFAF5ED7378CA647C3-->  <NAME><![CDATA[WebHook]]></NAME>
+<!--C92ACD5C3EC045EFAF5ED7378CA647C3-->  <DESCRIPTION><![CDATA[This field allows you to select a defined webhook.]]></DESCRIPTION>
+<!--C92ACD5C3EC045EFAF5ED7378CA647C3-->  <HELP><![CDATA[Choose a webhook from the dropdown list. Make sure the selected webhook matches the intended integration or event handling requirements.]]></HELP>
 <!--C92ACD5C3EC045EFAF5ED7378CA647C3-->  <COLUMNNAME><![CDATA[Smfwhe_Definedwebhook_ID]]></COLUMNNAME>
 <!--C92ACD5C3EC045EFAF5ED7378CA647C3-->  <AD_TABLE_ID><![CDATA[A4677D9973BF4F3D9B97B5C620FBFBDB]]></AD_TABLE_ID>
 <!--C92ACD5C3EC045EFAF5ED7378CA647C3-->  <AD_REFERENCE_ID><![CDATA[19]]></AD_REFERENCE_ID>
