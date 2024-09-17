@@ -559,10 +559,10 @@ public class CopilotUtils {
     for (CopilotAppSource appSource : appSourceList) {
       if (StringUtils.equals(appSource.getBehaviour(), type) && appSource.getFile() != null) {
         try {
-          String ContentString = getAppSourceContent(appSource);
+          String contentString = getAppSourceContent(appSource);
           content.append("\n---\n");
           content.append(appSource.getFile().getName()).append("\n");
-          content.append(ContentString).append("\n");
+          content.append(contentString).append("\n");
           content.append("\n---\n");
         } catch (MalformedInputException e) {
           throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_MalformedSourceContent"),

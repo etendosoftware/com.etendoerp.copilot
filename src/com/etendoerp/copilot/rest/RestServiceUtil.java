@@ -704,7 +704,7 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_MODEL, CopilotUtils.getAppModel(copilotApp));
     jsonRequestForCopilot.put(PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
     String promptApp = getAssistantPrompt(copilotApp);
-    if (!StringUtils.isEmpty(prompt.toString())) {
+    if (StringUtils.isNotEmpty(prompt.toString())) {
       CopilotUtils.checkPromptLength(prompt);
       jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, promptApp);
     }
