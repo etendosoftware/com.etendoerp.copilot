@@ -347,6 +347,10 @@ public class CopilotUtils {
     aim.download(attach.getId(), os);
     //create a temp file
     String filename = attach.getName();
+    if (filename.lastIndexOf(".")<0) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingExtension"), filename));
+    }
+
     String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
     String extension = filename.substring(filename.lastIndexOf(".") + 1);
 
