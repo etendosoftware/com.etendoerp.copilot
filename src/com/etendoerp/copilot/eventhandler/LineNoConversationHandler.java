@@ -22,7 +22,9 @@ public class LineNoConversationHandler extends EntityPersistenceEventObserver {
   protected Logger logger = LogManager.getLogger(LineNoConversationHandler.class);
 
   @Override
-  protected Entity[] getObservedEntities() {return entities;}
+  protected Entity[] getObservedEntities() {
+    return entities;
+  }
 
   public void onSave(@Observes EntityNewEvent event) {
     if (!isValidEvent(event)) {
@@ -38,7 +40,7 @@ public class LineNoConversationHandler extends EntityPersistenceEventObserver {
         .setMaxResults(1)
         .uniqueResult();
 
-    long newLineNo = (maxLineNoMsg == null || maxLineNoMsg.getLineno()==null ) ? 10 : (maxLineNoMsg.getLineno() + 10);
+    long newLineNo = (maxLineNoMsg == null || maxLineNoMsg.getLineno() == null) ? 10 : (maxLineNoMsg.getLineno() + 10);
     Property lineNo = currentMessage.getEntity().getProperty(Message.PROPERTY_LINENO);
 
     event.setCurrentState(lineNo, newLineNo);
