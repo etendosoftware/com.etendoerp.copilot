@@ -75,6 +75,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
         List<CopilotAppSource> listSourcesForKb = appSources.stream().filter(CopilotConstants::isKbBehaviour).collect(
             Collectors.toList());
+        app.setSyncStatus(CopilotConstants.SYNCHRONIZED_STATE);
         if (StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
           if (!listSourcesForKb.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
 

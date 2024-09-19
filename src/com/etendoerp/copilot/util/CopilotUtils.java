@@ -188,6 +188,7 @@ public class CopilotUtils {
       boolean isBinary) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String endpoint = "addToVectorDB";
+    String endpointBinary = "addBinaryToVectorDB";
     HttpResponse<String> responseFromCopilot;
     JSONObject jsonRequestForCopilot = new JSONObject();
     jsonRequestForCopilot.put("text", content);
@@ -195,7 +196,7 @@ public class CopilotUtils {
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
 
-    responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
+    responseFromCopilot = getResponseFromCopilot(properties, isBinary ? endpointBinary:endpoint, jsonRequestForCopilot,
         isBinary ? fileToSend : null);
 
     if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
@@ -506,7 +507,8 @@ public class CopilotUtils {
   public static String replaceCopilotPromptVariables(String string) {
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    stringParsed = StringUtils.replace(stringParsed, "@sources.path@", properties.getProperty("source.path"));
+
+    stringParsed = StringUtils.replace(stringParsed, "@source.path@", properties.getProperty("source.path"));
 
     //check the If exists something like {SOMETHING} and replace it with {{SOMETHING}}, preserving the content inside
     // replace { with {{
