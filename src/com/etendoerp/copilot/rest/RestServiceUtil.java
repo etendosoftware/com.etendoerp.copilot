@@ -718,7 +718,8 @@ public class RestServiceUtil {
       List<CopilotAppSource> appSourcesWithAlias) throws IOException {
     String tempPrompt = prompt.toString();
     for (CopilotAppSource appSource : appSourcesWithAlias) {
-      tempPrompt = tempPrompt.replaceAll("@" + appSource.getAlias() + "@", CopilotUtils.getAppSourceContent(appSource));
+      String aliasToReplace = "@" + appSource.getAlias() + "@";
+      tempPrompt = StringUtils.replace(tempPrompt, aliasToReplace, CopilotUtils.getAppSourceContent(appSource));
     }
     return new StringBuilder(tempPrompt);
   }
