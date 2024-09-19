@@ -168,6 +168,7 @@ class LangchainAgent(CopilotAgent):
         agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt,
                                question.temperature, question.kb_vectordb_id)
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
+        agent_executor.max_iterations = 50
         full_question = question.question
         if question.local_file_ids is not None and len(question.local_file_ids) > 0:
             full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)

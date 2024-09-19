@@ -453,7 +453,7 @@ public class RestServiceUtil {
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
     }
-    question += getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_QUESTION);
+    question += getAppSourceContent(copilotApp.getETCOPAppSourceList(), CopilotConstants.FILE_BEHAVIOUR_QUESTION);
     checkQuestionPrompt(question);
     jsonRequestForCopilot.put(PROP_QUESTION, question);
     addAppSourceFileIds(copilotApp, questionAttachedFileIds);
@@ -618,7 +618,7 @@ public class RestServiceUtil {
 
         assistantsArray.put(memberData);
 
-      } catch (JSONException e) {
+      } catch (JSONException | IOException e) {
         log.error(e);
       }
     }
@@ -690,7 +690,7 @@ public class RestServiceUtil {
    */
 
   private static void buildLangchainRequestForCopilot(CopilotApp copilotApp, String conversationId,
-      JSONObject jsonRequestForCopilot) throws JSONException {
+      JSONObject jsonRequestForCopilot) throws JSONException, IOException {
     StringBuilder prompt = new StringBuilder();
     prompt.append(copilotApp.getPrompt());
     jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
@@ -704,18 +704,23 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_MODEL, CopilotUtils.getAppModel(copilotApp));
     jsonRequestForCopilot.put(PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
     String promptApp = getAssistantPrompt(copilotApp);
-    if (!StringUtils.isEmpty(promptApp)) {
-      prompt = new StringBuilder(prompt + "\n");
-      // Lookup in app sources for the prompt
-      prompt.append(getAppSourceContent(copilotApp, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
-      if (!StringUtils.isEmpty(prompt.toString())) {
-        CopilotUtils.checkPromptLength(prompt);
-        jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, replaceCopilotPromptVariables(prompt.toString()));
-      }
-      if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
-        jsonRequestForCopilot.put(PROP_DESCRIPTION, copilotApp.getDescription());
-      }
+    if (StringUtils.isNotEmpty(prompt.toString())) {
+      CopilotUtils.checkPromptLength(prompt);
+      jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, promptApp);
     }
+    if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
+      jsonRequestForCopilot.put(PROP_DESCRIPTION, copilotApp.getDescription());
+    }
+
+  }
+
+  public static StringBuilder replaceAliasInPrompt(StringBuilder prompt,
+      List<CopilotAppSource> appSourcesWithAlias) throws IOException {
+    String tempPrompt = prompt.toString();
+    for (CopilotAppSource appSource : appSourcesWithAlias) {
+      tempPrompt = tempPrompt.replaceAll("@" + appSource.getAlias() + "@", CopilotUtils.getAppSourceContent(appSource));
+    }
+    return new StringBuilder(tempPrompt);
   }
 
   /**
@@ -836,7 +841,8 @@ public class RestServiceUtil {
             .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
             .setMaxResults(1)
             .uniqueResult();
-        if (copilotFile == null) {
+
+        if (copilotFile == null || StringUtils.startsWith(questionAttachedFileId, "file")) {
           if (sb.length() == 0) {
             sb.append("\n Local files: ");
           }
