@@ -116,6 +116,7 @@
       <check name="ETCOP_APP_CODE_INTERP_CHK"><![CDATA[CODE_INTERPRETER IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_IS_SYS_CHK"><![CDATA[SYSTEM_APP IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETCOP_APP_SYNC_ASSIS_CHK"><![CDATA[SYNC_ASSISTANT IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_TEMPERATURE_CHECK"><![CDATA[TEMPERATURE >= 0 AND TEMPERATURE <= 2]]></check>
       <check name="ETCOP_RTRIVAL_CHK"><![CDATA[RETRIEVAL IN ('Y', 'N')]]></check>
     </table>
