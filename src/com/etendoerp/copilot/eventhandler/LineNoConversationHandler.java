@@ -34,7 +34,6 @@ public class LineNoConversationHandler extends EntityPersistenceEventObserver {
     final Message currentMessage = (Message) event.getTargetInstance();
 
     Message maxLineNoMsg = (Message) OBDal.getInstance().createCriteria(Message.class)
-
         .add(Restrictions.eq(Message.PROPERTY_ETCOPCONVERSATION, currentMessage.getEtcopConversation()))
         .addOrderBy(Message.PROPERTY_LINENO, false)
         .setMaxResults(1)
