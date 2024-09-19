@@ -73,7 +73,7 @@ public class OpenAIUtils {
     //if the app not has an assistant, we need to create it
     try {
       upsertAssistant(app, openaiApiKey);
-    } catch (JSONException e) {
+    } catch (JSONException | IOException e) {
       throw new OBException(e.getMessage());
     }
   }
@@ -89,7 +89,7 @@ public class OpenAIUtils {
   }
 
   private static JSONObject upsertAssistant(CopilotApp app, String openaiApiKey)
-      throws JSONException {
+      throws JSONException, IOException {
     String openaiIdAssistant = app.getOpenaiIdAssistant();
     if (StringUtils.isNotEmpty(openaiIdAssistant)) {
       if (!existsAssistant(openaiIdAssistant)) {
