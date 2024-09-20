@@ -417,8 +417,6 @@ def process_text_to_vector_db(
 
     return {"answer": message, "success": success, "db_path": db_path}
 
-    # add and get endpoint that returns if the Copilot is running on Docker or not
-
 
 @traceable
 @core_router.get("/runningCheck")
