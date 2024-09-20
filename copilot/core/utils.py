@@ -1,4 +1,5 @@
 import os
+import socket
 from typing import Final
 
 from copilot.core.schemas import QuestionSchema
@@ -62,3 +63,27 @@ def copilot_info(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
     if os.getenv("COPILOT_INFO", 'False').lower() in "true" or os.getenv("COPILOT_DEBUG", 'False').lower() in "true":
         print_violet(message)
+
+
+
+
+def is_docker():
+    # Verify if the process is running in a container
+    if os.path.exists('/.dockerenv'):
+        return True
+
+    # Verify if the process is running in a container
+    try:
+        with open('/proc/1/cgroup', 'rt') as f:
+            for line in f:
+                if 'docker' in line or 'containerd' in line:
+                    return True
+    except FileNotFoundError:
+        pass
+
+    # Verify if the process is running in a container
+    hostname = socket.gethostname()
+    if len(hostname) == 12 and hostname.isalnum():
+        return True
+
+    return False

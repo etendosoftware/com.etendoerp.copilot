@@ -416,3 +416,11 @@ def process_text_to_vector_db(
         db_path = ""
 
     return {"answer": message, "success": success, "db_path": db_path}
+
+    # add and get endpoint that returns if the Copilot is running on Docker or not
+
+
+@traceable
+@core_router.get("/runningCheck")
+def running_check():
+    return {"answer": "docker" if utils.is_docker() else "pycharm"}
