@@ -40,11 +40,11 @@ def get_full_question(question: QuestionSchema) -> str:
 
 def read_optional_env_var(env_var_name: str, default_value: str) -> str:
     """Reads an optional environment variable and returns its value or the default one."""
-    copilot_debug(f"Reading optional environment variable {env_var_name} with default value {default_value}")
     value = os.getenv(env_var_name, default_value)
     if not value:
         copilot_debug(f"Environment variable {env_var_name} is not set, using default value {default_value}")
         return default_value
+    copilot_debug(f"Reading optional environment variable {env_var_name} = {value}")
     return value
 
 
@@ -59,15 +59,22 @@ def copilot_debug(message: str):
         print_yellow(message)
 
 
+def copilot_debug_event(message: str):
+    """Prints a message if COPILOT_DEBUG_EVENT is set to True."""
+    debug = os.getenv("COPILOT_DEBUG", 'False').lower()
+    debug_event = os.getenv("COPILOT_DEBUG_EVENT", 'False').lower()
+    if (debug in "true") and (debug_event in "true"):
+        print_green(message)
+
+
 def copilot_info(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
     if os.getenv("COPILOT_INFO", 'False').lower() in "true" or os.getenv("COPILOT_DEBUG", 'False').lower() in "true":
         print_violet(message)
 
 
-
-
 def is_docker():
+    """Check if the process is running in a Docker container."""
     # Verify if the process is running in a container
     if os.path.exists('/.dockerenv'):
         return True
