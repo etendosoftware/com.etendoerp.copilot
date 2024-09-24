@@ -234,6 +234,9 @@ public class CopilotUtils {
           .build();
 
       return client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new OBException(e);
     } catch (Exception e) {
       throw new OBException(e);
     }
@@ -251,6 +254,9 @@ public class CopilotUtils {
           .build();
 
       return client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new OBException(e);
     } catch (Exception e) {
       throw new OBException(e);
     }
