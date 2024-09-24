@@ -559,17 +559,29 @@ public class CopilotUtils {
     return stringParsed;
   }
 
+  /**
+   * Retrieves the source path from the provided properties.
+   * This method checks if the application is running inside a Docker container.
+   * If it is running inside Docker, it returns an empty string.
+   * Otherwise, it retrieves the source path from the properties using the key "source.path".
+   *
+   * @param properties
+   *     The properties object containing configuration values.
+   * @return The source path if not running inside Docker, otherwise an empty string.
+   * @throws RuntimeException
+   *     If an error occurs while checking the running environment.
+   */
   private static String getSourcesPath(Properties properties) {
     boolean inDocker;
     try {
       var resp = doGetCopilot(properties, "runningCheck");
-      inDocker = resp.body().contains("docker");
+      inDocker = StringUtils.contains(resp.body(), "docker");
       if (inDocker) {
         return "";
       }
       return properties.getProperty("source.path");
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new OBException(e);
     }
   }
 
