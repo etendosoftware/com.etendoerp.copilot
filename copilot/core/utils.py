@@ -1,4 +1,5 @@
 import os
+import shutil
 import socket
 from typing import Final
 
@@ -38,8 +39,20 @@ def get_full_question(question: QuestionSchema) -> str:
     return result
 
 
+def _handle_etendo_host_var(env_var_name, default_value):
+    etendo_host_docker = os.getenv("ETENDO_HOST_DOCKER")
+    if etendo_host_docker:
+        copilot_debug(
+            f" Reading ETENDO_HOST, existing ETENDO_HOST_DOCKER, overriding ETENDO_HOST with ETENDO_HOST_DOCKER."
+            f" Value is {etendo_host_docker}")
+        return read_optional_env_var("ETENDO_HOST_DOCKER", default_value)
+    return read_optional_env_var(env_var_name, default_value)
+
+
 def read_optional_env_var(env_var_name: str, default_value: str) -> str:
     """Reads an optional environment variable and returns its value or the default one."""
+    if env_var_name == "ETENDO_HOST":
+        return _handle_etendo_host_var(env_var_name, default_value)
     value = os.getenv(env_var_name, default_value)
     if not value:
         copilot_debug(f"Environment variable {env_var_name} is not set, using default value {default_value}")
@@ -94,3 +107,23 @@ def is_docker():
         return True
 
     return False
+
+
+def empty_folder(db_path):
+    # Check if the provided path is a valid directory
+    if not os.path.isdir(db_path):
+        print(f"The path '{db_path}' is not a valid directory.")
+        return
+
+    # Iterate over the folder's contents
+    for filename in os.listdir(db_path):
+        file_path = os.path.join(db_path, filename)
+
+        # If it's a directory, delete it recursively
+        if os.path.isdir(file_path):
+            shutil.rmtree(file_path)
+        # If it's a file or a symlink, delete it
+        elif os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+
+    print(f"All contents of the folder '{db_path}' have been deleted.")
