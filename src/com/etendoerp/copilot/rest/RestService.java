@@ -16,11 +16,15 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TransferQueue;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.*;
@@ -79,6 +83,9 @@ public class RestService {
       } else if (StringUtils.equalsIgnoreCase(path, FILE)) {
         handleFile(request, response);
         return;
+      } else if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
+        handleCacheQuestion(request, response);
+        return;
       }
       //if not a valid path, throw a error status
       response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
@@ -93,6 +100,63 @@ public class RestService {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private void handleCacheQuestion(HttpServletRequest request, HttpServletResponse response) {
+    try {
+      saveCachedQuestion(request, response);
+    } catch (Exception e) {
+      log4j.error(e);
+      try {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+      } catch (IOException ioException) {
+        log4j.error(ioException);
+        try {
+          response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+        } catch (IOException ioException2) {
+          log4j.error(ioException2);
+        }
+      }
+    }
+  }
+
+  private void saveCachedQuestion(HttpServletRequest request, HttpServletResponse response) {
+    //read the question sent in the body
+    try {
+      String question = null;
+      if ("POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null) {
+        BufferedReader reader = request.getReader();
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+          sb.append(line);
+        }
+        JSONObject jsonBody = new JSONObject(sb.toString());
+        question = jsonBody.getString("question");
+        if (question == null) {
+          throw new OBException("Question is required");
+        }
+      }
+      request.getSession().setAttribute("cachedQuestion", question);
+      response.setStatus(HttpServletResponse.SC_OK);
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(new JSONObject().put("message", "Question cached").toString());
+    } catch (IOException | JSONException e) {
+      response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      try {
+        response.getWriter().write(new JSONObject().put("error", e.getMessage()).toString());
+      } catch (IOException | JSONException ioException) {
+        log4j.error(ioException);
+      }
+    }
+  }
+
+  private String readCachedQuestion(HttpServletRequest request) {
+    //Read que params, save the question in a text file in /tmp/app_id/conversation_id/question_uuid.txt
+    String cachedQuestion = (String) request.getSession().getAttribute("cachedQuestion");
+    System.out.println("Reading cached question: " + cachedQuestion);
+    request.getSession().removeAttribute("cachedQuestion");
+    return cachedQuestion;
   }
 
   private void sendErrorResponse(HttpServletResponse response, int status, String message)
@@ -156,6 +220,10 @@ public class RestService {
       if (request.getParameter("file") != null) {
         json.put("file", request.getParameter("file"));
       }
+    }
+    String cachedQuestion = readCachedQuestion(request);
+    if (StringUtils.isBlank(json.optString("question")) && StringUtils.isNotBlank(cachedQuestion)) {
+      json.put("question", cachedQuestion);
     }
     if (!json.has("question")) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), "question"));
