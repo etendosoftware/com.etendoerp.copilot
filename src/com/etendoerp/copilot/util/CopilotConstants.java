@@ -28,6 +28,9 @@ public class CopilotConstants {
   public static final String PROVIDER_GEMINI = "gemini";
   public static final String PENDING_SYNCHRONIZATION_STATE = "PS";
   public static final String SYNCHRONIZED_STATE = "S";
+  public static final String[] KB_FILE_VALID_EXTENSIONS = {
+      "pdf", "md", "markdown", "txt", "zip", "java", "py", "js", "xml"
+  };
 
   public static boolean isSystemPromptBehaviour(CopilotAppSource source) {
     return StringUtils.equals(source.getBehaviour(), FILE_BEHAVIOUR_SYSTEM);

@@ -1,6 +1,7 @@
 package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.replaceAliasInPrompt;
+import static com.etendoerp.copilot.util.CopilotConstants.KB_FILE_VALID_EXTENSIONS;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
@@ -24,6 +25,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
@@ -190,17 +192,14 @@ public class CopilotUtils {
       boolean isBinary) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String endpoint = "addToVectorDB";
-    String endpointBinary = "addBinaryToVectorDB";
     HttpResponse<String> responseFromCopilot;
     JSONObject jsonRequestForCopilot = new JSONObject();
-    jsonRequestForCopilot.put("text", content);
+    jsonRequestForCopilot.put("filename", fileToSend.getName());
     jsonRequestForCopilot.put("kb_vectordb_id", dbName);
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
 
-    responseFromCopilot = getResponseFromCopilot(properties, isBinary ? endpointBinary : endpoint,
-        jsonRequestForCopilot,
-        isBinary ? fileToSend : null);
+    responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot, fileToSend);
 
     if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")));
@@ -262,6 +261,7 @@ public class CopilotUtils {
     var writer = new PrintWriter(new OutputStreamWriter(byteArrays, StandardCharsets.UTF_8), true);
 
     String kb_vectordb_id = jsonBody.getString("kb_vectordb_id");
+    String filename = jsonBody.getString("filename");
     String text = jsonBody.optString("text", null);
     String extension = jsonBody.getString("extension");
     boolean overwrite = jsonBody.optBoolean("overwrite", false);
@@ -275,6 +275,10 @@ public class CopilotUtils {
       writer.append("Content-Disposition: form-data; name=\"text\"\r\n\r\n");
       writer.append(text).append("\r\n");
     }
+
+    writer.append("--").append(BOUNDARY).append("\r\n");
+    writer.append("Content-Disposition: form-data; name=\"filename\"\r\n\r\n");
+    writer.append(filename).append("\r\n");
 
     writer.append("--").append(BOUNDARY).append("\r\n");
     writer.append("Content-Disposition: form-data; name=\"extension\"\r\n\r\n");
@@ -443,30 +447,8 @@ public class CopilotUtils {
       extension = fileFromCopilotFile.getName().substring(fileFromCopilotFile.getName().lastIndexOf(".") + 1);
     }
 
-    if (StringUtils.equalsIgnoreCase(extension, "pdf")) {
+    if (isValidExtension(extension)) {
       binaryFileToVectorDB(fileFromCopilotFile, dbName, extension);
-
-    } else if (StringUtils.equalsIgnoreCase(extension, "md") || (StringUtils.equalsIgnoreCase(extension, "markdown"))) {
-      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
-
-    } else if (StringUtils.equalsIgnoreCase(extension, "txt")) {
-      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
-
-    } else if (StringUtils.equalsIgnoreCase(extension, "zip")) {
-      binaryFileToVectorDB(fileFromCopilotFile, dbName, extension);
-
-    } else if (StringUtils.equalsIgnoreCase(extension, "java")) {
-      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
-
-    } else if (StringUtils.equalsIgnoreCase(extension, "py")) {
-      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
-
-    } else if (StringUtils.equalsIgnoreCase(extension, "js")) {
-      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
-
-    } else if (StringUtils.equalsIgnoreCase(extension, "xml")) {
-      notEncodedFileToVectorDB(fileFromCopilotFile, dbName, extension);
-
     } else {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
     }
@@ -475,6 +457,21 @@ public class CopilotUtils {
     fileToSync.setUpdated(new Date());
     OBDal.getInstance().save(fileToSync);
     OBDal.getInstance().flush();
+  }
+
+
+  /**
+   * Checks if the given file extension is valid.
+   * This method compares the provided extension against a list of valid extensions
+   * defined in the KB\_FILE\_VALID\_EXTENSIONS constant.
+   *
+   * @param extension
+   *     The file extension to be checked.
+   * @return true if the extension is valid, false otherwise.
+   */
+  private static boolean isValidExtension(String extension) {
+    return Arrays.stream(KB_FILE_VALID_EXTENSIONS)
+        .anyMatch(validExt -> StringUtils.equalsIgnoreCase(validExt, extension));
   }
 
   private static void notEncodedFileToVectorDB(File fileFromCopilotFile, String dbName,
@@ -627,5 +624,33 @@ public class CopilotUtils {
     Warehouse warehouse = OBDal.getInstance().get(Warehouse.class, context.getWarehouse().getId());
     return SecureWebServicesUtils.generateToken(user, role, currentOrganization,
         warehouse);
+  }
+
+  /**
+   * Purges the vector database for the given CopilotApp instance.
+   * This method sends a request to the Copilot service to purge the vector database associated with the specified app.
+   * If the response status code is not in the range of 200-299, it throws an OBException.
+   *
+   * @param app
+   *     The CopilotApp instance for which the vector database is to be purged.
+   * @throws JSONException
+   *     If there is an error constructing the JSON request.
+   * @throws OBException
+   *     If the response from the Copilot service indicates a failure.
+   */
+  public static void purgeVectorDB(CopilotApp app) throws JSONException {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String dbName = "KB_" + app.getId();
+    JSONObject jsonRequestForCopilot = new JSONObject();
+
+    jsonRequestForCopilot.put("kb_vectordb_id", dbName);
+    String endpoint = "purgeVectorDB";
+    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
+        null);
+    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
+          responseFromCopilot != null ? responseFromCopilot.body() : ""));
+    }
+
   }
 }
