@@ -52,3 +52,7 @@ class AssistantIdNotFound(ApplicationError):
 
 class AssistantTimeout(ApplicationError):
     message = "Assistant agent connection error. Try it again."
+
+
+class ToolException(Exception):
+    pass

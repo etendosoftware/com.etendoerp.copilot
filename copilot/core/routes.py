@@ -28,7 +28,7 @@ from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, VectorDBInputSchema, TextToVectorDBSchema
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils import copilot_debug, copilot_info
+from copilot.core.utils import copilot_debug, copilot_info, empty_folder
 from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file, \
     handle_other_formats, get_text_splitter
 
@@ -320,7 +320,7 @@ def resetVectorDB(body: VectorDBInputSchema):
         db_client.clear_system_cache()
         db_client = None
         if os.path.exists(db_path):
-            shutil.rmtree(db_path)
+            empty_folder(db_path)
     except Exception as e:
         copilot_debug(f"Error resetting VectorDB: {e}")
         raise e
@@ -416,3 +416,9 @@ def process_text_to_vector_db(
         db_path = ""
 
     return {"answer": message, "success": success, "db_path": db_path}
+
+
+@traceable
+@core_router.get("/runningCheck")
+def running_check():
+    return {"answer": "docker" if utils.is_docker() else "pycharm"}
