@@ -545,6 +545,7 @@ public class CopilotUtils {
    */
   public static String replaceCopilotPromptVariables(String string) {
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
+    stringParsed = StringUtils.replace(stringParsed, "@ETENDO_HOST_DOCKER@", getEtendoHostDocker());
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     stringParsed = StringUtils.replace(stringParsed, "@source.path@", getSourcesPath(properties));
 
@@ -601,6 +602,15 @@ public class CopilotUtils {
   private static String getEtendoHost() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
+  }
+
+  private static String getEtendoHostDocker() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String hostDocker = properties.getProperty("ETENDO_HOST_DOCKER", "");
+    if(StringUtils.isEmpty(hostDocker)) {
+      hostDocker = getEtendoHost();
+    }
+    return hostDocker;
   }
 
   public static String getAppSourceContent(List<CopilotAppSource> appSourceList, String type) {
