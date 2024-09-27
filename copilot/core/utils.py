@@ -46,13 +46,17 @@ def _handle_etendo_host_var(env_var_name, default_value):
             f" Reading ETENDO_HOST, existing ETENDO_HOST_DOCKER, overriding ETENDO_HOST with ETENDO_HOST_DOCKER."
             f" Value is {etendo_host_docker}")
         return read_optional_env_var("ETENDO_HOST_DOCKER", default_value)
-    return read_optional_env_var(env_var_name, default_value)
+    return _read_env_var(env_var_name, default_value)
 
 
 def read_optional_env_var(env_var_name: str, default_value: str) -> str:
     """Reads an optional environment variable and returns its value or the default one."""
     if env_var_name == "ETENDO_HOST":
         return _handle_etendo_host_var(env_var_name, default_value)
+    return _read_env_var(default_value, env_var_name)
+
+
+def _read_env_var(default_value, env_var_name):
     value = os.getenv(env_var_name, default_value)
     if not value:
         copilot_debug(f"Environment variable {env_var_name} is not set, using default value {default_value}")
