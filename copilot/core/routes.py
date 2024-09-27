@@ -416,3 +416,9 @@ def process_text_to_vector_db(
         db_path = ""
 
     return {"answer": message, "success": success, "db_path": db_path}
+
+
+@traceable
+@core_router.get("/runningCheck")
+def running_check():
+    return {"answer": "docker" if utils.is_docker() else "pycharm"}

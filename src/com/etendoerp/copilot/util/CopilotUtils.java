@@ -207,7 +207,6 @@ public class CopilotUtils {
     }
   }
 
-
   private static HttpResponse<String> getResponseFromCopilot(Properties properties, String endpoint,
       JSONObject jsonBody, File fileToSend) {
 
@@ -235,10 +234,34 @@ public class CopilotUtils {
           .build();
 
       return client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new OBException(e);
     } catch (Exception e) {
       throw new OBException(e);
     }
   }
+
+  private static HttpResponse<String> doGetCopilot(Properties properties, String endpoint) {
+    try {
+      HttpClient client = HttpClient.newBuilder().build();
+      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
+      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+
+      HttpRequest copilotRequest = HttpRequest.newBuilder()
+          .uri(new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint)))
+          .GET()
+          .build();
+
+      return client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new OBException(e);
+    } catch (Exception e) {
+      throw new OBException(e);
+    }
+  }
+
 
   private static HttpRequest.BodyPublisher createMultipartBody(JSONObject jsonBody, File file) throws Exception {
     var byteArrays = new ByteArrayOutputStream();
@@ -347,7 +370,7 @@ public class CopilotUtils {
     aim.download(attach.getId(), os);
     //create a temp file
     String filename = attach.getName();
-    if (filename.lastIndexOf(".")<0) {
+    if (filename.lastIndexOf(".") < 0) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingExtension"), filename));
     }
 
@@ -523,7 +546,7 @@ public class CopilotUtils {
   public static String replaceCopilotPromptVariables(String string) {
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    stringParsed = StringUtils.replace(stringParsed, "@source.path@", properties.getProperty("source.path"));
+    stringParsed = StringUtils.replace(stringParsed, "@source.path@", getSourcesPath(properties));
 
     //check the If exists something like {SOMETHING} and replace it with {{SOMETHING}}, preserving the content inside
     // replace { with {{
@@ -540,6 +563,32 @@ public class CopilotUtils {
     }
 
     return stringParsed;
+  }
+
+  /**
+   * Retrieves the source path from the provided properties.
+   * This method checks if the application is running inside a Docker container.
+   * If it is running inside Docker, it returns an empty string.
+   * Otherwise, it retrieves the source path from the properties using the key "source.path".
+   *
+   * @param properties
+   *     The properties object containing configuration values.
+   * @return The source path if not running inside Docker, otherwise an empty string.
+   * @throws RuntimeException
+   *     If an error occurs while checking the running environment.
+   */
+  private static String getSourcesPath(Properties properties) {
+    boolean inDocker;
+    try {
+      var resp = doGetCopilot(properties, "runningCheck");
+      inDocker = StringUtils.contains(resp.body(), "docker");
+      if (inDocker) {
+        return "";
+      }
+      return properties.getProperty("source.path");
+    } catch (Exception e) {
+      throw new OBException(e);
+    }
   }
 
   /**
