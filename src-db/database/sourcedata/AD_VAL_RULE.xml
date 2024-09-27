@@ -10,10 +10,22 @@
 <!--517D7E47FDB3448E9A6AF58C12DAEE0A-->  <CODE><![CDATA[NOT EXISTS (SELECT 1 FROM etcop_role_app rp WHERE rp.ad_role_id = @AD_Role_ID@ 
 and rp.etcop_app_id = etcop_app.etcop_app_id and rp.etcop_role_app_id <> coalesce(@Etcop_Role_App_ID@,'')
 )
-and (etcop_app.system_app ='N' or (etcop_app.system_app ='Y' and '0' in (@AD_Role_ID@ ))
- )]]></CODE>
+and (etcop_app.system_app ='N' OR (etcop_app.system_app = 'Y' AND @AD_Role_ID@ = '0'))
+]]></CODE>
 <!--517D7E47FDB3448E9A6AF58C12DAEE0A-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--517D7E47FDB3448E9A6AF58C12DAEE0A--></AD_VAL_RULE>
+
+<!--5E449DA08FC541A6AC8C27CD677BA5DB--><AD_VAL_RULE>
+<!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <AD_VAL_RULE_ID><![CDATA[5E449DA08FC541A6AC8C27CD677BA5DB]]></AD_VAL_RULE_ID>
+<!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <NAME><![CDATA[Assistant enabled for Role]]></NAME>
+<!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <TYPE><![CDATA[S]]></TYPE>
+<!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <CODE><![CDATA[EXISTS (SELECT 1 FROM etcop_role_app rp WHERE rp.ad_role_id = @AD_Role_ID@ 
+    and rp.etcop_app_id = etcop_app.etcop_app_id )]]></CODE>
+<!--5E449DA08FC541A6AC8C27CD677BA5DB-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--5E449DA08FC541A6AC8C27CD677BA5DB--></AD_VAL_RULE>
 
 <!--650BF66A4B3B46599D4F22BEFF152785--><AD_VAL_RULE>
 <!--650BF66A4B3B46599D4F22BEFF152785-->  <AD_VAL_RULE_ID><![CDATA[650BF66A4B3B46599D4F22BEFF152785]]></AD_VAL_RULE_ID>
@@ -38,11 +50,22 @@ and etcop_file.istemp='N']]></CODE>
 <!--914A05B6AF9D4003A36504024CACED19-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--914A05B6AF9D4003A36504024CACED19-->  <NAME><![CDATA[App-Team Member]]></NAME>
 <!--914A05B6AF9D4003A36504024CACED19-->  <TYPE><![CDATA[S]]></TYPE>
-<!--914A05B6AF9D4003A36504024CACED19-->  <CODE><![CDATA[NOT EXISTS (
-    SELECT 1 FROM etcop_team_member tm WHERE tm.etcop_app_id = @ETCOP_App_ID@ 
-and tm.app_member = etcop_app.etcop_app_id 
-and tm.etcop_team_member_id <> coalesce(@Etcop_Team_Member_ID@,'')
-) and etcop_app.apptype <> 'langgraph']]></CODE>
+<!--914A05B6AF9D4003A36504024CACED19-->  <CODE><![CDATA[ etcop_app.apptype <> 'langgraph'
+AND NOT EXISTS (
+    SELECT 1 
+    FROM etcop_team_member tm 
+    WHERE tm.etcop_app_id = @ETCOP_App_ID@ 
+    AND tm.app_member = etcop_app.etcop_app_id 
+    AND tm.etcop_team_member_id <> COALESCE(@Etcop_Team_Member_ID@, '')
+) 
+AND EXISTS (
+    SELECT 1 
+    FROM etcop_role_app rp 
+    WHERE rp.ad_role_id = @AD_Role_ID@ 
+    AND rp.etcop_app_id = etcop_app.etcop_app_id
+)
+
+]]></CODE>
 <!--914A05B6AF9D4003A36504024CACED19-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--914A05B6AF9D4003A36504024CACED19--></AD_VAL_RULE>
 
