@@ -1,6 +1,6 @@
 import uuid
 
-from langchain_core.messages import HumanMessage, BaseMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langsmith import traceable
@@ -13,7 +13,7 @@ from ..langgraph.patterns import SupervisorPattern
 from ..langgraph.patterns.base_pattern import GraphMember
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import GraphQuestionSchema
-from ..utils import read_optional_env_var, read_optional_env_var_int, copilot_debug
+from ..utils import read_optional_env_var, read_optional_env_var_int, copilot_debug, copilot_debug_event
 
 
 class LanggraphAgent(CopilotAgent):
@@ -76,7 +76,7 @@ class LanggraphAgent(CopilotAgent):
                     yield AssistantResponse(
                         response=str(event), conversation_id=question.conversation_id, role="debug"
                     )
-                copilot_debug(f"Event: {str(event)}")
+                copilot_debug_event(f"Event: {str(event)}")
                 kind = event["event"]
                 if kind == "on_chain_start":
                     if event.get("metadata") != None:
@@ -113,6 +113,6 @@ class LanggraphAgent(CopilotAgent):
                                     response=message.content, conversation_id=question.conversation_id
                                 )
                 else:
-                    copilot_debug(f"Event kind not recognized: {kind}")
+                    copilot_debug_event(f"Event kind not recognized: {kind}")
             except Exception as e:
                 copilot_debug(f"Error in event processing: {str(e)}")
