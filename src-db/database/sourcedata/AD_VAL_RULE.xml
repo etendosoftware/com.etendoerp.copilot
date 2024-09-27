@@ -50,14 +50,14 @@ and etcop_file.istemp='N']]></CODE>
 <!--914A05B6AF9D4003A36504024CACED19-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--914A05B6AF9D4003A36504024CACED19-->  <NAME><![CDATA[App-Team Member]]></NAME>
 <!--914A05B6AF9D4003A36504024CACED19-->  <TYPE><![CDATA[S]]></TYPE>
-<!--914A05B6AF9D4003A36504024CACED19-->  <CODE><![CDATA[NOT EXISTS (
+<!--914A05B6AF9D4003A36504024CACED19-->  <CODE><![CDATA[ etcop_app.apptype <> 'langgraph'
+AND NOT EXISTS (
     SELECT 1 
     FROM etcop_team_member tm 
     WHERE tm.etcop_app_id = @ETCOP_App_ID@ 
     AND tm.app_member = etcop_app.etcop_app_id 
     AND tm.etcop_team_member_id <> COALESCE(@Etcop_Team_Member_ID@, '')
 ) 
-AND etcop_app.apptype <> 'langgraph'
 AND EXISTS (
     SELECT 1 
     FROM etcop_role_app rp 
