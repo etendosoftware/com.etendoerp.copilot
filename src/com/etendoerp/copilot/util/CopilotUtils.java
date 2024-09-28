@@ -207,7 +207,7 @@ public class CopilotUtils {
     }
   }
 
-  private static HttpResponse<String> getResponseFromCopilot(Properties properties, String endpoint,
+  public static HttpResponse<String> getResponseFromCopilot(Properties properties, String endpoint,
       JSONObject jsonBody, File fileToSend) {
 
     try {
@@ -261,28 +261,31 @@ public class CopilotUtils {
     var byteArrays = new ByteArrayOutputStream();
     var writer = new PrintWriter(new OutputStreamWriter(byteArrays, StandardCharsets.UTF_8), true);
 
-    String kb_vectordb_id = jsonBody.getString("kb_vectordb_id");
+    String kb_vectordb_id = jsonBody.optString("kb_vectordb_id");
     String text = jsonBody.optString("text", null);
-    String extension = jsonBody.getString("extension");
+    String extension = jsonBody.optString("extension");
     boolean overwrite = jsonBody.optBoolean("overwrite", false);
 
-    writer.append("--").append(BOUNDARY).append("\r\n");
-    writer.append("Content-Disposition: form-data; name=\"kb_vectordb_id\"\r\n\r\n");
-    writer.append(kb_vectordb_id).append("\r\n");
-
+    if (kb_vectordb_id != null) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"kb_vectordb_id\"\r\n\r\n");
+      writer.append(kb_vectordb_id).append("\r\n");
+    }
     if (text != null) {
       writer.append("--").append(BOUNDARY).append("\r\n");
       writer.append("Content-Disposition: form-data; name=\"text\"\r\n\r\n");
       writer.append(text).append("\r\n");
     }
-
-    writer.append("--").append(BOUNDARY).append("\r\n");
-    writer.append("Content-Disposition: form-data; name=\"extension\"\r\n\r\n");
-    writer.append(extension).append("\r\n");
-
-    writer.append("--").append(BOUNDARY).append("\r\n");
-    writer.append("Content-Disposition: form-data; name=\"overwrite\"\r\n\r\n");
-    writer.append(String.valueOf(overwrite)).append("\r\n");
+    if (extension != null) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"extension\"\r\n\r\n");
+      writer.append(extension).append("\r\n");
+    }
+    if (overwrite) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"overwrite\"\r\n\r\n");
+      writer.append(String.valueOf(overwrite)).append("\r\n");
+    }
     // File part
     if (file != null) {
       writer.append("--").append(BOUNDARY).append("\r\n");
@@ -589,7 +592,7 @@ public class CopilotUtils {
   private static String getEtendoHostDocker() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String hostDocker = properties.getProperty("ETENDO_HOST_DOCKER", "");
-    if(StringUtils.isEmpty(hostDocker)) {
+    if (StringUtils.isEmpty(hostDocker)) {
       hostDocker = getEtendoHost();
     }
     return hostDocker;

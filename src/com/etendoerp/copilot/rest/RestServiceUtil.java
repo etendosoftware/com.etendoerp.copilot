@@ -164,7 +164,6 @@ public class RestServiceUtil {
     logIfDebug(String.format("items: %d", items.size()));
     JSONObject responseJson = new JSONObject();
     //create a list of files, for delete them later when the process finish
-    List<File> fileListToDelete = new ArrayList<>();
     for (FileItem item : items) {
       if (item.isFormField()) {
         continue;
@@ -188,19 +187,9 @@ public class RestServiceUtil {
         }
       }
       checkSizeFile(f);
-      fileListToDelete.add(f);
       responseJson.put(item.getFieldName(), handleFile(f, originalFileName));
     }
-    OBDal.getInstance().flush();
-    //delete the temp files
-    for (File f : fileListToDelete) {
-      try {
-        logIfDebug(String.format("deleting file: %s", f.getName()));
-        Files.deleteIfExists(f.toPath());
-      } catch (Exception e) {
-        log.error(e);
-      }
-    }
+
     return responseJson;
   }
 
@@ -212,29 +201,16 @@ public class RestServiceUtil {
    * @param originalFileName
    * @throws IOException
    */
-  private static String handleFile(File f, String originalFileName) throws IOException {
-    String fileUUID = UUID.randomUUID().toString();
-    //print the current directory of the class
-    String sourcePath = OBPropertiesProvider.getInstance()
-        .getOpenbravoProperties()
-        .getProperty("source.path");
-    String buildCopilotPath = sourcePath + "/build/copilot";
-    String modulePath = sourcePath + "/modules";
-    // copy the file to the buildCopilotPath folder, in a subfolder with the name of the file_id
-    String filePath = String.format("/copilotTempFiles/%s/%s", fileUUID, originalFileName);
-    saveFileTemp(f, filePath);
-    String pathForStandardCopy = buildCopilotPath + filePath;
-    File fileCopilotFolder = new File(pathForStandardCopy);
-    fileCopilotFolder.getParentFile().mkdirs();
-    Files.copy(f.toPath(), fileCopilotFolder.toPath());
-    //copy the file to the module folder, for the development
-    if (isDevelopment()) {
-      String pathForDevCopy = modulePath + filePath;
-      File fileModuleFolder = new File(pathForDevCopy);
-      fileModuleFolder.getParentFile().mkdirs();
-      Files.copy(f.toPath(), fileModuleFolder.toPath());
+  private static String handleFile(File f, String originalFileName) throws IOException, JSONException {
+    var prop = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    var response = CopilotUtils.getResponseFromCopilot(prop, "attachFile", new JSONObject(), f);
+    if (response == null) {
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"));
     }
-    return filePath;
+    var jsonResponseStr = response.body();
+    logIfDebug("Response from Copilot: " + jsonResponseStr);
+    JSONObject jsonObject = new JSONObject(jsonResponseStr);
+    return jsonObject.optString("answer");
   }
 
   /**
@@ -811,16 +787,7 @@ public class RestServiceUtil {
       JSONArray filesIds = new JSONArray();
       for (String questionAttachedFileId : questionAttachedFileIds) {
         if (StringUtils.isNotEmpty(questionAttachedFileId)) {
-          //check if the file exists in the temp folder
-          CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
-              .createCriteria(CopilotFile.class)
-              .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
-              .setMaxResults(1)
-              .uniqueResult();
-          if (copilotFile == null) {
-            throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileNotFound"),
-                questionAttachedFileId));
-          }
+
           logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
           filesIds.put(questionAttachedFileId);
         }
