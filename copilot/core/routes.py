@@ -10,6 +10,7 @@ import logging
 import os
 import shutil
 import threading
+import uuid
 from pathlib import Path
 
 import chromadb
@@ -422,3 +423,14 @@ def process_text_to_vector_db(
 @core_router.get("/runningCheck")
 def running_check():
     return {"answer": "docker" if utils.is_docker() else "pycharm"}
+
+
+@traceable
+@core_router.post("/attachFile")
+def attach_file(file: UploadFile = File(...)):
+    # save the file inside /tmp and return the path
+    temp_file_path = Path(f"/tmp/{uuid.uuid4()}/{file.filename}")
+    temp_file_path.parent.mkdir(parents=True, exist_ok=True)
+    with temp_file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"answer": str(temp_file_path)}
