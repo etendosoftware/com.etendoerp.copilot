@@ -116,6 +116,7 @@ public class RestService {
     List<FileItem> items = upload.parseRequest(request);
     var responseJson = RestServiceUtil.handleFile(items);
     response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+    response.setStatus(HttpServletResponse.SC_OK);
     response.getWriter().write(responseJson.toString());
   }
 
