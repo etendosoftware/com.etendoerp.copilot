@@ -106,6 +106,8 @@ definitions:
             BRANCH_NAME=$(echo ${BITBUCKET_BRANCH} | sed 's/[^a-zA-Z0-9_-]/_/g')
           fi
         - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+        - docker rmi etendo/etendo_copilot_core:${BRANCH_NAME}-amd64 || true
+        - docker rmi etendo/etendo_copilot_core:${BRANCH_NAME}-arm64 || true
         - docker pull etendo/etendo_copilot_core:${BRANCH_NAME}-amd64
         - docker pull etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
         - docker manifest create etendo/etendo_copilot_core:${BRANCH_NAME} etendo/etendo_copilot_core:${BRANCH_NAME}-amd64 etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
