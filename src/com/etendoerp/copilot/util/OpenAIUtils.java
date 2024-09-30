@@ -1,6 +1,7 @@
 package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.process.SyncOpenAIAssistant.ERROR;
+import static com.etendoerp.copilot.util.CopilotUtils.getAssistantPrompt;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -29,7 +30,6 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -42,9 +42,6 @@ import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import kong.unirest.UnirestException;
-
-import static com.etendoerp.copilot.hook.RemoteFileHook.COPILOT_FILE_TAB_ID;
-import static com.etendoerp.copilot.process.SyncOpenAIAssistant.ERROR;
 
 public class OpenAIUtils {
   private static final Logger log = LogManager.getLogger(OpenAIUtils.class);
@@ -76,7 +73,7 @@ public class OpenAIUtils {
     //if the app not has an assistant, we need to create it
     try {
       upsertAssistant(app, openaiApiKey);
-    } catch (JSONException e) {
+    } catch (JSONException | IOException e) {
       throw new OBException(e.getMessage());
     }
   }
@@ -92,7 +89,7 @@ public class OpenAIUtils {
   }
 
   private static JSONObject upsertAssistant(CopilotApp app, String openaiApiKey)
-      throws JSONException {
+      throws JSONException, IOException {
     String openaiIdAssistant = app.getOpenaiIdAssistant();
     if (StringUtils.isNotEmpty(openaiIdAssistant)) {
       if (!existsAssistant(openaiIdAssistant)) {
@@ -110,7 +107,9 @@ public class OpenAIUtils {
     if (app.getTemperature() != null) {
       body.put("temperature", app.getTemperature());
     }
-    body.put("model", CopilotUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI));
+    String model = CopilotUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI);
+    logIfDebug("Selected model: " + model);
+    body.put("model", model);
     //make the request to openai
     JSONObject response = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null, false);
     logIfDebug(response.toString());
@@ -199,45 +198,6 @@ public class OpenAIUtils {
     logIfDebug(json.toString());
   }
 
-  private static String getAssistantPrompt(CopilotApp app) {
-    StringBuilder sb = new StringBuilder();
-    sb.append(app.getPrompt());
-    sb.append("\n");
-    try {
-      sb.append(WeldUtils.getInstanceFromStaticBeanManager(OpenAIPromptHookManager.class)
-          .executeHooks(app));
-    } catch (OBException e) {
-      log.error("Error executing hooks", e);
-    }
-    //
-    sb.append(getAppSourceContent(app, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
-
-    return replaceCopilotPromptVariables(sb.toString());
-  }
-
-  /**
-   * This method is used to replace a specific placeholder in a string with the host name of Etendo.
-   * The placeholder is "@ETENDO_HOST@" and it is replaced with the value returned by the getEtendoHost() method.
-   *
-   * @param string
-   *     The string in which the placeholder is to be replaced. It is expected to contain "@ETENDO_HOST@".
-   * @return The string with the placeholder "@ETENDO_HOST@" replaced by the host name of Etendo.
-   */
-  public static String replaceCopilotPromptVariables(String string) {
-    return StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
-  }
-
-  /**
-   * This method retrieves the host name of Etendo from the system properties.
-   * It uses the key "ETENDO_HOST" to fetch the value from the properties.
-   * If the key is not found in the properties, it returns "ERROR" as a default value.
-   *
-   * @return The host name of Etendo if found, otherwise "ERROR".
-   */
-  private static String getEtendoHost() {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
-  }
 
   public static JSONObject wrappWithJSONSchema(JSONObject parameters) throws JSONException {
     return new JSONObject().put("type", "object").put("properties", parameters);
@@ -246,7 +206,8 @@ public class OpenAIUtils {
   private static JSONArray getKbArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
-      if (!source.isExcludeFromCodeInterpreter() && CopilotConstants.isKbBehaviour(source)) {
+      if (!source.isExcludeFromCodeInterpreter() && CopilotConstants.isKbBehaviour(source) &&
+          (StringUtils.equalsIgnoreCase(source.getEtcopApp().getAppType(), CopilotConstants.APP_TYPE_OPENAI))) {
         String openaiIdFile;
         if (CopilotConstants.isFileTypeLocalOrRemoteFile(source.getFile())) {
           openaiIdFile = source.getOpenaiIdFile();
@@ -356,9 +317,6 @@ public class OpenAIUtils {
     //first we need to get the file
     //if the file not has an id, we need to create it
     logIfDebug("Syncing file " + appSource.getFile().getName());
-    if (CopilotConstants.isHQLQueryFile(appSource.getFile())) {
-      syncHQLAppSource(appSource, openaiApiKey);
-    }
     CopilotFile fileToSync = appSource.getFile();
     WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
         .executeHooks(fileToSync);
@@ -370,6 +328,10 @@ public class OpenAIUtils {
       //we will delete the file
       logIfDebug("Deleting file " + fileToSync.getName());
       deleteFile(appSource.getOpenaiIdFile(), openaiApiKey);
+    }
+    if (CopilotConstants.isHQLQueryFile(appSource.getFile())) {
+      syncHQLAppSource(appSource, openaiApiKey);
+      return;
     }
     logIfDebug("Uploading file " + fileToSync.getName());
     String fileId = OpenAIUtils.downloadAttachmentAndUploadFile(fileToSync, openaiApiKey);
@@ -390,14 +352,7 @@ public class OpenAIUtils {
       logIfDebug("Deleting file " + appSource.getFile().getName());
       deleteFile(appSource.getOpenaiIdFile(), openaiApiKey);
     }
-    String fileNameToCheck = ProcessHQLAppSource.getFileName(appSource);
-    if (StringUtils.equalsIgnoreCase("kb", appSource.getBehaviour()) && (StringUtils.isEmpty(
-        fileNameToCheck) || StringUtils.endsWithIgnoreCase(fileNameToCheck, ".csv"))) {
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_Error_Csv_KB"), appSource.getFile().getName()));
-    }
-
-    File file = ProcessHQLAppSource.getInstance().generate(appSource);
+    File file = CopilotUtils.generateHQLFile(appSource);
 
     String fileId = uploadFileToOpenAI(openaiApiKey, file);
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
@@ -420,7 +375,9 @@ public class OpenAIUtils {
   }
 
   private static boolean fileHasChanged(CopilotFile fileToSync) {
-
+    if (StringUtils.isEmpty(fileToSync.getOpenaiIdFile())) {
+      return true;
+    }
     Date lastSyncDate = fileToSync.getLastSync();
     if (lastSyncDate == null) {
       return true;
@@ -446,7 +403,7 @@ public class OpenAIUtils {
     return updatedAtt.after(lastSyncDate);
   }
 
-  private static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
+  static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
     if (existsRemoteFile(openaiIdFile, openaiApiKey)) {
       JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiIdFile,
           null, METHOD_DELETE, null);
@@ -630,32 +587,5 @@ public class OpenAIUtils {
     }
   }
 
-  public static String getAppSourceContent(CopilotApp copilotApp, String type) {
-    StringBuilder content = new StringBuilder();
-    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
-      if (StringUtils.equals(appSource.getBehaviour(), type) && appSource.getFile() != null) {
-        try {
-          File tempFile;
-          if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
-            tempFile = getFileFromCopilotFile(appSource.getFile());
-          } else {
-            tempFile = ProcessHQLAppSource.getInstance().generate(appSource);
-          }
-          content.append("\n---\n");
-          content.append(appSource.getFile().getName()).append("\n");
-          content.append(Files.readString(tempFile.toPath())).append("\n");
-          content.append("\n---\n");
-        } catch (MalformedInputException e) {
-          throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_Error_MalformedSourceContent"),
-                  appSource.getFile().getName(), appSource.getEtcopApp().getName()));
-        } catch (IOException e) {
-          log.error(e);
-          throw new OBException(e);
-        }
-      }
-    }
-    return content.toString();
-  }
 }
 

@@ -8,13 +8,14 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 import threading
+from pathlib import Path
 
-from fastapi import APIRouter
+import chromadb
+from fastapi import APIRouter, UploadFile, File, Form
 from langchain.schema import Document
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
 from langsmith import traceable
 from starlette.responses import StreamingResponse
 
@@ -25,9 +26,11 @@ from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
-from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, TextToChromaSchema
+from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, VectorDBInputSchema, TextToVectorDBSchema
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils import copilot_debug, copilot_info
+from copilot.core.utils import copilot_debug, copilot_info, empty_folder
+from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file, \
+    handle_other_formats, get_text_splitter
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -304,43 +307,118 @@ def serve_assistant():
 
 
 @traceable
-@core_router.post("/chroma")
-def processTextToChromaDB(body: TextToChromaSchema):
-    db_name = body.db_name
-    text = body.text
-    overwrite = body.overwrite
-    language = Language.MARKDOWN
-    db_path = f"./{db_name}.db"
+@core_router.post("/ResetVectorDB")
+def resetVectorDB(body: VectorDBInputSchema):
+    try:
+        # Delete the VectorDB db if exists and create a new one
+        kb_vectordb_id = body.kb_vectordb_id
 
-    if os.path.exists(db_path) and not overwrite:
-        success = False
-        message = f"Database {db_name} already exists."
-        return success, message, db_path
+        db_path = get_vector_db_path(kb_vectordb_id)
+
+        db_client = chromadb.Client(settings=get_chroma_settings(db_path))
+        db_client.reset()  # this will delete the db
+        db_client.clear_system_cache()
+        db_client = None
+        if os.path.exists(db_path):
+            empty_folder(db_path)
+    except Exception as e:
+        copilot_debug(f"Error resetting VectorDB: {e}")
+        raise e
+    return {"answer": "VectorDB reset successfully."}
+
+
+@traceable
+@core_router.post("/addToVectorDB")
+def processTextToVectorDB(body: TextToVectorDBSchema):
+    kb_vectordb_id = body.kb_vectordb_id
+    text = body.text
+    extension = body.extension
+    overwrite = body.overwrite
+
+    db_path = get_vector_db_path(kb_vectordb_id)
 
     try:
-        # If overwrite is true and the database exists, delete the existing database
         if overwrite and os.path.exists(db_path):
             os.remove(db_path)
-
-        parsed_document = text
-
-        document = Document(page_content=parsed_document)
-
-        text_splitter = RecursiveCharacterTextSplitter.from_language(
-            language=language, chunk_size=2000, chunk_overlap=200
-        )
-        texts = text_splitter.split_documents([document])
+        if extension == "zip":
+            texts = handle_zip_file(text)
+        else:
+            parsed_document = handle_other_formats(extension, text)
+            document = Document(page_content=parsed_document)
+            text_splitter = get_text_splitter(extension)
+            texts = text_splitter.split_documents([document])
 
         Chroma.from_documents(
             texts,
-            OpenAIEmbeddings(disallowed_special=(), show_progress_bar=True),
-            persist_directory=db_path
+            get_embedding(),
+            persist_directory=db_path,
+            client_settings=get_chroma_settings()
         )
+
         success = True
-        message = f"Database {db_name} created and loaded successfully."
+        message = f"Database {kb_vectordb_id} created and loaded successfully."
+        copilot_debug(message)
     except Exception as e:
         success = False
-        message = f"Error processing text to ChromaDB: {e}"
+        message = f"Error processing text to VectorDb: {e}"
+        copilot_debug(message)
         db_path = ""
 
-    return success, message, db_path
+    return {"answer": message, "success": success, "db_path": db_path}
+
+
+@traceable
+@core_router.post("/addBinaryToVectorDB")
+def process_text_to_vector_db(
+        kb_vectordb_id: str = Form(...),
+        text: str = Form(None),
+        extension: str = Form(...),
+        overwrite: bool = Form(...),
+        file: UploadFile = File(None)
+):
+    db_path = get_vector_db_path(kb_vectordb_id)
+
+    try:
+        if overwrite and os.path.exists(db_path):
+            os.remove(db_path)
+
+        if extension == "zip" and file is not None:
+            # Save the ZIP file to a temporary path
+            temp_zip_path = Path(f"/tmp/{file.filename}")
+            with temp_zip_path.open("wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            # Process the ZIP file
+            texts = handle_zip_file(temp_zip_path)
+
+            # Remove the temporary file after use
+            temp_zip_path.unlink()
+        else:
+            parsed_document = handle_other_formats(extension, text)
+            document = Document(page_content=parsed_document)
+            text_splitter = get_text_splitter(extension)
+            texts = text_splitter.split_documents([document])
+
+        Chroma.from_documents(
+            texts,
+            get_embedding(),
+            persist_directory=db_path,
+            client_settings=get_chroma_settings()
+        )
+
+        success = True
+        message = f"Database {kb_vectordb_id} created and loaded successfully."
+        copilot_debug(message)
+    except Exception as e:
+        success = False
+        message = f"Error processing text to VectorDb: {e}"
+        copilot_debug(message)
+        db_path = ""
+
+    return {"answer": message, "success": success, "db_path": db_path}
+
+
+@traceable
+@core_router.get("/runningCheck")
+def running_check():
+    return {"answer": "docker" if utils.is_docker() else "pycharm"}

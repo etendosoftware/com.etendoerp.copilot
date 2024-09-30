@@ -7,6 +7,7 @@ import com.etendoerp.copilot.data.Message;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.openbravo.base.provider.OBProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 
@@ -38,10 +39,14 @@ public class TrackingUtil {
         .setMaxResult(1)
         .uniqueResult();
     if (conversation == null) {
-      conversation = new Conversation();
+      conversation = OBProvider.getInstance().get(Conversation.class);
+      OBContext context = OBContext.getOBContext();
+      conversation.setClient(context.getCurrentClient());
+      conversation.setOrganization(context.getCurrentOrganization());
+      conversation.setNewOBObject(true);
       conversation.setExternalID(conversationId);
       conversation.setCopilotApp(app);
-      conversation.setUserContact(OBContext.getOBContext().getUser());
+      conversation.setUserContact(context.getUser());
       OBDal.getInstance().save(conversation);
     }
     return conversation;
