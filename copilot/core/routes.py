@@ -374,7 +374,7 @@ def process_text_to_vector_db(
         kb_vectordb_id: str = Form(...),
         text: str = Form(None),
         extension: str = Form(...),
-        overwrite: bool = Form(...),
+        overwrite: bool = Form(False),
         file: UploadFile = File(None)
 ):
     db_path = get_vector_db_path(kb_vectordb_id)
