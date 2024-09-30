@@ -74,7 +74,7 @@ definitions:
           fi
         - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
         - IMAGE=etendo/etendo_copilot_core:${BRANCH_NAME}-amd64
-        - docker build --platform linux/amd64 -t ${IMAGE} .
+        - docker build --platform linux/amd64 -t ${IMAGE} . --no-cache
         - docker push ${IMAGE}
       services:
         - docker
@@ -92,7 +92,7 @@ definitions:
           fi
         - echo ${DOCKERHUB_PASSWORD} | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
         - IMAGE=etendo/etendo_copilot_core:${BRANCH_NAME}-arm64
-        - docker build --platform linux/arm64/v8 -t ${IMAGE} .
+        - docker build --platform linux/arm64/v8 -t ${IMAGE} . --no-cache
         - docker push ${IMAGE}
       services:
         - docker
