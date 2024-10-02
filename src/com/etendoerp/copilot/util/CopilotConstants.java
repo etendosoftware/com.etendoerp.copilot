@@ -23,6 +23,7 @@ public class CopilotConstants {
   public static final String MESSAGE_ERROR = "ERROR";
   public static final int LANGCHAIN_MAX_LENGTH_PROMPT = 256000;
   public static final int LANGCHAIN_MAX_LENGTH_QUESTION = 1000000;
+  public static final String KBF_TYPE_ATTACHED = "F";
   private static final String FILE_TYPE_HQL = "HQL";
   public static final String PROVIDER_OPENAI = "openai";
   public static final String PROVIDER_GEMINI = "gemini";

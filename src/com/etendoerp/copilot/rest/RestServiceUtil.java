@@ -3,7 +3,6 @@ package com.etendoerp.copilot.rest;
 import static com.etendoerp.copilot.util.CopilotConstants.LANGCHAIN_MAX_LENGTH_QUESTION;
 import static com.etendoerp.copilot.util.CopilotUtils.getAppSourceContent;
 import static com.etendoerp.copilot.util.CopilotUtils.getAssistantPrompt;
-import static com.etendoerp.copilot.util.CopilotUtils.replaceCopilotPromptVariables;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -18,7 +17,6 @@ import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -27,16 +25,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.concurrent.TransferQueue;
+import java.util.stream.Collectors;
 
-import com.etendoerp.copilot.data.Conversation;
-import com.etendoerp.copilot.data.CopilotAppSource;
-import com.etendoerp.copilot.data.TeamMember;
-import com.etendoerp.copilot.util.CopilotUtils;
-import com.etendoerp.copilot.util.ToolsUtil;
-import com.etendoerp.copilot.util.TrackingUtil;
-import com.etendoerp.copilot.util.OpenAIUtils;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItem;
@@ -67,16 +61,19 @@ import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.model.common.enterprise.Warehouse;
 import org.openbravo.service.db.DalConnectionProvider;
 
+import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
+import com.etendoerp.copilot.data.TeamMember;
 import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.OpenAIUtils;
+import com.etendoerp.copilot.util.ToolsUtil;
+import com.etendoerp.copilot.util.TrackingUtil;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
-
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 public class RestServiceUtil {
 
@@ -885,7 +882,7 @@ public class RestServiceUtil {
     fileCop.setOpenaiIdFile(fileId);
     fileCop.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
     fileCop.setName(f.getName());
-    fileCop.setType("F");
+    fileCop.setType(CopilotConstants.KBF_TYPE_ATTACHED);
     fileCop.setTemp(true);
     OBDal.getInstance().save(fileCop);
   }
