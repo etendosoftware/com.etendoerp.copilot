@@ -361,7 +361,7 @@ public class CopilotUtils {
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
     Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
     if (attach == null) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"), fileToSync.getName()));
+      throwMissingAttachException(fileToSync);
     }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);
@@ -501,6 +501,27 @@ public class CopilotUtils {
 
     return ProcessHQLAppSource.getInstance().generate(appSource);
   }
+
+  /**
+ * Throws an OBException indicating that an attachment is missing.
+ * This method checks the type of the CopilotFile and throws an exception with a specific error message
+ * based on whether the file type is attached or not.
+ *
+ * @param fileToSync The CopilotFile instance for which the attachment is missing.
+ * @throws OBException Always thrown to indicate the missing attachment.
+ */
+public static void throwMissingAttachException(CopilotFile fileToSync) {
+  String errMsg;
+  String type = fileToSync.getType();
+  if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
+    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
+        fileToSync.getName());
+  } else {
+    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
+        fileToSync.getName());
+  }
+  throw new OBException(errMsg);
+}
 
   public static void checkPromptLength(StringBuilder prompt) {
     if (prompt.length() > CopilotConstants.LANGCHAIN_MAX_LENGTH_PROMPT) {
