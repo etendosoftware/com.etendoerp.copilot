@@ -31,7 +31,7 @@ from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, VectorDBIn
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info, empty_folder
 from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file, \
-    handle_other_formats, get_text_splitter
+    handle_other_formats, get_text_splitter, process_file
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -382,24 +382,22 @@ def process_text_to_vector_db(
     try:
         if overwrite and os.path.exists(db_path):
             os.remove(db_path)
+            # Save the ZIP file to a temporary path
+        temp_path = Path(f"/tmp/{file.filename}")
+        with temp_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
         if extension == "zip" and file is not None:
-            # Save the ZIP file to a temporary path
-            temp_zip_path = Path(f"/tmp/{file.filename}")
-            with temp_zip_path.open("wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-
             # Process the ZIP file
-            texts = handle_zip_file(temp_zip_path)
-
-            # Remove the temporary file after use
-            temp_zip_path.unlink()
+            texts = handle_zip_file(temp_path)
         else:
-            parsed_document = handle_other_formats(extension, text)
+            parsed_document = process_file(temp_path, extension)
             document = Document(page_content=parsed_document)
             text_splitter = get_text_splitter(extension)
             texts = text_splitter.split_documents([document])
 
+        # Remove the temporary file after use
+        temp_path.unlink()
         Chroma.from_documents(
             texts,
             get_embedding(),
