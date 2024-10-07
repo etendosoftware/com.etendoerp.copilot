@@ -151,6 +151,24 @@ function App() {
         requestBody.file = fileId;
       }
 
+      if (encodeURIComponent(inputValue).length > 7000) {
+        const cacheQuestionBody = {
+          question: inputValue,
+        };
+        const cacheQuestionRequest = {
+          method: References.method.POST,
+          body: JSON.stringify(cacheQuestionBody),
+          headers: { 'Content-Type': 'application/json' },
+        };
+        const cacheQuestionResponse = await RestUtils.fetch(
+           `${References.url.CACHE_QUESTION}`,
+          cacheQuestionRequest,
+        );
+        const cacheQuestionData = await cacheQuestionResponse.json();
+        if (cacheQuestionData) {
+          delete requestBody.question;
+        }
+      }
       try {
         const params = Object.keys(requestBody)
           .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(requestBody[key])}`)
