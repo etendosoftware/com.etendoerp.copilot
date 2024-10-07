@@ -17,22 +17,23 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TransferQueue;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.*;
+import static com.etendoerp.copilot.util.CopilotConstants.PROP_ERROR;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
+
+import com.etendoerp.copilot.util.CopilotConstants;
 
 public class RestService {
   private static final Logger log4j = LogManager.getLogger(RestService.class);
   static final Map<String, TransferQueue<String>> asyncRequests = new HashMap<>();
+  public static final String CACHED_QUESTION = "cachedQuestion";
 
   public void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
@@ -155,19 +156,19 @@ public class RestService {
           sb.append(line);
         }
         JSONObject jsonBody = new JSONObject(sb.toString());
-        question = jsonBody.getString("question");
+        question = jsonBody.getString(CopilotConstants.PROP_QUESTION);
         if (question == null) {
           throw new OBException("Question is required");
         }
       }
-      request.getSession().setAttribute("cachedQuestion", question);
+      request.getSession().setAttribute(CACHED_QUESTION, question);
       response.setStatus(HttpServletResponse.SC_OK);
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
       response.getWriter().write(new JSONObject().put("message", "Question cached").toString());
     } catch (IOException | JSONException e) {
       response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
       try {
-        response.getWriter().write(new JSONObject().put("error", e.getMessage()).toString());
+        response.getWriter().write(new JSONObject().put(PROP_ERROR, e.getMessage()).toString());
       } catch (IOException | JSONException ioException) {
         log4j.error(ioException);
       }
@@ -184,9 +185,9 @@ public class RestService {
    */
   private String readCachedQuestion(HttpServletRequest request) {
     // Read the cached question from the session
-    String cachedQuestion = (String) request.getSession().getAttribute("cachedQuestion");
-    System.out.println("Reading cached question: " + cachedQuestion);
-    request.getSession().removeAttribute("cachedQuestion");
+    String cachedQuestion = (String) request.getSession().getAttribute(CACHED_QUESTION);
+    log4j.debug("Reading cached question: {}", cachedQuestion);
+    request.getSession().removeAttribute(CACHED_QUESTION);
     return cachedQuestion;
   }
 
@@ -194,7 +195,7 @@ public class RestService {
       throws IOException, JSONException {
     response.setStatus(status);
     JSONObject error = new JSONObject();
-    error.put("error", message);
+    error.put(PROP_ERROR, message);
     response.getWriter().write(error.toString());
   }
 
@@ -231,7 +232,7 @@ public class RestService {
     // read the json sent
     JSONObject json = null;
     // get body from request
-    if ("POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null) {
+    if (StringUtils.equalsIgnoreCase(request.getMethod(), "POST") && request.getReader() != null) {
       try {
         json = new JSONObject(request.getReader().lines().reduce("", String::concat));
       } catch (JSONException ignore) {
@@ -240,8 +241,8 @@ public class RestService {
     }
     if (json == null) {
       json = new JSONObject();
-      if (request.getParameter("question") != null) {
-        json.put("question", request.getParameter("question"));
+      if (request.getParameter(CopilotConstants.PROP_QUESTION) != null) {
+        json.put(CopilotConstants.PROP_QUESTION, request.getParameter(CopilotConstants.PROP_QUESTION));
       }
       if (request.getParameter("app_id") != null) {
         json.put("app_id", request.getParameter("app_id"));
@@ -254,11 +255,12 @@ public class RestService {
       }
     }
     String cachedQuestion = readCachedQuestion(request);
-    if (StringUtils.isBlank(json.optString("question")) && StringUtils.isNotBlank(cachedQuestion)) {
-      json.put("question", cachedQuestion);
+    if (StringUtils.isBlank(json.optString(CopilotConstants.PROP_QUESTION)) && StringUtils.isNotBlank(cachedQuestion)) {
+      json.put(CopilotConstants.PROP_QUESTION, cachedQuestion);
     }
-    if (!json.has("question")) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), "question"));
+    if (!json.has(CopilotConstants.PROP_QUESTION)) {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), CopilotConstants.PROP_QUESTION));
     }
     if (!json.has("app_id")) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), "app_id"));
@@ -279,7 +281,7 @@ public class RestService {
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         response.getWriter().write(responseOriginal.toString());
       } catch (CopilotRestServiceException e) {
-        response.getWriter().write(new JSONObject().put("error", e.getMessage()).toString());
+        response.getWriter().write(new JSONObject().put(PROP_ERROR, e.getMessage()).toString());
         if (e.getCode() > -1) {
           response.setStatus(e.getCode());
         } else {
