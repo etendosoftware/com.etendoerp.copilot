@@ -102,26 +102,49 @@ public class RestService {
     }
   }
 
+  /**
+   * Handles the caching of a question from the HTTP request.
+   * This method attempts to save the cached question and handles any exceptions that may occur.
+   *
+   * @param request
+   *     the HttpServletRequest object that contains the request the client made to the servlet
+   * @param response
+   *     the HttpServletResponse object that contains the response the servlet returns to the client
+   */
   private void handleCacheQuestion(HttpServletRequest request, HttpServletResponse response) {
     try {
+      // Attempt to save the cached question
       saveCachedQuestion(request, response);
     } catch (Exception e) {
+      // Log the error and send a BAD_REQUEST response
       log4j.error(e);
       try {
         response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
       } catch (IOException ioException) {
+        // Log the IOException and send an INTERNAL_SERVER_ERROR response
         log4j.error(ioException);
         try {
           response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
         } catch (IOException ioException2) {
+          // Log the second IOException
           log4j.error(ioException2);
         }
       }
     }
   }
 
+  /**
+   * Saves the cached question from the HTTP request.
+   * This method reads the question from the request body and stores it in the session.
+   * If an error occurs, it sends an appropriate error response.
+   *
+   * @param request
+   *     the HttpServletRequest object that contains the request the client made to the servlet
+   * @param response
+   *     the HttpServletResponse object that contains the response the servlet returns to the client
+   */
   private void saveCachedQuestion(HttpServletRequest request, HttpServletResponse response) {
-    //read the question sent in the body
+    // Read the question sent in the body
     try {
       String question = null;
       if ("POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null) {
@@ -151,8 +174,16 @@ public class RestService {
     }
   }
 
+  /**
+   * Reads the cached question from the session.
+   * This method retrieves the cached question from the session, logs it, and then removes it from the session.
+   *
+   * @param request
+   *     the HttpServletRequest object that contains the request the client made to the servlet
+   * @return the cached question as a String
+   */
   private String readCachedQuestion(HttpServletRequest request) {
-    //Read que params, save the question in a text file in /tmp/app_id/conversation_id/question_uuid.txt
+    // Read the cached question from the session
     String cachedQuestion = (String) request.getSession().getAttribute("cachedQuestion");
     System.out.println("Reading cached question: " + cachedQuestion);
     request.getSession().removeAttribute("cachedQuestion");
