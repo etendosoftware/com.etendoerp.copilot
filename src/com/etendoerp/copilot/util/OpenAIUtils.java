@@ -8,8 +8,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URLConnection;
-import java.nio.charset.MalformedInputException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -36,8 +34,6 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
-import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
-import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
@@ -425,8 +421,7 @@ public class OpenAIUtils {
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
     Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
     if (attach == null) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
-          fileToSync.getName()));
+      CopilotUtils.throwMissingAttachException(fileToSync);
     }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);

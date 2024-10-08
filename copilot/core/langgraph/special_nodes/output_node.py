@@ -10,20 +10,12 @@ class OutputNode:
 
     def build(self, system_prompt=None, temperature=1):
         if system_prompt is None:
-            system_prompt = (
-                "You are an output node."
-                " Your task is to provide a summary of the conversation."
-                " You will receive messages which are the conversation history."
-                " The last Human message is the user's last request, we will call this message 'request'."
-                " And the messages after that are messages that have a tag from each assistant that delivered their response,"
-                " we will call these messages 'assistant responses'."
-                " Your response should be a summary (Without omitting information) of these assistant responses."
-                " Example:"
-                " #Request: What is the capital of France? Is it bigger than London?"
-                " #Assistant Response 1: The capital of France is Paris."
-                " #Assistant Response 2: Paris is bigger than London."
-                " Your response: The capital of France is Paris and it is bigger than London."
-            )
+            system_prompt = """
+            Your task is to act solely as a response integration node. You will receive a sequence of messages, some from 'User' and others from 'Assistant'. 
+            Identify the last message sent by 'User', and from that point onwards, collect all subsequent messages from 'Assistant'. Your job is to merge these 'Assistant' messages into a single response, while explicitly referencing each assistant. 
+            For each piece of information, introduce it using the format: 'Assistant [NAME] states that: [message content]'. You must only compose the responses and avoid modifying the original content as much as possible, preserving the meaning and details from each 'Assistant' message. 
+            Do not perform any other actions beyond composing the response. Avoid redundancy, ensure clarity, and keep the final response well-structured. Do not refer to the composition process explicitly.
+            """
         return MembersUtil().get_member(AssistantSchema.model_validate({
             "name": "output",
             "type": "langchain",
