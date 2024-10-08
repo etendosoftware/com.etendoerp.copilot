@@ -33,7 +33,7 @@ class LanggraphAgent(CopilotAgent):
         members: list[GraphMember] = MembersUtil().get_members(question)
 
         memory = SqliteSaver.from_conn_string("checkpoints.sqlite")
-        lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory)
+        lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory, full_question=question)
         full_question = question.question
         if question.local_file_ids is not None and len(question.local_file_ids) > 0:
             full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
