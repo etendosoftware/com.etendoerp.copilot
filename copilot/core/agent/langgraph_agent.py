@@ -16,6 +16,13 @@ from ..schemas import GraphQuestionSchema
 from ..utils import read_optional_env_var, read_optional_env_var_int, copilot_debug, copilot_debug_event
 
 
+def get_full_question(question):
+    full_question = question.question
+    if question.local_file_ids is not None and len(question.local_file_ids) > 0:
+        full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
+    return full_question
+
+
 class LanggraphAgent(CopilotAgent):
     _memory: MemoryHandler = None
 
@@ -27,16 +34,8 @@ class LanggraphAgent(CopilotAgent):
     # The agent state is the input to each node in the graph
     @traceable
     def execute(self, question: GraphQuestionSchema) -> AgentResponse:
-        thread_id = question.conversation_id
         _tools = self._configured_tools
-
-        members: list[GraphMember] = MembersUtil().get_members(question)
-
-        memory = SqliteSaver.from_conn_string("checkpoints.sqlite")
-        lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory, full_question=question)
-        full_question = question.question
-        if question.local_file_ids is not None and len(question.local_file_ids) > 0:
-            full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
+        full_question, lang_graph, thread_id = self.prepare_graph(_async=False, question=question)
 
         final_response = lang_graph.invoke(question=full_question, thread_id=thread_id,
                                            get_image=question.generate_image)
@@ -51,14 +50,7 @@ class LanggraphAgent(CopilotAgent):
     @traceable
     async def aexecute(self, question: GraphQuestionSchema) -> AgentResponse:
         copilot_stream_debug = read_optional_env_var("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
-        members: list[GraphMember] = MembersUtil().get_members(question)
-        memory = AsyncSqliteSaver.from_conn_string("checkpoints.sqlite")
-        lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory,
-                                      full_question=question)
-
-        full_question = question.question
-        if question.local_file_ids is not None and len(question.local_file_ids) > 0:
-            full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
+        full_question, lang_graph, thread_id = await self.prepare_graph(_async=True, question=question)
         _input = HumanMessage(content=full_question)
         config = {
             "configurable": {
@@ -66,15 +58,15 @@ class LanggraphAgent(CopilotAgent):
             "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 50)
         }
 
-        if question.conversation_id is not None:
-            config["configurable"]["thread_id"] = question.conversation_id
+        if thread_id is not None:
+            config["configurable"]["thread_id"] = thread_id
         else:
             config["configurable"]["thread_id"] = str(uuid.uuid4())
         async for event in lang_graph._graph.astream_events({"messages": [_input]}, version="v2", config=config):
             try:
                 if copilot_stream_debug:
                     yield AssistantResponse(
-                        response=str(event), conversation_id=question.conversation_id, role="debug"
+                        response=str(event), conversation_id=thread_id, role="debug"
                     )
                 copilot_debug_event(f"Event: {str(event)}")
                 kind = event["event"]
@@ -96,12 +88,12 @@ class LanggraphAgent(CopilotAgent):
                                     else:
                                         message = "Asking for this to the agent '" + node + "'"
                                     yield AssistantResponse(
-                                        response=message, conversation_id=question.conversation_id, role="node"
+                                        response=message, conversation_id=thread_id, role="node"
                                     )
                 elif kind == "on_tool_start":
                     if len(event["parent_ids"]) == 1:
                         yield AssistantResponse(
-                            response=event["name"], conversation_id=question.conversation_id, role="tool"
+                            response=event["name"], conversation_id=thread_id, role="tool"
                         )
                 elif kind == "on_chain_end":
                     if len(event["parent_ids"]) == 0:
@@ -110,9 +102,19 @@ class LanggraphAgent(CopilotAgent):
                             message = output["messages"][-1]
                             if type(message) == HumanMessage or type(message) == AIMessage:
                                 yield AssistantResponse(
-                                    response=message.content, conversation_id=question.conversation_id
+                                    response=message.content, conversation_id=thread_id
                                 )
                 else:
                     copilot_debug_event(f"Event kind not recognized: {kind}")
             except Exception as e:
                 copilot_debug(f"Error in event processing: {str(e)}")
+
+    async def prepare_graph(self, _async, question):
+        thread_id = question.conversation_id
+        members: list[GraphMember] = MembersUtil().get_members(question)
+        memory = AsyncSqliteSaver.from_conn_string("checkpoints.sqlite") if _async else SqliteSaver.from_conn_string(
+            "checkpoints.sqlite")
+        lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory,
+                                      full_question=question)
+        full_question = get_full_question(question)
+        return full_question, lang_graph, thread_id
