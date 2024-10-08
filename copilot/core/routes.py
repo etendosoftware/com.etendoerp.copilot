@@ -10,6 +10,7 @@ import logging
 import os
 import shutil
 import threading
+import uuid
 from pathlib import Path
 
 import chromadb
@@ -30,7 +31,7 @@ from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, VectorDBIn
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info, empty_folder
 from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file, \
-    handle_other_formats, get_text_splitter
+    handle_other_formats, get_text_splitter, process_file
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -373,7 +374,7 @@ def process_text_to_vector_db(
         kb_vectordb_id: str = Form(...),
         text: str = Form(None),
         extension: str = Form(...),
-        overwrite: bool = Form(...),
+        overwrite: bool = Form(False),
         file: UploadFile = File(None)
 ):
     db_path = get_vector_db_path(kb_vectordb_id)
@@ -381,24 +382,22 @@ def process_text_to_vector_db(
     try:
         if overwrite and os.path.exists(db_path):
             os.remove(db_path)
+            # Save the ZIP file to a temporary path
+        temp_path = Path(f"/tmp/{file.filename}")
+        with temp_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
         if extension == "zip" and file is not None:
-            # Save the ZIP file to a temporary path
-            temp_zip_path = Path(f"/tmp/{file.filename}")
-            with temp_zip_path.open("wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-
             # Process the ZIP file
-            texts = handle_zip_file(temp_zip_path)
-
-            # Remove the temporary file after use
-            temp_zip_path.unlink()
+            texts = handle_zip_file(temp_path)
         else:
-            parsed_document = handle_other_formats(extension, text)
+            parsed_document = process_file(temp_path, extension)
             document = Document(page_content=parsed_document)
             text_splitter = get_text_splitter(extension)
             texts = text_splitter.split_documents([document])
 
+        # Remove the temporary file after use
+        temp_path.unlink()
         Chroma.from_documents(
             texts,
             get_embedding(),
@@ -422,3 +421,14 @@ def process_text_to_vector_db(
 @core_router.get("/runningCheck")
 def running_check():
     return {"answer": "docker" if utils.is_docker() else "pycharm"}
+
+
+@traceable
+@core_router.post("/attachFile")
+def attach_file(file: UploadFile = File(...)):
+    # save the file inside /tmp and return the path
+    temp_file_path = Path(f"/tmp/{uuid.uuid4()}/{file.filename}")
+    temp_file_path.parent.mkdir(parents=True, exist_ok=True)
+    with temp_file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"answer": str(temp_file_path)}

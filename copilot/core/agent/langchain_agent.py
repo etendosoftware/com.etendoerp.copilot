@@ -73,7 +73,8 @@ class LangchainAgent(CopilotAgent):
         _llm = ChatOpenAI(temperature=temperature, streaming=False, model_name=open_ai_model)
         _enabled_tools = self.get_functions(tools)
 
-        if kb_vectordb_id is not None and os.path.exists(get_vector_db_path(kb_vectordb_id)):
+        if (kb_vectordb_id is not None and os.path.exists(get_vector_db_path(kb_vectordb_id))
+                and os.listdir(get_vector_db_path(kb_vectordb_id))):
             db_path = get_vector_db_path(kb_vectordb_id)
             db = Chroma(persist_directory=db_path, embedding_function=get_embedding(),
                         client_settings=get_chroma_settings())

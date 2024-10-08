@@ -7,7 +7,7 @@
  */
 
 group          = "com.etendoerp"
-version        = "1.6.1"
+version        = "1.7.0"
 description    = "Etendo Copilot Platform"
 ext.artifact   = "copilot"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
@@ -53,6 +53,6 @@ repositories {
  */
  dependencies {
     implementation group: 'com.konghq', name: 'unirest-java', version: '3.14.5'
-    implementation('com.etendoerp:webhookevents:1.10.0')
+    implementation('com.etendoerp:webhookevents:1.11.0')
  }
  

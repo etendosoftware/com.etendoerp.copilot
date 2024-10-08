@@ -8,7 +8,21 @@ from langsmith import traceable
 from copilot.core.agent import LangchainAgent, AssistantAgent
 from copilot.core.langgraph.patterns.base_pattern import GraphMember
 from copilot.core.schemas import AssistantSchema
-from copilot.core.utils import copilot_debug
+from copilot.core.utils import copilot_debug, is_debug_enabled
+
+
+def debug_messages(messages):
+    try:
+        if not is_debug_enabled():
+            return
+        if not messages:
+            return
+        copilot_debug("Messages: ")
+        for msg in messages:
+            copilot_debug(f"  {type(msg).__name__} - {msg.name if hasattr(msg, 'name') else None} ")
+            copilot_debug(f"    Content: {msg.content}")
+    except Exception as e:
+        copilot_debug(f"Error when trying to debug messages {e}")
 
 
 class MembersUtil:
@@ -35,9 +49,10 @@ class MembersUtil:
     @traceable
     def model_langchain_invoker(self):
         def invoke_model_langchain(state: Sequence[BaseMessage], _agent, _name: str, **kwargs):
-            copilot_debug(f"Invoking model LANGCHAIN: {_name} with state: {str(state)}")
+            copilot_debug(f"Invoking model LANGCHAIN: {_name} with state: ")
             messages = state["messages"]
             messages.append(AIMessage(content=state["instructions"], name="Supervisor"))
+            debug_messages(messages)
             response = _agent.invoke({"messages": messages})
             response_msg = response["output"]
             copilot_debug(f"Response from LANGCHAIN: {_name} is: {response_msg}")
