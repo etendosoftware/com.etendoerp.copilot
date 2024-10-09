@@ -231,7 +231,7 @@ public class RestService {
     JSONObject json = extractRequestBody(request);
 
     // Read cached question if necessary
-    json = addCachedQuestionIfPresent(request, json);
+    addCachedQuestionIfPresent(request, json);
 
     // Validate required parameters
     validateRequiredParams(json);
@@ -246,27 +246,49 @@ public class RestService {
 
   private JSONObject extractRequestBody(HttpServletRequest request) throws IOException, JSONException {
     JSONObject json = new JSONObject();
-    if ("POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null) {
-      try {
-        json = new JSONObject(request.getReader().lines().reduce("", String::concat));
-      } catch (JSONException ignore) {
-        // Attempt to retrieve parameters
-        if (request.getParameter(CopilotConstants.PROP_QUESTION) != null) {
-          json.put(CopilotConstants.PROP_QUESTION, request.getParameter(CopilotConstants.PROP_QUESTION));
-        }
-        if (request.getParameter(CopilotConstants.PROP_APP_ID) != null) {
-          json.put(CopilotConstants.PROP_APP_ID, request.getParameter(CopilotConstants.PROP_APP_ID));
-        }
-        if (request.getParameter(CopilotConstants.PROP_CONVERSATION_ID) != null) {
-          json.put(CopilotConstants.PROP_CONVERSATION_ID, request.getParameter(CopilotConstants.PROP_CONVERSATION_ID));
-        }
-        if (request.getParameter(CopilotConstants.PROP_FILE) != null) {
-          json.put(CopilotConstants.PROP_FILE, request.getParameter(CopilotConstants.PROP_FILE));
-        }
+
+    if (isPostRequest(request)) {
+      json = parseJsonFromRequest(request);
+      if (json.length() == 0) {
+        json = retrieveParametersAsJson(request);
       }
     }
+
     return json;
   }
+
+  private boolean isPostRequest(HttpServletRequest request) throws IOException {
+    return "POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null;
+  }
+
+  private JSONObject parseJsonFromRequest(HttpServletRequest request) {
+    try {
+      String body = request.getReader().lines().reduce("", String::concat);
+      return new JSONObject(body);
+    } catch (IOException | JSONException e) {
+      return new JSONObject();
+    }
+  }
+
+  private JSONObject retrieveParametersAsJson(HttpServletRequest request) throws JSONException {
+    JSONObject json = new JSONObject();
+
+    addParameterIfExists(json, request, CopilotConstants.PROP_QUESTION);
+    addParameterIfExists(json, request, CopilotConstants.PROP_APP_ID);
+    addParameterIfExists(json, request, CopilotConstants.PROP_CONVERSATION_ID);
+    addParameterIfExists(json, request, CopilotConstants.PROP_FILE);
+
+    return json;
+  }
+
+  private void addParameterIfExists(JSONObject json, HttpServletRequest request,
+      String paramName) throws JSONException {
+    String paramValue = request.getParameter(paramName);
+    if (paramValue != null) {
+      json.put(paramName, paramValue);
+    }
+  }
+
 
   private JSONObject addCachedQuestionIfPresent(HttpServletRequest request, JSONObject json) throws JSONException {
     String cachedQuestion = readCachedQuestion(request);
@@ -278,14 +300,17 @@ public class RestService {
 
   private void validateRequiredParams(JSONObject json) {
     if (!json.has(CopilotConstants.PROP_QUESTION)) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), CopilotConstants.PROP_QUESTION));
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), CopilotConstants.PROP_QUESTION));
     }
     if (!json.has(CopilotConstants.PROP_APP_ID)) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), CopilotConstants.PROP_APP_ID));
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), CopilotConstants.PROP_APP_ID));
     }
   }
 
-  private void processAsyncRequest(HttpServletRequest request, HttpServletResponse response, JSONObject json) throws IOException, JSONException {
+  private void processAsyncRequest(HttpServletRequest request, HttpServletResponse response,
+      JSONObject json) throws IOException, JSONException {
     try {
       RestServiceUtil.handleQuestion(true, response, json);
     } catch (OBException e) {
