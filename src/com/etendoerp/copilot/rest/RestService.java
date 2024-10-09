@@ -17,14 +17,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TransferQueue;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.*;
@@ -258,7 +255,7 @@ public class RestService {
   }
 
   private boolean isPostRequest(HttpServletRequest request) throws IOException {
-    return "POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null;
+    return StringUtils.equalsIgnoreCase(request.getMethod(), "POST") && request.getReader() != null;
   }
 
   private JSONObject parseJsonFromRequest(HttpServletRequest request) {
@@ -290,12 +287,11 @@ public class RestService {
   }
 
 
-  private JSONObject addCachedQuestionIfPresent(HttpServletRequest request, JSONObject json) throws JSONException {
+  private void addCachedQuestionIfPresent(HttpServletRequest request, JSONObject json) throws JSONException {
     String cachedQuestion = readCachedQuestion(request);
     if (StringUtils.isBlank(json.optString(CopilotConstants.PROP_QUESTION)) && StringUtils.isNotBlank(cachedQuestion)) {
       json.put(CopilotConstants.PROP_QUESTION, cachedQuestion);
     }
-    return json;
   }
 
   private void validateRequiredParams(JSONObject json) {
