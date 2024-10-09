@@ -206,7 +206,7 @@ public class CopilotUtils {
     }
   }
 
-  private static HttpResponse<String> getResponseFromCopilot(Properties properties, String endpoint,
+  public static HttpResponse<String> getResponseFromCopilot(Properties properties, String endpoint,
       JSONObject jsonBody, File fileToSend) {
 
     try {
@@ -233,6 +233,9 @@ public class CopilotUtils {
           .build();
 
       return client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new OBException(e);
     } catch (Exception e) {
       throw new OBException(e);
     }
@@ -250,6 +253,9 @@ public class CopilotUtils {
           .build();
 
       return client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new OBException(e);
     } catch (Exception e) {
       throw new OBException(e);
     }
@@ -263,30 +269,29 @@ public class CopilotUtils {
     String kb_vectordb_id = jsonBody.getString("kb_vectordb_id");
     String filename = jsonBody.getString("filename");
     String text = jsonBody.optString("text", null);
-    String extension = jsonBody.getString("extension");
+    String extension = jsonBody.optString("extension");
     boolean overwrite = jsonBody.optBoolean("overwrite", false);
 
-    writer.append("--").append(BOUNDARY).append("\r\n");
-    writer.append("Content-Disposition: form-data; name=\"kb_vectordb_id\"\r\n\r\n");
-    writer.append(kb_vectordb_id).append("\r\n");
-
+    if (kb_vectordb_id != null) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"kb_vectordb_id\"\r\n\r\n");
+      writer.append(kb_vectordb_id).append("\r\n");
+    }
     if (text != null) {
       writer.append("--").append(BOUNDARY).append("\r\n");
       writer.append("Content-Disposition: form-data; name=\"text\"\r\n\r\n");
       writer.append(text).append("\r\n");
     }
-
-    writer.append("--").append(BOUNDARY).append("\r\n");
-    writer.append("Content-Disposition: form-data; name=\"filename\"\r\n\r\n");
-    writer.append(filename).append("\r\n");
-
-    writer.append("--").append(BOUNDARY).append("\r\n");
-    writer.append("Content-Disposition: form-data; name=\"extension\"\r\n\r\n");
-    writer.append(extension).append("\r\n");
-
-    writer.append("--").append(BOUNDARY).append("\r\n");
-    writer.append("Content-Disposition: form-data; name=\"overwrite\"\r\n\r\n");
-    writer.append(String.valueOf(overwrite)).append("\r\n");
+    if (extension != null) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"extension\"\r\n\r\n");
+      writer.append(extension).append("\r\n");
+    }
+    if (overwrite) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"overwrite\"\r\n\r\n");
+      writer.append(String.valueOf(overwrite)).append("\r\n");
+    }
     // File part
     if (file != null) {
       writer.append("--").append(BOUNDARY).append("\r\n");
@@ -362,7 +367,7 @@ public class CopilotUtils {
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
     Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
     if (attach == null) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"), fileToSync.getName()));
+      throwMissingAttachException(fileToSync);
     }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);
@@ -496,6 +501,27 @@ public class CopilotUtils {
     return ProcessHQLAppSource.getInstance().generate(appSource);
   }
 
+  /**
+ * Throws an OBException indicating that an attachment is missing.
+ * This method checks the type of the CopilotFile and throws an exception with a specific error message
+ * based on whether the file type is attached or not.
+ *
+ * @param fileToSync The CopilotFile instance for which the attachment is missing.
+ * @throws OBException Always thrown to indicate the missing attachment.
+ */
+public static void throwMissingAttachException(CopilotFile fileToSync) {
+  String errMsg;
+  String type = fileToSync.getType();
+  if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
+    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
+        fileToSync.getName());
+  } else {
+    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
+        fileToSync.getName());
+  }
+  throw new OBException(errMsg);
+}
+
   public static void checkPromptLength(StringBuilder prompt) {
     if (prompt.length() > CopilotConstants.LANGCHAIN_MAX_LENGTH_PROMPT) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MaxLengthPrompt")));
@@ -536,6 +562,7 @@ public class CopilotUtils {
    */
   public static String replaceCopilotPromptVariables(String string) {
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
+    stringParsed = StringUtils.replace(stringParsed, "@ETENDO_HOST_DOCKER@", getEtendoHostDocker());
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     stringParsed = StringUtils.replace(stringParsed, "@source.path@", getSourcesPath(properties));
 
@@ -556,17 +583,29 @@ public class CopilotUtils {
     return stringParsed;
   }
 
+  /**
+   * Retrieves the source path from the provided properties.
+   * This method checks if the application is running inside a Docker container.
+   * If it is running inside Docker, it returns an empty string.
+   * Otherwise, it retrieves the source path from the properties using the key "source.path".
+   *
+   * @param properties
+   *     The properties object containing configuration values.
+   * @return The source path if not running inside Docker, otherwise an empty string.
+   * @throws RuntimeException
+   *     If an error occurs while checking the running environment.
+   */
   private static String getSourcesPath(Properties properties) {
     boolean inDocker;
     try {
       var resp = doGetCopilot(properties, "runningCheck");
-      inDocker = resp.body().contains("docker");
+      inDocker = StringUtils.contains(resp.body(), "docker");
       if (inDocker) {
         return "";
       }
       return properties.getProperty("source.path");
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new OBException(e);
     }
   }
 
@@ -580,6 +619,15 @@ public class CopilotUtils {
   private static String getEtendoHost() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
+  }
+
+  private static String getEtendoHostDocker() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String hostDocker = properties.getProperty("ETENDO_HOST_DOCKER", "");
+    if (StringUtils.isEmpty(hostDocker)) {
+      hostDocker = getEtendoHost();
+    }
+    return hostDocker;
   }
 
   public static String getAppSourceContent(List<CopilotAppSource> appSourceList, String type) {
