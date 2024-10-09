@@ -150,7 +150,7 @@ public class RestService {
     // Read the question sent in the body
     try {
       String question = null;
-      if ("POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null) {
+      if ((StringUtils.equalsIgnoreCase(request.getMethod(), "POST") && request.getReader() != null)) {
         BufferedReader reader = request.getReader();
         StringBuilder sb = new StringBuilder();
         String line;
@@ -227,67 +227,90 @@ public class RestService {
 
   private void handleQuestion(HttpServletRequest request, HttpServletResponse response)
       throws IOException, JSONException {
-    // read the json sent
-    JSONObject json = null;
-    // get body from request
+    // Get the parameters from the JSON or request
+    JSONObject json = extractRequestBody(request);
+
+    // Read cached question if necessary
+    json = addCachedQuestionIfPresent(request, json);
+
+    // Validate required parameters
+    validateRequiredParams(json);
+
+    // Handle request
+    if (isAsyncRequest(request)) {
+      processAsyncRequest(request, response, json);
+    } else {
+      processSyncRequest(response, json);
+    }
+  }
+
+  private JSONObject extractRequestBody(HttpServletRequest request) throws IOException, JSONException {
+    JSONObject json = new JSONObject();
     if ("POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null) {
       try {
         json = new JSONObject(request.getReader().lines().reduce("", String::concat));
       } catch (JSONException ignore) {
-        // Body is not a valid json, try with params
+        // Attempt to retrieve parameters
+        if (request.getParameter(CopilotConstants.PROP_QUESTION) != null) {
+          json.put(CopilotConstants.PROP_QUESTION, request.getParameter(CopilotConstants.PROP_QUESTION));
+        }
+        if (request.getParameter(CopilotConstants.PROP_APP_ID) != null) {
+          json.put(CopilotConstants.PROP_APP_ID, request.getParameter(CopilotConstants.PROP_APP_ID));
+        }
+        if (request.getParameter(CopilotConstants.PROP_CONVERSATION_ID) != null) {
+          json.put(CopilotConstants.PROP_CONVERSATION_ID, request.getParameter(CopilotConstants.PROP_CONVERSATION_ID));
+        }
+        if (request.getParameter(CopilotConstants.PROP_FILE) != null) {
+          json.put(CopilotConstants.PROP_FILE, request.getParameter(CopilotConstants.PROP_FILE));
+        }
       }
     }
-    if (json == null) {
-      json = new JSONObject();
-      if (request.getParameter(CopilotConstants.PROP_QUESTION) != null) {
-        json.put(CopilotConstants.PROP_QUESTION, request.getParameter(CopilotConstants.PROP_QUESTION));
-      }
-      if (request.getParameter(CopilotConstants.PROP_APP_ID) != null) {
-        json.put(CopilotConstants.PROP_APP_ID, request.getParameter(CopilotConstants.PROP_APP_ID));
-      }
-      if (request.getParameter(CopilotConstants.PROP_CONVERSATION_ID) != null) {
-        json.put(CopilotConstants.PROP_CONVERSATION_ID, request.getParameter(CopilotConstants.PROP_CONVERSATION_ID));
-      }
-      if (request.getParameter(CopilotConstants.PROP_FILE) != null) {
-        json.put(CopilotConstants.PROP_FILE, request.getParameter(CopilotConstants.PROP_FILE));
-      }
-    }
+    return json;
+  }
+
+  private JSONObject addCachedQuestionIfPresent(HttpServletRequest request, JSONObject json) throws JSONException {
     String cachedQuestion = readCachedQuestion(request);
     if (StringUtils.isBlank(json.optString(CopilotConstants.PROP_QUESTION)) && StringUtils.isNotBlank(cachedQuestion)) {
       json.put(CopilotConstants.PROP_QUESTION, cachedQuestion);
     }
+    return json;
+  }
+
+  private void validateRequiredParams(JSONObject json) {
     if (!json.has(CopilotConstants.PROP_QUESTION)) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"),
-          CopilotConstants.PROP_QUESTION));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), CopilotConstants.PROP_QUESTION));
     }
     if (!json.has(CopilotConstants.PROP_APP_ID)) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), CopilotConstants.PROP_APP_ID));
     }
-    boolean isAsyncRequest = isAsyncRequest(request);
-    if (isAsyncRequest) {
-      try {
-        RestServiceUtil.handleQuestion(true, response, json);
-      } catch (OBException e) {
-        RestServiceUtil.setEventStreamMode(response);
-        JSONObject errorEventJSON = RestServiceUtil.getErrorEventJSON(request, e);
-        PrintWriter writerToFront = response.getWriter();
-        RestServiceUtil.sendEventToFront(writerToFront, errorEventJSON, true);
-      }
-    } else {
-      try {
-        var responseOriginal = RestServiceUtil.handleQuestion(false, response, json);
-        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-        response.getWriter().write(responseOriginal.toString());
-      } catch (CopilotRestServiceException e) {
-        response.getWriter().write(new JSONObject().put(CopilotConstants.ERROR, e.getMessage()).toString());
-        if (e.getCode() > -1) {
-          response.setStatus(e.getCode());
-        } else {
-          response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        }
+  }
+
+  private void processAsyncRequest(HttpServletRequest request, HttpServletResponse response, JSONObject json) throws IOException, JSONException {
+    try {
+      RestServiceUtil.handleQuestion(true, response, json);
+    } catch (OBException e) {
+      RestServiceUtil.setEventStreamMode(response);
+      JSONObject errorEventJSON = RestServiceUtil.getErrorEventJSON(request, e);
+      PrintWriter writerToFront = response.getWriter();
+      RestServiceUtil.sendEventToFront(writerToFront, errorEventJSON, true);
+    }
+  }
+
+  private void processSyncRequest(HttpServletResponse response, JSONObject json) throws IOException, JSONException {
+    try {
+      var responseOriginal = RestServiceUtil.handleQuestion(false, response, json);
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(responseOriginal.toString());
+    } catch (CopilotRestServiceException e) {
+      response.getWriter().write(new JSONObject().put(CopilotConstants.ERROR, e.getMessage()).toString());
+      if (e.getCode() > -1) {
+        response.setStatus(e.getCode());
+      } else {
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
       }
     }
   }
+
 
   private void handleAssistants(HttpServletResponse response) {
     try {
