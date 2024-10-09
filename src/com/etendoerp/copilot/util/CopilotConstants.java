@@ -30,6 +30,10 @@ public class CopilotConstants {
   public static final String PROVIDER_GEMINI = "gemini";
   public static final String PENDING_SYNCHRONIZATION_STATE = "PS";
   public static final String SYNCHRONIZED_STATE = "S";
+  public static final String PROP_APP_ID = "app_id";
+  public static final String PROP_CONVERSATION_ID = "conversation_id";
+  public static final String PROP_FILE = "file";
+
 
   public static boolean isSystemPromptBehaviour(CopilotAppSource source) {
     return StringUtils.equals(source.getBehaviour(), FILE_BEHAVIOUR_SYSTEM);

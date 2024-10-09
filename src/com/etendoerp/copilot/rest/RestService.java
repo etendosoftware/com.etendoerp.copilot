@@ -17,15 +17,17 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TransferQueue;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.*;
-import static com.etendoerp.copilot.util.CopilotConstants.PROP_ERROR;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
 
 import com.etendoerp.copilot.util.CopilotConstants;
@@ -157,7 +159,7 @@ public class RestService {
         }
         JSONObject jsonBody = new JSONObject(sb.toString());
         question = jsonBody.getString(CopilotConstants.PROP_QUESTION);
-        if (question == null) {
+        if (StringUtils.isBlank(question)) {
           throw new OBException("Question is required");
         }
       }
@@ -168,7 +170,7 @@ public class RestService {
     } catch (IOException | JSONException e) {
       response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
       try {
-        response.getWriter().write(new JSONObject().put(PROP_ERROR, e.getMessage()).toString());
+        response.getWriter().write(new JSONObject().put(CopilotConstants.ERROR, e.getMessage()).toString());
       } catch (IOException | JSONException ioException) {
         log4j.error(ioException);
       }
@@ -186,7 +188,7 @@ public class RestService {
   private String readCachedQuestion(HttpServletRequest request) {
     // Read the cached question from the session
     String cachedQuestion = (String) request.getSession().getAttribute(CACHED_QUESTION);
-    log4j.debug("Reading cached question: {}", cachedQuestion);
+    logIfDebug("Reading cached question: " + cachedQuestion);
     request.getSession().removeAttribute(CACHED_QUESTION);
     return cachedQuestion;
   }
@@ -195,7 +197,7 @@ public class RestService {
       throws IOException, JSONException {
     response.setStatus(status);
     JSONObject error = new JSONObject();
-    error.put(PROP_ERROR, message);
+    error.put(CopilotConstants.ERROR, message);
     response.getWriter().write(error.toString());
   }
 
@@ -212,7 +214,6 @@ public class RestService {
     List<FileItem> items = upload.parseRequest(request);
     var responseJson = RestServiceUtil.handleFile(items);
     response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-    response.setStatus(HttpServletResponse.SC_OK);
     response.getWriter().write(responseJson.toString());
   }
 
@@ -221,10 +222,7 @@ public class RestService {
     if (StringUtils.equals(path, AQUESTION)) {
       return true;
     }
-    if (StringUtils.equals(path, AGRAPH)) {
-      return true;
-    }
-    return false;
+    return StringUtils.equals(path, AGRAPH);
   }
 
   private void handleQuestion(HttpServletRequest request, HttpServletResponse response)
@@ -232,7 +230,7 @@ public class RestService {
     // read the json sent
     JSONObject json = null;
     // get body from request
-    if (StringUtils.equalsIgnoreCase(request.getMethod(), "POST") && request.getReader() != null) {
+    if ("POST".equalsIgnoreCase(request.getMethod()) && request.getReader() != null) {
       try {
         json = new JSONObject(request.getReader().lines().reduce("", String::concat));
       } catch (JSONException ignore) {
@@ -244,14 +242,14 @@ public class RestService {
       if (request.getParameter(CopilotConstants.PROP_QUESTION) != null) {
         json.put(CopilotConstants.PROP_QUESTION, request.getParameter(CopilotConstants.PROP_QUESTION));
       }
-      if (request.getParameter("app_id") != null) {
-        json.put("app_id", request.getParameter("app_id"));
+      if (request.getParameter(CopilotConstants.PROP_APP_ID) != null) {
+        json.put(CopilotConstants.PROP_APP_ID, request.getParameter(CopilotConstants.PROP_APP_ID));
       }
-      if (request.getParameter("conversation_id") != null) {
-        json.put("conversation_id", request.getParameter("conversation_id"));
+      if (request.getParameter(CopilotConstants.PROP_CONVERSATION_ID) != null) {
+        json.put(CopilotConstants.PROP_CONVERSATION_ID, request.getParameter(CopilotConstants.PROP_CONVERSATION_ID));
       }
-      if (request.getParameter("file") != null) {
-        json.put("file", request.getParameter("file"));
+      if (request.getParameter(CopilotConstants.PROP_FILE) != null) {
+        json.put(CopilotConstants.PROP_FILE, request.getParameter(CopilotConstants.PROP_FILE));
       }
     }
     String cachedQuestion = readCachedQuestion(request);
@@ -259,11 +257,11 @@ public class RestService {
       json.put(CopilotConstants.PROP_QUESTION, cachedQuestion);
     }
     if (!json.has(CopilotConstants.PROP_QUESTION)) {
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), CopilotConstants.PROP_QUESTION));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"),
+          CopilotConstants.PROP_QUESTION));
     }
-    if (!json.has("app_id")) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), "app_id"));
+    if (!json.has(CopilotConstants.PROP_APP_ID)) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), CopilotConstants.PROP_APP_ID));
     }
     boolean isAsyncRequest = isAsyncRequest(request);
     if (isAsyncRequest) {
@@ -281,7 +279,7 @@ public class RestService {
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         response.getWriter().write(responseOriginal.toString());
       } catch (CopilotRestServiceException e) {
-        response.getWriter().write(new JSONObject().put(PROP_ERROR, e.getMessage()).toString());
+        response.getWriter().write(new JSONObject().put(CopilotConstants.ERROR, e.getMessage()).toString());
         if (e.getCode() > -1) {
           response.setStatus(e.getCode());
         } else {
