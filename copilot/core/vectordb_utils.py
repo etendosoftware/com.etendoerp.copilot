@@ -15,7 +15,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
 
 from copilot.core.utils import copilot_debug, empty_folder
 
-ALLOWED_EXTENSIONS = ["pdf", "txt", "md", "markdown", "java", "js", "py", "xml"]
+ALLOWED_EXTENSIONS = ["pdf", "txt", "md", "markdown", "java", "js", "py", "xml", "json"]
 
 LANGCHAIN_DEFAULT_COLLECTION_NAME = 'langchain'
 
@@ -106,8 +106,9 @@ def index_file(ext, item_path, chroma_client):
 def get_text_splitter(ext):
     if ext in ["md", "markdown"]:
         return MarkdownTextSplitter()
-    elif ext in ["txt", "pdf", "xml"]:
+    elif ext in ["txt", "pdf", "xml", "json"]:
         return CharacterTextSplitter()
+
     elif ext in ["java"]:
         return RecursiveCharacterTextSplitter.from_language(
             language=Language.JAVA

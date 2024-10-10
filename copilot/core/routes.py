@@ -28,12 +28,9 @@ from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, VectorDBInputSchema
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils import copilot_debug, copilot_info, empty_folder
 from copilot.core.utils import copilot_debug, copilot_info
-from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file
 from copilot.core.vectordb_utils import index_file, LANGCHAIN_DEFAULT_COLLECTION_NAME
-from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file, \
-    handle_other_formats, get_text_splitter, process_file
+from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -332,12 +329,14 @@ def resetVectorDB(body: VectorDBInputSchema):
             metadata["purge"] = True
             updated_metadatas.append(metadata)
         # Perform a single batch update with all document IDs and their updated metadata
-        collection.update(
-            ids=document_ids,
-            metadatas=updated_metadatas
-        )
-        copilot_debug("All documents were successfully updated with 'purge': True in the metadata.")
-        db_client.clear_system_cache()
+        # Check if there are documents to update
+        if updated_metadatas:
+            collection.update(
+                ids=document_ids,
+                metadatas=updated_metadatas
+            )
+            copilot_debug("All documents were successfully updated with 'purge': True in the metadata.")
+            db_client.clear_system_cache()
     except Exception as e:
         copilot_debug(f"Error resetting VectorDB: {e}")
         raise e
@@ -358,12 +357,8 @@ def process_text_to_vector_db(
     try:
         if overwrite and os.path.exists(db_path):
             os.remove(db_path)
-            # Save the ZIP file to a temporary path
-        temp_path = Path(f"/tmp/{file.filename}")
-        with temp_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        file_path = Path(f"/tmp/{kb_vectordb_id}/{filename}")
+        # Save the ZIP file to a temporary path
+        file_path = Path(f"/tmp/{kb_vectordb_id}/{file.filename}")
         file_path.parent.mkdir(parents=True, exist_ok=True)
         # remove the file if it already exists
         if file_path.exists():
