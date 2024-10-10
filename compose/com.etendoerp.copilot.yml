@@ -1,0 +1,17 @@
+services:
+  copilot:
+    image: etendo/etendo_copilot:${COPILOT_IMAGE_TAG}
+    ports:
+      - "5006:5006"
+      - "${COPILOT_PORT}:${COPILOT_PORT}"
+    env_file:
+      - /Users/futit/Workspace/etendo_dockerizado/build/copilot/copilot.properties
+    volumes:
+      - ../copilot:/app/
+      - /Users/futit/Workspace/etendo_dockerizado/modules:/modules
+      - pip_cache:/root/.cache/pip
+    networks:
+      - etendo
+volumes:
+  pip_cache:
+
