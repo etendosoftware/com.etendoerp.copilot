@@ -12,6 +12,7 @@ export const References = {
         GET_LABELS: 'labels',
         SEND_QUESTION: 'question',
         SEND_AQUESTION: 'aquestion',
+        CACHE_QUESTION: 'cacheQuestion',
         GET_ASSISTANTS: 'assistants',
     }
 };
