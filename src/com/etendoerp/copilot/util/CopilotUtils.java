@@ -9,13 +9,11 @@ import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.isHQLQueryFile;
 import static com.etendoerp.copilot.util.OpenAIUtils.deleteFile;
 
-import java.io.BufferedReader;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.URI;
@@ -26,7 +24,6 @@ import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -71,8 +68,9 @@ public class CopilotUtils {
   public static final HashMap<String, String> PROVIDER_MAP_CODE_NAME = buildProviderCodeMap();
   public static final HashMap<String, String> PROVIDER_MAP_CODE_DEFAULT_PROP = buildProviderCodeDefaulMap();
 
-  private static final Logger log = LogManager.getLogger(OpenAIUtils.class);
+  private static final Logger log = LogManager.getLogger(CopilotUtils.class);
   private static final String BOUNDARY = UUID.randomUUID().toString();
+  public static final String KB_VECTORDB_ID = "kb_vectordb_id";
 
   private static HashMap<String, String> buildProviderCodeMap() {
     HashMap<String, String> map = new HashMap<>();
@@ -195,7 +193,7 @@ public class CopilotUtils {
     HttpResponse<String> responseFromCopilot;
     JSONObject jsonRequestForCopilot = new JSONObject();
     jsonRequestForCopilot.put("filename", fileToSend.getName());
-    jsonRequestForCopilot.put("kb_vectordb_id", dbName);
+    jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
 
@@ -266,7 +264,7 @@ public class CopilotUtils {
     var byteArrays = new ByteArrayOutputStream();
     var writer = new PrintWriter(new OutputStreamWriter(byteArrays, StandardCharsets.UTF_8), true);
 
-    String kb_vectordb_id = jsonBody.getString("kb_vectordb_id");
+    String kb_vectordb_id = jsonBody.getString(KB_VECTORDB_ID);
     String filename = jsonBody.getString("filename");
     String text = jsonBody.optString("text", null);
     String extension = jsonBody.optString("extension");
@@ -316,7 +314,7 @@ public class CopilotUtils {
     String dbName = "KB_" + app.getId();
     JSONObject jsonRequestForCopilot = new JSONObject();
 
-    jsonRequestForCopilot.put("kb_vectordb_id", dbName);
+    jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
     String endpoint = "ResetVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
         null);
@@ -325,34 +323,6 @@ public class CopilotUtils {
           responseFromCopilot != null ? responseFromCopilot.body() : ""));
     }
 
-  }
-
-
-  private static boolean fileHasChanged(CopilotFile fileToSync) {
-
-    Date lastSyncDate = fileToSync.getLastSync();
-    if (lastSyncDate == null) {
-      return true;
-    }
-    Date updated = fileToSync.getUpdated();
-    //clean the milliseconds
-    lastSyncDate = new Date(lastSyncDate.getTime() / 1000 * 1000);
-    updated = new Date(updated.getTime() / 1000 * 1000);
-
-    if ((updated.after(lastSyncDate))) {
-      return true;
-    }
-    //check Attachments
-    OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
-    attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
-    Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
-    if (attach == null) {
-      return false;
-    }
-
-    Date updatedAtt = attach.getUpdated();
-    updatedAtt = new Date(updatedAtt.getTime() / 1000 * 1000);
-    return updatedAtt.after(lastSyncDate);
   }
 
   public static void logIfDebug(String text) {
@@ -388,37 +358,6 @@ public class CopilotUtils {
     tempFile.deleteOnExit();
     os.writeTo(new FileOutputStream(tempFile));
     return tempFile;
-  }
-
-  private static String fileToBase64(File fileInPDF) {
-    try {
-      FileInputStream fileInputStream = new FileInputStream(fileInPDF);
-      byte[] fileBytes = new byte[(int) fileInPDF.length()];
-      fileInputStream.read(fileBytes);
-      fileInputStream.close();
-
-      String base64EncodedFile = Base64.getEncoder().encodeToString(fileBytes);
-
-      return base64EncodedFile;
-
-    } catch (IOException e) {
-      return null;
-    }
-  }
-
-  private static String readFileToSync(File file) throws IOException {
-
-    String extension = file.getName().substring(file.getName().lastIndexOf(".") + 1);
-    StringBuilder text = new StringBuilder(extension + "-");
-    try (FileInputStream fis = new FileInputStream(file); InputStreamReader isr = new InputStreamReader(
-        fis); BufferedReader br = new BufferedReader(isr)) {
-
-      String line;
-      while ((line = br.readLine()) != null) {
-        text.append(line).append("\n");
-      }
-    }
-    return text.toString();
   }
 
   public static void syncAppLangchainSource(CopilotAppSource appSource) throws IOException, JSONException {
@@ -477,12 +416,6 @@ public class CopilotUtils {
   private static boolean isValidExtension(String extension) {
     return Arrays.stream(KB_FILE_VALID_EXTENSIONS)
         .anyMatch(validExt -> StringUtils.equalsIgnoreCase(validExt, extension));
-  }
-
-  private static void notEncodedFileToVectorDB(File fileFromCopilotFile, String dbName,
-      String extension) throws IOException, JSONException {
-    String text = readFileToSync(fileFromCopilotFile);
-    toVectorDB(text, fileFromCopilotFile, dbName, extension, false);
   }
 
   private static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName,
@@ -567,11 +500,9 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
     stringParsed = StringUtils.replace(stringParsed, "@source.path@", getSourcesPath(properties));
 
     //check the If exists something like {SOMETHING} and replace it with {{SOMETHING}}, preserving the content inside
-    // replace { with {{
     Pattern pattern = Pattern.compile("\\{");
     Matcher matcher = pattern.matcher(stringParsed);
     stringParsed = matcher.replaceAll("\\{\\{");
-    // replace } with }}
     pattern = Pattern.compile("\\}");
     matcher = pattern.matcher(stringParsed);
     stringParsed = matcher.replaceAll("\\}\\}");
@@ -691,7 +622,7 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
     String dbName = "KB_" + app.getId();
     JSONObject jsonRequestForCopilot = new JSONObject();
 
-    jsonRequestForCopilot.put("kb_vectordb_id", dbName);
+    jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
     String endpoint = "purgeVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
         null);
