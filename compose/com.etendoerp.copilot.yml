@@ -1,0 +1,16 @@
+services:
+  copilot:
+    image: etendo/etendo_copilot_slim:${COPILOT_IMAGE_TAG}
+    ports:
+      - "${COPILOT_PORT}:${COPILOT_PORT}"
+    env_file:
+      - ${SOURCE_PATH}/build/copilot/copilot.properties
+    volumes:
+      - ../copilot:/app/
+      - ${SOURCE_PATH}/modules:/modules
+      - pip_cache:/root/.cache/pip
+    networks:
+      - etendo
+volumes:
+  pip_cache:
+

@@ -72,8 +72,12 @@ def read_optional_env_var_int(env_var_name: str, default_value: int) -> int:
 
 def copilot_debug(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
-    if os.getenv("COPILOT_DEBUG", 'False').lower() in "true":
+    if is_debug_enabled():
         print_yellow(message)
+
+
+def is_debug_enabled():
+    return os.getenv("COPILOT_DEBUG", 'False').lower() in "true"
 
 
 def copilot_debug_event(message: str):

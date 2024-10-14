@@ -7,8 +7,12 @@ import com.etendoerp.copilot.data.Message;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Projections;
+import org.hibernate.criterion.Restrictions;
+import org.hibernate.query.Query;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 
 import java.util.Date;
@@ -59,6 +63,17 @@ public class TrackingUtil {
     message.setEtcopConversation(conversation);
     message.setMessage(question);
     message.setRole(messageRole);
+
+    OBCriteria<Message> messCrit = OBDal.getInstance().createCriteria(Message.class);
+    messCrit.add(Restrictions.eq(Message.PROPERTY_ETCOPCONVERSATION, conversation));
+    messCrit.setProjection(Projections.max(Message.PROPERTY_LINENO));
+    Long maxLineNo = (Long) messCrit.uniqueResult();
+    if (maxLineNo == null) {
+      maxLineNo = 0L;
+    }
+
+    message.setLineno(maxLineNo + 10);
+
     OBDal.getInstance().save(conversation);
     OBDal.getInstance().save(message);
     OBDal.getInstance().flush();
