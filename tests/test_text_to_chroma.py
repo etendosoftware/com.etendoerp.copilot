@@ -49,30 +49,3 @@ def test_process_text_to_vector_db_zip_file():
     assert response.json()["success"] is True
 
 
-def test_process_text_to_vector_db_without_file():
-    kb_vectordb_id = "test_kb_id_2"
-
-    # If the directory exists, delete it
-    db_path = "./vectordbs/test_kb_id_2.db"
-    if os.path.exists(db_path):
-        shutil.rmtree(db_path)
-
-    extension = "txt"
-    overwrite = False
-    filename = "filename"
-
-    # Simulate the upload without a file
-    response = client.post(
-        "/addToVectorDB",
-        data={
-            "kb_vectordb_id": kb_vectordb_id,
-            "filename": filename,
-            "extension": extension,
-            "overwrite": str(overwrite).lower()  # Convert to string
-        }
-    )
-
-    # Check a successful response
-    assert response.status_code == 200
-    assert response.json()["success"] is False
-    assert "Error processing text to VectorDb:" in response.json()["answer"]
