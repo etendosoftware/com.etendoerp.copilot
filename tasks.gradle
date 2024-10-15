@@ -121,7 +121,6 @@ task 'copilot.do' {
 }
 
 task 'copilot.build' {
-    // this task will run after the copilot.env.file task, if i want to execute before i can use finalizedBy
     doLast {
         project.logger.info("🤖 Executing Copilot Configuration Loader")
         File copilotDir = new File(project.buildDir.path, COPILOT)
@@ -163,7 +162,7 @@ task 'copilot.build' {
             def toolsConfigJson = new JsonSlurper().parseText(toolsConfigFile.readLines().join(" "))
 
             // Get tools in SOURCES
-            if (moduleProject != null && false) {
+            if (moduleProject != null) {
                 moduleProject.subprojects.each { subproject ->
                     File toolsDir = new File(subproject.projectDir, "tools")
                     if (toolsDir.exists() && !subproject.name.equals(COPILOT_MODULE)) {
@@ -191,7 +190,6 @@ task 'copilot.build' {
             }
 
             // Get tools in JARS
-            if (false){
             jarModulesLocation.listFiles().each { jarModule ->
                 File jarModuleToolsDir = new File(jarModule, "tools")
                 if (jarModuleToolsDir.exists() && !jarModule.name.equals(COPILOT_MODULE)) {
@@ -214,65 +212,43 @@ task 'copilot.build' {
                         project.logger.info("Added dependencies from ${jarModule.name} to main dependencies file")
                     }
                 }
-            }   
-            }   
-        }
-    }
-}
-task 'copilot.env.file' {
-    dependsOn('copilot.build')
-    doLast {
-// edit the file gradle.properties and replace the . in key names with _ . Remember that the keys are the text before the = sign.
-        // If there is a . in the value it not need to be replaced.
-        project.logger.lifecycle("🤖 Creating Copilot Environment File")
-
-        // open the file
-        String projectFolder = projectDir.toString() + File.separator
-        project.logger.lifecycle("🤖 Project Folder: $projectFolder")
-
-        File file = new File(projectFolder + 'gradle.properties')
-        // read the file and iterate over the lines, replace the . in the key names with _ and save in a new file
-        File newFile = new File(projectFolder + 'build/copilot/copilot.properties')
-        if (newFile.exists()) {
-            newFile.delete()
-        }
-        newFile.createNewFile()
-        // iterate over the lines and replace the . in the key names with _
-        newFile.withWriter { writer ->
-            file.eachLine { line ->
-                if (line.contains(EQUAL)) {
-                    String[] split = line.split(EQUAL, 2)
-                    String key = split[0].replaceAll('\\.', '_')
-                    String value = ''
-                    if (split.length > 1) {
-                        value = split[1]
-                    }
-                    writer.writeLine(key + EQUAL + value)
-                } else {
-                    writer.writeLine(line)
-                }
             }
+
         }
     }
 }
 task 'copilot.restart' {
-    dependsOn 'copilot.env.file'
+    dependsOn 'copilot.build'
     doLast {
         project.logger.lifecycle("🤖 Restarting Copilot")
-        if(project.hasProperty("docker_com.etendoerp.copilot") ? project.property("docker_com.etendoerp.copilot").toBoolean() : false) {
-           project.logger.lifecycle("🤖 Restarting Copilot using Docker")
+        if (project.hasProperty("docker_com.etendoerp.copilot") ? project.property("docker_com.etendoerp.copilot").toBoolean() : false) {
+            project.logger.lifecycle("🤖 Restarting Copilot using Docker")
             executeDockerComposeCommand("restart copilot")
         }
     }
 }
 
-
-afterEvaluate {
-
-    tasks.named("smartbuild").configure { task ->
-        task.finalizedBy("copilot.restart")
-    }
-    tasks.named("resources.up").configure { task ->
-        task.dependsOn("copilot.env.file")
+task 'copilot.start.deprecated' {
+    doLast {
+        String err = "The task 'copilot.start' is deprecated. Please use the 'resources.up' task to start the Copilot, because Copilot now is used as a Docker service of Etendo."
+        err += " For more information, please check the documentation: https://docs.etendo.software/latest/developer-guide/etendo-copilot/installation/"
+        throw new GradleException(err)
     }
 }
+
+afterEvaluate {
+    if (tasks.hasProperty("generateEnvFile")) {
+        tasks.named("smartbuild").configure { task ->
+            task.finalizedBy("copilot.restart")
+        }
+        tasks.named("resources.up").configure { task ->
+            task.dependsOn("copilot.build")
+        }
+    }
+    if (tasks.hasProperty("copilot.start")) {
+        tasks.named("copilot.start").configure { task ->
+            task.dependsOn("copilot.start.deprecated")
+        }
+    }
+}
+
