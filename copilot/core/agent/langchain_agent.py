@@ -63,8 +63,11 @@ class LangchainAgent(CopilotAgent):
 
     @traceable
     def get_agent_executor(self, agent) -> AgentExecutor:
-        return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True,
-                             handle_parsing_errors=True, debug=True)
+        agent_exec = AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True,
+                                   handle_parsing_errors=True, debug=True)
+        agent_exec.max_iterations = 300
+        agent_exec.max_execution_time = None
+        return agent_exec
 
     @traceable
     def get_openai_agent(self, open_ai_model, tools, system_prompt, temperature=1,
@@ -169,7 +172,6 @@ class LangchainAgent(CopilotAgent):
         agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt,
                                question.temperature, question.kb_vectordb_id)
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
-        agent_executor.max_iterations = 50
         full_question = question.question
         if question.local_file_ids is not None and len(question.local_file_ids) > 0:
             full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
