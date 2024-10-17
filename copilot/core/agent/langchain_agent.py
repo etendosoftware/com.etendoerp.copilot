@@ -17,7 +17,7 @@ from .agent import AssistantResponse
 from .. import utils
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import QuestionSchema, ToolSchema
-from ..utils import get_full_question
+from ..utils import get_full_question, copilot_debug
 from ..vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
@@ -65,8 +65,9 @@ class LangchainAgent(CopilotAgent):
     def get_agent_executor(self, agent) -> AgentExecutor:
         agent_exec = AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True,
                                    handle_parsing_errors=True, debug=True)
-        agent_exec.max_iterations = 300
-        agent_exec.max_execution_time = None
+        agent_exec.max_iterations = utils.read_optional_env_var_int("COPILOT_MAX_ITERATIONS", 100)
+        max_exec_time = utils.read_optional_env_var_float("COPILOT_EXECUTION_TIMEOUT", 0)
+        agent_exec.max_execution_time = None if max_exec_time == 0 else max_exec_time
         return agent_exec
 
     @traceable
