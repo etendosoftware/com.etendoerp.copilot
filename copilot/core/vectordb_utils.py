@@ -13,7 +13,7 @@ from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
 
-from copilot.core.utils import copilot_debug, empty_folder
+from copilot.core.utils import copilot_debug
 
 ALLOWED_EXTENSIONS = ["pdf", "txt", "md", "markdown", "java", "js", "py", "xml", "json"]
 
@@ -126,36 +126,34 @@ def get_text_splitter(ext):
 
 
 def process_file(file_path, ext):
-    md5 = calculate_md5_from_file_path(file_path)
-    copilot_debug(f"Processing file {file_path} with md5 {md5}")
+    sha256 = calculate_sha256_from_file_path(file_path)
+    copilot_debug(f"Processing file {file_path} with sha256 {sha256}")
     # get the document name, that is the file path.
     with open(file_path, 'rb') as file:
         file_data = file.read()
 
     if ext == "pdf":
-        return process_pdf(file_data), md5
+        return process_pdf(file_data), sha256
     else:
-        return file_data.decode('utf-8'), md5
+        return file_data.decode('utf-8'), sha256
 
 
-def calculate_md5_from_file_path(file_path, chunk_size=4096):
+def calculate_sha256_from_file_path(file_path, chunk_size=4096):
     """
-    Calcula el hash MD5 de un archivo dado su path.
+    Calculate the SHA-256 hash of a file given its path.
 
-    :param file_path: Ruta del archivo.
-    :param chunk_size: Tamaño de los bloques que se leerán del archivo. El valor predeterminado es 4096 bytes.
-    :return: Hash MD5 del archivo en formato hexadecimal.
+    :param file_path: Path of the file.
+    :param chunk_size: Size of the blocks that will be read from the file. The default value is 4096 bytes.
+    :return: SHA-256 hash of the file in hexadecimal format.
     """
-    md5_hash = hashlib.md5()
+    sha256_hash = hashlib.sha256()
 
-    # Abrir el archivo en modo binario
-    with open(file_path, "rb") as file:
-        # Leer el archivo en bloques y actualizar el hash
-        for chunk in iter(lambda: file.read(chunk_size), b""):
-            md5_hash.update(chunk)
+    # Open the file in binary mode
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(chunk_size), b""):
+            sha256_hash.update(byte_block)
 
-    # Devolver el hash MD5 en formato hexadecimal
-    return md5_hash.hexdigest()
+    return sha256_hash.hexdigest()
 
 
 def process_pdf(pdf_data):

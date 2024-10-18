@@ -18,7 +18,7 @@ async def test_process_text_to_vector_db_zip_file():
     app = FastAPI()
     app.include_router(core_router)
 
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(app=app, base_url="https://test") as client:
         kb_vectordb_id = "test_kb_id"
 
         # If the directory exists, delete it
