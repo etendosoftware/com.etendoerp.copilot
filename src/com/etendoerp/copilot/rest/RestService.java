@@ -246,10 +246,11 @@ public class RestService {
 
     if (isPostRequest(request)) {
       json = parseJsonFromRequest(request);
-      if (json.length() == 0) {
-        json = retrieveParametersAsJson(request);
-      }
     }
+    if (json.length() == 0) {
+      json = retrieveParametersAsJson(request);
+    }
+
 
     return json;
   }
