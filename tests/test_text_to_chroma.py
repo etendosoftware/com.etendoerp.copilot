@@ -49,12 +49,10 @@ async def test_process_text_to_vector_db_zip_file():
             files={"file": (filename, zip_buffer, "application/zip")}
         )
 
-        copilot_debug(response.json())
-        copilot_debug(response.json()["success"])
-        copilot_debug(str(response.status_code))
-        print(response.json())
-        print(response.json()["success"])
-        print(response.status_code)
+        if response.json()["success"] is False:
+            copilot_debug(response.json())
+            copilot_debug(response.json()["success"])
+            copilot_debug(str(response.status_code))
 
         # Check a successful response
         assert response.status_code == 200
