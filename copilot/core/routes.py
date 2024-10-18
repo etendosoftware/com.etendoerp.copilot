@@ -397,7 +397,7 @@ def process_text_to_vector_db(
 
 @traceable
 @core_router.post("/purgeVectorDB")
-def purgeDB(body: VectorDBInputSchema):
+def purge_vectordb(body: VectorDBInputSchema):
     try:
         kb_vectordb_id = body.kb_vectordb_id
         db_path = get_vector_db_path(kb_vectordb_id)

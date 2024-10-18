@@ -264,16 +264,15 @@ public class CopilotUtils {
     var byteArrays = new ByteArrayOutputStream();
     var writer = new PrintWriter(new OutputStreamWriter(byteArrays, StandardCharsets.UTF_8), true);
 
-    String kb_vectordb_id = jsonBody.getString(KB_VECTORDB_ID);
-    String filename = jsonBody.getString("filename");
+    String kbVectorDBId = jsonBody.getString(KB_VECTORDB_ID);
     String text = jsonBody.optString("text", null);
     String extension = jsonBody.optString("extension");
     boolean overwrite = jsonBody.optBoolean("overwrite", false);
 
-    if (kb_vectordb_id != null) {
+    if (kbVectorDBId != null) {
       writer.append("--").append(BOUNDARY).append("\r\n");
       writer.append("Content-Disposition: form-data; name=\"kb_vectordb_id\"\r\n\r\n");
-      writer.append(kb_vectordb_id).append("\r\n");
+      writer.append(kbVectorDBId).append("\r\n");
     }
     if (text != null) {
       writer.append("--").append(BOUNDARY).append("\r\n");
