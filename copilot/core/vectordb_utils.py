@@ -13,6 +13,7 @@ from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
 
+from copilot.core.splitters import CopilotRecursiveJsonSplitter
 from copilot.core.utils import copilot_debug
 
 ALLOWED_EXTENSIONS = ["pdf", "txt", "md", "markdown", "java", "js", "py", "xml", "json"]
@@ -106,9 +107,10 @@ def index_file(ext, item_path, chroma_client):
 def get_text_splitter(ext):
     if ext in ["md", "markdown"]:
         return MarkdownTextSplitter()
-    elif ext in ["txt", "pdf", "xml", "json"]:
+    elif ext in ["txt", "pdf", "xml"]:
         return CharacterTextSplitter()
-
+    elif ext in ["json"]:
+        return CopilotRecursiveJsonSplitter(max_chunk_size=300)
     elif ext in ["java"]:
         return RecursiveCharacterTextSplitter.from_language(
             language=Language.JAVA
