@@ -29,8 +29,8 @@ from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, VectorDBInputSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
-from copilot.core.vectordb_utils import index_file, LANGCHAIN_DEFAULT_COLLECTION_NAME
 from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file
+from copilot.core.vectordb_utils import index_file, LANGCHAIN_DEFAULT_COLLECTION_NAME
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -357,35 +357,33 @@ def process_text_to_vector_db(
     try:
         if overwrite and os.path.exists(db_path):
             os.remove(db_path)
-        # Save the ZIP file to a temporary path
-        file_path = Path(f"/tmp/{kb_vectordb_id}/{file.filename}")
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        # remove the file if it already exists
-        if file_path.exists():
-            file_path.unlink()
+        import tempfile
+        # Create a temporary directory using tempfile
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Define the file path inside the temporary directory
+            file_path = Path(temp_dir) / file.filename
+            with file_path.open("wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
+            if extension == "zip":
+                # Process the ZIP file
+                texts = handle_zip_file(file_path, chroma_client)
 
-        with file_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
-        if extension == "zip":
-            # Process the ZIP file
-            texts = handle_zip_file(file_path, chroma_client)
+            else:
+                texts = index_file(extension, file_path, chroma_client)
+                # Remove the temporary file after use
 
-        else:
-            texts = index_file(extension, file_path, chroma_client)
-            # Remove the temporary file after use
-
-        copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
-        if (len(texts) > 0):
-            Chroma.from_documents(
-                texts,
-                get_embedding(),
-                persist_directory=db_path,
-                client_settings=get_chroma_settings()
-            )
-        success = True
-        message = f"Database {kb_vectordb_id} created and loaded successfully."
-        copilot_debug(message)
+            copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
+            if (len(texts) > 0):
+                Chroma.from_documents(
+                    texts,
+                    get_embedding(),
+                    persist_directory=db_path,
+                    client_settings=get_chroma_settings()
+                )
+            success = True
+            message = f"Database {kb_vectordb_id} created and loaded successfully."
+            copilot_debug(message)
     except Exception as e:
         success = False
         message = f"Error processing text to VectorDb: {e}"
