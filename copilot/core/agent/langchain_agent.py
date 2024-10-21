@@ -17,7 +17,7 @@ from .agent import AssistantResponse
 from .. import utils
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import QuestionSchema, ToolSchema
-from ..utils import get_full_question
+from ..utils import get_full_question, copilot_debug
 from ..vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
@@ -63,8 +63,12 @@ class LangchainAgent(CopilotAgent):
 
     @traceable
     def get_agent_executor(self, agent) -> AgentExecutor:
-        return AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True,
-                             handle_parsing_errors=True, debug=True)
+        agent_exec = AgentExecutor(agent=agent, tools=self._configured_tools, verbose=True, log=True,
+                                   handle_parsing_errors=True, debug=True)
+        agent_exec.max_iterations = utils.read_optional_env_var_int("COPILOT_MAX_ITERATIONS", 100)
+        max_exec_time = utils.read_optional_env_var_float("COPILOT_EXECUTION_TIMEOUT", 0)
+        agent_exec.max_execution_time = None if max_exec_time == 0 else max_exec_time
+        return agent_exec
 
     @traceable
     def get_openai_agent(self, open_ai_model, tools, system_prompt, temperature=1,
@@ -169,7 +173,6 @@ class LangchainAgent(CopilotAgent):
         agent = self.get_agent(question.provider, question.model, question.tools, question.system_prompt,
                                question.temperature, question.kb_vectordb_id)
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
-        agent_executor.max_iterations = 50
         full_question = question.question
         if question.local_file_ids is not None and len(question.local_file_ids) > 0:
             full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)

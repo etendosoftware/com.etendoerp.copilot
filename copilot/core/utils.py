@@ -135,3 +135,8 @@ def empty_folder(db_path):
             os.unlink(file_path)
 
     print(f"All contents of the folder '{db_path}' have been deleted.")
+
+
+def read_optional_env_var_float(env_var_name: str, default_value: float) -> float:
+    """Reads an optional environment variable and returns its value or the default one."""
+    return float(read_optional_env_var(env_var_name, str(default_value)))
