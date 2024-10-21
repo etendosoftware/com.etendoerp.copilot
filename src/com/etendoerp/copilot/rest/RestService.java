@@ -15,6 +15,7 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -182,9 +183,16 @@ public class RestService {
    *     the HttpServletRequest object that contains the request the client made to the servlet
    * @return the cached question as a String
    */
-  private String readCachedQuestion(HttpServletRequest request) {
+  private String readCachedQuestion(HttpServletRequest request) throws JSONException {
     // Read the cached question from the session
-    String cachedQuestion = (String) request.getSession().getAttribute(CACHED_QUESTION);
+    HttpSession session = request.getSession();
+    if ( session == null) {
+      throw new JSONException("Session is null.");
+    }
+    String cachedQuestion = (String) session.getAttribute(CACHED_QUESTION);
+    if (StringUtils.equals(cachedQuestion, null)) {
+      throw new JSONException("Cached question is null.");
+    }
     logIfDebug("Reading cached question: " + cachedQuestion);
     request.getSession().removeAttribute(CACHED_QUESTION);
     return cachedQuestion;
@@ -214,7 +222,7 @@ public class RestService {
     response.getWriter().write(responseJson.toString());
   }
 
-  private boolean isAsyncRequest(HttpServletRequest request) {
+  public boolean isAsyncRequest(HttpServletRequest request) {
     String path = request.getPathInfo();
     if (StringUtils.equals(path, AQUESTION)) {
       return true;
@@ -222,7 +230,7 @@ public class RestService {
     return StringUtils.equals(path, AGRAPH);
   }
 
-  private void handleQuestion(HttpServletRequest request, HttpServletResponse response)
+  public void handleQuestion(HttpServletRequest request, HttpServletResponse response)
       throws IOException, JSONException {
     // Get the parameters from the JSON or request
     JSONObject json = extractRequestBody(request);
@@ -251,7 +259,6 @@ public class RestService {
       json = retrieveParametersAsJson(request);
     }
 
-
     return json;
   }
 
@@ -268,7 +275,7 @@ public class RestService {
     }
   }
 
-  private JSONObject retrieveParametersAsJson(HttpServletRequest request) throws JSONException {
+  public JSONObject retrieveParametersAsJson(HttpServletRequest request) throws JSONException {
     JSONObject json = new JSONObject();
 
     addParameterIfExists(json, request, CopilotConstants.PROP_QUESTION);
@@ -288,14 +295,14 @@ public class RestService {
   }
 
 
-  private void addCachedQuestionIfPresent(HttpServletRequest request, JSONObject json) throws JSONException {
+  public void addCachedQuestionIfPresent(HttpServletRequest request, JSONObject json) throws JSONException {
     String cachedQuestion = readCachedQuestion(request);
     if (StringUtils.isBlank(json.optString(CopilotConstants.PROP_QUESTION)) && StringUtils.isNotBlank(cachedQuestion)) {
       json.put(CopilotConstants.PROP_QUESTION, cachedQuestion);
     }
   }
 
-  private void validateRequiredParams(JSONObject json) {
+  public void validateRequiredParams(JSONObject json) {
     if (!json.has(CopilotConstants.PROP_QUESTION)) {
       throw new OBException(
           String.format(OBMessageUtils.messageBD("ETCOP_MissingParam"), CopilotConstants.PROP_QUESTION));
@@ -318,7 +325,7 @@ public class RestService {
     }
   }
 
-  private void processSyncRequest(HttpServletResponse response, JSONObject json) throws IOException, JSONException {
+  public void processSyncRequest(HttpServletResponse response, JSONObject json) throws IOException, JSONException {
     try {
       var responseOriginal = RestServiceUtil.handleQuestion(false, response, json);
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
