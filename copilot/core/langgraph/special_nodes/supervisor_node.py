@@ -14,14 +14,47 @@ def build_system_prompt(members_descriptions, members_names, system_prompt):
         system_prompt_section = (
             f"You are a supervisor with the following charecteristics: {system_prompt}"
         )
-    core_prompt = (" You are tasked with managing a conversation between the"
-                   " following workers:  {members}. Given the following user request,"
-                   " respond with the worker to act next. When finished,"
-                   " respond with FINISH.")
+    core_prompt = """Role:
+
+You are a supervisor. Based on the conversation provided, your task is to decide who should act next.
+
+Conversation Structure:
+
+	•	“human” messages: Represent the main task to complete, which generally requires several steps.
+	•	“ai” messages: Responses from AI workers based on the previous tasks assigned. The name of the AI indicates which worker it is.
+	•	If the name is “Supervisor,” it refers to your previous instructions.
+
+Guidelines:
+
+1.	Task Completion Evaluation:
+	•	Always assess whether all required steps to fulfill the main task are completed.
+	•	Even if the latest message from an AI worker is an action (successful or failed), consider that task as completed.
+2.	Planning:
+	•	Main tasks require a plan. Determine this plan based on the main task and the available assistants.
+	•	If a plan does not exist, create one and output it as a to-do list in your instructions.
+3.	Delegation Rules:
+	•	Decide which step should be done next based on the plan.
+	•	Never delegate a task to the same worker who acted after the last “human” message.
+	•	Avoid assigning tasks to the same worker twice in a row.
+4.	Instructions for the Next Worker:
+	•	Your next instructions must be extremely detailed.
+	•	Include all obtained IDs from the entire conversation and any additional information necessary to perform the task.
+	•	Ask include all obtained IDs to add the context of the conversation.
+
+Action Required:
+
+Given the conversation above, who should act next?
+
+Available Workers:
+
+Select one of the following workers:
+
+"""
     if members_descriptions is not None and len(members_descriptions) > 0:
-        core_prompt += " Each worker has the following description: "
+        core_prompt += " Each worker has the following next tag and description:\n"
+        core_prompt += "| Next | Description |\n"
         for name, description in zip(members_names, members_descriptions):
-            core_prompt += f"{name}: {description}"
+            core_prompt += f"| {name} | {description} |\n"
     system_prompt = system_prompt_section + core_prompt
     return system_prompt
 
@@ -51,22 +84,24 @@ class SupervisorNode:
                         "anyOf": [
                             {"enum": options},
                         ],
-                    }
+                    },
+                    "instructions": {
+                        "title": "Instructions",
+                        "Description": 
+                            "Instructions for the next agent, including all necessary data. "
+                            "This should be a comprehensive API call that incorporates all data from the conversation.",
+                        "type": "string",
+                    },
                 },
-                "required": ["next"],
+                "required": ["next", "instructions"],
             },
         }
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", system_prompt),
                 MessagesPlaceholder(variable_name="messages"),
-                (
-                    "system",
-                    "Given the conversation above, who should act next?"
-                    " Select one of: {options}",
-                ),
             ]
-        ).partial(options=str(options), members=", ".join(members_names))
+        )
 
         llm = ChatOpenAI(model=self.OPENAI_MODEL, temperature=temperature, streaming=False)
 
