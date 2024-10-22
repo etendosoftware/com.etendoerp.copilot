@@ -66,6 +66,9 @@ poetry run python
 * For prod dependency run: `poetry add <dep_name>`
 * For dev dependency run: `poetry add <dep_name> --group dev`
 
+#### Exporting dependencies
+* To export dependencies to `requirements.txt` run: `pip freeze > requirements.txt` or `poetry export -without-hashes -f requirements.txt > requirements.txt` but removing the python versions range.
+
 ## How to run copilot
 * Locally outside docker:
 	- Copy `.env.sample` into `.env` and set the right values

@@ -427,7 +427,7 @@ def running_check():
 @core_router.post("/attachFile")
 def attach_file(file: UploadFile = File(...)):
     # save the file inside /tmp and return the path
-    temp_file_path = Path(f"/tmp/{uuid.uuid4()}/{file.filename}")
+    temp_file_path = Path(f"/copilotAttachedFiles/{uuid.uuid4()}/{file.filename}")
     temp_file_path.parent.mkdir(parents=True, exist_ok=True)
     with temp_file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
