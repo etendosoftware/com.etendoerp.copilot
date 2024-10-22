@@ -117,7 +117,9 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
         } else {
           // For langgraph apps, nothing to do
         }
-
+      }
+      for (CopilotApp langApp : langchainApps) {
+        CopilotUtils.purgeVectorDB(langApp);
       }
 
       for (CopilotApp app : appList) {

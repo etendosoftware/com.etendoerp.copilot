@@ -82,15 +82,17 @@ class LangchainAgent(CopilotAgent):
             db_path = get_vector_db_path(kb_vectordb_id)
             db = Chroma(persist_directory=db_path, embedding_function=get_embedding(),
                         client_settings=get_chroma_settings())
-
-            retriever = db.as_retriever()
-            tool = create_retriever_tool(
-                retriever,
-                "KnowledgeBaseRetriever",
-                "Search for documents in the knowledge base."
-            )
-            _enabled_tools.append(tool)
-            self._configured_tools.append(tool)
+            # check if the db is empty
+            res = db.get(where={}, limit=1)
+            if len(res["ids"]) > 0:
+                retriever = db.as_retriever()
+                tool = create_retriever_tool(
+                    retriever,
+                    "KnowledgeBaseRetriever",
+                    "Search for documents in the knowledge base."
+                )
+                _enabled_tools.append(tool)
+                self._configured_tools.append(tool)
 
         if len(_enabled_tools):
             prompt = ChatPromptTemplate.from_messages(

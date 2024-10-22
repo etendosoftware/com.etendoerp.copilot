@@ -1,109 +1,59 @@
+import io
 import os
-
-import pytest
+import shutil
+import zipfile
 from dotenv import load_dotenv
-from fastapi.testclient import TestClient
+import pytest
+from fastapi import FastAPI
+from httpx import AsyncClient
 
 from copilot.core.routes import core_router
-from copilot.core.schemas import TextToVectorDBSchema
+from copilot.core.utils import copilot_debug
 
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path)
 
-client = TestClient(core_router)
+@pytest.mark.asyncio
+async def test_process_text_to_vector_db_zip_file():
+    app = FastAPI()
+    app.include_router(core_router)
 
-body = TextToVectorDBSchema(kb_vectordb_id="test_db", text="Some text to process", overwrite=False, extension="txt")
+    async with AsyncClient(app=app, base_url="https://test") as client:
+        kb_vectordb_id = "test_kb_id"
 
+        # If the directory exists, delete it
+        db_path = "./vectordbs/test_kb_id.db"
+        if os.path.exists(db_path):
+            shutil.rmtree(db_path)
 
-@pytest.fixture
-def mock_os_path_exists(mocker):
-    return mocker.patch("os.path.exists")
+        # Set the input data
+        filename = "test.zip"
+        extension = "zip"
+        overwrite = True
 
+        # Create a ZIP file in memory
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+            zip_file.writestr("dummy.txt", "Dummy content inside zip file")
+        zip_buffer.seek(0)
 
-@pytest.fixture
-def mock_chroma(mocker):
-    return mocker.patch("copilot.core.routes.Chroma.from_documents")
+        # Simulate the upload of a ZIP file
+        response = await client.post(
+            "/addToVectorDB",
+            data={
+                "kb_vectordb_id": kb_vectordb_id,
+                "filename": filename,
+                "extension": extension,
+                "overwrite": str(overwrite).lower()
+            },
+            files={"file": (filename, zip_buffer, "application/zip")}
+        )
 
+        if response.json()["success"] is False:
+            copilot_debug(response.json())
+            copilot_debug(response.json()["success"])
+            copilot_debug(str(response.status_code))
 
-def test_processTextToChromaDB_existing_db(mock_os_path_exists, mock_chroma):
-    mock_os_path_exists.return_value = False
-    try:
-        os.rmdir("./vectordbs")  # if not exists, it will raise an error
-    except:
-        pass
-
-    response = client.post("/addToVectorDB", json=body.dict())
-    response_json = response.json()
-    success = response_json["success"]
-    message = response_json["answer"]
-    db_path = response_json["db_path"]
-    assert success
-
-    mock_os_path_exists.return_value = None
-    mock_os_path_exists.side_effect = lambda path: True if path in ["./vectordbs"] else False
-
-    body2 = body.copy(update={"text": "Another Text"})
-    response = client.post("/addToVectorDB", json=body2.dict())
-    response_json = response.json()
-    success = response_json["success"]
-    message = response_json["answer"]
-    db_path = response_json["db_path"]
-
-    assert success
-
-
-def test_processTextToChromaDB_overwrite(mock_os_path_exists, mock_chroma, mocker):
-    mock_os_path_exists.return_value = None
-    mock_os_path_exists.side_effect = lambda path: True if path in ["./vectordbs"] else False
-
-    body_with_overwrite = body.copy(update={"overwrite": True})
-    response = client.post("/addToVectorDB", json=body_with_overwrite.dict())
-    response_json = response.json()
-    success = response_json["success"]
-    message = response_json["answer"]
-    db_path = response_json["db_path"]
-
-    assert success == True
-    assert message == "Database test_db created and loaded successfully."
-    assert db_path == "./vectordbs/test_db.db"
-
-
-def test_processTextToChromaDB_success(mock_os_path_exists, mock_chroma):
-    mock_os_path_exists.return_value = False
-    mock_os_path_exists.side_effect = None
-    try:
-        os.rmdir("./vectordbs")  # if not exists, it will raise an error
-    except:
-        pass
-    mock_chroma.return_value = None
-
-    response = client.post("/addToVectorDB", json=body.dict())
-
-    response_json = response.json()
-    success = response_json["success"]
-    message = response_json["answer"]
-    db_path = response_json["db_path"]
-    assert success
-    assert message == "Database test_db created and loaded successfully."
-    assert db_path == "./vectordbs/test_db.db"
-
-
-def test_processTextToChromaDB_exception(mock_os_path_exists, mock_chroma):
-    mock_os_path_exists.return_value = None
-    mock_os_path_exists.side_effect = lambda path: True if path in ["./vectordbs"] else False
-    try:
-        os.rmdir("./vectordbs")
-    except:
-        pass
-
-    body_for_error = body.copy(update={"extension": 'mov'})
-
-    response = client.post("/addToVectorDB", json=body_for_error.dict())
-    response_json = response.json()
-    success = response_json["success"]
-    message = response_json["answer"]
-    db_path = response_json["db_path"]
-
-    assert success == False
-    assert "Error processing text to VectorDb" in message
-    assert db_path == ""
+        # Check a successful response
+        assert response.status_code == 200
+        assert response.json()["success"] is True
