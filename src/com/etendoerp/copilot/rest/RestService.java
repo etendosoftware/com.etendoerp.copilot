@@ -222,6 +222,15 @@ public class RestService {
     response.getWriter().write(responseJson.toString());
   }
 
+  /**
+   * Checks if the incoming HTTP request is an asynchronous request.
+   * The method determines this by comparing the request's path with predefined
+   * constants representing asynchronous request types.
+   *
+   * @param request the {@link HttpServletRequest} object containing client request information
+   * @return {@code true} if the request path matches an asynchronous request type,
+   *         otherwise {@code false}
+   */
   public boolean isAsyncRequest(HttpServletRequest request) {
     String path = request.getPathInfo();
     if (StringUtils.equals(path, AQUESTION)) {
@@ -230,6 +239,16 @@ public class RestService {
     return StringUtils.equals(path, AGRAPH);
   }
 
+  /**
+   * Handles the incoming HTTP request for processing a question.
+   * This method extracts parameters from the request, validates them,
+   * and determines whether to process the request asynchronously or synchronously.
+   *
+   * @param request  the {@link HttpServletRequest} object containing client request information
+   * @param response the {@link HttpServletResponse} object used to return response to the client
+   * @throws IOException   if an input or output error occurs during the handling of the request
+   * @throws JSONException if there is an error in processing JSON data
+   */
   public void handleQuestion(HttpServletRequest request, HttpServletResponse response)
       throws IOException, JSONException {
     // Get the parameters from the JSON or request
@@ -275,6 +294,16 @@ public class RestService {
     }
   }
 
+  /**
+   * Retrieves parameters from the incoming HTTP request and
+   * constructs a JSON object containing those parameters.
+   * This method checks for the existence of specific parameters
+   * defined in {@link CopilotConstants} and adds them to the JSON object.
+   *
+   * @param request the {@link HttpServletRequest} object containing client request information
+   * @return a {@link JSONObject} containing the retrieved parameters
+   * @throws JSONException if there is an error in constructing the JSON object
+   */
   public JSONObject retrieveParametersAsJson(HttpServletRequest request) throws JSONException {
     JSONObject json = new JSONObject();
 
@@ -294,7 +323,16 @@ public class RestService {
     }
   }
 
-
+  /**
+   * Adds a cached question to the provided JSON object if the question
+   * is not already present in the JSON and if the cached question exists.
+   * This method checks for a cached question in the request and populates
+   * the JSON object accordingly.
+   *
+   * @param request the {@link HttpServletRequest} object containing client request information
+   * @param json    the {@link JSONObject} to which the cached question may be added
+   * @throws JSONException if there is an error in adding the question to the JSON object
+   */
   public void addCachedQuestionIfPresent(HttpServletRequest request, JSONObject json) throws JSONException {
     String cachedQuestion = readCachedQuestion(request);
     if (StringUtils.isBlank(json.optString(CopilotConstants.PROP_QUESTION)) && StringUtils.isNotBlank(cachedQuestion)) {
@@ -302,6 +340,15 @@ public class RestService {
     }
   }
 
+  /**
+   * Validates that the required parameters are present in the provided JSON object.
+   * This method checks for the existence of specific parameters defined in
+   * {@link CopilotConstants}. If any required parameter is missing, an {@link OBException}
+   * is thrown with a corresponding error message.
+   *
+   * @param json the {@link JSONObject} containing parameters to be validated
+   * @throws OBException if any required parameter is missing in the JSON object
+   */
   public void validateRequiredParams(JSONObject json) {
     if (!json.has(CopilotConstants.PROP_QUESTION)) {
       throw new OBException(
@@ -325,6 +372,16 @@ public class RestService {
     }
   }
 
+  /**
+   * Processes a synchronous HTTP request by handling the provided JSON object
+   * and writing the response back to the client. This method invokes a REST service
+   * to handle the question and manages the response and any potential errors.
+   *
+   * @param response the {@link HttpServletResponse} object used to return the response to the client
+   * @param json     the {@link JSONObject} containing the request parameters to be processed
+   * @throws IOException   if an input or output error occurs during the response writing process
+   * @throws JSONException if there is an error in processing the JSON data
+   */
   public void processSyncRequest(HttpServletResponse response, JSONObject json) throws IOException, JSONException {
     try {
       var responseOriginal = RestServiceUtil.handleQuestion(false, response, json);
