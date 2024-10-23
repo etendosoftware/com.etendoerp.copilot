@@ -3,6 +3,7 @@ services:
     image: etendo/etendo_copilot_slim:${COPILOT_IMAGE_TAG}
     ports:
       - "${COPILOT_PORT}:${COPILOT_PORT}"
+      - "${COPILOT_PORT_DEBUG}:${COPILOT_PORT_DEBUG}"
     env_file: ".env"
     volumes:
       - ../copilot:/app/
@@ -10,6 +11,7 @@ services:
       - pip_cache:/root/.cache/pip
       - copilot_attached_files:/copilotAttachedFiles
       - vectordbs:/app/vectordbs
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - etendo
 volumes:
