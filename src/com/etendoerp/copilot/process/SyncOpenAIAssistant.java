@@ -2,8 +2,10 @@ package com.etendoerp.copilot.process;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 
 import org.apache.commons.lang.StringUtils;
@@ -121,7 +123,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
    *     A list of {@link CopilotApp} instances for which file attachments are being generated.
    */
   private void generateFilesAttachment(List<CopilotApp> appList) {
-    List<CopilotAppSource> appSourcesToRefresh = new ArrayList<>();
+    Set<CopilotAppSource> appSourcesToRefresh = new HashSet<>();
     for (CopilotApp app : appList) {
       checkWebHookAccess(app);
       List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
@@ -275,7 +277,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
           log.debug("Sync not needed for LangGraph");
           break;
         default:
-          log.error("No handler found for API type: {}", app.getAppType());
+          log.warn("Unsupported application type encountered: {}", app.getAppType());
       }
       syncCount++;
     }
