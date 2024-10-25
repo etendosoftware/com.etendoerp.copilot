@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -264,7 +265,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
     for (CopilotApp app : appList) {
       List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream()
               .filter(CopilotConstants::isKbBehaviour)
-              .toList();
+              .collect(Collectors.toList());
 
       switch (app.getAppType()) {
         case CopilotConstants.APP_TYPE_OPENAI:
