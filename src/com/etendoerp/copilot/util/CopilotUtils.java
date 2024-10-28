@@ -264,7 +264,7 @@ public class CopilotUtils {
     var byteArrays = new ByteArrayOutputStream();
     var writer = new PrintWriter(new OutputStreamWriter(byteArrays, StandardCharsets.UTF_8), true);
 
-    String kbVectorDBId = jsonBody.getString(KB_VECTORDB_ID);
+    String kbVectorDBId = jsonBody.optString(KB_VECTORDB_ID);
     String text = jsonBody.optString("text", null);
     String extension = jsonBody.optString("extension");
     boolean overwrite = jsonBody.optBoolean("overwrite", false);
