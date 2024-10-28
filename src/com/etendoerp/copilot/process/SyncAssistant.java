@@ -6,10 +6,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
@@ -25,14 +23,11 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
-import org.openbravo.model.ad.system.Client;
-import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.data.CopilotOpenAIModel;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
@@ -40,8 +35,8 @@ import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
 
-public class SyncOpenAIAssistant extends BaseProcessActionHandler {
-  private static final Logger log = LogManager.getLogger(SyncOpenAIAssistant.class);
+public class SyncAssistant extends BaseProcessActionHandler {
+  private static final Logger log = LogManager.getLogger(SyncAssistant.class);
   public static final String ERROR = "error";
 
   @Override
@@ -259,14 +254,12 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
    */
   private JSONObject syncKnowledgeFiles(List<CopilotApp> appList) throws JSONException, IOException {
     int syncCount = 0;
-    String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
-    // Update list of OpenAI models
-    syncOpenaiModels(openaiApiKey);
+    String  openaiApiKey = OpenAIUtils.getOpenaiApiKey();
+    OpenAIUtils.syncOpenaiModels(openaiApiKey);
     for (CopilotApp app : appList) {
       List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream()
               .filter(CopilotConstants::isKbBehaviour)
               .collect(Collectors.toList());
-
       switch (app.getAppType()) {
         case CopilotConstants.APP_TYPE_OPENAI:
           syncKBFilesToOpenAI(app, knowledgeBaseFiles, openaiApiKey);
@@ -313,12 +306,7 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
    *     If the application's configuration does not allow for knowledge base synchronization.
    */
   private void syncKBFilesToOpenAI(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles, String openaiApiKey) throws JSONException, IOException {
-    if (StringUtils.equalsIgnoreCase(app.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
-      if (!knowledgeBaseFiles.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
-        throw new OBException(
-                String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
-      }
-    }
+    OpenAIUtils.CheckIfAppCanUseAttachedFiles(app, knowledgeBaseFiles);
     for (CopilotAppSource appSource : knowledgeBaseFiles) {
       OpenAIUtils.syncAppSource(appSource, openaiApiKey);
     }
@@ -352,81 +340,6 @@ public class SyncOpenAIAssistant extends BaseProcessActionHandler {
       CopilotUtils.syncAppLangchainSource(appSource);
     }
     CopilotUtils.purgeVectorDB(app);
-  }
-
-  private void syncOpenaiModels(String openaiApiKey) {
-    //ask to openai for the list of models
-    JSONArray modelJSONArray = OpenAIUtils.getModelList(openaiApiKey);
-    //transfer ids of json array to a list of strings
-    List<JSONObject> modelIds = new ArrayList<>();
-    for (int i = 0; i < modelJSONArray.length(); i++) {
-      try {
-        JSONObject modelObj = modelJSONArray.getJSONObject(i);
-        if (!StringUtils.startsWith(modelObj.getString("id"), "ft:") && //exclude the models that start with gpt-4o
-                !StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
-                !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
-          modelIds.add(modelObj);
-        }
-      } catch (JSONException e) {
-        log.error("Error in syncOpenaiModels", e);
-      }
-    }
-    //now we have a list of ids, we can get the list of models in the database
-    List<CopilotOpenAIModel> modelsInDB = OBDal.getInstance().createCriteria(CopilotOpenAIModel.class).list();
-
-    //now we will check the models of the database that are not in the list of models from openai, to mark them as not active
-    for (CopilotOpenAIModel modelInDB : modelsInDB) {
-      //check if the model is in the list of models from openai
-      if (modelIds.stream().noneMatch(modelInModelList(modelInDB))) {
-        modelInDB.setActive(false);
-        OBDal.getInstance().save(modelInDB);
-        continue;
-      }
-      modelIds.removeIf(modelInModelList(modelInDB));
-    }
-    //the models that are not in the database, we will create them,
-    saveNewModels(modelIds);
-  }
-
-  /**
-   * This method is used to save new models into the database.
-   * It iterates over a list of JSONObjects, each representing a model, and creates a new CopilotOpenAIModel instance for each one.
-   * The method sets the client, organization, search key, name, and active status for each new model.
-   * It also retrieves the creation date of the model from the JSONObject, converts it from a Unix timestamp to a Date object, and sets it for the new model.
-   * The new model is then saved into the database.
-   * After all models have been saved, the method flushes the session to ensure that all changes are persisted to the database.
-   * If an exception occurs during the execution of the method, it logs the error message and continues with the next iteration.
-   * The method uses the OBContext to set and restore the admin mode before and after the execution of the method, respectively.
-   *
-   * @param modelIds
-   *     A list of JSONObjects, each representing a model to be saved into the database.
-   */
-  private void saveNewModels(List<JSONObject> modelIds) {
-    try {
-      OBContext.setAdminMode();
-      for (JSONObject modelData : modelIds) {
-        CopilotOpenAIModel model = OBProvider.getInstance().get(CopilotOpenAIModel.class);
-        model.setNewOBObject(true);
-        model.setClient(OBDal.getInstance().get(Client.class, "0"));
-        model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
-        model.setSearchkey(modelData.optString("id"));
-        model.setName(modelData.optString("id"));
-        model.setActive(true);
-        //get the date in The Unix timestamp (in seconds) when the model was created. Convert to date
-        long creationDate = modelData.optLong("created"); // Unix timestamp (in seconds) when the model was created
-        model.setCreationDate(new java.util.Date(creationDate * 1000L));
-        OBDal.getInstance().save(model);
-      }
-      OBDal.getInstance().flush();
-    } catch (Exception e) {
-      log.error("Error in saveNewModels", e);
-    } finally {
-      OBContext.restorePreviousMode();
-    }
-  }
-
-  private Predicate<JSONObject> modelInModelList(CopilotOpenAIModel modelInDB) {
-    return model -> StringUtils.equals(model.optString("id"), modelInDB.getSearchkey());
   }
 
   private JSONObject buildMessage(int syncCount, int totalRecords) throws JSONException {

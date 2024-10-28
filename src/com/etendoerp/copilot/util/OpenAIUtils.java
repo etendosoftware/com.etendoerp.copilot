@@ -1,6 +1,6 @@
 package com.etendoerp.copilot.util;
 
-import static com.etendoerp.copilot.process.SyncOpenAIAssistant.ERROR;
+import static com.etendoerp.copilot.process.SyncAssistant.ERROR;
 import static com.etendoerp.copilot.util.CopilotUtils.getAssistantPrompt;
 
 import java.io.ByteArrayOutputStream;
@@ -13,7 +13,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Predicate;
 
+import com.etendoerp.copilot.data.CopilotOpenAIModel;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,12 +24,15 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
+import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -38,6 +43,7 @@ import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import kong.unirest.UnirestException;
+import org.openbravo.model.common.enterprise.Organization;
 
 public class OpenAIUtils {
   private static final Logger log = LogManager.getLogger(OpenAIUtils.class);
@@ -579,6 +585,125 @@ public class OpenAIUtils {
             OpenAIUtils.ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES + "/" + existingFileId,
             null, METHOD_DELETE, null);
       }
+    }
+  }
+
+  /**
+   * Synchronizes the list of available OpenAI models by fetching the latest
+   * models from OpenAI and updating the database accordingly. This method retrieves
+   * the models via OpenAI's API, excludes specific models based on ownership and naming,
+   * and then compares the retrieved models with the current models in the database.
+   * <p>If a model exists in the database but is no longer available in OpenAI's list,
+   * it is marked as inactive. New models that do not exist in the database are added.
+   *
+   * @param openaiApiKey
+   *     The API key used to authenticate requests to OpenAI's API for retrieving model information.
+   */
+  public static void syncOpenaiModels(String openaiApiKey) {
+    //ask to openai for the list of models
+    JSONArray modelJSONArray = OpenAIUtils.getModelList(openaiApiKey);
+    //transfer ids of json array to a list of strings
+    List<JSONObject> modelIds = new ArrayList<>();
+    for (int i = 0; i < modelJSONArray.length(); i++) {
+      try {
+        JSONObject modelObj = modelJSONArray.getJSONObject(i);
+        if (!StringUtils.startsWith(modelObj.getString("id"), "ft:") && //exclude the models that start with gpt-4o
+                !StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
+                !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
+          modelIds.add(modelObj);
+        }
+      } catch (JSONException e) {
+        log.error("Error in syncOpenaiModels", e);
+      }
+    }
+    //now we have a list of ids, we can get the list of models in the database
+    List<CopilotOpenAIModel> modelsInDB = OBDal.getInstance().createCriteria(CopilotOpenAIModel.class).list();
+
+    //now we will check the models of the database that are not in the list of models from openai, to mark them as not active
+    for (CopilotOpenAIModel modelInDB : modelsInDB) {
+      //check if the model is in the list of models from openai
+      if (modelIds.stream().noneMatch(modelInModelList(modelInDB))) {
+        modelInDB.setActive(false);
+        OBDal.getInstance().save(modelInDB);
+        continue;
+      }
+      modelIds.removeIf(modelInModelList(modelInDB));
+    }
+    //the models that are not in the database, we will create them,
+    saveNewModels(modelIds);
+  }
+
+  /**
+   * Returns a predicate to check if a specified {@link CopilotOpenAIModel}
+   * instance matches a given OpenAI model (represented as a {@link JSONObject}).
+   * This helper is primarily used to determine whether a model fetched from OpenAI
+   * is already present in the database by comparing model IDs.
+   *
+   * @param modelInDB
+   *     The {@link CopilotOpenAIModel} instance to be matched.
+   * @return A predicate that checks if the model ID in the database matches the ID of a given
+   *     OpenAI model.
+   */
+  private static Predicate<JSONObject> modelInModelList(CopilotOpenAIModel modelInDB) {
+    return model -> StringUtils.equals(model.optString("id"), modelInDB.getSearchkey());
+  }
+
+  /**
+   * This method is used to save new models into the database.
+   * It iterates over a list of JSONObjects, each representing a model, and creates a new CopilotOpenAIModel instance for each one.
+   * The method sets the client, organization, search key, name, and active status for each new model.
+   * It also retrieves the creation date of the model from the JSONObject, converts it from a Unix timestamp to a Date object, and sets it for the new model.
+   * The new model is then saved into the database.
+   * After all models have been saved, the method flushes the session to ensure that all changes are persisted to the database.
+   * If an exception occurs during the execution of the method, it logs the error message and continues with the next iteration.
+   * The method uses the OBContext to set and restore the admin mode before and after the execution of the method, respectively.
+   *
+   * @param modelIds
+   *     A list of JSONObjects, each representing a model to be saved into the database.
+   */
+  private static void saveNewModels(List<JSONObject> modelIds) {
+    try {
+      OBContext.setAdminMode();
+      for (JSONObject modelData : modelIds) {
+        CopilotOpenAIModel model = OBProvider.getInstance().get(CopilotOpenAIModel.class);
+        model.setNewOBObject(true);
+        model.setClient(OBDal.getInstance().get(Client.class, "0"));
+        model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
+        model.setSearchkey(modelData.optString("id"));
+        model.setName(modelData.optString("id"));
+        model.setActive(true);
+        //get the date in The Unix timestamp (in seconds) when the model was created. Convert to date
+        long creationDate = modelData.optLong("created"); // Unix timestamp (in seconds) when the model was created
+        model.setCreationDate(new java.util.Date(creationDate * 1000L));
+        OBDal.getInstance().save(model);
+      }
+      OBDal.getInstance().flush();
+    } catch (Exception e) {
+      log.error("Error in saveNewModels", e);
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Verifies whether the specified {@link CopilotApp} can use attached files
+   * configured as a knowledge base. If the list of knowledge base files is not empty
+   * and the application does not have the flags "Code Interpreter" or "Retrieval" checked,
+   * an {@link OBException} is thrown with a descriptive error message.
+   *
+   * @param app
+   *     The {@link CopilotApp} instance being verified for compatibility with knowledge base files.
+   * @param knowledgeBaseFiles
+   *     A list of {@link CopilotAppSource} objects representing files configured as a knowledge base.
+   * @throws OBException
+   *     If the application does not support "Code Interpreter" or "Retrieval" features,
+   *     making it incompatible with knowledge base files. The error message will state:
+   *     "The app does not have 'Code Interpreter' or 'Retrieval' configured, so files configured as 'Knowledge Base' cannot be attached."
+   */
+  public static void CheckIfAppCanUseAttachedFiles(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles) {
+    if (!knowledgeBaseFiles.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
+      throw new OBException(
+              String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
     }
   }
 
