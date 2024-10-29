@@ -181,17 +181,20 @@ public class RestService {
    *
    * @param request
    *     the HttpServletRequest object that contains the request the client made to the servlet
-   * @return the cached question as a String
+   * @return the cached question as a String or null if no question is cached
    */
-  private String readCachedQuestion(HttpServletRequest request) throws JSONException {
+  private String readCachedQuestion(HttpServletRequest request) {
     // Read the cached question from the session
+    if (request == null) {
+      return null;
+    }
     HttpSession session = request.getSession();
-    if ( session == null) {
-      throw new JSONException("Session is null.");
+    if (session == null) {
+      return null;
     }
     String cachedQuestion = (String) session.getAttribute(CACHED_QUESTION);
     if (StringUtils.equals(cachedQuestion, null)) {
-      throw new JSONException("Cached question is null.");
+      return null;
     }
     logIfDebug("Reading cached question: " + cachedQuestion);
     request.getSession().removeAttribute(CACHED_QUESTION);
