@@ -213,7 +213,6 @@ task 'copilot.build' {
                     }
                 }
             }
-
         }
     }
 }
@@ -236,6 +235,57 @@ task 'copilot.start.deprecated' {
     }
 }
 
+task 'copilot.env.file' {
+    description = 'Generates the .env file for copilot'
+    group = 'Docker'
+
+    doLast {
+        def props = envFile()
+        def env = props.envFile
+        def etendoHost = project.hasProperty("ETENDO_HOST") ? project.property("ETENDO_HOST").toString() :
+                (project.hasProperty("docker_com.etendoerp.tomcat") && project.property("docker_com.etendoerp.tomcat").toBoolean()) ?
+                        "http://tomcat:8080/etendo" : "http://localhost:8080/etendo"
+        def etendoHostDocker = project.hasProperty("ETENDO_HOST_DOCKER") ? project.property("ETENDO_HOST_DOCKER").toString() :
+                (project.hasProperty("docker_com.etendoerp.tomcat") && project.property("docker_com.etendoerp.tomcat").toBoolean()) ?
+                        "http://tomcat:8080/etendo" : "http://localhost:8080/etendo"
+        def copilotPort = project.hasProperty("COPILOT_PORT") ? project.property("COPILOT_PORT").toString() :
+                (project.hasProperty("docker_com.etendoerp.copilot") && project.property("docker_com.etendoerp.copilot").toBoolean()) ?
+                        "5005" : "5000"
+        def copilotHost = project.hasProperty("COPILOT_HOST") ? project.property("COPILOT_HOST").toString() :
+                (project.hasProperty("docker_com.etendoerp.copilot") && project.property("docker_com.etendoerp.copilot").toBoolean()) ?
+                        "copilot" : "localhost"
+        def copilotPullImage = project.hasProperty("COPILOT_PULL_IMAG") ? project.property("COPILOT_PULL_IMAG").toString() :
+                (project.hasProperty("docker_com.etendoerp.copilot") && project.property("docker_com.etendoerp.copilot").toBoolean()) ?
+                        "true" : "false"
+        def copilotPortDebug = project.hasProperty("COPILOT_PORT_DEBUG") ? project.property("COPILOT_PORT_DEBUG").toString() : "5100"
+        def copilotImageTag = project.hasProperty("COPILOT_IMAGE_TAG") ? project.property("COPILOT_IMAGE_TAG").toString() : "basic"
+
+        env.withWriterAppend { writer ->
+            writer.write("ETENDO_HOST=${etendoHost}\n")
+            println "Writing ETENDO_HOST=${etendoHost}"
+
+            writer.write("ETENDO_HOST_DOCKER=${etendoHostDocker}\n")
+            println "Writing ETENDO_HOST_DOCKER=${etendoHostDocker}"
+
+            writer.write("COPILOT_PORT=${copilotPort}\n")
+            println "Writing COPILOT_PORT=${copilotPort}"
+
+            writer.write("COPILOT_HOST=${copilotHost}\n")
+            println "Writing COPILOT_HOST=${copilotHost}"
+
+            writer.write("COPILOT_PORT_DEBUG=${copilotPortDebug}\n")
+            println "Writing COPILOT_PORT_DEBUG=${copilotPortDebug}"
+
+            writer.write("COPILOT_IMAGE_TAG=${copilotImageTag}\n")
+            println "Writing COPILOT_IMAGE_TAG=${copilotImageTag}"
+
+            writer.write("COPILOT_PULL_IMAGE=${copilotPullImage}\n")
+            println "Writing COPILOT_PULL_IMAGE=${copilotPullImage}"
+
+        }
+    }
+}
+
 afterEvaluate {
     if (tasks.hasProperty("generateEnvFile")) {
         tasks.named("smartbuild").configure { task ->
@@ -243,6 +293,9 @@ afterEvaluate {
         }
         tasks.named("resources.up").configure { task ->
             task.dependsOn("copilot.build")
+        }
+        tasks.named("generateEnvFile").configure { task ->
+            task.finalizedBy("copilot.env.file")
         }
     }
     if (tasks.hasProperty("copilot.start")) {
