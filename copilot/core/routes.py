@@ -103,6 +103,7 @@ def _initialize_agent(question: QuestionSchema):
     copilot_debug("  conversation_id: " + str(question.conversation_id))
     copilot_debug("  file_ids: " + str(question.file_ids))
     ThreadContext.set_data('extra_info', question.extra_info)
+    ThreadContext.set_data('conversation_id', question.conversation_id)
     return agent_type, copilot_agent
 
 
