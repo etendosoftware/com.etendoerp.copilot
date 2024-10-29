@@ -18,5 +18,7 @@ if __name__ == "__main__":
         message = "Debugger enabled on port:"
         print("\033[95m {} {} \033[00m".format(message, str(debug_port)))
         debugpy.listen(('0.0.0.0', debug_port))
-    
+        if os.getenv("COPILOT_WAIT_FOR_DEBUGGER", "false").lower() == "true":
+            print ("\033[95m Waiting for debugger to attach... \033[00m")
+            debugpy.wait_for_client()
     uvicorn.run(app.app, host="0.0.0.0", port=int(os.getenv("COPILOT_PORT")))
