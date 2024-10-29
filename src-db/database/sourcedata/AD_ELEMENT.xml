@@ -645,8 +645,8 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--EB18E75DB048479DA72392C90A7E5E5E-->  <COLUMNNAME><![CDATA[Sync_Assistant]]></COLUMNNAME>
 <!--EB18E75DB048479DA72392C90A7E5E5E-->  <NAME><![CDATA[Sync Assistant]]></NAME>
 <!--EB18E75DB048479DA72392C90A7E5E5E-->  <PRINTNAME><![CDATA[Sync Assistant]]></PRINTNAME>
-<!--EB18E75DB048479DA72392C90A7E5E5E-->  <DESCRIPTION><![CDATA[Update or Create a new assistant, in case it does not exist]]></DESCRIPTION>
-<!--EB18E75DB048479DA72392C90A7E5E5E-->  <HELP><![CDATA[This process is only available when the application type is Open AI Assistant and takes care of updating or creating a new assistant, in case it does not exist. In addition to creating the wizard based on the configurations, it initially gets or updates the list of Open AI Models, and finally gets and uploads the files used as knowledge base]]></HELP>
+<!--EB18E75DB048479DA72392C90A7E5E5E-->  <DESCRIPTION><![CDATA[This process updates or creates a new assistant if it does not exist.]]></DESCRIPTION>
+<!--EB18E75DB048479DA72392C90A7E5E5E-->  <HELP><![CDATA[This process updates or creates a new assistant if it does not exist. It configures the wizard, updates the list of Open AI Models, and uploads files used as a knowledge base.]]></HELP>
 <!--EB18E75DB048479DA72392C90A7E5E5E-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--EB18E75DB048479DA72392C90A7E5E5E-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--EB18E75DB048479DA72392C90A7E5E5E--></AD_ELEMENT>

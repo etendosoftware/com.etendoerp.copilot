@@ -700,7 +700,7 @@ public class OpenAIUtils {
    *     making it incompatible with knowledge base files. The error message will state:
    *     "The app does not have 'Code Interpreter' or 'Retrieval' configured, so files configured as 'Knowledge Base' cannot be attached."
    */
-  public static void CheckIfAppCanUseAttachedFiles(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles) {
+  public static void checkIfAppCanUseAttachedFiles(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles) {
     if (!knowledgeBaseFiles.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
       throw new OBException(
               String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));

@@ -254,8 +254,12 @@ public class SyncAssistant extends BaseProcessActionHandler {
    */
   private JSONObject syncKnowledgeFiles(List<CopilotApp> appList) throws JSONException, IOException {
     int syncCount = 0;
-    String  openaiApiKey = OpenAIUtils.getOpenaiApiKey();
-    OpenAIUtils.syncOpenaiModels(openaiApiKey);
+    String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
+    if (openaiApiKey != null) {
+      OpenAIUtils.syncOpenaiModels(openaiApiKey);
+    } else {
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_ApiKeyNotFound"));
+    }
     for (CopilotApp app : appList) {
       List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream()
               .filter(CopilotConstants::isKbBehaviour)
@@ -306,7 +310,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
    *     If the application's configuration does not allow for knowledge base synchronization.
    */
   private void syncKBFilesToOpenAI(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles, String openaiApiKey) throws JSONException, IOException {
-    OpenAIUtils.CheckIfAppCanUseAttachedFiles(app, knowledgeBaseFiles);
+    OpenAIUtils.checkIfAppCanUseAttachedFiles(app, knowledgeBaseFiles);
     for (CopilotAppSource appSource : knowledgeBaseFiles) {
       OpenAIUtils.syncAppSource(appSource, openaiApiKey);
     }

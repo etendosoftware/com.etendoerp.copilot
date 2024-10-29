@@ -7,8 +7,8 @@
 <!--332B46F9424D4061B2B083F65874A703-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--332B46F9424D4061B2B083F65874A703-->  <VALUE><![CDATA[ETCOP_SyncAssistant]]></VALUE>
 <!--332B46F9424D4061B2B083F65874A703-->  <NAME><![CDATA[Sync Assistant]]></NAME>
-<!--332B46F9424D4061B2B083F65874A703-->  <DESCRIPTION><![CDATA[Update or create a new assistant, in case it does not exist]]></DESCRIPTION>
-<!--332B46F9424D4061B2B083F65874A703-->  <HELP><![CDATA[In addition to creating the wizard based on the configurations, this process initially gets or updates the list of Open AI Models, and finally gets and uploads the files used as knowledge base]]></HELP>
+<!--332B46F9424D4061B2B083F65874A703-->  <DESCRIPTION><![CDATA[This process updates or creates a new assistant if it does not exist.]]></DESCRIPTION>
+<!--332B46F9424D4061B2B083F65874A703-->  <HELP><![CDATA[This process updates or creates a new assistant if it does not exist. It configures the wizard, updates the list of Open AI Models, and uploads files used as a knowledge base.]]></HELP>
 <!--332B46F9424D4061B2B083F65874A703-->  <ACCESSLEVEL><![CDATA[7]]></ACCESSLEVEL>
 <!--332B46F9424D4061B2B083F65874A703-->  <CLASSNAME><![CDATA[com.etendoerp.copilot.process.SyncAssistant]]></CLASSNAME>
 <!--332B46F9424D4061B2B083F65874A703-->  <ISBACKGROUND><![CDATA[N]]></ISBACKGROUND>
