@@ -6658,7 +6658,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--FB5C927A4D8F4C2AB591014322CFB1CE-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--FB5C927A4D8F4C2AB591014322CFB1CE-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--FB5C927A4D8F4C2AB591014322CFB1CE-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--FB5C927A4D8F4C2AB591014322CFB1CE-->  <NAME><![CDATA[Sync_Assistant]]></NAME>
+<!--FB5C927A4D8F4C2AB591014322CFB1CE-->  <NAME><![CDATA[SyncAssistant]]></NAME>
 <!--FB5C927A4D8F4C2AB591014322CFB1CE-->  <DESCRIPTION><![CDATA[This process updates or creates a new assistant if it does not exist.]]></DESCRIPTION>
 <!--FB5C927A4D8F4C2AB591014322CFB1CE-->  <HELP><![CDATA[This process updates or creates a new assistant if it does not exist. It configures the wizard, updates the list of Open AI Models, and uploads files used as a knowledge base.]]></HELP>
 <!--FB5C927A4D8F4C2AB591014322CFB1CE-->  <COLUMNNAME><![CDATA[Sync_Assistant]]></COLUMNNAME>

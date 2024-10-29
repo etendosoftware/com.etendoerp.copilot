@@ -35,6 +35,39 @@ import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
 
+/**
+ * The {@code SyncAssistant} class is responsible for synchronizing assistant knowledge bases and file attachments.
+ * It provides methods to manage synchronization of files, application access, and webhook roles, and interacts
+ * with external APIs like OpenAI and LangChain for knowledge file synchronization.
+ *
+ * <p>Core responsibilities include:
+ * <ul>
+ *   <li>Retrieving selected applications based on record IDs</li>
+ *   <li>Generating attachments for knowledge files</li>
+ *   <li>Synchronizing files to external APIs (OpenAI, LangChain)</li>
+ *   <li>Managing webhook access for roles</li>
+ * </ul>
+ *
+ * <p>Each method within this class focuses on a distinct aspect of the synchronization process,
+ * making the code modular and aiding in maintenance and future extensibility.
+ *
+ * <p>Example usage:
+ * <pre>
+ * {@code
+ * SyncAssistant syncAssistant = new SyncAssistant();
+ * JSONObject result = syncAssistant.doExecute(parameters, content);
+ * }
+ * </pre>
+ *
+ * <p>This class logs events at various points using the {@link Logger} to facilitate troubleshooting.
+ *
+ * <p>Additionally, this class extends {@link BaseProcessActionHandler}, so it must implement the
+ * {@code doExecute} method, which is invoked when the process is run.
+ *
+ * @see BaseProcessActionHandler
+ * @see OpenAIUtils
+ * @see CopilotUtils
+ */
 public class SyncAssistant extends BaseProcessActionHandler {
   private static final Logger log = LogManager.getLogger(SyncAssistant.class);
   public static final String ERROR = "error";
