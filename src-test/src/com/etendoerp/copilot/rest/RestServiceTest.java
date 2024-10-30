@@ -4,6 +4,12 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
+import org.openbravo.base.exception.OBException;
+import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.base.weld.test.WeldBaseTest;
+import org.openbravo.client.kernel.RequestContext;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.test.base.TestConstants;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -23,7 +29,7 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for the {@link RestService} class.
  */
-public class RestServiceTest {
+public class RestServiceTest extends WeldBaseTest {
 
   private RestService restService;
   private HttpServletRequest mockRequest;
@@ -33,20 +39,33 @@ public class RestServiceTest {
   /**
    * Sets up the necessary mocks and spies before each test.
    */
+  @Override
   @Before
-  public void setUp() {
+  public void setUp() throws Exception {
+    super.setUp();
     restService = spy(new RestService());
     mockRequest = mock(HttpServletRequest.class);
     mockResponse = mock(HttpServletResponse.class);
     mockSession = mock(HttpSession.class);
+    OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN,
+        TestConstants.Clients.FB_GRP, TestConstants.Orgs.ESP_NORTE);
+    VariablesSecureApp vsa = new VariablesSecureApp(
+        OBContext.getOBContext().getUser().getId(),
+        OBContext.getOBContext().getCurrentClient().getId(),
+        OBContext.getOBContext().getCurrentOrganization().getId(),
+        OBContext.getOBContext().getRole().getId()
+    );
+    RequestContext.get().setVariableSecureApp(vsa);
   }
 
   /**
    * Tests the {@link RestService#handleQuestion(HttpServletRequest, HttpServletResponse)} method when
    * handling a synchronous request with valid parameters.
    *
-   * @throws IOException if there is an issue with the request or response I/O operations.
-   * @throws JSONException if there is an issue with JSON processing.
+   * @throws IOException
+   *     if there is an issue with the request or response I/O operations.
+   * @throws JSONException
+   *     if there is an issue with JSON processing.
    */
   @Test
   public void testHandleQuestionWithSyncRequest() throws IOException, JSONException {
@@ -74,11 +93,14 @@ public class RestServiceTest {
    * Tests that {@link RestService#handleQuestion(HttpServletRequest, HttpServletResponse)} throws
    * a {@link JSONException} when the request body extraction fails.
    *
-   * @throws IOException if there is an issue with the request or response I/O operations.
-   * @throws JSONException if there is an issue with JSON processing.
-   * @throws NullPointerException if any of the required objects are null.
+   * @throws IOException
+   *     if there is an issue with the request or response I/O operations.
+   * @throws JSONException
+   *     if there is an issue with JSON processing.
+   * @throws NullPointerException
+   *     if any of the required objects are null.
    */
-  @Test(expected = JSONException.class)
+  @Test(expected = OBException.class)
   public void testHandleQuestionThrowsJSONException() throws IOException, JSONException, NullPointerException {
     when(mockRequest.getReader()).thenThrow(new IOException("Body request extraction failed."));
 
@@ -89,11 +111,14 @@ public class RestServiceTest {
    * Tests that {@link RestService#handleQuestion(HttpServletRequest, HttpServletResponse)} throws
    * a {@link JSONException} when an invalid JSON is provided in the request body.
    *
-   * @throws IOException if there is an issue with the request or response I/O operations.
-   * @throws JSONException if there is an issue with JSON processing.
-   * @throws NullPointerException if any of the required objects are null.
+   * @throws IOException
+   *     if there is an issue with the request or response I/O operations.
+   * @throws JSONException
+   *     if there is an issue with JSON processing.
+   * @throws NullPointerException
+   *     if any of the required objects are null.
    */
-  @Test(expected = JSONException.class)
+  @Test(expected = OBException.class)
   public void testHandleQuestionWithInvalidJson() throws IOException, JSONException, NullPointerException {
     when(mockRequest.getReader()).thenReturn(new BufferedReader(new StringReader("{}")));
 
