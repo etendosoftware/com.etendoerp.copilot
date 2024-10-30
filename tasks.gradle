@@ -235,13 +235,35 @@ task 'copilot.start.deprecated' {
     }
 }
 
-def isTomcatEnabled() {
+def isTomcatDockerized() {
     return project.hasProperty("docker_com.etendoerp.tomcat") && project.property("docker_com.etendoerp.tomcat").toBoolean()
 }
 
-def isCopilotEnabled() {
+def isCopilotDockerized() {
     return project.hasProperty("docker_com.etendoerp.copilot") && project.property("docker_com.etendoerp.copilot").toBoolean()
 }
+
+static def getDefaultEtendoHost(boolean tomcatEnabled, String strTomcatPort) {
+    def tomcatToTomcat = tomcatEnabled ? "tomcat" : "localhost"
+    return "http://${tomcatToTomcat}:${strTomcatPort}"
+}
+
+static def getDefaultEtendoHostDocker(boolean tomcatEnabled, boolean copilotEnabled, String strTomcatPort) {
+    def copilotToTomcat = "localhost"
+    if (copilotEnabled) {
+        copilotToTomcat = tomcatEnabled ? "tomcat" : "host.docker.internal"
+    }
+    return "http://${copilotToTomcat}:${strTomcatPort}"
+}
+
+static def getDefaultCopilotHost(boolean tomcatEnabled,  boolean copilotEnabled) {
+    def tomcatToCopilot = "localhost"
+    if (tomcatEnabled) {
+        tomcatToCopilot = copilotEnabled ? "copilot" : "host.docker.internal"
+    }
+    return tomcatToCopilot
+}
+
 
 task 'copilot.env.file' {
     description = 'Generates the .env file for copilot'
@@ -250,16 +272,22 @@ task 'copilot.env.file' {
     doLast {
         def props = envFile()
         def env = props.envFile
-        def etendoHost = project.hasProperty("ETENDO_HOST") ? project.property("ETENDO_HOST").toString() :
-                (isTomcatEnabled()) ? "http://tomcat:8080/etendo" : "http://localhost:8080/etendo"
-        def etendoHostDocker = project.hasProperty("ETENDO_HOST_DOCKER") ? project.property("ETENDO_HOST_DOCKER").toString() :
-                (isTomcatEnabled()) ? "http://tomcat:8080/etendo" : "http://localhost:8080/etendo"
-        def copilotHost = project.hasProperty("COPILOT_HOST") ? project.property("COPILOT_HOST").toString() :
-                (isCopilotEnabled()) ? "copilot" : "localhost"
+        def tomcatPort = env.hasProperty("TOMCAT_PORT") ? env.property("TOMCAT_PORT").toString() : "8080"
+
+        def contextName = env.hasProperty("CONTEXT_NAME") ? env.property("CONTEXT_NAME").toString() : "etendo"
+
+        def strTomcatPort = tomcatPort + "/" + contextName
+
+        def tomcatEnabled = isTomcatDockerized()
+        def copilotEnabled = isCopilotDockerized()
+
+        def etendoHost = project.hasProperty("ETENDO_HOST") ? project.property("ETENDO_HOST").toString() : getDefaultEtendoHost(tomcatEnabled, strTomcatPort)
+        def etendoHostDocker = project.hasProperty("ETENDO_HOST_DOCKER") ? project.property("ETENDO_HOST_DOCKER").toString() : getDefaultEtendoHostDocker(tomcatEnabled, copilotEnabled, strTomcatPort)
+        def copilotHost = project.hasProperty("COPILOT_HOST") ? project.property("COPILOT_HOST").toString() : getDefaultCopilotHost(tomcatEnabled, copilotEnabled)
         def copilotPort = project.hasProperty("COPILOT_PORT") ? project.property("COPILOT_PORT").toString() : "5005"
-        def copilotPullImage = project.hasProperty("COPILOT_PULL_IMAG") ? project.property("COPILOT_PULL_IMAG").toString() : "true"
         def copilotPortDebug = project.hasProperty("COPILOT_PORT_DEBUG") ? project.property("COPILOT_PORT_DEBUG").toString() : "5100"
         def copilotImageTag = project.hasProperty("COPILOT_IMAGE_TAG") ? project.property("COPILOT_IMAGE_TAG").toString() : "basic"
+        def copilotPullImage = project.hasProperty("COPILOT_PULL_IMAGE") ? project.property("COPILOT_PULL_IMAGE").toString() : "true"
 
         env.withWriterAppend { writer ->
             writer.write("ETENDO_HOST=${etendoHost}\n")
@@ -295,7 +323,8 @@ afterEvaluate {
         tasks.named("resources.up").configure { task ->
             task.dependsOn("copilot.build")
         }
-        tasks.named("generateEnvFile").configure { task ->
+        def strTask = isTomcatDockerized() ? "tomcat.env.file" : "generateEnvFile"
+        tasks.named(strTask).configure { task ->
             task.finalizedBy("copilot.env.file")
         }
     }
