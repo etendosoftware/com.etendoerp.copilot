@@ -309,14 +309,37 @@ public class RestServiceUtil {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
     }
-    if (StringUtils.equalsIgnoreCase(copilotApp.getAppType(), CopilotConstants.APP_TYPE_OPENAI)
-        && StringUtils.isEmpty(copilotApp.getOpenaiIdAssistant())) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_OpenAIAppNotSync"), appId));
+    switch (copilotApp.getAppType()) {
+      case CopilotConstants.APP_TYPE_OPENAI:
+        if (StringUtils.isEmpty(copilotApp.getOpenaiIdAssistant())) {
+          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_OpenAIAppNotSync"), appId));
+        }
+        validateOpenAIKey();
+        break;
+      case CopilotConstants.APP_TYPE_LANGCHAIN:
+        validateOpenAIKey();
+        break;
+      default:
+          log.warn("Unsupported app type: {}", copilotApp.getAppType());
     }
-
     List<String> filesReceived = new ArrayList<>();
     filesReceived.add(questionAttachedFileId); // File path in temp folder. This files were attached in the pop-up.
     return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived);
+  }
+
+  private static void validateOpenAIKey() {
+    try {
+      String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
+      URL url = new URL(CopilotConstants.OPENAI_MODELS);
+      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+      connection.setRequestMethod("GET");
+      connection.setRequestProperty("Authorization", "Bearer " + openaiApiKey);
+      if (connection.getResponseCode() != 200) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_OpenAIKeyNotValid")));
+      }
+    } catch (Exception e) {
+      throw new OBException(e.getMessage());
+    }
   }
 
   /**
