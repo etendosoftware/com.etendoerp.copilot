@@ -1,8 +1,7 @@
-from copilot.core.tool_wrapper import ToolWrapper, ToolOutputMessage
-from typing import Type, Dict
+from typing import Dict, Type
 
-from copilot.core.tool_input import ToolInput, ToolField
-from copilot.core.tool_wrapper import ToolWrapper
+from copilot.core.tool_input import ToolField, ToolInput
+from copilot.core.tool_wrapper import ToolOutputMessage, ToolWrapper
 
 
 class CalculatorInput(ToolInput):
@@ -11,13 +10,16 @@ class CalculatorInput(ToolInput):
 
 
 class CustomHelloWorldMultiArgsTool(ToolWrapper):
-    name = "CustomHelloWorldMultiArgsTool"
-    description = "This is the CustomHelloWorldMultiArgsTool tool implementation."
+    name: str = "CustomHelloWorldMultiArgsTool"
+    description: str = "This is the CustomHelloWorldMultiArgsTool tool implementation."
 
     args_schema: Type[ToolInput] = CalculatorInput
     return_direct: bool = False
 
     def run(self, input_params: Dict = None, *args, **kwargs) -> ToolOutputMessage:
         result_message = f"Input params {input_params}, args={args}, kwargs={kwargs}"
-        #Implement your tool's logic here
+        import pyfiglet
+
+        result_message += pyfiglet.figlet_format("Hello World!")
+        # Implement your tool's logic here
         return ToolOutputMessage(message=result_message)

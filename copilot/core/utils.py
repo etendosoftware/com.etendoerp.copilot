@@ -3,29 +3,34 @@ import shutil
 import socket
 from typing import Final
 
+from colorama import Fore, Style
 from copilot.core.schemas import QuestionSchema
 
 SUCCESS_CODE: Final[str] = "\u2713"
 
 
 def print_red(message):
-    print("\033[91m {}\033[00m".format(message))
+    print(Fore.RED + Style.BRIGHT + f"{message}{Style.RESET_ALL}")
+
+
+def print_orange(message):
+    print(Fore.YELLOW + f"{message}{Style.RESET_ALL}")
 
 
 def print_green(message):
-    print("\033[92m {}\033[00m".format(message))
+    print(Fore.GREEN + Style.BRIGHT + f"{message}{Style.RESET_ALL}")
 
 
 def print_blue(message):
-    print("\033[94m {}\033[00m".format(message))
+    print(Fore.BLUE + Style.BRIGHT + f"{message}{Style.RESET_ALL}")
 
 
 def print_yellow(message):
-    print("\033[93m {}\033[00m".format(message))
+    print(Fore.YELLOW + Style.BRIGHT + f"{message}{Style.RESET_ALL}")
 
 
 def print_violet(message):
-    print("\033[95m {}\033[00m".format(message))
+    print(f"{Fore.MAGENTA} {message}{Style.RESET_ALL}")
 
 
 def get_full_question(question: QuestionSchema) -> str:
@@ -44,7 +49,8 @@ def _handle_etendo_host_var(env_var_name, default_value):
     if etendo_host_docker:
         copilot_debug(
             f" Reading ETENDO_HOST, existing ETENDO_HOST_DOCKER, overriding ETENDO_HOST with ETENDO_HOST_DOCKER."
-            f" Value is {etendo_host_docker}")
+            f" Value is {etendo_host_docker}"
+        )
         return read_optional_env_var("ETENDO_HOST_DOCKER", default_value)
     return _read_env_var(env_var_name, default_value)
 
@@ -77,34 +83,37 @@ def copilot_debug(message: str):
 
 
 def is_debug_enabled():
-    return os.getenv("COPILOT_DEBUG", 'False').lower() in "true"
+    return os.getenv("COPILOT_DEBUG", "False").lower() in "true"
 
 
 def copilot_debug_event(message: str):
     """Prints a message if COPILOT_DEBUG_EVENT is set to True."""
-    debug = os.getenv("COPILOT_DEBUG", 'False').lower()
-    debug_event = os.getenv("COPILOT_DEBUG_EVENT", 'False').lower()
+    debug = os.getenv("COPILOT_DEBUG", "False").lower()
+    debug_event = os.getenv("COPILOT_DEBUG_EVENT", "False").lower()
     if (debug in "true") and (debug_event in "true"):
         print_green(message)
 
 
 def copilot_info(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
-    if os.getenv("COPILOT_INFO", 'False').lower() in "true" or os.getenv("COPILOT_DEBUG", 'False').lower() in "true":
+    if (
+        os.getenv("COPILOT_INFO", "False").lower() in "true"
+        or os.getenv("COPILOT_DEBUG", "False").lower() in "true"
+    ):
         print_violet(message)
 
 
 def is_docker():
     """Check if the process is running in a Docker container."""
     # Verify if the process is running in a container
-    if os.path.exists('/.dockerenv'):
+    if os.path.exists("/.dockerenv"):
         return True
 
     # Verify if the process is running in a container
     try:
-        with open('/proc/1/cgroup', 'rt') as f:
+        with open("/proc/1/cgroup", "rt") as f:
             for line in f:
-                if 'docker' in line or 'containerd' in line:
+                if "docker" in line or "containerd" in line:
                     return True
     except FileNotFoundError:
         pass

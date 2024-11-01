@@ -6,19 +6,18 @@ import time
 import zipfile
 
 import chromadb
-import fitz
+import pymupdf
 from chromadb import Settings
-from langchain.text_splitter import MarkdownTextSplitter, CharacterTextSplitter
-from langchain_core.documents import Document
-from langchain_openai import OpenAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
-
 from copilot.core.splitters import CopilotRecursiveJsonSplitter
 from copilot.core.utils import copilot_debug
+from langchain.text_splitter import CharacterTextSplitter, MarkdownTextSplitter
+from langchain_core.documents import Document
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
 
 ALLOWED_EXTENSIONS = ["pdf", "txt", "md", "markdown", "java", "js", "py", "xml", "json"]
 
-LANGCHAIN_DEFAULT_COLLECTION_NAME = 'langchain'
+LANGCHAIN_DEFAULT_COLLECTION_NAME = "langchain"
 
 
 def get_embedding():
@@ -26,7 +25,9 @@ def get_embedding():
 
 
 def get_vector_db_path(vector_db_id):
-    copilot_debug(f"Retrieving vector db path for {vector_db_id}, the current working directory is {os.getcwd()}")
+    copilot_debug(
+        f"Retrieving vector db path for {vector_db_id}, the current working directory is {os.getcwd()}"
+    )
     # check if exists /app
     if os.path.exists("/app"):
         vectordb_folder = "/app/vectordbs"
@@ -49,13 +50,13 @@ def get_chroma_settings(db_path=None):
 def handle_zip_file(zip_file_path, chroma_client):
     temp_dir = tempfile.mkdtemp()
     acum_texts = []
-    with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+    with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
         zip_ref.extractall(temp_dir)
     # walk through the directory and index the files
-    for root, dirs, files in os.walk(temp_dir):
+    for root, _dirs, files in os.walk(temp_dir):
         for file in files:
             file_path = os.path.join(root, file)
-            ext = file.split('.')[-1].lower()
+            ext = file.split(".")[-1].lower()
             if ext in ALLOWED_EXTENSIONS:
                 try:
                     copilot_debug(f"Processing file {file_path}")
@@ -69,9 +70,7 @@ def handle_zip_file(zip_file_path, chroma_client):
 
 def load_chroma_collection_from_path(db_path):
     # Initialize the Chroma client with the database path
-    client = chromadb.Client(chromadb.config.Settings(
-        persist_directory=db_path
-    ))
+    client = chromadb.Client(chromadb.config.Settings(persist_directory=db_path))
 
     # Load the collection by its name
     collection = client.get_or_create_collection(LANGCHAIN_DEFAULT_COLLECTION_NAME)
@@ -112,17 +111,11 @@ def get_text_splitter(ext):
     elif ext in ["json"]:
         return CopilotRecursiveJsonSplitter(max_chunk_size=300)
     elif ext in ["java"]:
-        return RecursiveCharacterTextSplitter.from_language(
-            language=Language.JAVA
-        )
+        return RecursiveCharacterTextSplitter.from_language(language=Language.JAVA)
     elif ext in ["js"]:
-        return RecursiveCharacterTextSplitter.from_language(
-            language=Language.JS
-        )
+        return RecursiveCharacterTextSplitter.from_language(language=Language.JS)
     elif ext in ["py"]:
-        return RecursiveCharacterTextSplitter.from_language(
-            language=Language.PYTHON
-        )
+        return RecursiveCharacterTextSplitter.from_language(language=Language.PYTHON)
     else:
         raise ValueError(f"Unsupported file extension: {ext}")
 
@@ -131,13 +124,13 @@ def process_file(file_path, ext):
     sha256 = calculate_sha256_from_file_path(file_path)
     copilot_debug(f"Processing file {file_path} with sha256 {sha256}")
     # get the document name, that is the file path.
-    with open(file_path, 'rb') as file:
+    with open(file_path, "rb") as file:
         file_data = file.read()
 
     if ext == "pdf":
         return process_pdf(file_data), sha256
     else:
-        return file_data.decode('utf-8'), sha256
+        return file_data.decode("utf-8"), sha256
 
 
 def calculate_sha256_from_file_path(file_path, chunk_size=4096):
@@ -159,11 +152,11 @@ def calculate_sha256_from_file_path(file_path, chunk_size=4096):
 
 
 def process_pdf(pdf_data):
-    temp_pdf = '/tmp/temp' + str(round(time.time())) + '.pdf'
-    with open(temp_pdf, 'wb') as f:
+    temp_pdf = "/tmp/temp" + str(round(time.time())) + ".pdf"
+    with open(temp_pdf, "wb") as f:
         f.write(pdf_data)
-    doc = fitz.open(temp_pdf)
-    content = ''
+    doc = pymupdf.open(temp_pdf)
+    content = ""
     for page in doc:
         content += page.get_text()
     return content

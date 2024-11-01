@@ -14,23 +14,32 @@ import uuid
 from pathlib import Path
 
 import chromadb
-from fastapi import APIRouter, UploadFile, File, Form
-from langchain.vectorstores import Chroma
-from langsmith import traceable
-from starlette.responses import StreamingResponse
-
 from copilot.core import utils
-from copilot.core.agent import AgentResponse, copilot_agents, AgentEnum
+from copilot.core.agent import AgentEnum, AgentResponse, copilot_agents
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
-from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, VectorDBInputSchema
+from copilot.core.schemas import (
+    GraphQuestionSchema,
+    QuestionSchema,
+    VectorDBInputSchema,
+)
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_info
-from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file
-from copilot.core.vectordb_utils import index_file, LANGCHAIN_DEFAULT_COLLECTION_NAME
+from copilot.core.vectordb_utils import (
+    LANGCHAIN_DEFAULT_COLLECTION_NAME,
+    get_chroma_settings,
+    get_embedding,
+    get_vector_db_path,
+    handle_zip_file,
+    index_file,
+)
+from fastapi import APIRouter, File, Form, UploadFile
+from langchain_community.vectorstores import Chroma
+from langsmith import traceable
+from starlette.responses import StreamingResponse
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -50,18 +59,26 @@ def select_copilot_agent(copilot_type: str):
 @traceable
 def _response(response: AssistantResponse):
     if type(response) == AssistantResponse:
-        json_value = json.dumps({"answer": {
-            "response": response.response,
-            "conversation_id": response.conversation_id,
-            "role": response.role
-        }})
+        json_value = json.dumps(
+            {
+                "answer": {
+                    "response": response.response,
+                    "conversation_id": response.conversation_id,
+                    "role": response.role,
+                }
+            }
+        )
     else:
-        json_value = json.dumps({"answer": {
-            "response": response.output.response,
-            "conversation_id": response.output.conversation_id,
-            "role": response.output.role
-        }})
-    copilot_debug('data: ' + json_value)
+        json_value = json.dumps(
+            {
+                "answer": {
+                    "response": response.output.response,
+                    "conversation_id": response.output.conversation_id,
+                    "role": response.output.role,
+                }
+            }
+        )
+    copilot_debug("data: " + json_value)
     return "data: " + json_value + "\n"
 
 
@@ -102,8 +119,8 @@ def _initialize_agent(question: QuestionSchema):
     copilot_debug("  assistant_id: " + str(question.assistant_id))
     copilot_debug("  conversation_id: " + str(question.conversation_id))
     copilot_debug("  file_ids: " + str(question.file_ids))
-    ThreadContext.set_data('extra_info', question.extra_info)
-    ThreadContext.set_data('conversation_id', question.conversation_id)
+    ThreadContext.set_data("extra_info", question.extra_info)
+    ThreadContext.set_data("conversation_id", question.conversation_id)
     return agent_type, copilot_agent
 
 
@@ -121,13 +138,12 @@ def _handle_exception(e: Exception):
     copilot_debug("  Exception: " + str(e))
     if hasattr(e, "response"):
         content = e.response.content
-        error_message = json.loads(content).get('error').get('message')
+        error_message = json.loads(content).get("error").get("message")
     else:
         error_message = str(e)
 
-    return {"error": {
-        "code": e.response.status_code if hasattr(e, "response") else 500,
-        "message": error_message}
+    return {
+        "error": {"code": e.response.status_code if hasattr(e, "response") else 500, "message": error_message}
     }
 
 
@@ -143,26 +159,30 @@ def serve_graph(question: GraphQuestionSchema):
 
     try:
         copilot_debug(
-            "Thread " + str(threading.get_ident()) + " Saving extra info:" +
-            str(ThreadContext.identifier_data()))
-        ThreadContext.set_data('extra_info', question.extra_info)
+            "Thread "
+            + str(threading.get_ident())
+            + " Saving extra info:"
+            + str(ThreadContext.identifier_data())
+        )
+        ThreadContext.set_data("extra_info", question.extra_info)
         agent_response: AgentResponse = copilot_agent.execute(question)
         response = agent_response.output
-        local_history_recorder.record_chat(chat_question=question.question,
-                                           chat_answer=agent_response.output)
+        local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
     except Exception as e:
         logger.exception(e)
         copilot_debug("  Exception: " + str(e))
         if hasattr(e, "response"):
             content = e.response.content
             # content has the json error message
-            error_message = json.loads(content).get('error').get('message')
+            error_message = json.loads(content).get("error").get("message")
         else:
             error_message = str(e)
 
-        response = {"error": {
-            "code": e.response.status_code if hasattr(e, "response") else 500,
-            "message": error_message}
+        response = {
+            "error": {
+                "code": e.response.status_code if hasattr(e, "response") else 500,
+                "message": error_message,
+            }
         }
 
     return {"answer": response}
@@ -191,7 +211,7 @@ def _serve_agraph(question: GraphQuestionSchema):
     copilot_debug("  conversation_id: " + str(question.conversation_id))
 
     try:
-        ThreadContext.set_data('extra_info', question.extra_info)
+        ThreadContext.set_data("extra_info", question.extra_info)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         queue = asyncio.Queue()
@@ -218,14 +238,12 @@ def _serve_agraph(question: GraphQuestionSchema):
         if hasattr(e, "response"):
             content = e.response.content
             # content has the json error message
-            error_message = json.loads(content).get('error').get('message')
+            error_message = json.loads(content).get("error").get("message")
         else:
             error_message = str(e)
 
         response_error = AssistantResponse(
-            response=error_message,
-            conversation_id=question.conversation_id,
-            role="error"
+            response=error_message, conversation_id=question.conversation_id, role="error"
         )
         yield _response(response_error)
 
@@ -320,8 +338,8 @@ def resetVectorDB(body: VectorDBInputSchema):
         collection = db_client.get_or_create_collection(LANGCHAIN_DEFAULT_COLLECTION_NAME)
         # Retrieve all documents from the collection
         documents = collection.get()
-        document_ids = documents['ids']
-        metadatas = documents['metadatas']
+        document_ids = documents["ids"]
+        metadatas = documents["metadatas"]
         # Ensure all documents have a 'purge': True in their metadata
         updated_metadatas = []
         for metadata in metadatas:
@@ -332,10 +350,7 @@ def resetVectorDB(body: VectorDBInputSchema):
         # Perform a single batch update with all document IDs and their updated metadata
         # Check if there are documents to update
         if updated_metadatas:
-            collection.update(
-                ids=document_ids,
-                metadatas=updated_metadatas
-            )
+            collection.update(ids=document_ids, metadatas=updated_metadatas)
             copilot_debug("All documents were successfully updated with 'purge': True in the metadata.")
             db_client.clear_system_cache()
     except Exception as e:
@@ -347,11 +362,11 @@ def resetVectorDB(body: VectorDBInputSchema):
 @traceable
 @core_router.post("/addToVectorDB")
 def process_text_to_vector_db(
-        kb_vectordb_id: str = Form(...),
-        filename: str = Form(None),
-        extension: str = Form(...),
-        overwrite: bool = Form(False),
-        file: UploadFile = File(None)
+    kb_vectordb_id: str = Form(...),
+    filename: str = Form(None),
+    extension: str = Form(...),
+    overwrite: bool = Form(False),
+    file: UploadFile = File(None),
 ):
     db_path = get_vector_db_path(kb_vectordb_id)
 
@@ -359,6 +374,7 @@ def process_text_to_vector_db(
         if overwrite and os.path.exists(db_path):
             os.remove(db_path)
         import tempfile
+
         # Create a temporary directory using tempfile
         with tempfile.TemporaryDirectory() as temp_dir:
             # Define the file path inside the temporary directory
@@ -375,12 +391,9 @@ def process_text_to_vector_db(
                 # Remove the temporary file after use
 
             copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
-            if (len(texts) > 0):
+            if len(texts) > 0:
                 Chroma.from_documents(
-                    texts,
-                    get_embedding(),
-                    persist_directory=db_path,
-                    client_settings=get_chroma_settings()
+                    texts, get_embedding(), persist_directory=db_path, client_settings=get_chroma_settings()
                 )
             success = True
             message = f"Database {kb_vectordb_id} created and loaded successfully."

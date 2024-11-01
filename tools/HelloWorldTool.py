@@ -1,6 +1,6 @@
 from typing import Type
 
-from copilot.core.tool_input import ToolInput, ToolField
+from copilot.core.tool_input import ToolField, ToolInput
 from copilot.core.tool_wrapper import ToolWrapper
 
 
@@ -16,8 +16,8 @@ class HelloWorldTool(ToolWrapper):
         description (str): A brief description of the tool.
     """
 
-    name = "HelloWorldTool"
-    description = "This is the classic HelloWorld tool implementation."
+    name: str = "HelloWorldTool"
+    description: str = "This is the classic HelloWorld tool implementation."
     args_schema: Type[ToolInput] = DummyInput
     return_direct: bool = False
 

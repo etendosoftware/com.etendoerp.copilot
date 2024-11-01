@@ -4,16 +4,15 @@ from typing import Dict, Type
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
+from copilot.core import core_router
+from copilot.core.agent import AssistantAgent
+from copilot.core.agent.agent import AssistantResponse
+from copilot.core.tool_input import ToolField, ToolInput
+from copilot.core.tool_wrapper import ToolWrapper
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from langsmith import unit
 from pytest import fixture
-
-from copilot.core import core_router
-from copilot.core.agent import AssistantAgent
-from copilot.core.agent.agent import AssistantResponse
-from copilot.core.tool_input import ToolInput, ToolField
-from copilot.core.tool_wrapper import ToolWrapper
 
 app = FastAPI()
 app.include_router(core_router)
@@ -54,8 +53,9 @@ def test_copilot_question_with_wrong_payload(client):
 
 @unit
 def test_copilot_question_with_valid_payload(client, mocked_agent, mocked_agent_response):
-    response = client.post("/question",
-                           json={"question": "What is Etendo?", "provider": "langchain", "model": "gpt-4o"})
+    response = client.post(
+        "/question", json={"question": "What is Etendo?", "provider": "langchain", "model": "gpt-4o"}
+    )
     assert response.status_code == HTTPStatus.OK
     assert "answer" in response.json()
     assert response.json()["answer"] == {}
@@ -71,8 +71,8 @@ def mock_langchain_agent():
         query: str = ToolField(description="query to look up")
 
     class Tool1(ToolWrapper):
-        name = "HelloWorldTool"
-        description = "This is the classic HelloWorld tool implementation."
+        name: str = "HelloWorldTool"
+        description: str = "This is the classic HelloWorld tool implementation."
         args_schema: Type[ToolInput] = DummyInput
         return_direct: bool = False
 
@@ -99,12 +99,19 @@ def mock_assistant_agent():
 
 
 @unit
-@patch('copilot.core.routes.select_copilot_agent')
+@patch("copilot.core.routes.select_copilot_agent")
 def test_serve_tools(mock_select_copilot_agent, mock_langchain_agent):
     mock_select_copilot_agent.return_value = mock_langchain_agent
     response = client.get("/tools")
     assert response.status_code == 200
     response_json = response.json()
-    assert {'answer': {'HelloWorldTool': {'description': 'This is the classic HelloWorld tool implementation.',
-                                          'parameters': {'query': {'description': 'query to look up', 'title': 'Query',
-                                                                   'type': 'string'}}}}} == response_json
+    assert {
+        "answer": {
+            "HelloWorldTool": {
+                "description": "This is the classic HelloWorld tool implementation.",
+                "parameters": {
+                    "query": {"description": "query to look up", "title": "Query", "type": "string"}
+                },
+            }
+        }
+    } == response_json
