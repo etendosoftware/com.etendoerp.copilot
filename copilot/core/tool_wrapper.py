@@ -1,35 +1,41 @@
 import abc
 import uuid
-from typing import Dict, TypedDict, Union, Any, Optional, List
+from typing import Any, Callable, Dict, List, Optional, TypedDict, Union
 
+from copilot.core.utils import copilot_debug, copilot_info
 from langchain.tools import BaseTool
 from langchain_core.runnables import RunnableConfig
 from langchain_core.runnables.config import Callbacks
 from langsmith import traceable
+from pydantic.v1 import ValidationError as ValidationErrorV1
+from pydantic_core._pydantic_core import ValidationError
 
-from copilot.core.utils import copilot_debug, copilot_info
 
-
-def accum_params(input_params, k_args):
+def accum_params(input_params: Optional[Dict] = None, k_args: Dict = None) -> Dict:
     """
-    Accumulates parameters from input_params and k_args into a single dictionary.
+    Accumulates parameters from `input_params` and `k_args` into a single dictionary.
 
-    This function logs the keys of both input_params and k_args, merges them,
-    and returns the combined result. If input_params is None, it initializes it as an empty dictionary.
+    This function merges the parameters from `input_params` and `k_args` into a single
+    dictionary and returns the result. If `input_params` is None, it initializes it
+    as an empty dictionary before merging.
 
     Parameters:
-    - input_params (dict, optional): The initial dictionary of parameters. Defaults to None.
-    - k_args (dict): Additional keyword arguments to be merged into input_params.
+    - input_params (dict, optional): The initial dictionary of parameters, which will
+      be updated with values from `k_args`. If None, a new empty dictionary is created.
+    - k_args (dict): A dictionary of additional keyword arguments to be merged into `input_params`.
 
     Returns:
-    - dict: The merged dictionary of parameters.
+    - dict: The merged dictionary containing values from both `input_params` and `k_args`.
     """
     copilot_debug(
-        "input_params has the following keys: " + str(input_params.keys() if input_params is not None else "-"))
+        "input_params has the following keys: "
+        + str(input_params.keys() if input_params is not None else "-")
+    )
     copilot_debug("kwarg has the following keys: " + str(k_args.keys()))
     if input_params is None:
         input_params = {}
-    # get keys from kwargs
+    if k_args is None:
+        return input_params
     for key in k_args:
         input_params[key] = k_args[key]
     return input_params
@@ -59,8 +65,10 @@ def parse_response(tool_response):
     elif "content" in tool_response:
         response = tool_response["content"]
     else:
-        copilot_info("Tool response is not a valid format, it will be parsed as a string. The recommended format is "
-                     "an instance of ToolOutputMessage, ToolOutputError, or ToolOutputContent.")
+        copilot_info(
+            "Tool response is not a valid format, it will be parsed as a string. The recommended format is "
+            "an instance of ToolOutputMessage, ToolOutputError, or ToolOutputContent."
+        )
         response = tool_response
     copilot_debug(f"Tool response: {str(response)}")
     return ("ERROR: " if is_error else "") + str(response)
@@ -76,6 +84,7 @@ class ToolOutputMessage(TypedDict):
     Attributes:
     - message (str): The success message from the tool.
     """
+
     message: str
 
 
@@ -89,6 +98,7 @@ class ToolOutputError(TypedDict):
     Attributes:
     - error (str): The error message from the tool.
     """
+
     error: str
 
 
@@ -102,6 +112,7 @@ class ToolOutputContent(TypedDict):
     Attributes:
     - content (str): The content provided by the tool.
     """
+
     content: str
 
 
@@ -115,7 +126,9 @@ allowing for a standardized way to handle different types of responses from tool
 
 
 class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
-    handle_validation_error = True
+    handle_validation_error: Optional[
+        Union[bool, str, Callable[[Union[ValidationError, ValidationErrorV1]], str]]
+    ] = True
 
     @traceable
     @abc.abstractmethod
@@ -124,20 +137,20 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
 
     @traceable
     async def arun(
-            self,
-            tool_input: Union[str, Dict],
-            verbose: Optional[bool] = None,
-            start_color: Optional[str] = "green",
-            color: Optional[str] = "green",
-            callbacks: Callbacks = None,
-            *,
-            tags: Optional[List[str]] = None,
-            metadata: Optional[Dict[str, Any]] = None,
-            run_name: Optional[str] = None,
-            run_id: Optional[uuid.UUID] = None,
-            config: Optional[RunnableConfig] = None,
-            tool_call_id: Optional[str] = None,
-            **kwargs: Any,
+        self,
+        tool_input: Union[str, Dict],
+        verbose: Optional[bool] = None,
+        start_color: Optional[str] = "green",
+        color: Optional[str] = "green",
+        callbacks: Callbacks = None,
+        *,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        run_name: Optional[str] = None,
+        run_id: Optional[uuid.UUID] = None,
+        config: Optional[RunnableConfig] = None,
+        tool_call_id: Optional[str] = None,
+        **kwargs: Any,
     ) -> Any:
         if self.input_schema is not None:
             copilot_debug("Parsing input with schema to check for errors")
@@ -161,7 +174,7 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
             run_id=run_id,
             config=config,
             tool_call_id=tool_call_id,
-            **kwargs
+            **kwargs,
         )
         return result
 
