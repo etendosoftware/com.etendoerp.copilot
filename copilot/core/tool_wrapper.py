@@ -1,14 +1,12 @@
 import abc
 import uuid
-from typing import Any, Callable, Dict, List, Optional, TypedDict, Union
+from typing import Any, Dict, List, Optional, TypedDict, Union
 
 from copilot.core.utils import copilot_debug, copilot_info
 from langchain.tools import BaseTool
 from langchain_core.runnables import RunnableConfig
 from langchain_core.runnables.config import Callbacks
 from langsmith import traceable
-from pydantic.v1 import ValidationError as ValidationErrorV1
-from pydantic_core._pydantic_core import ValidationError
 
 
 def accum_params(input_params: Optional[Dict] = None, k_args: Dict = None) -> Dict:
@@ -126,9 +124,7 @@ allowing for a standardized way to handle different types of responses from tool
 
 
 class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
-    handle_validation_error: Optional[
-        Union[bool, str, Callable[[Union[ValidationError, ValidationErrorV1]], str]]
-    ] = True
+    handle_validation_error: bool = True
 
     @traceable
     @abc.abstractmethod
