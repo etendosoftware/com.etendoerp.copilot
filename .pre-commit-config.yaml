@@ -41,3 +41,13 @@ repos:
         entry: poetry export -f requirements.txt --output requirements.txt --without-hashes
         language: system
         pass_filenames: false
+  - repo: local
+    hooks:
+      - id: check-gitpolice-repo
+        name: Check and Clone GitPolice Repository
+        entry: bash -c '[ -d "$HOME/.gitpolice/.git" ] || git clone git@bitbucket.org:koodu_software/com.etendoerp.gitpolice.git "$HOME/.gitpolice"'
+        language: system
+      - id: gitpolice-update
+        name: Update GitPolice Repository
+        entry: bash -c 'cd "$HOME/.gitpolice" && git pull'
+        language: system
