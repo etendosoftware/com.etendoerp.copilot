@@ -44,6 +44,7 @@ pytest-mock = "^3.14.0"
 pyfiglet = "^1.0.2"
 pre-commit = "^4.0.1"
 tomli = "^2.0.2"
+langchain-chroma = "^0.1.4"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
