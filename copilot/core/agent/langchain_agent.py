@@ -37,7 +37,7 @@ class CustomOutputParser(AgentOutputParser):
 
 
 class LangchainAgent(CopilotAgent):
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-turbo-preview")
+    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
     _memory: MemoryHandler = None
 
     @traceable
