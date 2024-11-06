@@ -608,8 +608,8 @@ public class OpenAIUtils {
       try {
         JSONObject modelObj = modelJSONArray.getJSONObject(i);
         if (!StringUtils.startsWith(modelObj.getString("id"), "ft:") && //exclude the models that start with gpt-4o
-                !StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
-                !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
+            !StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
+            !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
           modelIds.add(modelObj);
         }
       } catch (JSONException e) {
@@ -617,7 +617,8 @@ public class OpenAIUtils {
       }
     }
     //now we have a list of ids, we can get the list of models in the database
-    List<CopilotModel> modelsInDB = OBDal.getInstance().createCriteria(CopilotModel.class).list();
+    List<CopilotModel> modelsInDB = OBDal.getInstance().createCriteria(CopilotModel.class)
+        .add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, "openai")).list();
 
     //now we will check the models of the database that are not in the list of models from openai, to mark them as not active
     for (CopilotModel modelInDB : modelsInDB) {
@@ -671,6 +672,7 @@ public class OpenAIUtils {
         model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
         model.setSearchkey(modelData.optString("id"));
         model.setName(modelData.optString("id"));
+        model.setProvider("openai");
         model.setActive(true);
         //get the date in The Unix timestamp (in seconds) when the model was created. Convert to date
         long creationDate = modelData.optLong("created"); // Unix timestamp (in seconds) when the model was created
@@ -703,7 +705,7 @@ public class OpenAIUtils {
   public static void checkIfAppCanUseAttachedFiles(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles) {
     if (!knowledgeBaseFiles.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
       throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
+          String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
     }
   }
 
