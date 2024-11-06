@@ -7,6 +7,7 @@ from langchain.tools import BaseTool
 from langchain_core.runnables import RunnableConfig
 from langchain_core.runnables.config import Callbacks
 from langsmith import traceable
+from pydantic import BaseModel
 
 
 def accum_params(input_params: Optional[Dict] = None, k_args: Dict = None) -> Dict:
@@ -152,7 +153,9 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
             copilot_debug("Parsing input with schema to check for errors")
             try:
                 self._parse_input(tool_input)
-                self.args_schema.model_validate(tool_input)
+                schema_input: BaseModel = self.args_schema
+                if hasattr(schema_input, "model_validate"):
+                    schema_input.model_validate(tool_input)
             except Exception as e:
                 copilot_debug(f"Error parsing input: {str(e)}")
                 return parse_response(ToolOutputError(error=str(e)))
