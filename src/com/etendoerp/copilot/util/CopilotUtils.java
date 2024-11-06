@@ -105,6 +105,9 @@ public class CopilotUtils {
   public static String getProvider(CopilotApp app) {
     try {
       String provCode = null;
+      if (app != null && app.getModel()!=null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
+        return app.getModel().getProvider();
+      }
       if (app != null && StringUtils.isNotEmpty(app.getProvider())) {
         provCode = app.getProvider();
       } else {

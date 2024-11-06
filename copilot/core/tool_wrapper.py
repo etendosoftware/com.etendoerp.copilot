@@ -152,6 +152,7 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
             copilot_debug("Parsing input with schema to check for errors")
             try:
                 self._parse_input(tool_input)
+                self.args_schema.model_validate(tool_input)
             except Exception as e:
                 copilot_debug(f"Error parsing input: {str(e)}")
                 return parse_response(ToolOutputError(error=str(e)))
