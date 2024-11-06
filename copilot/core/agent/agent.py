@@ -2,9 +2,11 @@ import os
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Final, Union, Optional
-from langsmith import traceable
+from typing import Final, Optional
 
+from langchain.tools.retriever import create_retriever_tool
+from langchain_chroma.vectorstores import Chroma
+from langsmith import traceable
 
 from .. import tool_installer, utils
 from ..exceptions import (
@@ -15,11 +17,13 @@ from ..exceptions import (
 from ..schemas import QuestionSchema
 from ..tool_dependencies import Dependency
 from ..tool_loader import LangChainTools, ToolLoader
+from ..vectordb_utils import get_chroma_settings, get_embedding, get_vector_db_path
 
 
 class AgentEnum(str, Enum):
     OPENAI_ASSISTANT = "openai-assistant"
     LANGCHAIN = "langchain"
+    MULTIMODEL = "multimodel"
 
 
 @dataclass
@@ -37,11 +41,37 @@ class AgentResponse:
     output: AssistantResponse
 
 
+def get_kb_tool(kb_vectordb_id):
+    kb_tool = None
+    if (
+        kb_vectordb_id is not None
+        and os.path.exists(get_vector_db_path(kb_vectordb_id))
+        and os.listdir(get_vector_db_path(kb_vectordb_id))
+    ):
+        db_path = get_vector_db_path(kb_vectordb_id)
+        db = Chroma(
+            persist_directory=db_path,
+            embedding_function=get_embedding(),
+            client_settings=get_chroma_settings(),
+        )
+        # check if the db is empty
+        res = db.get(limit=1)
+        if len(res["ids"]) > 0:
+            retriever = db.as_retriever()
+            kb_tool = create_retriever_tool(
+                retriever, "KnowledgeBaseRetriever", "Search for documents in the knowledge base."
+            )
+    return kb_tool
+
+
 class CopilotAgent:
     """Copilot Agent interface."""
 
     OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
-    SYSTEM_PROMPT: Final[str] = utils.read_optional_env_var("SYSTEM_PROMPT", "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.")
+    SYSTEM_PROMPT: Final[str] = utils.read_optional_env_var(
+        "SYSTEM_PROMPT",
+        "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.",
+    )
 
     @traceable
     def __init__(self):
