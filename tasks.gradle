@@ -95,6 +95,10 @@ task 'copilot.do' {
         def username = project.findProperty('username')
         def password = project.findProperty('password')
         def app_id = project.findProperty("app_id")
+        String question = project.findProperty("question")
+        if (project.hasProperty("single")) {
+            project.logger.lifecycle("${yellowText}🤖 Single mode enabled. Only one question will be asked.${resetText}")
+        }
 
         if (username == null || username == "") {
             project.logger.lifecycle("${blueText}👮 Please provide the username:${resetText}")
@@ -112,7 +116,7 @@ task 'copilot.do' {
             return
         }
         if (app_id == null || app_id == "") {
-            project.logger.lifecycle("${redText}🤖 Please provide the parameter: app_id (Ex. -PassistantId=\"A1B2C3D4E5F6G7H8\").${resetText}")
+            project.logger.lifecycle("${redText}🤖 Please provide the parameter: app_id (Ex. -Papp_id=\'A1B2C3D4E5F6G7H8\').${resetText}")
             return
         }
 
@@ -152,7 +156,11 @@ task 'copilot.do' {
 
             //User Question
             project.logger.lifecycle("${yellowText}👤 You:")
-            String question = reader.readLine()?.trim()
+            if (question == null || question == "") {
+                question = reader.readLine()?.trim()
+            } else {
+                project.logger.lifecycle(question)
+            }
             project.logger.lifecycle("${resetText}")
 
             if (question?.equalsIgnoreCase("exit")) {
@@ -192,6 +200,10 @@ task 'copilot.do' {
                 if (conversationId == null && responseJson.conversation_id) {
                     conversationId = responseJson.conversation_id
                 }
+                if (project.hasProperty("single")) {
+                    break
+                }
+                question = null
             }
         }
     }
@@ -333,7 +345,7 @@ static def getDefaultEtendoHostDocker(boolean tomcatEnabled, boolean copilotEnab
     return "http://${copilotToTomcat}:${strTomcatPort}"
 }
 
-static def getDefaultCopilotHost(boolean tomcatEnabled,  boolean copilotEnabled) {
+static def getDefaultCopilotHost(boolean tomcatEnabled, boolean copilotEnabled) {
     def tomcatToCopilot = "localhost"
     if (tomcatEnabled) {
         tomcatToCopilot = copilotEnabled ? "copilot" : "host.docker.internal"
@@ -411,4 +423,3 @@ afterEvaluate {
         }
     }
 }
-
