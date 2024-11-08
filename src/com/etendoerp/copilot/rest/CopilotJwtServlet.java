@@ -1,6 +1,7 @@
 package com.etendoerp.copilot.rest;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -60,74 +61,71 @@ public class CopilotJwtServlet extends HttpBaseServlet {
    * @throws Exception
    */
   private void checkJwt(HttpServletRequest request) throws Exception {
-    DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(obtainToken(request));
-    String userId = decodedToken.getClaim("user").asString();
-    String roleId = decodedToken.getClaim("role").asString();
-    String orgId = decodedToken.getClaim("organization").asString();
-    String warehouseId = decodedToken.getClaim("warehouse").asString();
-    String clientId = decodedToken.getClaim("client").asString();
-    if (userId == null || userId.isEmpty() || roleId == null || roleId.isEmpty() || orgId == null || orgId.isEmpty() || warehouseId == null || warehouseId.isEmpty() || clientId == null || clientId.isEmpty()) {
+    try{
+      DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(obtainToken(request));
+      String userId = getRequiredClaim(decodedToken, "user");
+      String roleId = getRequiredClaim(decodedToken, "role");
+      String orgId = getRequiredClaim(decodedToken, "organization");
+      String warehouseId = getRequiredClaim(decodedToken, "warehouse");
+      String clientId = getRequiredClaim(decodedToken, "client");
+
+      OBContext context = SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId);
+      OBContext.setOBContext(context);
+      OBContext.setOBContextInSession(request, context);
+    } catch (JWTDecodeException e) {
+      log4j.warn("Invalid token format: " + e.getMessage(), e);
       throw new OBException(OBMessageUtils.messageBD("ETCOP_SWS_TokenInvalid"));
     }
-    OBContext.setOBContext(
-        SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId));
-    OBContext.setOBContextInSession(request, OBContext.getOBContext());
   }
 
-  /**
-   * Handle the GET request
-   *
-   * @param request
-   */
+  private String getRequiredClaim(DecodedJWT token, String claimName) throws OBException {
+    String claimValue = token.getClaim(claimName).asString();
+    if (claimValue == null || claimValue.isEmpty()) {
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_SWS_TokenInvalid"));
+    }
+    return claimValue;
+  }
+
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    try {
-      checkJwt(request);
-    } catch (Exception e) {
-      log4j.warn(e.getMessage());
-      response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-    }
-    try {
-      getInstance().doGet(request, response);
-    } catch (Exception e) {
-      log4j.error(e);
-      try {
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-      } catch (IOException ioException) {
-        log4j.error(ioException);
-        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
-      }
-    }
+    processRequest(request, response, "GET");
+  }
+
+  @Override
+  public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    processRequest(request, response, "POST");
   }
 
   /**
-   * Handle the POST request
+   * Process the request for both GET and POST methods.
    *
-   * @param request  an {@link HttpServletRequest} object that
-   *                 contains the request the client has made
-   *                 of the servlet
-   * @param response an {@link HttpServletResponse} object that
-   *                 contains the response the servlet sends
-   *                 to the client
+   * @param request  an {@link HttpServletRequest} object
+   * @param response an {@link HttpServletResponse} object
+   * @param method   the HTTP method ("GET" or "POST")
    * @throws IOException
    */
-  @Override
-  public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+  private void processRequest(HttpServletRequest request, HttpServletResponse response, String method) throws IOException {
     try {
       checkJwt(request);
     } catch (Exception e) {
-      log4j.warn(e.getMessage());
-      response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+      log4j.warn("Unauthorized request: " + e.getMessage());
+      response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+      return;
     }
+
     try {
-      getInstance().doPost(request, response);
+      if ("GET".equals(method)) {
+        getInstance().doGet(request, response);
+      } else if ("POST".equals(method)) {
+        getInstance().doPost(request, response);
+      }
     } catch (Exception e) {
-      log4j.error(e);
+      log4j.error("Error during " + method + " request: " + e.getMessage(), e);
       try {
         response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
       } catch (IOException ioException) {
-        log4j.error(ioException);
-        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+        log4j.error("Error while sending error response: " + ioException.getMessage(), ioException);
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal server error");
       }
     }
   }
