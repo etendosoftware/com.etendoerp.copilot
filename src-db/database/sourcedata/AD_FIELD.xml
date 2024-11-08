@@ -108,6 +108,33 @@
 <!--09C457BBE3D2436185E7FB0D750C6495-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
 <!--09C457BBE3D2436185E7FB0D750C6495--></AD_FIELD>
 
+<!--0AFD09220AD848FEA641784C735A989A--><AD_FIELD>
+<!--0AFD09220AD848FEA641784C735A989A-->  <AD_FIELD_ID><![CDATA[0AFD09220AD848FEA641784C735A989A]]></AD_FIELD_ID>
+<!--0AFD09220AD848FEA641784C735A989A-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--0AFD09220AD848FEA641784C735A989A-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--0AFD09220AD848FEA641784C735A989A-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--0AFD09220AD848FEA641784C735A989A-->  <NAME><![CDATA[Client]]></NAME>
+<!--0AFD09220AD848FEA641784C735A989A-->  <DESCRIPTION><![CDATA[Client for this installation.]]></DESCRIPTION>
+<!--0AFD09220AD848FEA641784C735A989A-->  <HELP><![CDATA[A Client is a company or a legal entity. You cannot share data between Clients.]]></HELP>
+<!--0AFD09220AD848FEA641784C735A989A-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
+<!--0AFD09220AD848FEA641784C735A989A-->  <AD_TAB_ID><![CDATA[572E7EBD92644F928EEEB68DE55DC5F6]]></AD_TAB_ID>
+<!--0AFD09220AD848FEA641784C735A989A-->  <AD_COLUMN_ID><![CDATA[09824E44053C4B7292861BDD6FF509D0]]></AD_COLUMN_ID>
+<!--0AFD09220AD848FEA641784C735A989A-->  <IGNOREINWAD><![CDATA[N]]></IGNOREINWAD>
+<!--0AFD09220AD848FEA641784C735A989A-->  <ISDISPLAYED><![CDATA[N]]></ISDISPLAYED>
+<!--0AFD09220AD848FEA641784C735A989A-->  <DISPLAYLENGTH><![CDATA[32]]></DISPLAYLENGTH>
+<!--0AFD09220AD848FEA641784C735A989A-->  <ISREADONLY><![CDATA[N]]></ISREADONLY>
+<!--0AFD09220AD848FEA641784C735A989A-->  <ISSAMELINE><![CDATA[N]]></ISSAMELINE>
+<!--0AFD09220AD848FEA641784C735A989A-->  <ISFIELDONLY><![CDATA[N]]></ISFIELDONLY>
+<!--0AFD09220AD848FEA641784C735A989A-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
+<!--0AFD09220AD848FEA641784C735A989A-->  <SHOWINRELATION><![CDATA[N]]></SHOWINRELATION>
+<!--0AFD09220AD848FEA641784C735A989A-->  <ISFIRSTFOCUSEDFIELD><![CDATA[N]]></ISFIRSTFOCUSEDFIELD>
+<!--0AFD09220AD848FEA641784C735A989A-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--0AFD09220AD848FEA641784C735A989A-->  <STARTINODDCOLUMN><![CDATA[N]]></STARTINODDCOLUMN>
+<!--0AFD09220AD848FEA641784C735A989A-->  <STARTNEWLINE><![CDATA[N]]></STARTNEWLINE>
+<!--0AFD09220AD848FEA641784C735A989A-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
+<!--0AFD09220AD848FEA641784C735A989A-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
+<!--0AFD09220AD848FEA641784C735A989A--></AD_FIELD>
+
 <!--0C9E909811E540C1B46279A8095A5232--><AD_FIELD>
 <!--0C9E909811E540C1B46279A8095A5232-->  <AD_FIELD_ID><![CDATA[0C9E909811E540C1B46279A8095A5232]]></AD_FIELD_ID>
 <!--0C9E909811E540C1B46279A8095A5232-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
@@ -198,7 +225,7 @@
 <!--14C4417F7A7747B2A2E621028DFEB6E0-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--14C4417F7A7747B2A2E621028DFEB6E0-->  <NAME><![CDATA[Active]]></NAME>
 <!--14C4417F7A7747B2A2E621028DFEB6E0-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--14C4417F7A7747B2A2E621028DFEB6E0-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--14C4417F7A7747B2A2E621028DFEB6E0-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--14C4417F7A7747B2A2E621028DFEB6E0-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -273,6 +300,34 @@
 <!--195E58A0A5F74D898D271A3C78A9B11D-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
 <!--195E58A0A5F74D898D271A3C78A9B11D-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
 <!--195E58A0A5F74D898D271A3C78A9B11D--></AD_FIELD>
+
+<!--1A08C46AC9DC40ED822790258CFC7495--><AD_FIELD>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <AD_FIELD_ID><![CDATA[1A08C46AC9DC40ED822790258CFC7495]]></AD_FIELD_ID>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <NAME><![CDATA[Organization]]></NAME>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <DESCRIPTION><![CDATA[Organizational entity within client]]></DESCRIPTION>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <HELP><![CDATA[An organization is a unit of your client or legal entity - examples are store, department. You can share data between organizations.]]></HELP>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <AD_TAB_ID><![CDATA[572E7EBD92644F928EEEB68DE55DC5F6]]></AD_TAB_ID>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <AD_COLUMN_ID><![CDATA[B40F61B01134473FAD56E36CBE62A027]]></AD_COLUMN_ID>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <IGNOREINWAD><![CDATA[N]]></IGNOREINWAD>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <ISDISPLAYED><![CDATA[Y]]></ISDISPLAYED>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <DISPLAYLENGTH><![CDATA[32]]></DISPLAYLENGTH>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <ISREADONLY><![CDATA[N]]></ISREADONLY>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <SEQNO><![CDATA[10]]></SEQNO>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <ISSAMELINE><![CDATA[N]]></ISSAMELINE>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <ISFIELDONLY><![CDATA[N]]></ISFIELDONLY>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <SHOWINRELATION><![CDATA[N]]></SHOWINRELATION>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <ISFIRSTFOCUSEDFIELD><![CDATA[N]]></ISFIRSTFOCUSEDFIELD>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <STARTINODDCOLUMN><![CDATA[N]]></STARTINODDCOLUMN>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <STARTNEWLINE><![CDATA[N]]></STARTNEWLINE>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
+<!--1A08C46AC9DC40ED822790258CFC7495-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
+<!--1A08C46AC9DC40ED822790258CFC7495--></AD_FIELD>
 
 <!--1A4CDBBB5D19490AB38A32A988D5431F--><AD_FIELD>
 <!--1A4CDBBB5D19490AB38A32A988D5431F-->  <AD_FIELD_ID><![CDATA[1A4CDBBB5D19490AB38A32A988D5431F]]></AD_FIELD_ID>
@@ -452,7 +507,7 @@
 <!--202D92E638BA49879C916843B0F1DB2B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--202D92E638BA49879C916843B0F1DB2B-->  <NAME><![CDATA[Active]]></NAME>
 <!--202D92E638BA49879C916843B0F1DB2B-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--202D92E638BA49879C916843B0F1DB2B-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--202D92E638BA49879C916843B0F1DB2B-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--202D92E638BA49879C916843B0F1DB2B-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -712,7 +767,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--33E724539109456882A91A36F6C38BC9-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--33E724539109456882A91A36F6C38BC9-->  <NAME><![CDATA[Active]]></NAME>
 <!--33E724539109456882A91A36F6C38BC9-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--33E724539109456882A91A36F6C38BC9-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--33E724539109456882A91A36F6C38BC9-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--33E724539109456882A91A36F6C38BC9-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -1295,34 +1350,6 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--63652402D39948FB9119374E902D0284-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
 <!--63652402D39948FB9119374E902D0284--></AD_FIELD>
 
-<!--6394A877D4CB4B63925063546A675419--><AD_FIELD>
-<!--6394A877D4CB4B63925063546A675419-->  <AD_FIELD_ID><![CDATA[6394A877D4CB4B63925063546A675419]]></AD_FIELD_ID>
-<!--6394A877D4CB4B63925063546A675419-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
-<!--6394A877D4CB4B63925063546A675419-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
-<!--6394A877D4CB4B63925063546A675419-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--6394A877D4CB4B63925063546A675419-->  <NAME><![CDATA[Provider]]></NAME>
-<!--6394A877D4CB4B63925063546A675419-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
-<!--6394A877D4CB4B63925063546A675419-->  <AD_TAB_ID><![CDATA[F0AE228DDA0D4A3F98A08B8284EF1689]]></AD_TAB_ID>
-<!--6394A877D4CB4B63925063546A675419-->  <AD_COLUMN_ID><![CDATA[B99CA11A6E2441A09413C732FBEA502A]]></AD_COLUMN_ID>
-<!--6394A877D4CB4B63925063546A675419-->  <IGNOREINWAD><![CDATA[N]]></IGNOREINWAD>
-<!--6394A877D4CB4B63925063546A675419-->  <AD_FIELDGROUP_ID><![CDATA[B71D970A4DE34FF2A55541AF8A03C40B]]></AD_FIELDGROUP_ID>
-<!--6394A877D4CB4B63925063546A675419-->  <ISDISPLAYED><![CDATA[Y]]></ISDISPLAYED>
-<!--6394A877D4CB4B63925063546A675419-->  <DISPLAYLOGIC><![CDATA[@Apptype@ = 'langchain'  |  @Apptype@ = 'langgraph']]></DISPLAYLOGIC>
-<!--6394A877D4CB4B63925063546A675419-->  <DISPLAYLENGTH><![CDATA[60]]></DISPLAYLENGTH>
-<!--6394A877D4CB4B63925063546A675419-->  <ISREADONLY><![CDATA[N]]></ISREADONLY>
-<!--6394A877D4CB4B63925063546A675419-->  <SEQNO><![CDATA[140]]></SEQNO>
-<!--6394A877D4CB4B63925063546A675419-->  <ISSAMELINE><![CDATA[N]]></ISSAMELINE>
-<!--6394A877D4CB4B63925063546A675419-->  <ISFIELDONLY><![CDATA[N]]></ISFIELDONLY>
-<!--6394A877D4CB4B63925063546A675419-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
-<!--6394A877D4CB4B63925063546A675419-->  <SHOWINRELATION><![CDATA[N]]></SHOWINRELATION>
-<!--6394A877D4CB4B63925063546A675419-->  <ISFIRSTFOCUSEDFIELD><![CDATA[N]]></ISFIRSTFOCUSEDFIELD>
-<!--6394A877D4CB4B63925063546A675419-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
-<!--6394A877D4CB4B63925063546A675419-->  <STARTINODDCOLUMN><![CDATA[N]]></STARTINODDCOLUMN>
-<!--6394A877D4CB4B63925063546A675419-->  <STARTNEWLINE><![CDATA[N]]></STARTNEWLINE>
-<!--6394A877D4CB4B63925063546A675419-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
-<!--6394A877D4CB4B63925063546A675419-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
-<!--6394A877D4CB4B63925063546A675419--></AD_FIELD>
-
 <!--63F2319757B248E7AB82FF4F2DD033A6--><AD_FIELD>
 <!--63F2319757B248E7AB82FF4F2DD033A6-->  <AD_FIELD_ID><![CDATA[63F2319757B248E7AB82FF4F2DD033A6]]></AD_FIELD_ID>
 <!--63F2319757B248E7AB82FF4F2DD033A6-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
@@ -1381,6 +1408,32 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--64C93EE7567D470FA39A62430D6F92A1-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
 <!--64C93EE7567D470FA39A62430D6F92A1-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
 <!--64C93EE7567D470FA39A62430D6F92A1--></AD_FIELD>
+
+<!--6665DAD35EF24351B03A1F224D8F7502--><AD_FIELD>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <AD_FIELD_ID><![CDATA[6665DAD35EF24351B03A1F224D8F7502]]></AD_FIELD_ID>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <NAME><![CDATA[Searchkey]]></NAME>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <AD_TAB_ID><![CDATA[572E7EBD92644F928EEEB68DE55DC5F6]]></AD_TAB_ID>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <AD_COLUMN_ID><![CDATA[0C34069E7C2142F7B0858D8E4C43761E]]></AD_COLUMN_ID>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <IGNOREINWAD><![CDATA[N]]></IGNOREINWAD>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <ISDISPLAYED><![CDATA[Y]]></ISDISPLAYED>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <DISPLAYLENGTH><![CDATA[200]]></DISPLAYLENGTH>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <ISREADONLY><![CDATA[N]]></ISREADONLY>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <SEQNO><![CDATA[30]]></SEQNO>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <ISSAMELINE><![CDATA[N]]></ISSAMELINE>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <ISFIELDONLY><![CDATA[N]]></ISFIELDONLY>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <SHOWINRELATION><![CDATA[Y]]></SHOWINRELATION>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <ISFIRSTFOCUSEDFIELD><![CDATA[N]]></ISFIRSTFOCUSEDFIELD>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <STARTINODDCOLUMN><![CDATA[N]]></STARTINODDCOLUMN>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <STARTNEWLINE><![CDATA[N]]></STARTNEWLINE>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
+<!--6665DAD35EF24351B03A1F224D8F7502-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
+<!--6665DAD35EF24351B03A1F224D8F7502--></AD_FIELD>
 
 <!--68392D3810514573A815CDD002865D37--><AD_FIELD>
 <!--68392D3810514573A815CDD002865D37-->  <AD_FIELD_ID><![CDATA[68392D3810514573A815CDD002865D37]]></AD_FIELD_ID>
@@ -1493,6 +1546,32 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--6A7D261FC97F499E8401B80D6B6AD764-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
 <!--6A7D261FC97F499E8401B80D6B6AD764--></AD_FIELD>
 
+<!--6C17F4487E714264806529948EB9D9D9--><AD_FIELD>
+<!--6C17F4487E714264806529948EB9D9D9-->  <AD_FIELD_ID><![CDATA[6C17F4487E714264806529948EB9D9D9]]></AD_FIELD_ID>
+<!--6C17F4487E714264806529948EB9D9D9-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--6C17F4487E714264806529948EB9D9D9-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--6C17F4487E714264806529948EB9D9D9-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--6C17F4487E714264806529948EB9D9D9-->  <NAME><![CDATA[Provider]]></NAME>
+<!--6C17F4487E714264806529948EB9D9D9-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
+<!--6C17F4487E714264806529948EB9D9D9-->  <AD_TAB_ID><![CDATA[572E7EBD92644F928EEEB68DE55DC5F6]]></AD_TAB_ID>
+<!--6C17F4487E714264806529948EB9D9D9-->  <AD_COLUMN_ID><![CDATA[A2BCFFFF138D4A0DA8E4421715880CBA]]></AD_COLUMN_ID>
+<!--6C17F4487E714264806529948EB9D9D9-->  <IGNOREINWAD><![CDATA[N]]></IGNOREINWAD>
+<!--6C17F4487E714264806529948EB9D9D9-->  <ISDISPLAYED><![CDATA[Y]]></ISDISPLAYED>
+<!--6C17F4487E714264806529948EB9D9D9-->  <DISPLAYLENGTH><![CDATA[200]]></DISPLAYLENGTH>
+<!--6C17F4487E714264806529948EB9D9D9-->  <ISREADONLY><![CDATA[N]]></ISREADONLY>
+<!--6C17F4487E714264806529948EB9D9D9-->  <SEQNO><![CDATA[50]]></SEQNO>
+<!--6C17F4487E714264806529948EB9D9D9-->  <ISSAMELINE><![CDATA[N]]></ISSAMELINE>
+<!--6C17F4487E714264806529948EB9D9D9-->  <ISFIELDONLY><![CDATA[N]]></ISFIELDONLY>
+<!--6C17F4487E714264806529948EB9D9D9-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
+<!--6C17F4487E714264806529948EB9D9D9-->  <SHOWINRELATION><![CDATA[Y]]></SHOWINRELATION>
+<!--6C17F4487E714264806529948EB9D9D9-->  <ISFIRSTFOCUSEDFIELD><![CDATA[N]]></ISFIRSTFOCUSEDFIELD>
+<!--6C17F4487E714264806529948EB9D9D9-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--6C17F4487E714264806529948EB9D9D9-->  <STARTINODDCOLUMN><![CDATA[N]]></STARTINODDCOLUMN>
+<!--6C17F4487E714264806529948EB9D9D9-->  <STARTNEWLINE><![CDATA[N]]></STARTNEWLINE>
+<!--6C17F4487E714264806529948EB9D9D9-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
+<!--6C17F4487E714264806529948EB9D9D9-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
+<!--6C17F4487E714264806529948EB9D9D9--></AD_FIELD>
+
 <!--6CE4AF4A363440B88DA796CB4C33C0DE--><AD_FIELD>
 <!--6CE4AF4A363440B88DA796CB4C33C0DE-->  <AD_FIELD_ID><![CDATA[6CE4AF4A363440B88DA796CB4C33C0DE]]></AD_FIELD_ID>
 <!--6CE4AF4A363440B88DA796CB4C33C0DE-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
@@ -1521,6 +1600,34 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--6CE4AF4A363440B88DA796CB4C33C0DE-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
 <!--6CE4AF4A363440B88DA796CB4C33C0DE-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
 <!--6CE4AF4A363440B88DA796CB4C33C0DE--></AD_FIELD>
+
+<!--6D6E2A4691754022909353D16772A83B--><AD_FIELD>
+<!--6D6E2A4691754022909353D16772A83B-->  <AD_FIELD_ID><![CDATA[6D6E2A4691754022909353D16772A83B]]></AD_FIELD_ID>
+<!--6D6E2A4691754022909353D16772A83B-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--6D6E2A4691754022909353D16772A83B-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--6D6E2A4691754022909353D16772A83B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--6D6E2A4691754022909353D16772A83B-->  <NAME><![CDATA[Name]]></NAME>
+<!--6D6E2A4691754022909353D16772A83B-->  <DESCRIPTION><![CDATA[A non-unique identifier for a record/document often used as a search tool.]]></DESCRIPTION>
+<!--6D6E2A4691754022909353D16772A83B-->  <HELP><![CDATA[A more descriptive identifier (that does need to be unique) of a record/document that is used as a default search option along with the search key (that is unique and mostly shorter). It is up to 60 characters in length.]]></HELP>
+<!--6D6E2A4691754022909353D16772A83B-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
+<!--6D6E2A4691754022909353D16772A83B-->  <AD_TAB_ID><![CDATA[572E7EBD92644F928EEEB68DE55DC5F6]]></AD_TAB_ID>
+<!--6D6E2A4691754022909353D16772A83B-->  <AD_COLUMN_ID><![CDATA[60D3F1F077B849048F5D6F80F0682E45]]></AD_COLUMN_ID>
+<!--6D6E2A4691754022909353D16772A83B-->  <IGNOREINWAD><![CDATA[N]]></IGNOREINWAD>
+<!--6D6E2A4691754022909353D16772A83B-->  <ISDISPLAYED><![CDATA[Y]]></ISDISPLAYED>
+<!--6D6E2A4691754022909353D16772A83B-->  <DISPLAYLENGTH><![CDATA[200]]></DISPLAYLENGTH>
+<!--6D6E2A4691754022909353D16772A83B-->  <ISREADONLY><![CDATA[N]]></ISREADONLY>
+<!--6D6E2A4691754022909353D16772A83B-->  <SEQNO><![CDATA[40]]></SEQNO>
+<!--6D6E2A4691754022909353D16772A83B-->  <ISSAMELINE><![CDATA[N]]></ISSAMELINE>
+<!--6D6E2A4691754022909353D16772A83B-->  <ISFIELDONLY><![CDATA[N]]></ISFIELDONLY>
+<!--6D6E2A4691754022909353D16772A83B-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
+<!--6D6E2A4691754022909353D16772A83B-->  <SHOWINRELATION><![CDATA[N]]></SHOWINRELATION>
+<!--6D6E2A4691754022909353D16772A83B-->  <ISFIRSTFOCUSEDFIELD><![CDATA[N]]></ISFIRSTFOCUSEDFIELD>
+<!--6D6E2A4691754022909353D16772A83B-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--6D6E2A4691754022909353D16772A83B-->  <STARTINODDCOLUMN><![CDATA[N]]></STARTINODDCOLUMN>
+<!--6D6E2A4691754022909353D16772A83B-->  <STARTNEWLINE><![CDATA[N]]></STARTNEWLINE>
+<!--6D6E2A4691754022909353D16772A83B-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
+<!--6D6E2A4691754022909353D16772A83B-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
+<!--6D6E2A4691754022909353D16772A83B--></AD_FIELD>
 
 <!--6DB7262C8BDA4AA3B55ED270401E74A8--><AD_FIELD>
 <!--6DB7262C8BDA4AA3B55ED270401E74A8-->  <AD_FIELD_ID><![CDATA[6DB7262C8BDA4AA3B55ED270401E74A8]]></AD_FIELD_ID>
@@ -1727,7 +1834,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--805EA9D9A4674594B22ED9DDAC8AD2FB-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--805EA9D9A4674594B22ED9DDAC8AD2FB-->  <NAME><![CDATA[Active]]></NAME>
 <!--805EA9D9A4674594B22ED9DDAC8AD2FB-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--805EA9D9A4674594B22ED9DDAC8AD2FB-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--805EA9D9A4674594B22ED9DDAC8AD2FB-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--805EA9D9A4674594B22ED9DDAC8AD2FB-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -1841,7 +1948,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--8BC5F052D9B74F4092EA15756677EBAA-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--8BC5F052D9B74F4092EA15756677EBAA-->  <NAME><![CDATA[Active]]></NAME>
 <!--8BC5F052D9B74F4092EA15756677EBAA-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--8BC5F052D9B74F4092EA15756677EBAA-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--8BC5F052D9B74F4092EA15756677EBAA-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--8BC5F052D9B74F4092EA15756677EBAA-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -2310,6 +2417,33 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--A7EC589539714DA2B5E9AAEDFFC4778B-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
 <!--A7EC589539714DA2B5E9AAEDFFC4778B--></AD_FIELD>
 
+<!--AB1B235D92984646B0CA4D8C54C6F4EB--><AD_FIELD>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <AD_FIELD_ID><![CDATA[AB1B235D92984646B0CA4D8C54C6F4EB]]></AD_FIELD_ID>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <NAME><![CDATA[Model]]></NAME>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <DESCRIPTION><![CDATA[Dropdown with the LLM models available]]></DESCRIPTION>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <HELP><![CDATA[If this field is empty, the 'Sync Assistant' process obtains the available models]]></HELP>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <AD_TAB_ID><![CDATA[572E7EBD92644F928EEEB68DE55DC5F6]]></AD_TAB_ID>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <AD_COLUMN_ID><![CDATA[1D54B58E17E546858F52D77CF86AD177]]></AD_COLUMN_ID>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <IGNOREINWAD><![CDATA[N]]></IGNOREINWAD>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <ISDISPLAYED><![CDATA[N]]></ISDISPLAYED>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <DISPLAYLENGTH><![CDATA[32]]></DISPLAYLENGTH>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <ISREADONLY><![CDATA[N]]></ISREADONLY>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <ISSAMELINE><![CDATA[N]]></ISSAMELINE>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <ISFIELDONLY><![CDATA[N]]></ISFIELDONLY>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <SHOWINRELATION><![CDATA[N]]></SHOWINRELATION>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <ISFIRSTFOCUSEDFIELD><![CDATA[N]]></ISFIRSTFOCUSEDFIELD>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <STARTINODDCOLUMN><![CDATA[N]]></STARTINODDCOLUMN>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <STARTNEWLINE><![CDATA[N]]></STARTNEWLINE>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
+<!--AB1B235D92984646B0CA4D8C54C6F4EB--></AD_FIELD>
+
 <!--ADAC7935C7DF4FADB0CB8082445A00B4--><AD_FIELD>
 <!--ADAC7935C7DF4FADB0CB8082445A00B4-->  <AD_FIELD_ID><![CDATA[ADAC7935C7DF4FADB0CB8082445A00B4]]></AD_FIELD_ID>
 <!--ADAC7935C7DF4FADB0CB8082445A00B4-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
@@ -2402,7 +2536,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--B71690BE5EEC4A8195AB8AD5907874C8-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--B71690BE5EEC4A8195AB8AD5907874C8-->  <NAME><![CDATA[Active]]></NAME>
 <!--B71690BE5EEC4A8195AB8AD5907874C8-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--B71690BE5EEC4A8195AB8AD5907874C8-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--B71690BE5EEC4A8195AB8AD5907874C8-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--B71690BE5EEC4A8195AB8AD5907874C8-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -2461,7 +2595,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--B93B199987C04906950DEB1FF0E3C7AF-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--B93B199987C04906950DEB1FF0E3C7AF-->  <NAME><![CDATA[Active]]></NAME>
 <!--B93B199987C04906950DEB1FF0E3C7AF-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--B93B199987C04906950DEB1FF0E3C7AF-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--B93B199987C04906950DEB1FF0E3C7AF-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--B93B199987C04906950DEB1FF0E3C7AF-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -2683,7 +2817,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--C0A29E22029248A9B144FEBDBE31C582-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--C0A29E22029248A9B144FEBDBE31C582-->  <NAME><![CDATA[Active]]></NAME>
 <!--C0A29E22029248A9B144FEBDBE31C582-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--C0A29E22029248A9B144FEBDBE31C582-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--C0A29E22029248A9B144FEBDBE31C582-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--C0A29E22029248A9B144FEBDBE31C582-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -2882,7 +3016,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--CD94FE15472943B69CCB913237168D04-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--CD94FE15472943B69CCB913237168D04-->  <NAME><![CDATA[Active]]></NAME>
 <!--CD94FE15472943B69CCB913237168D04-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--CD94FE15472943B69CCB913237168D04-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--CD94FE15472943B69CCB913237168D04-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--CD94FE15472943B69CCB913237168D04-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -2969,7 +3103,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--DE813C46700A4040B9CFB849FE53EB33-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--DE813C46700A4040B9CFB849FE53EB33-->  <NAME><![CDATA[Active]]></NAME>
 <!--DE813C46700A4040B9CFB849FE53EB33-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--DE813C46700A4040B9CFB849FE53EB33-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--DE813C46700A4040B9CFB849FE53EB33-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--DE813C46700A4040B9CFB849FE53EB33-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -3103,6 +3237,36 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--E2961287F4AF4A49A3FA505838C6442C-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
 <!--E2961287F4AF4A49A3FA505838C6442C--></AD_FIELD>
 
+<!--E4F44BFC3123488A8E084C261E2E4BF2--><AD_FIELD>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <AD_FIELD_ID><![CDATA[E4F44BFC3123488A8E084C261E2E4BF2]]></AD_FIELD_ID>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <NAME><![CDATA[Active]]></NAME>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
+(1) The system requires the record for auditing purposes.
+(2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <AD_TAB_ID><![CDATA[572E7EBD92644F928EEEB68DE55DC5F6]]></AD_TAB_ID>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <AD_COLUMN_ID><![CDATA[A4E6A79444814197B2F830AC5ED28CB8]]></AD_COLUMN_ID>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <IGNOREINWAD><![CDATA[N]]></IGNOREINWAD>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <ISDISPLAYED><![CDATA[Y]]></ISDISPLAYED>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <DISPLAYLENGTH><![CDATA[1]]></DISPLAYLENGTH>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <ISREADONLY><![CDATA[N]]></ISREADONLY>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <SEQNO><![CDATA[20]]></SEQNO>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <ISSAMELINE><![CDATA[N]]></ISSAMELINE>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <ISFIELDONLY><![CDATA[N]]></ISFIELDONLY>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <SHOWINRELATION><![CDATA[N]]></SHOWINRELATION>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <ISFIRSTFOCUSEDFIELD><![CDATA[N]]></ISFIRSTFOCUSEDFIELD>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <STARTINODDCOLUMN><![CDATA[N]]></STARTINODDCOLUMN>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <STARTNEWLINE><![CDATA[N]]></STARTNEWLINE>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <ISSHOWNINSTATUSBAR><![CDATA[N]]></ISSHOWNINSTATUSBAR>
+<!--E4F44BFC3123488A8E084C261E2E4BF2-->  <EM_OBUIAPP_SHOWSUMMARY><![CDATA[N]]></EM_OBUIAPP_SHOWSUMMARY>
+<!--E4F44BFC3123488A8E084C261E2E4BF2--></AD_FIELD>
+
 <!--E6498C293E3E474398CBFACEF119C9A8--><AD_FIELD>
 <!--E6498C293E3E474398CBFACEF119C9A8-->  <AD_FIELD_ID><![CDATA[E6498C293E3E474398CBFACEF119C9A8]]></AD_FIELD_ID>
 <!--E6498C293E3E474398CBFACEF119C9A8-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
@@ -3196,7 +3360,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--F03F0E4CE82341658C0F2043A5F11741-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--F03F0E4CE82341658C0F2043A5F11741-->  <NAME><![CDATA[Active]]></NAME>
 <!--F03F0E4CE82341658C0F2043A5F11741-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--F03F0E4CE82341658C0F2043A5F11741-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--F03F0E4CE82341658C0F2043A5F11741-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--F03F0E4CE82341658C0F2043A5F11741-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
@@ -3369,7 +3533,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--FB7D836AC85E418382287221BC64E4E4-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--FB7D836AC85E418382287221BC64E4E4-->  <NAME><![CDATA[Active]]></NAME>
 <!--FB7D836AC85E418382287221BC64E4E4-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--FB7D836AC85E418382287221BC64E4E4-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--FB7D836AC85E418382287221BC64E4E4-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--FB7D836AC85E418382287221BC64E4E4-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>

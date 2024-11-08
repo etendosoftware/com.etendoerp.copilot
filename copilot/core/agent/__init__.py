@@ -1,13 +1,10 @@
-import os
-from typing import Final
+from langsmith import traceable
 
-from .. import utils
 from ...core.utils import print_green
-from ..exceptions import UnsupportedAgent
 from .agent import AgentEnum, AgentResponse
 from .assistant_agent import AssistantAgent
 from .langchain_agent import LangchainAgent
-from langsmith import traceable
+from .multimodel_agent import MultimodelAgent
 
 
 @traceable
@@ -15,6 +12,7 @@ def _get_agent_executors():
     _agents = {
         AgentEnum.OPENAI_ASSISTANT.value: AssistantAgent.__name__,
         AgentEnum.LANGCHAIN.value: LangchainAgent.__name__,
+        AgentEnum.MULTIMODEL.value: MultimodelAgent.__name__,
     }
 
     # create a Dict with the class name as key and the class as value
