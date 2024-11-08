@@ -3,6 +3,7 @@ package com.etendoerp.copilot.rest;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openbravo.base.HttpBaseServlet;
@@ -26,6 +27,8 @@ import java.io.IOException;
 public class CopilotJwtServlet extends HttpBaseServlet {
   private static final Logger log4j = LogManager.getLogger(CopilotJwtServlet.class);
   private static RestService instance;
+  private static final String TOKEN_INVALID_MESSAGE = "ETCOP_SWS_TokenInvalid";
+
 
   /**
    * Get the instance of the RestService
@@ -74,14 +77,14 @@ public class CopilotJwtServlet extends HttpBaseServlet {
       OBContext.setOBContextInSession(request, context);
     } catch (JWTDecodeException e) {
       log4j.warn("Invalid token format: " + e.getMessage(), e);
-      throw new OBException(OBMessageUtils.messageBD("ETCOP_SWS_TokenInvalid"));
+      throw new OBException(OBMessageUtils.messageBD(TOKEN_INVALID_MESSAGE));
     }
   }
 
   private String getRequiredClaim(DecodedJWT token, String claimName) throws OBException {
     String claimValue = token.getClaim(claimName).asString();
-    if (claimValue == null || claimValue.isEmpty()) {
-      throw new OBException(OBMessageUtils.messageBD("ETCOP_SWS_TokenInvalid"));
+    if (claimValue == null || StringUtils.isEmpty(claimValue)) {
+      throw new OBException(OBMessageUtils.messageBD(TOKEN_INVALID_MESSAGE));
     }
     return claimValue;
   }
@@ -114,10 +117,17 @@ public class CopilotJwtServlet extends HttpBaseServlet {
     }
 
     try {
-      if ("GET".equals(method)) {
-        getInstance().doGet(request, response);
-      } else if ("POST".equals(method)) {
-        getInstance().doPost(request, response);
+      switch (method) {
+        case "GET":
+          getInstance().doGet(request, response);
+          break;
+        case "POST":
+          getInstance().doPost(request, response);
+          break;
+        default:
+          log4j.warn("Unsupported HTTP method: " + method);
+          response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+          break;
       }
     } catch (Exception e) {
       log4j.error("Error during " + method + " request: " + e.getMessage(), e);
