@@ -1,24 +1,24 @@
 import importlib
+import subprocess
 
 from packaging import version
 from packaging.specifiers import Specifier
-from pip._internal import main as pip_main
 
 from .exceptions import ApplicationError, ToolDependencyMismatch
 from .tool_dependencies import Dependencies, Dependency
-from .utils import SUCCESS_CODE, print_green, print_red, print_yellow
+from .utils import SUCCESS_CODE, print_green, print_orange, print_yellow
 
 
 def _pip_uninstall(package: str):
-    """Uninstall the provided package via pip install from code."""
+    """Uninstall the provided package via pip from code."""
     print_yellow(f"Running pip uninstall {package}")
-    pip_main(["uninstall", package])
+    subprocess.check_call(["python", "-m", "pip", "uninstall", "-y", package])
 
 
 def _pip_install(package: str):
-    """Install the provided package via pip install from code."""
+    """Install the provided package via pip from code."""
     print_yellow(f"Running pip install {package}")
-    pip_main(["install", package])
+    subprocess.check_call(["python", "-m", "pip", "install", package])
 
 
 def _check_version_mismatch(installed_version: str, required_version: str) -> bool:
@@ -71,9 +71,13 @@ def _is_package_imported(dependency: Dependency, verbose: bool = True) -> bool:
     try:
         importlib.import_module(dependency.get_import_name())
     except Exception as ex:
-        print_red(
-            f'Cannot import the package {dependency.name}. This is not necessarily an error, because some packages have different name when imported.')
-        print_red("ERROR:" + str(ex))
+        print_orange(
+            f"Cannot import check the package {dependency.name}. This is not necessarily an error, because some "
+            f"packages have different name when imported. "
+            "This can be avoided by providing the import name in the tool_deps.toml file specifying both names separated"
+            ' by a pipe(install_name|import_name). Example: "pillow|PIL" = "*"'
+        )
+        print_orange("ERROR:" + str(ex))
 
     if verbose:
         print_green(SUCCESS_CODE)

@@ -1,5 +1,5 @@
 import os
-from typing import Final, AsyncGenerator, Dict
+from typing import AsyncGenerator, Dict, Final
 
 from langchain.agents import AgentExecutor
 from langchain.agents.openai_assistant.base import OpenAIAssistantAction
@@ -8,15 +8,15 @@ from langchain_core.agents import AgentFinish
 from langchain_core.runnables import AddableDict
 from langsmith import traceable
 
-from .agent import AgentResponse, AssistantResponse, CopilotAgent
 from .. import utils
 from ..schemas import QuestionSchema
+from .agent import AgentResponse, AssistantResponse, CopilotAgent
 
 
 class AssistantAgent(CopilotAgent):
     """OpenAI Assistant Agent implementation."""
 
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4-1106-preview")
+    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
     ASSISTANT_NAME: Final[str] = "Copilot [LOCAL]"
 
     def __init__(self):
@@ -52,9 +52,7 @@ class AssistantAgent(CopilotAgent):
 
         return AgentResponse(
             input=question.model_dump_json(),
-            output=AssistantResponse(
-                response=response["output"], conversation_id=response["thread_id"]
-            ),
+            output=AssistantResponse(response=response["output"], conversation_id=response["thread_id"]),
         )
 
     async def aexecute(self, question: QuestionSchema) -> AsyncGenerator[AssistantResponse, None]:
@@ -76,27 +74,26 @@ class AssistantAgent(CopilotAgent):
         full_question = question.question
         if question.local_file_ids:
             full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
-        _input = {
-            "content": full_question,
-            "system_prompt": question.system_prompt
-        }
+        _input = {"content": full_question, "system_prompt": question.system_prompt}
         if question.conversation_id:
             _input["thread_id"] = question.conversation_id
         return _input
 
-    async def _handle_event(self, event: Dict, copilot_stream_debug: bool) -> AsyncGenerator[AssistantResponse, None]:
+    async def _handle_event(
+        self, event: Dict, copilot_stream_debug: bool
+    ) -> AsyncGenerator[AssistantResponse, None]:
         if copilot_stream_debug:
-            yield AssistantResponse(
-                response=str(event), conversation_id='', role="debug"
-            )
+            yield AssistantResponse(response=str(event), conversation_id="", role="debug")
         kind = event["event"]
         if kind == "on_tool_start" and len(event["parent_ids"]) == 1:
-            yield AssistantResponse(
-                response=event["name"], conversation_id='', role="tool"
-            )
+            yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
         elif kind == "on_chain_end":
             output = event["data"]["output"]
-            if isinstance(output, list) or isinstance(output, OpenAIAssistantAction) or isinstance(output, AddableDict):
+            if (
+                isinstance(output, list)
+                or isinstance(output, OpenAIAssistantAction)
+                or isinstance(output, AddableDict)
+            ):
                 return
             if isinstance(output, AgentFinish):
                 return_values = output.return_values

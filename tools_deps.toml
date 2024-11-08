@@ -1,3 +1,2 @@
 [HelloWorldTool]
-requests-mock= "*"
-pytest-mock = "*"
+pyfiglet = "*"
