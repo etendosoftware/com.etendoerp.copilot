@@ -84,38 +84,127 @@ processPropertiesFiles(sourceDir)
 
 task 'copilot.do' {
     doLast {
-        project.logger.lifecycle("🤖 👋 Hello Human!")
-        if (sharedPrompt == null || sharedPrompt == "") {
-            if (!project.findProperty("prompt")) {
-                if (errorMsg != null) {
-                    project.logger.error(errorMsg)
-                } else {
-                    project.logger.lifecycle("🤖 Please provide the parameter: prompt (Ex. -Pprompt=\"How are you?\")")
-                }
-                return
-            }
-            sharedPrompt = project.findProperty("prompt")
-        }
-        project.logger.lifecycle("🤖 I'm working on your request: $sharedPrompt")
-        String translationURL = "http://0.0.0.0:${project.ext.get(COPILOT_PORT_PROPERTY)}/question"
+        def reader = new BufferedReader(new InputStreamReader(System.in))
+        def yellowText = "\u001B[33;1m"
+        def greenText = "\u001B[32;1m"
+        def blueText = "\u001B[34;1m"
+        def redText = "\u001B[31;1m"
+        def resetText = "\u001B[0m"
 
-        HttpClient client = HttpClient.newHttpClient()
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(translationURL))
+        def etendoHost = project.findProperty('ETENDO_HOST')
+        def username = project.findProperty('username')
+        def password = project.findProperty('password')
+        def app_id = project.findProperty("app_id")
+        String question = project.findProperty("question")
+        if (project.hasProperty("single")) {
+            project.logger.lifecycle("${yellowText}🤖 Single mode enabled. Only one question will be asked.${resetText}")
+        }
+
+        if (username == null || username == "") {
+            project.logger.lifecycle("${blueText}👮 Please provide the username:${resetText}")
+            username = reader.readLine()?.trim()
+        }
+        if (password == null || password == "") {
+            project.logger.lifecycle("${blueText}👮 Please provide the password:${resetText}")
+            password = reader.readLine()?.trim()
+            exec {
+                commandLine 'clear'
+            }
+        }
+        if (!etendoHost) {
+            project.logger.lifecycle("${redText}🤖 Please provide the parameter: ETENDO_HOST.${resetText}")
+            return
+        }
+        if (app_id == null || app_id == "") {
+            project.logger.lifecycle("${redText}🤖 Please provide the parameter: app_id (Ex. -Papp_id=\'A1B2C3D4E5F6G7H8\').${resetText}")
+            return
+        }
+
+        String login = JsonOutput.toJson([
+                "username": username,
+                "password": password
+        ])
+
+        String loginURL = "${etendoHost}/sws/login"
+
+        HttpClient hClient = HttpClient.newHttpClient()
+        HttpRequest hRequest = HttpRequest.newBuilder()
+                .uri(URI.create(loginURL))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString("{\"question\":\"${sharedPrompt}\"}"))
+                .method("GET", HttpRequest.BodyPublishers.ofString(login))
                 .build()
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString())
-        int httpCode = response.statusCode()
-        String responseBody = response.body()
+        HttpResponse<String> hResponse = hClient.send(hRequest, HttpResponse.BodyHandlers.ofString())
+        String hResponseBody = hResponse.body()
 
-        if (httpCode >= 400) {
-            throw new HttpRequestException("* Task failed with status code ${httpCode}: ${responseBody}", null)
-        } else {
-            var responseJson = new groovy.json.JsonSlurper().parseText(responseBody)
-            project.logger.lifecycle("🤖 " + responseJson.answer)
-            project.logger.lifecycle("🤖 Glad to help you! 😃")
+        project.logger.lifecycle("${greenText}🤖 👋 Hello Human!${resetText}")
+
+        def hResponseJson = new JsonSlurper().parseText(hResponseBody)
+        String bearerToken = hResponseJson.token
+        if (!bearerToken) {
+            project.logger.lifecycle("${redText}🤖 Failed to authenticate. No token received.${resetText}")
+            return
+        }
+
+        def conversationId = null
+
+        while (true) {
+            if (conversationId == null) {
+                project.logger.lifecycle("${greenText}🤖 What is your question?${resetText}")
+                project.logger.lifecycle("")
+            }
+
+            //User Question
+            project.logger.lifecycle("${yellowText}👤 You:")
+            if (question == null || question == "") {
+                question = reader.readLine()?.trim()
+            } else {
+                project.logger.lifecycle(question)
+            }
+            project.logger.lifecycle("${resetText}")
+
+            if (question?.equalsIgnoreCase("exit")) {
+                project.logger.lifecycle("${greenText}🤖 ¡Good bye! 👋${resetText}")
+                break
+            }
+
+            def requestBodyMap = [
+                    question: question,
+                    app_id  : app_id
+            ]
+            if (conversationId != null) {
+                requestBodyMap.conversation_id = conversationId
+            }
+            String requestBody = JsonOutput.toJson(requestBodyMap)
+
+
+            String translationURL = "${etendoHost}/sws/copilot/question"
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(translationURL))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer ${bearerToken}")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build()
+            HttpResponse<String> response = hClient.send(request, HttpResponse.BodyHandlers.ofString())
+            int httpCode = response.statusCode()
+            String responseBody = response.body()
+
+            if (httpCode >= 400) {
+                project.logger.lifecycle("${redText}*** Task failed with status code ${httpCode}: ${responseBody} ***${resetText}")
+                return
+            } else {
+                var responseJson = new JsonSlurper().parseText(responseBody)
+                project.logger.lifecycle("${greenText}🤖 " + responseJson.response +
+                        " (type 'exit' to end)${resetText}")
+                project.logger.lifecycle("")
+                if (conversationId == null && responseJson.conversation_id) {
+                    conversationId = responseJson.conversation_id
+                }
+                if (project.hasProperty("single")) {
+                    break
+                }
+                question = null
+            }
         }
     }
 }
@@ -256,7 +345,7 @@ static def getDefaultEtendoHostDocker(boolean tomcatEnabled, boolean copilotEnab
     return "http://${copilotToTomcat}:${strTomcatPort}"
 }
 
-static def getDefaultCopilotHost(boolean tomcatEnabled,  boolean copilotEnabled) {
+static def getDefaultCopilotHost(boolean tomcatEnabled, boolean copilotEnabled) {
     def tomcatToCopilot = "localhost"
     if (tomcatEnabled) {
         tomcatToCopilot = copilotEnabled ? "copilot" : "host.docker.internal"
@@ -334,4 +423,3 @@ afterEvaluate {
         }
     }
 }
-
