@@ -98,7 +98,8 @@ def index_file(ext, item_path, chroma_client):
 
         # Split the document and add it to the collection
         copilot_debug(f"File with md5 {md5} added to index with 'purge': False.")
-        documents = text_splitter.split_documents([document])
+        if text_splitter:
+            documents = text_splitter.split_documents([document])
 
     return documents
 
@@ -111,7 +112,7 @@ def get_text_splitter(ext):
     elif ext in ["json"]:
         return CopilotRecursiveJsonSplitter(max_chunk_size=300)
     elif ext in ["java"]:
-        return RecursiveCharacterTextSplitter.from_language(language=Language.JAVA)
+        return None
     elif ext in ["js"]:
         return RecursiveCharacterTextSplitter.from_language(language=Language.JS)
     elif ext in ["py"]:
