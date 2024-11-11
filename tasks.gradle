@@ -1,8 +1,29 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import org.gradle.internal.resource.transport.http.HttpRequestException
-
+import org.gradle.api.plugins.ExtraPropertiesExtension
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+
+final String TRUE = 'true'
+final String SH = 'sh'
+final String DASH_C = '-c'
+final String COPILOT = 'copilot'
+final String MODULES_PROJECT = "modules"
+final String COPILOT_MODULE = "com.etendoerp.copilot"
+final String ARG_PROPERTY = "arg"
+final String COPILOT_PORT_PROPERTY = "COPILOT_PORT"
+final String OPENAI_API_KEY_PROPERTY = "OPENAI_API_KEY"
+final String COPILOT_DOCKER_REPO = "etendo_copilot_core"
+final String TOOLS_CONFIG_FILE = "tools_config.json"
+final String COPILOT_IMAGE_TAG = 'COPILOT_IMAGE_TAG'
+final String COPILOT_PULL_IMAGE = 'COPILOT_PULL_IMAGE'
+final String COPILOT_DOCKER_CONTAINER_NAME = 'COPILOT_DOCKER_CONTAINER_NAME'
+final String DEPENDENCIES_TOOLS_FILENAME = 'DEPENDENCIES_TOOLS_FILENAME'
+final String BASE_MODULE_DIR = "modules"
+
+final String EQUAL = '='
 
 def jarsDir = new File(projectDir, "build${File.separator}etendo${File.separator}modules")
 def sourceDir = new File(projectDir, "modules")
@@ -45,12 +66,24 @@ private Iterable<File> processPropertiesFiles(File dir) {
     }
 }
 
+private String getToolsDependenciesFileName(Project project) {
+    String toolsDependenciesFile = 'tools_deps.toml'
+    try {
+        Properties properties = envFile().properties
+        String toolsDependenciesFileProp = properties.getOrDefault(DEPENDENCIES_TOOLS_FILENAME, toolsDependenciesFile).toString()
+        String result = toolsDependenciesFileProp.isEmpty() ? toolsDependenciesFile : toolsDependenciesFileProp
+        project.logger.info("Loaded TOOLS_DEPENDENCIES_FILE: ${result}")
+    } catch (Exception e) {
+        project.logger.info("Loaded TOOLS_DEPENDENCIES_FILE using default value: ${toolsDependenciesFile}")
+        return toolsDependenciesFile
+    }
+}
+
 processPropertiesFiles(jarsDir)
 processPropertiesFiles(sourceDir)
 
 task 'copilot.do' {
     doLast {
-        final String COPILOT_PORT_PROPERTY = "COPILOT_PORT"
         project.logger.lifecycle("🤖 👋 Hello Human!")
         if (sharedPrompt == null || sharedPrompt == "") {
             if (!project.findProperty("prompt")) {
@@ -86,3 +119,219 @@ task 'copilot.do' {
         }
     }
 }
+
+task 'copilot.build' {
+    doLast {
+        project.logger.info("🤖 Executing Copilot Configuration Loader")
+        File copilotDir = new File(project.buildDir.path, COPILOT)
+        copilotDir.deleteDir()
+
+        boolean copilotExists = false
+        Project moduleProject = project.findProject(":${BASE_MODULE_DIR}")
+        File jarModulesLocation = new File(project.buildDir, "etendo" + File.separator + MODULES_PROJECT)
+        File copilotJarModule = new File(jarModulesLocation, COPILOT_MODULE)
+        Project copilotProject = null
+        if (moduleProject != null) {
+            copilotProject = moduleProject.findProject(COPILOT_MODULE)
+        }
+
+        if (copilotProject != null || copilotJarModule.exists()) {
+            copilotExists = true
+            def sourcePath = copilotProject != null ? copilotProject.projectDir.path : copilotJarModule.path
+            int counter = 0
+
+            project.copy {
+                from sourcePath
+                into "${project.buildDir.path}${File.separator}copilot"
+                includeEmptyDirs false
+                exclude "**/.git/**"
+                exclude "**/node_modules/**"
+                exclude "**/.venv/**"
+                eachFile { fileCopyDetails ->
+                    counter++
+                    project.logger.info("Copiando archivo Copilot ${counter}: ${fileCopyDetails.file.path}")
+                }
+
+            }
+        }
+
+        if (copilotExists) {
+            File toolsConfigFile = new File(project.buildDir, COPILOT + File.separator + TOOLS_CONFIG_FILE)
+            String toolDependencyFileName = getToolsDependenciesFileName(project)
+            File toolsDependenciesFileMain = new File(project.buildDir, COPILOT + File.separator + toolDependencyFileName)
+            def toolsConfigJson = new JsonSlurper().parseText(toolsConfigFile.readLines().join(" "))
+
+            // Get tools in SOURCES
+            if (moduleProject != null) {
+                moduleProject.subprojects.each { subproject ->
+                    File toolsDir = new File(subproject.projectDir, "tools")
+                    if (toolsDir.exists() && !subproject.name.equals(COPILOT_MODULE)) {
+                        project.copy {
+                            from {
+                                toolsDir.path
+                            }
+                            into "${project.buildDir.path}${File.separator}copilot${File.separator}tools"
+                        }
+                        toolsDir.listFiles().each { file ->
+                            toolsConfigJson.third_party_tools[file.name.replaceFirst(~/\.[^\.]+$/, '')] = true
+                        }
+                        def json_data = JsonOutput.toJson(toolsConfigJson)
+                        toolsConfigFile.write(JsonOutput.prettyPrint(json_data))
+                        //lets read the Dependencies file of the subproject and add it to the main one
+                        File toolsDependenciesFile = new File(subproject.projectDir, toolDependencyFileName)
+                        if (toolsDependenciesFile.exists()) {
+                            //add a line break
+                            toolsDependenciesFileMain.append('\n')
+                            toolsDependenciesFileMain.append(toolsDependenciesFile.text)
+                            project.logger.info("Added dependencies from ${subproject.name} to main dependencies file")
+                        }
+                    }
+                }
+            }
+
+            // Get tools in JARS
+            jarModulesLocation.listFiles().each { jarModule ->
+                File jarModuleToolsDir = new File(jarModule, "tools")
+                if (jarModuleToolsDir.exists() && !jarModule.name.equals(COPILOT_MODULE)) {
+                    project.copy {
+                        from {
+                            jarModuleToolsDir.path
+                        }
+                        into "${project.buildDir.path}${File.separator}copilot${File.separator}tools"
+                    }
+                    jarModuleToolsDir.listFiles().each { file ->
+                        toolsConfigJson.third_party_tools[file.name.replaceFirst(~/\.[^\.]+$/, '')] = true
+                    }
+                    def json_data = JsonOutput.toJson(toolsConfigJson)
+                    toolsConfigFile.write(JsonOutput.prettyPrint(json_data))
+                    //lets read the Dependencies file of the subproject and add it to the main one
+                    File toolsDependenciesFile = new File(jarModule, toolDependencyFileName)
+                    if (toolsDependenciesFile.exists()) {
+                        toolsDependenciesFileMain.append('\n')
+                        toolsDependenciesFileMain.append(toolsDependenciesFile.text)
+                        project.logger.info("Added dependencies from ${jarModule.name} to main dependencies file")
+                    }
+                }
+            }
+        }
+    }
+}
+task 'copilot.restart' {
+    dependsOn 'copilot.build'
+    doLast {
+        project.logger.lifecycle("🤖 Restarting Copilot")
+        if (project.hasProperty("docker_com.etendoerp.copilot") ? project.property("docker_com.etendoerp.copilot").toBoolean() : false) {
+            project.logger.lifecycle("🤖 Restarting Copilot using Docker")
+            executeDockerComposeCommand("restart copilot")
+        }
+    }
+}
+
+task 'copilot.start.deprecated' {
+    doLast {
+        String err = "The task 'copilot.start' is deprecated. Please use the 'resources.up' task to start the Copilot, because Copilot now is used as a Docker service of Etendo."
+        err += " For more information, please check the documentation: https://docs.etendo.software/latest/developer-guide/etendo-copilot/installation/"
+        throw new GradleException(err)
+    }
+}
+
+def isTomcatDockerized() {
+    return project.hasProperty("docker_com.etendoerp.tomcat") && project.property("docker_com.etendoerp.tomcat").toBoolean()
+}
+
+def isCopilotDockerized() {
+    return project.hasProperty("docker_com.etendoerp.copilot") && project.property("docker_com.etendoerp.copilot").toBoolean()
+}
+
+static def getDefaultEtendoHost(boolean tomcatEnabled, String strTomcatPort) {
+    def tomcatToTomcat = tomcatEnabled ? "tomcat" : "localhost"
+    return "http://${tomcatToTomcat}:${strTomcatPort}"
+}
+
+static def getDefaultEtendoHostDocker(boolean tomcatEnabled, boolean copilotEnabled, String strTomcatPort) {
+    def copilotToTomcat = "localhost"
+    if (copilotEnabled) {
+        copilotToTomcat = tomcatEnabled ? "tomcat" : "host.docker.internal"
+    }
+    return "http://${copilotToTomcat}:${strTomcatPort}"
+}
+
+static def getDefaultCopilotHost(boolean tomcatEnabled,  boolean copilotEnabled) {
+    def tomcatToCopilot = "localhost"
+    if (tomcatEnabled) {
+        tomcatToCopilot = copilotEnabled ? "copilot" : "host.docker.internal"
+    }
+    return tomcatToCopilot
+}
+
+
+task 'copilot.env.file' {
+    description = 'Generates the .env file for copilot'
+    group = 'Docker'
+
+    doLast {
+        def props = envFile()
+        def env = props.envFile
+        def tomcatPort = env.hasProperty("TOMCAT_PORT") ? env.property("TOMCAT_PORT").toString() : "8080"
+
+        def contextName = env.hasProperty("CONTEXT_NAME") ? env.property("CONTEXT_NAME").toString() : "etendo"
+
+        def strTomcatPort = tomcatPort + "/" + contextName
+
+        def tomcatEnabled = isTomcatDockerized()
+        def copilotEnabled = isCopilotDockerized()
+
+        def etendoHost = project.hasProperty("ETENDO_HOST") ? project.property("ETENDO_HOST").toString() : getDefaultEtendoHost(tomcatEnabled, strTomcatPort)
+        def etendoHostDocker = project.hasProperty("ETENDO_HOST_DOCKER") ? project.property("ETENDO_HOST_DOCKER").toString() : getDefaultEtendoHostDocker(tomcatEnabled, copilotEnabled, strTomcatPort)
+        def copilotHost = project.hasProperty("COPILOT_HOST") ? project.property("COPILOT_HOST").toString() : getDefaultCopilotHost(tomcatEnabled, copilotEnabled)
+        def copilotPort = project.hasProperty("COPILOT_PORT") ? project.property("COPILOT_PORT").toString() : "5005"
+        def copilotPortDebug = project.hasProperty("COPILOT_PORT_DEBUG") ? project.property("COPILOT_PORT_DEBUG").toString() : "5100"
+        def copilotImageTag = project.hasProperty("COPILOT_IMAGE_TAG") ? project.property("COPILOT_IMAGE_TAG").toString() : "basic"
+        def copilotPullImage = project.hasProperty("COPILOT_PULL_IMAGE") ? project.property("COPILOT_PULL_IMAGE").toString() : "true"
+
+        env.withWriterAppend { writer ->
+            writer.write("ETENDO_HOST=${etendoHost}\n")
+            println "Writing ETENDO_HOST=${etendoHost}"
+
+            writer.write("ETENDO_HOST_DOCKER=${etendoHostDocker}\n")
+            println "Writing ETENDO_HOST_DOCKER=${etendoHostDocker}"
+
+            writer.write("COPILOT_PORT=${copilotPort}\n")
+            println "Writing COPILOT_PORT=${copilotPort}"
+
+            writer.write("COPILOT_HOST=${copilotHost}\n")
+            println "Writing COPILOT_HOST=${copilotHost}"
+
+            writer.write("COPILOT_PORT_DEBUG=${copilotPortDebug}\n")
+            println "Writing COPILOT_PORT_DEBUG=${copilotPortDebug}"
+
+            writer.write("COPILOT_IMAGE_TAG=${copilotImageTag}\n")
+            println "Writing COPILOT_IMAGE_TAG=${copilotImageTag}"
+
+            writer.write("COPILOT_PULL_IMAGE=${copilotPullImage}\n")
+            println "Writing COPILOT_PULL_IMAGE=${copilotPullImage}"
+
+        }
+    }
+}
+
+afterEvaluate {
+    if (tasks.hasProperty("generateEnvFile")) {
+        tasks.named("smartbuild").configure { task ->
+            task.finalizedBy("copilot.restart")
+        }
+        tasks.named("resources.up").configure { task ->
+            task.dependsOn("copilot.build")
+        }
+        def strTask = isTomcatDockerized() ? "tomcat.env.file" : "generateEnvFile"
+        tasks.named(strTask).configure { task ->
+            task.finalizedBy("copilot.env.file")
+        }
+    }
+    if (tasks.hasProperty("copilot.start")) {
+        tasks.named("copilot.start").configure { task ->
+            task.dependsOn("copilot.start.deprecated")
+        }
+    }
+}
+

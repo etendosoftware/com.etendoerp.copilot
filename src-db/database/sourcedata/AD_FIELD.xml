@@ -1158,13 +1158,14 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <NAME><![CDATA[Sync Assistant]]></NAME>
-<!--5ABC67EFAF554F37A86AB5D70D212673-->  <DESCRIPTION><![CDATA[Update or Create a new assistant, in case it does not exist]]></DESCRIPTION>
-<!--5ABC67EFAF554F37A86AB5D70D212673-->  <HELP><![CDATA[This process is only available when the application type is Open AI Assistant and takes care of updating or creating a new assistant, in case it does not exist. In addition to creating the wizard based on the configurations, it initially gets or updates the list of Open AI Models, and finally gets and uploads the files used as knowledge base]]></HELP>
+<!--5ABC67EFAF554F37A86AB5D70D212673-->  <DESCRIPTION><![CDATA[This process updates or creates a new assistant if it does not exist.]]></DESCRIPTION>
+<!--5ABC67EFAF554F37A86AB5D70D212673-->  <HELP><![CDATA[This process updates or creates a new assistant if it does not exist. It configures the wizard, updates the list of Open AI Models, and uploads files used as a knowledge base.]]></HELP>
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <ISCENTRALLYMAINTAINED><![CDATA[Y]]></ISCENTRALLYMAINTAINED>
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <AD_TAB_ID><![CDATA[F0AE228DDA0D4A3F98A08B8284EF1689]]></AD_TAB_ID>
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <AD_COLUMN_ID><![CDATA[FB5C927A4D8F4C2AB591014322CFB1CE]]></AD_COLUMN_ID>
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <IGNOREINWAD><![CDATA[N]]></IGNOREINWAD>
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <ISDISPLAYED><![CDATA[Y]]></ISDISPLAYED>
+<!--5ABC67EFAF554F37A86AB5D70D212673-->  <DISPLAYLOGIC><![CDATA[@ContextClient@=@AD_CLIENT_ID@]]></DISPLAYLOGIC>
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <DISPLAYLENGTH><![CDATA[1]]></DISPLAYLENGTH>
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <ISREADONLY><![CDATA[N]]></ISREADONLY>
 <!--5ABC67EFAF554F37A86AB5D70D212673-->  <SEQNO><![CDATA[80]]></SEQNO>

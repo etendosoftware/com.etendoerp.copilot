@@ -51,6 +51,7 @@ class MembersUtil:
         def invoke_model_langchain(state: Sequence[BaseMessage], _agent, _name: str, **kwargs):
             copilot_debug(f"Invoking model LANGCHAIN: {_name} with state: ")
             messages = state["messages"]
+            messages.append(AIMessage(content=state["instructions"], name="Supervisor"))
             debug_messages(messages)
             response = _agent.invoke({"messages": messages})
             response_msg = response["output"]
