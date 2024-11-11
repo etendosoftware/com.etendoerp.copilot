@@ -98,8 +98,9 @@ def index_file(ext, item_path, chroma_client):
 
         # Split the document and add it to the collection
         copilot_debug(f"File with md5 {md5} added to index with 'purge': False.")
+        documents: list[Document] = [document]
         if text_splitter:
-            documents = text_splitter.split_documents([document])
+            documents = text_splitter.split_documents(documents)
 
     return documents
 
