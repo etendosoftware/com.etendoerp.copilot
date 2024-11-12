@@ -256,7 +256,7 @@ static def getDefaultEtendoHostDocker(boolean tomcatEnabled, boolean copilotEnab
     return "http://${copilotToTomcat}:${strTomcatPort}"
 }
 
-static def getDefaultCopilotHost(boolean tomcatEnabled,  boolean copilotEnabled) {
+static def getDefaultCopilotHost(boolean tomcatEnabled, boolean copilotEnabled) {
     def tomcatToCopilot = "localhost"
     if (tomcatEnabled) {
         tomcatToCopilot = copilotEnabled ? "copilot" : "host.docker.internal"
@@ -316,7 +316,7 @@ task 'copilot.env.file' {
 }
 
 afterEvaluate {
-    if (tasks.hasProperty("generateEnvFile")) {
+    if (isCopilotDockerized()) {
         tasks.named("smartbuild").configure { task ->
             task.finalizedBy("copilot.restart")
         }
