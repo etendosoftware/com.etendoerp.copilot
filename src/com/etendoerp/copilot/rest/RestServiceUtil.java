@@ -305,10 +305,18 @@ public class RestServiceUtil {
     String appId = jsonRequest.getString(APP_ID);
     String question = jsonRequest.getString(PROP_QUESTION);
     String questionAttachedFileId = jsonRequest.optString("file");
+
     CopilotApp copilotApp = OBDal.getInstance().get(CopilotApp.class, appId);
+
     if (copilotApp == null) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
+      //This is in case the appId provided was the name of the Assistant
+      appId = getAppIdByAssistantName(appId);
+      if (appId == null) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
+      }
+      copilotApp = OBDal.getInstance().get(CopilotApp.class, appId);
     }
+
     switch (copilotApp.getAppType()) {
       case CopilotConstants.APP_TYPE_OPENAI:
         if (StringUtils.isEmpty(copilotApp.getOpenaiIdAssistant())) {
@@ -325,6 +333,14 @@ public class RestServiceUtil {
     List<String> filesReceived = new ArrayList<>();
     filesReceived.add(questionAttachedFileId); // File path in temp folder. This files were attached in the pop-up.
     return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived);
+  }
+
+  private static String getAppIdByAssistantName(String appId) {
+    OBCriteria<CopilotApp> appCrit = OBDal.getInstance().createCriteria(CopilotApp.class);
+    appCrit.add(Restrictions.eq(CopilotApp.PROPERTY_NAME, appId));
+    appCrit.setMaxResults(1);
+    CopilotApp app = (CopilotApp) appCrit.uniqueResult();
+    return app.getId();
   }
 
   private static void validateOpenAIKey() {

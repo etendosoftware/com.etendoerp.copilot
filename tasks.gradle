@@ -91,7 +91,7 @@ task 'copilot.do' {
         def redText = "\u001B[31;1m"
         def resetText = "\u001B[0m"
 
-        def etendoHost = project.findProperty('ETENDO_HOST')
+        def etendoHost = project.findProperty('host')
         def username = project.findProperty('username')
         def password = project.findProperty('password')
         def app_id = project.findProperty("app_id")
@@ -112,8 +112,8 @@ task 'copilot.do' {
             }
         }
         if (!etendoHost) {
-            project.logger.lifecycle("${redText}🤖 Please provide the parameter: ETENDO_HOST.${resetText}")
-            return
+            project.logger.lifecycle("${redText}🤖 Host not provided, using default (http://localhost:8080/etendo).${resetText}")
+            etendoHost="http://localhost:8080/etendo"
         }
         if (app_id == null || app_id == "") {
             project.logger.lifecycle("${redText}🤖 Please provide the parameter: app_id (Ex. -Papp_id=\'A1B2C3D4E5F6G7H8\').${resetText}")
