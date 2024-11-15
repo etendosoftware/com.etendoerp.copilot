@@ -1,4 +1,5 @@
 import uuid
+from typing import AsyncGenerator
 
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
@@ -15,28 +16,190 @@ from ..memory.memory_handler import MemoryHandler
 from ..schemas import GraphQuestionSchema
 from ..utils import read_optional_env_var, read_optional_env_var_int, copilot_debug, copilot_debug_event
 
+SQLLITE_NAME = "checkpoints.sqlite"
+
+
+def fullfill_question(local_file_ids, question):
+    """
+    Constructs the full question by appending local file IDs to the original question.
+
+    Args:
+        local_file_ids (list): A list of local file IDs to be appended to the question.
+        question (GraphQuestionSchema): The question schema containing the original question.
+
+    Returns:
+        str: The full question with local file IDs appended.
+    """
+    full_question = question.question
+    if local_file_ids is not None and len(local_file_ids) > 0:
+        full_question += "\n\n" + "LOCAL FILES: " + "\n".join(local_file_ids)
+    return full_question
+
+
+def get_memory(is_async=False):
+    """
+    Retrieves the appropriate memory saver based on the asynchronous flag.
+
+    Args:
+        is_async (bool): Indicates whether to use the asynchronous memory saver.
+
+    Returns:
+        SqliteSaver or AsyncSqliteSaver: The memory saver instance based on the is_async flag.
+    """
+    return AsyncSqliteSaver.from_conn_string(SQLLITE_NAME) if is_async else SqliteSaver.from_conn_string(SQLLITE_NAME)
+
+
+def setup_graph(_async, question):
+    """
+    Sets up the language graph for processing the given question.
+
+    Args:
+        _async (bool): Indicates whether the operation should be asynchronous.
+        question (GraphQuestionSchema): The question schema containing the details of the question.
+
+    Returns:
+        tuple: A tuple containing the initialized CopilotLangGraph and the thread ID.
+    """
+    thread_id = question.conversation_id
+    members: list[GraphMember] = MembersUtil().get_members(question)
+    memory = get_memory(is_async=_async)
+    lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory,
+                                  full_question=question)
+    return lang_graph, thread_id
+
+
+async def _handle_on_chain_end(event, thread_id):
+    """
+    Handles the 'on_chain_end' event.
+
+    Args:
+        event (dict): The event data containing information about the chain end.
+        thread_id (str): The ID of the thread associated with the event.
+
+    Returns:
+        AssistantResponse or None: The response generated from the event, or None if no response is generated.
+    """
+    response = None
+    if len(event["parent_ids"]) == 0:
+        output = event["data"]["output"]
+        messages = output.get("messages", [])
+        if messages:
+            message = messages[-1]
+            if isinstance(message, (HumanMessage, AIMessage)):
+                response = AssistantResponse(
+                    response=message.content, conversation_id=thread_id
+                )
+    return response
+
+
+async def _handle_on_tool_start(event, thread_id):
+    """
+    Handles the 'on_tool_start' event.
+
+    Args:
+        event (dict): The event data containing information about the tool start.
+        thread_id (str): The ID of the thread associated with the event.
+
+    Returns:
+        AssistantResponse or None: The response generated from the event, or None if no response is generated.
+    """
+    if len(event["parent_ids"]) == 1:
+        return AssistantResponse(
+            response=event["name"], conversation_id=thread_id, role="tool"
+        )
+    return None
+
+
+async def _handle_on_chain_start(event, thread_id):
+    """
+    Handles the 'on_chain_start' event.
+
+    Args:
+        event (dict): The event data containing information about the chain start.
+        thread_id (str): The ID of the thread associated with the event.
+
+    Returns:
+        AssistantResponse or None: The response generated from the event, or None if no response is generated.
+    """
+    response = None
+    metadata = event.get("metadata")
+    if metadata and metadata.get("langgraph_node") and event.get("tags"):
+        graph_step = any(tag.startswith("graph:step") and tag != 'graph:step:0' for tag in event["tags"])
+        if graph_step:
+            node = metadata["langgraph_node"]
+            if node.startswith("supervisor-stage"):
+                message = "Thinking what to do next ..."
+            elif node == "output":
+                message = "Got it! Writing the answer ..."
+            else:
+                message = f"Asking for this to the agent '{node}'"
+            response = AssistantResponse(
+                response=message, conversation_id=thread_id, role="node"
+            )
+    return response
+
+
+async def handle_events(copilot_stream_debug, event, thread_id):
+    """
+    Handles various types of events and delegates them to specific handlers.
+
+    Args:
+        copilot_stream_debug (bool): Indicates whether debug mode is enabled.
+        event (dict): The event data containing information about the event.
+        thread_id (str): The ID of the thread associated with the event.
+
+    Returns:
+        AssistantResponse or None: The response generated from the event, or None if no response is generated.
+    """
+    response = None
+    try:
+        if copilot_stream_debug:
+            response = AssistantResponse(
+                response=str(event), conversation_id=thread_id, role="debug"
+            )
+        copilot_debug_event(f"Event: {str(event)}")
+        kind = event["event"]
+
+        if kind == "on_chain_start":
+            response = await _handle_on_chain_start(event, thread_id)
+        elif kind == "on_tool_start":
+            response = await _handle_on_tool_start(event, thread_id)
+        elif kind == "on_chain_end":
+            response = await _handle_on_chain_end(event, thread_id)
+        else:
+            copilot_debug_event(f"Event kind not recognized: {kind}")
+    except Exception as e:
+        copilot_debug(f"Error in event processing: {str(e)}")
+    return response
+
 
 class LanggraphAgent(CopilotAgent):
     _memory: MemoryHandler = None
 
     @traceable
     def __init__(self):
+        """
+        Initializes the LanggraphAgent instance and sets up the memory handler.
+        """
         super().__init__()
         self._memory = MemoryHandler()
 
     # The agent state is the input to each node in the graph
     @traceable
     def execute(self, question: GraphQuestionSchema) -> AgentResponse:
-        thread_id = question.conversation_id
+        """
+        Executes the agent synchronously to process the given question.
+
+        Args:
+            question (GraphQuestionSchema): The question schema containing the details of the question.
+
+        Returns:
+            AgentResponse: The response generated by the agent.
+        """
         _tools = self._configured_tools
-
-        members: list[GraphMember] = MembersUtil().get_members(question)
-
-        memory = SqliteSaver.from_conn_string("checkpoints.sqlite")
-        lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory)
-        full_question = question.question
-        if question.local_file_ids is not None and len(question.local_file_ids) > 0:
-            full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
+        lang_graph, thread_id = setup_graph(False, question)
+        local_file_ids = question.local_file_ids
+        full_question = fullfill_question(local_file_ids, question)
 
         final_response = lang_graph.invoke(question=full_question, thread_id=thread_id,
                                            get_image=question.generate_image)
@@ -49,16 +212,20 @@ class LanggraphAgent(CopilotAgent):
         )
 
     @traceable
-    async def aexecute(self, question: GraphQuestionSchema) -> AgentResponse:
-        copilot_stream_debug = read_optional_env_var("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
-        members: list[GraphMember] = MembersUtil().get_members(question)
-        memory = AsyncSqliteSaver.from_conn_string("checkpoints.sqlite")
-        lang_graph = CopilotLangGraph(members, question.graph, SupervisorPattern(), memory=memory,
-                                      full_question=question)
+    async def aexecute(self, question: GraphQuestionSchema) -> AsyncGenerator[AgentResponse, None]:
+        """
+        Executes the agent asynchronously to process the given question.
 
-        full_question = question.question
-        if question.local_file_ids is not None and len(question.local_file_ids) > 0:
-            full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
+        Args:
+            question (GraphQuestionSchema): The question schema containing the details of the question.
+
+        Yields:
+            AgentResponse: The response generated by the agent.
+        """
+        copilot_stream_debug = read_optional_env_var("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
+        lang_graph, thread_id = setup_graph(True, question)
+        local_file_ids = question.local_file_ids
+        full_question = fullfill_question(local_file_ids, question)
         _input = HumanMessage(content=full_question)
         config = {
             "configurable": {
@@ -66,53 +233,11 @@ class LanggraphAgent(CopilotAgent):
             "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 50)
         }
 
-        if question.conversation_id is not None:
-            config["configurable"]["thread_id"] = question.conversation_id
+        if thread_id is not None:
+            config["configurable"]["thread_id"] = thread_id
         else:
             config["configurable"]["thread_id"] = str(uuid.uuid4())
         async for event in lang_graph._graph.astream_events({"messages": [_input]}, version="v2", config=config):
-            try:
-                if copilot_stream_debug:
-                    yield AssistantResponse(
-                        response=str(event), conversation_id=question.conversation_id, role="debug"
-                    )
-                copilot_debug_event(f"Event: {str(event)}")
-                kind = event["event"]
-                if kind == "on_chain_start":
-                    if event.get("metadata") != None:
-                        metadata = event["metadata"]
-                        if metadata.get("langgraph_node") != None:
-                            if event.get("tags") != None:
-                                graph_step = False
-                                for tag in event["tags"]:
-                                    if tag.startswith("graph:step") and tag != 'graph:step:0':
-                                        graph_step = True
-                                if graph_step:
-                                    node = metadata["langgraph_node"]
-                                    if node.startswith("supervisor-stage"):
-                                        message = "Thinking what to do next ..."
-                                    elif node == "output":
-                                        message = "Got it! Writing the answer ..."
-                                    else:
-                                        message = "Asking for this to the agent '" + node + "'"
-                                    yield AssistantResponse(
-                                        response=message, conversation_id=question.conversation_id, role="node"
-                                    )
-                elif kind == "on_tool_start":
-                    if len(event["parent_ids"]) == 1:
-                        yield AssistantResponse(
-                            response=event["name"], conversation_id=question.conversation_id, role="tool"
-                        )
-                elif kind == "on_chain_end":
-                    if len(event["parent_ids"]) == 0:
-                        output = event["data"]["output"]
-                        if output.get("messages") != None and len(output["messages"]) > 0:
-                            message = output["messages"][-1]
-                            if type(message) == HumanMessage or type(message) == AIMessage:
-                                yield AssistantResponse(
-                                    response=message.content, conversation_id=question.conversation_id
-                                )
-                else:
-                    copilot_debug_event(f"Event kind not recognized: {kind}")
-            except Exception as e:
-                copilot_debug(f"Error in event processing: {str(e)}")
+            response = await handle_events(copilot_stream_debug, event, thread_id)
+            if response is not None:
+                yield response

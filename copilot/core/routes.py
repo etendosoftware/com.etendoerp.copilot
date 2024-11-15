@@ -15,7 +15,6 @@ from pathlib import Path
 
 import chromadb
 from fastapi import APIRouter, UploadFile, File, Form
-from langchain.schema import Document
 from langchain.vectorstores import Chroma
 from langsmith import traceable
 from starlette.responses import StreamingResponse
@@ -27,11 +26,11 @@ from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
-from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, VectorDBInputSchema, TextToVectorDBSchema
+from copilot.core.schemas import QuestionSchema, GraphQuestionSchema, VectorDBInputSchema
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils import copilot_debug, copilot_info, empty_folder
-from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file, \
-    handle_other_formats, get_text_splitter, process_file
+from copilot.core.utils import copilot_debug, copilot_info
+from copilot.core.vectordb_utils import get_embedding, get_vector_db_path, get_chroma_settings, handle_zip_file
+from copilot.core.vectordb_utils import index_file, LANGCHAIN_DEFAULT_COLLECTION_NAME
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -104,6 +103,7 @@ def _initialize_agent(question: QuestionSchema):
     copilot_debug("  conversation_id: " + str(question.conversation_id))
     copilot_debug("  file_ids: " + str(question.file_ids))
     ThreadContext.set_data('extra_info', question.extra_info)
+    ThreadContext.set_data('conversation_id', question.conversation_id)
     return agent_type, copilot_agent
 
 
@@ -311,68 +311,44 @@ def serve_assistant():
 @core_router.post("/ResetVectorDB")
 def resetVectorDB(body: VectorDBInputSchema):
     try:
-        # Delete the VectorDB db if exists and create a new one
         kb_vectordb_id = body.kb_vectordb_id
-
         db_path = get_vector_db_path(kb_vectordb_id)
 
+        # Initialize the database client
         db_client = chromadb.Client(settings=get_chroma_settings(db_path))
-        db_client.reset()  # this will delete the db
-        db_client.clear_system_cache()
-        db_client = None
-        if os.path.exists(db_path):
-            empty_folder(db_path)
+        # Fetch the collection, creating it if it doesn't exist
+        collection = db_client.get_or_create_collection(LANGCHAIN_DEFAULT_COLLECTION_NAME)
+        # Retrieve all documents from the collection
+        documents = collection.get()
+        document_ids = documents['ids']
+        metadatas = documents['metadatas']
+        # Ensure all documents have a 'purge': True in their metadata
+        updated_metadatas = []
+        for metadata in metadatas:
+            if metadata is None:
+                metadata = {}
+            metadata["purge"] = True
+            updated_metadatas.append(metadata)
+        # Perform a single batch update with all document IDs and their updated metadata
+        # Check if there are documents to update
+        if updated_metadatas:
+            collection.update(
+                ids=document_ids,
+                metadatas=updated_metadatas
+            )
+            copilot_debug("All documents were successfully updated with 'purge': True in the metadata.")
+            db_client.clear_system_cache()
     except Exception as e:
         copilot_debug(f"Error resetting VectorDB: {e}")
         raise e
-    return {"answer": "VectorDB reset successfully."}
+    return {"answer": "VectorDB marked for purge successfully."}
 
 
 @traceable
 @core_router.post("/addToVectorDB")
-def processTextToVectorDB(body: TextToVectorDBSchema):
-    kb_vectordb_id = body.kb_vectordb_id
-    text = body.text
-    extension = body.extension
-    overwrite = body.overwrite
-
-    db_path = get_vector_db_path(kb_vectordb_id)
-
-    try:
-        if overwrite and os.path.exists(db_path):
-            os.remove(db_path)
-        if extension == "zip":
-            texts = handle_zip_file(text)
-        else:
-            parsed_document = handle_other_formats(extension, text)
-            document = Document(page_content=parsed_document)
-            text_splitter = get_text_splitter(extension)
-            texts = text_splitter.split_documents([document])
-
-        Chroma.from_documents(
-            texts,
-            get_embedding(),
-            persist_directory=db_path,
-            client_settings=get_chroma_settings()
-        )
-
-        success = True
-        message = f"Database {kb_vectordb_id} created and loaded successfully."
-        copilot_debug(message)
-    except Exception as e:
-        success = False
-        message = f"Error processing text to VectorDb: {e}"
-        copilot_debug(message)
-        db_path = ""
-
-    return {"answer": message, "success": success, "db_path": db_path}
-
-
-@traceable
-@core_router.post("/addBinaryToVectorDB")
 def process_text_to_vector_db(
         kb_vectordb_id: str = Form(...),
-        text: str = Form(None),
+        filename: str = Form(None),
         extension: str = Form(...),
         overwrite: bool = Form(False),
         file: UploadFile = File(None)
@@ -382,32 +358,33 @@ def process_text_to_vector_db(
     try:
         if overwrite and os.path.exists(db_path):
             os.remove(db_path)
-            # Save the ZIP file to a temporary path
-        temp_path = Path(f"/tmp/{file.filename}")
-        with temp_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        import tempfile
+        # Create a temporary directory using tempfile
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Define the file path inside the temporary directory
+            file_path = Path(temp_dir) / file.filename
+            with file_path.open("wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
+            if extension == "zip":
+                # Process the ZIP file
+                texts = handle_zip_file(file_path, chroma_client)
 
-        if extension == "zip" and file is not None:
-            # Process the ZIP file
-            texts = handle_zip_file(temp_path)
-        else:
-            parsed_document = process_file(temp_path, extension)
-            document = Document(page_content=parsed_document)
-            text_splitter = get_text_splitter(extension)
-            texts = text_splitter.split_documents([document])
+            else:
+                texts = index_file(extension, file_path, chroma_client)
+                # Remove the temporary file after use
 
-        # Remove the temporary file after use
-        temp_path.unlink()
-        Chroma.from_documents(
-            texts,
-            get_embedding(),
-            persist_directory=db_path,
-            client_settings=get_chroma_settings()
-        )
-
-        success = True
-        message = f"Database {kb_vectordb_id} created and loaded successfully."
-        copilot_debug(message)
+            copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
+            if (len(texts) > 0):
+                Chroma.from_documents(
+                    texts,
+                    get_embedding(),
+                    persist_directory=db_path,
+                    client_settings=get_chroma_settings()
+                )
+            success = True
+            message = f"Database {kb_vectordb_id} created and loaded successfully."
+            copilot_debug(message)
     except Exception as e:
         success = False
         message = f"Error processing text to VectorDb: {e}"
@@ -415,6 +392,30 @@ def process_text_to_vector_db(
         db_path = ""
 
     return {"answer": message, "success": success, "db_path": db_path}
+
+
+@traceable
+@core_router.post("/purgeVectorDB")
+def purge_vectordb(body: VectorDBInputSchema):
+    try:
+        kb_vectordb_id = body.kb_vectordb_id
+        db_path = get_vector_db_path(kb_vectordb_id)
+
+        db_client = chromadb.Client(settings=get_chroma_settings(db_path))
+        collection = db_client.get_or_create_collection(LANGCHAIN_DEFAULT_COLLECTION_NAME)
+        copilot_debug(f"Collection: {collection.id}")
+        # count the number of documents to be purged
+        documents = collection.get(where={"purge": True})
+        num_docs = len(documents["ids"])
+        copilot_debug(f"Number of documents to be purged: {num_docs}")
+        # Get all the documents from the collection that purged
+        collection.delete(where={"purge": True})
+
+        db_client.clear_system_cache()
+    except Exception as e:
+        copilot_debug(f"Error purging VectorDB: {e}")
+        raise e
+    return {"answer": "Documents marked for purge have been removed."}
 
 
 @traceable
@@ -427,7 +428,7 @@ def running_check():
 @core_router.post("/attachFile")
 def attach_file(file: UploadFile = File(...)):
     # save the file inside /tmp and return the path
-    temp_file_path = Path(f"/tmp/{uuid.uuid4()}/{file.filename}")
+    temp_file_path = Path(f"/copilotAttachedFiles/{uuid.uuid4()}/{file.filename}")
     temp_file_path.parent.mkdir(parents=True, exist_ok=True)
     with temp_file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
