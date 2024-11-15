@@ -64,7 +64,7 @@ public class CopilotJwtServlet extends HttpBaseServlet {
    * @throws Exception
    */
   private void checkJwt(HttpServletRequest request) throws Exception {
-    try{
+    try {
       DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(obtainToken(request));
       String userId = getRequiredClaim(decodedToken, "user");
       String roleId = getRequiredClaim(decodedToken, "role");
@@ -135,7 +135,7 @@ public class CopilotJwtServlet extends HttpBaseServlet {
         response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
       } catch (IOException ioException) {
         log4j.error("Error while sending error response: " + ioException.getMessage(), ioException);
-        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal server error");
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
       }
     }
   }
