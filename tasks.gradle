@@ -405,7 +405,7 @@ task 'copilot.env.file' {
 }
 
 afterEvaluate {
-    if (tasks.hasProperty("generateEnvFile")) {
+    if (isCopilotDockerized()) {
         tasks.named("smartbuild").configure { task ->
             task.finalizedBy("copilot.restart")
         }
