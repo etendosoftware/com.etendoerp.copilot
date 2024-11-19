@@ -304,6 +304,9 @@ public class SyncAssistant extends BaseProcessActionHandler {
         case CopilotConstants.APP_TYPE_LANGCHAIN:
           syncKBFilesToLangChain(app, knowledgeBaseFiles);
           break;
+        case CopilotConstants.APP_TYPE_MULTIMODEL:
+          syncKBFilesToLangChain(app, knowledgeBaseFiles);
+          break;
         case CopilotConstants.APP_TYPE_LANGGRAPH:
           log.debug("Sync not needed for LangGraph");
           break;

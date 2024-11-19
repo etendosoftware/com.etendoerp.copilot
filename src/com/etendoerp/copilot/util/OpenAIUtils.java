@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.function.Predicate;
 
-import com.etendoerp.copilot.data.CopilotOpenAIModel;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,16 +33,17 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.ad.utility.Attachment;
+import org.openbravo.model.common.enterprise.Organization;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotModel;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import kong.unirest.UnirestException;
-import org.openbravo.model.common.enterprise.Organization;
 
 public class OpenAIUtils {
   private static final Logger log = LogManager.getLogger(OpenAIUtils.class);
@@ -608,8 +608,8 @@ public class OpenAIUtils {
       try {
         JSONObject modelObj = modelJSONArray.getJSONObject(i);
         if (!StringUtils.startsWith(modelObj.getString("id"), "ft:") && //exclude the models that start with gpt-4o
-                !StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
-                !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
+            !StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
+            !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
           modelIds.add(modelObj);
         }
       } catch (JSONException e) {
@@ -617,10 +617,11 @@ public class OpenAIUtils {
       }
     }
     //now we have a list of ids, we can get the list of models in the database
-    List<CopilotOpenAIModel> modelsInDB = OBDal.getInstance().createCriteria(CopilotOpenAIModel.class).list();
+    List<CopilotModel> modelsInDB = OBDal.getInstance().createCriteria(CopilotModel.class)
+        .add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, "openai")).list();
 
     //now we will check the models of the database that are not in the list of models from openai, to mark them as not active
-    for (CopilotOpenAIModel modelInDB : modelsInDB) {
+    for (CopilotModel modelInDB : modelsInDB) {
       //check if the model is in the list of models from openai
       if (modelIds.stream().noneMatch(modelInModelList(modelInDB))) {
         modelInDB.setActive(false);
@@ -634,17 +635,17 @@ public class OpenAIUtils {
   }
 
   /**
-   * Returns a predicate to check if a specified {@link CopilotOpenAIModel}
+   * Returns a predicate to check if a specified {@link CopilotModel}
    * instance matches a given OpenAI model (represented as a {@link JSONObject}).
    * This helper is primarily used to determine whether a model fetched from OpenAI
    * is already present in the database by comparing model IDs.
    *
    * @param modelInDB
-   *     The {@link CopilotOpenAIModel} instance to be matched.
+   *     The {@link CopilotModel} instance to be matched.
    * @return A predicate that checks if the model ID in the database matches the ID of a given
    *     OpenAI model.
    */
-  private static Predicate<JSONObject> modelInModelList(CopilotOpenAIModel modelInDB) {
+  private static Predicate<JSONObject> modelInModelList(CopilotModel modelInDB) {
     return model -> StringUtils.equals(model.optString("id"), modelInDB.getSearchkey());
   }
 
@@ -665,12 +666,13 @@ public class OpenAIUtils {
     try {
       OBContext.setAdminMode();
       for (JSONObject modelData : modelIds) {
-        CopilotOpenAIModel model = OBProvider.getInstance().get(CopilotOpenAIModel.class);
+        CopilotModel model = OBProvider.getInstance().get(CopilotModel.class);
         model.setNewOBObject(true);
         model.setClient(OBDal.getInstance().get(Client.class, "0"));
         model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
         model.setSearchkey(modelData.optString("id"));
         model.setName(modelData.optString("id"));
+        model.setProvider("openai");
         model.setActive(true);
         //get the date in The Unix timestamp (in seconds) when the model was created. Convert to date
         long creationDate = modelData.optLong("created"); // Unix timestamp (in seconds) when the model was created
@@ -703,9 +705,8 @@ public class OpenAIUtils {
   public static void checkIfAppCanUseAttachedFiles(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles) {
     if (!knowledgeBaseFiles.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
       throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
+          String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
     }
   }
 
 }
-
