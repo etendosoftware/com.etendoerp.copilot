@@ -13,9 +13,16 @@ import threading
 import uuid
 from pathlib import Path
 
+import requests
+
 import chromadb
-from copilot.core import utils
-from copilot.core.agent import AgentEnum, AgentResponse, copilot_agents
+from fastapi import APIRouter, UploadFile, File, Form
+from langchain.vectorstores import Chroma
+from langsmith import traceable
+from starlette.responses import StreamingResponse
+
+from copilot.core import utils, etendo_utils
+from copilot.core.agent import AgentResponse, copilot_agents, AgentEnum
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
@@ -446,3 +453,39 @@ def attach_file(file: UploadFile = File(...)):
     with temp_file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     return {"answer": str(temp_file_path)}
+
+@traceable
+@core_router.post("/checkCopilotHost")
+def check_copilot_host():
+    try:
+        # Obtener la variable de entorno ETENDO_HOST_DOCKER
+        etendo_host_docker = etendo_utils.get_etendo_host()
+        if not etendo_host_docker:
+            print("Error: ETENDO_HOST_DOCKER environment variable is not set")
+            return
+
+        # Preparar la solicitud al host ETENDO_HOST_DOCKER
+        url = f"{etendo_host_docker}/sws/copilot/configcheck"
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+
+        # Enviar la solicitud POST
+        print(f"Connecting to {url}...")
+        response = requests.post(url, headers=headers, json={})
+
+        # Manejar la respuesta
+        if response.status_code == 200:
+            print("ETENDO_HOST_DOCKER responded with status 200")
+        else:
+            print(f"Error: ETENDO_HOST_DOCKER responded with status {response.status_code}")
+            print("Response content:", response.text)
+
+    except requests.exceptions.RequestException as e:
+        # Manejar errores de conexión o solicitudes
+        print(f"Error connecting to ETENDO_HOST_DOCKER: {str(e)}")
+    except Exception as e:
+        # Manejar cualquier otro tipo de error
+        print(f"An unexpected error occurred: {str(e)}")
+

@@ -11,7 +11,12 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.ad.access.User;
+import org.openbravo.model.common.enterprise.Organization;
+import org.openbravo.model.common.enterprise.Warehouse;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -20,6 +25,8 @@ import javax.servlet.http.HttpSession;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +35,10 @@ import java.util.concurrent.TransferQueue;
 import static com.etendoerp.copilot.rest.RestServiceUtil.*;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
 
+import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
+import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 public class RestService {
   private static final Logger log4j = LogManager.getLogger(RestService.class);
@@ -87,7 +97,10 @@ public class RestService {
       } else if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
         handleCacheQuestion(request, response);
         return;
-      }
+      } else if (StringUtils.equalsIgnoreCase(path, "/configcheck")) {
+        checkHosts(response);
+        return;
+      }else
       //if not a valid path, throw a error status
       response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     } catch (Exception e) {
@@ -100,6 +113,92 @@ public class RestService {
       }
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  private void checkHosts(HttpServletResponse response) throws Exception {
+    //Obtenido el ETENDO_TOKEN
+    String token = getSecurityToken();
+
+    //Endpoint ETENDO_HOST
+    boolean etendoHostVerified = checkEtendoHost(response, token); //ENDPOINT A
+
+    //Endpoint COPILOT_HOST
+    if (etendoHostVerified) {
+      checkCopilotHost(token); //ENDPOINT B
+    }
+  }
+
+  private static String getSecurityToken() throws Exception {
+    OBContext context = OBContext.getOBContext();
+    Role role = OBDal.getInstance().get(Role.class, context.getRole().getId());
+    User user = OBDal.getInstance().get(User.class, context.getUser().getId());
+
+    return SecureWebServicesUtils.generateToken(user, role);
+  }
+
+  private boolean checkEtendoHost(HttpServletResponse response,
+      String token) throws IOException, JSONException {
+    String etendoHost = CopilotUtils.getEtendoHost();
+    HttpURLConnection connection = null;
+    try {
+      URL url = new URL(etendoHost + "/copilot/configcheck");
+      connection = (HttpURLConnection) url.openConnection();
+      connection.setRequestMethod("POST");
+      connection.setDoOutput(true);
+      connection.setRequestProperty("Authorization", "Bearer " + token);
+      connection.setRequestProperty("Content-Type", "application/json");
+      connection.setRequestProperty("Accept", "application/json");
+
+      int responseCode = connection.getResponseCode();
+      if (responseCode == HttpServletResponse.SC_OK) {
+        log4j.info("El ETENDO_HOST respondió correctamente con código 200.");
+        return true;
+      } else {
+        log4j.error("El host respondió con código: " + responseCode);
+        sendErrorResponse(response, responseCode, "Error en el host: " + connection.getResponseMessage());
+        return false;
+      }
+    } catch (Exception e) {
+      log4j.error("Error al verificar el host: ", e);
+      sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+    } finally {
+      if (connection != null) {
+        connection.disconnect();
+      }
+    }
+    return false;
+  }
+
+  private static boolean checkCopilotHost(String token) throws IOException {
+    String copilotHost = CopilotUtils.getCopilotHost();
+    String copilotPort = CopilotUtils.getCopilotPort();
+
+    HttpURLConnection pythonConnection = null;
+    try {
+      URL pythonUrl = new URL("http://" + copilotHost + ":" + copilotPort + "/checkCopilotHost");
+      pythonConnection = (HttpURLConnection) pythonUrl.openConnection();
+      pythonConnection.setRequestMethod("POST");
+      pythonConnection.setDoOutput(true);
+      pythonConnection.setRequestProperty("Authorization", "Bearer " + token);
+      pythonConnection.setRequestProperty("Content-Type", "application/json");
+      pythonConnection.setRequestProperty("Accept", "application/json");
+
+      int responsePythonCode = pythonConnection.getResponseCode();
+      if (responsePythonCode == HttpServletResponse.SC_OK) {
+        log4j.info("El COPILOT_HOST respondió correctamente con código 200.");
+        return true;
+      } else {
+        log4j.error("El endpoint de Python respondió con código: " + responsePythonCode);
+        throw new IOException("Error en el endpoint de Python: " + pythonConnection.getResponseMessage());
+      }
+    } catch (Exception e) {
+      log4j.error("Error al llamar al endpoint de Python: ", e);
+      throw new IOException("Error al llamar al endpoint de Python: " + e.getMessage());
+    } finally {
+      if (pythonConnection != null) {
+        pythonConnection.disconnect();
+      }
     }
   }
 

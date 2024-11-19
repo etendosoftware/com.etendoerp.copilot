@@ -549,7 +549,7 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
    *
    * @return The host name of Etendo if found, otherwise "ERROR".
    */
-  private static String getEtendoHost() {
+  public static String getEtendoHost() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
   }
@@ -562,6 +562,17 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
     }
     return hostDocker;
   }
+
+  public static String getCopilotHost() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return properties.getProperty("COPILOT_HOST", "");
+  }
+
+  public static String getCopilotPort() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return properties.getProperty("COPILOT_PORT", "5005");
+  }
+
 
   public static String getAppSourceContent(List<CopilotAppSource> appSourceList, String type) {
     StringBuilder content = new StringBuilder();
