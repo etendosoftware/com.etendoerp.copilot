@@ -310,11 +310,11 @@ public class RestServiceUtil {
 
     if (copilotApp == null) {
       //This is in case the appId provided was the name of the Assistant
-      appId = getAppIdByAssistantName(appId);
-      if (appId == null) {
+      CopilotApp app = getAppIdByAssistantName(appId);
+      if (app == null) {
         throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
       }
-      copilotApp = OBDal.getInstance().get(CopilotApp.class, appId);
+      copilotApp = app;
     }
 
     switch (copilotApp.getAppType()) {
@@ -335,12 +335,11 @@ public class RestServiceUtil {
     return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived);
   }
 
-  private static String getAppIdByAssistantName(String appId) {
+  private static CopilotApp getAppIdByAssistantName(String appId) {
     OBCriteria<CopilotApp> appCrit = OBDal.getInstance().createCriteria(CopilotApp.class);
     appCrit.add(Restrictions.eq(CopilotApp.PROPERTY_NAME, appId));
     appCrit.setMaxResults(1);
-    CopilotApp app = (CopilotApp) appCrit.uniqueResult();
-    return app.getId();
+    return (CopilotApp) appCrit.uniqueResult();
   }
 
   private static void validateOpenAIKey() {
