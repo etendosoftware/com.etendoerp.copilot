@@ -10,14 +10,12 @@ from copilot.core.agent.agent import (
 from langchain.agents import (
     AgentExecutor,
     AgentOutputParser,
-    create_openai_functions_agent,
+    create_tool_calling_agent,
 )
-from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
+from langchain.chat_models import init_chat_model
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.runnables import AddableDict
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
 from langsmith import traceable
 
 from .. import utils
@@ -38,7 +36,7 @@ class CustomOutputParser(AgentOutputParser):
         return agent_finish
 
 
-class LangchainAgent(CopilotAgent):
+class MultimodelAgent(CopilotAgent):
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
     _memory: MemoryHandler = None
 
@@ -51,7 +49,7 @@ class LangchainAgent(CopilotAgent):
     def get_agent(
         self,
         provider: str,
-        open_ai_model: str,
+        model: str,
         tools: list[ToolSchema] = None,
         system_prompt: str = None,
         temperature: float = 1,
@@ -63,13 +61,25 @@ class LangchainAgent(CopilotAgent):
             OpenAIApiKeyNotFound: raised when OPENAI_API_KEY is not configured
             SystemPromptNotFound: raised when SYSTEM_PROMPT is not configured
         """
-        self._assert_open_api_key_is_set()
         self._assert_system_prompt_is_set()
+        llm = init_chat_model(model_provider=provider, model=model, temperature=temperature, streaming=True)
 
-        if provider == "gemini":
-            agent = self.get_gemini_agent(open_ai_model)
-        else:
-            agent = self.get_openai_agent(open_ai_model, tools, system_prompt, temperature, kb_vectordb_id)
+        # base_url = "http://127.0.0.1:1234/v1" -> can be used for local LLMs
+        _enabled_tools = self.get_functions(tools)
+        kb_tool = get_kb_tool(kb_vectordb_id)
+        if kb_tool is not None:
+            _enabled_tools.append(kb_tool)
+            self._configured_tools.append(kb_tool)
+
+        prompt_structure = [
+            ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
+            MessagesPlaceholder(variable_name="messages"),
+        ]
+        if len(_enabled_tools):
+            prompt_structure.append(("placeholder", "{agent_scratchpad}"))
+
+        prompt = ChatPromptTemplate.from_messages(prompt_structure)
+        agent = create_tool_calling_agent(llm=llm, tools=_enabled_tools, prompt=prompt)
 
         return agent
 
@@ -89,38 +99,6 @@ class LangchainAgent(CopilotAgent):
         return agent_exec
 
     @traceable
-    def get_openai_agent(
-        self, open_ai_model, tools, system_prompt, temperature=1, kb_vectordb_id: Optional[str] = None
-    ):
-        _llm = ChatOpenAI(temperature=temperature, streaming=False, model_name=open_ai_model)
-        _enabled_tools = self.get_functions(tools)
-
-        kb_tool = get_kb_tool(kb_vectordb_id)
-        if kb_tool is not None:
-            _enabled_tools.append(kb_tool)
-            self._configured_tools.append(kb_tool)
-
-        if len(_enabled_tools):
-            prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
-                    MessagesPlaceholder(variable_name="messages"),
-                    MessagesPlaceholder(variable_name="agent_scratchpad"),
-                ]
-            )
-            agent = create_openai_functions_agent(_llm, _enabled_tools, prompt)
-        else:
-            llm = _llm
-            prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
-                    MessagesPlaceholder(variable_name="messages"),
-                ]
-            )
-            agent = prompt | llm | OpenAIToolsAgentOutputParser()
-        return agent
-
-    @traceable
     def get_functions(self, tools):
         _enabled_tools = []
         if tools:
@@ -130,29 +108,6 @@ class LangchainAgent(CopilotAgent):
                         _enabled_tools.append(t)
                         break
         return _enabled_tools
-
-    @traceable
-    def get_gemini_agent(self, open_ai_model, temperature=1):
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", "{system_prompt}"),
-                ("user", "{input}"),
-            ]
-        )
-        _llm = ChatGoogleGenerativeAI(
-            temperature=temperature, model=open_ai_model, convert_system_message_to_human=True
-        )
-        llm = _llm.bind()
-        agent = (
-            {
-                "system_prompt": lambda x: x["system_prompt"],
-                "input": lambda x: x["input"],
-            }
-            | prompt
-            | llm
-            | CustomOutputParser()
-        )
-        return agent
 
     @traceable
     def execute(self, question: QuestionSchema) -> AgentResponse:

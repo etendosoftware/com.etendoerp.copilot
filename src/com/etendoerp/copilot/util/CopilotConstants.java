@@ -1,14 +1,15 @@
 package com.etendoerp.copilot.util;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 
-import org.apache.commons.lang.StringUtils;
-
 public class CopilotConstants {
   public static final String APP_TYPE_LANGCHAIN = "langchain";
-  public static final String APP_TYPE_OPENAI = "openai-assistant";
   public static final String APP_TYPE_LANGGRAPH = "langgraph";
+  public static final String APP_TYPE_MULTIMODEL = "multimodel";
+  public static final String APP_TYPE_OPENAI = "openai-assistant";
   public static final String ERROR = "error";
   public static final String FILE_BEHAVIOUR_SYSTEM = "system";
   public static final String FILE_BEHAVIOUR_QUESTION = "question";

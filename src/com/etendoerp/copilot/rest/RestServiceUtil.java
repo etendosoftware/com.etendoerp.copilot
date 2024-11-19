@@ -442,16 +442,17 @@ public class RestServiceUtil {
     // and we need to add the type of the assistant (openai or langchain)
     appType = copilotApp.getAppType();
     List<String> allowedAppTypes = List.of(CopilotConstants.APP_TYPE_LANGCHAIN, CopilotConstants.APP_TYPE_LANGGRAPH,
-        CopilotConstants.APP_TYPE_OPENAI);
+        CopilotConstants.APP_TYPE_OPENAI, CopilotConstants.APP_TYPE_MULTIMODEL);
 
     if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)
         || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGGRAPH)
+        || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_MULTIMODEL)
     ) {
       if (StringUtils.isEmpty(conversationId)) {
         conversationId = UUID.randomUUID().toString();
       }
       if (!isGraph) {
-        buildLangchainRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
+        buildLangchainRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot, appType);
       } else {
         buildLangraphRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
       }
@@ -624,7 +625,7 @@ public class RestServiceUtil {
           }
           memberData.put(PROP_ASSISTANT_ID, assistantId);
         } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)) {
-          buildLangchainRequestForCopilot(teamMember, null, memberData);
+          buildLangchainRequestForCopilot(teamMember, null, memberData, CopilotConstants.APP_TYPE_LANGCHAIN);
         }
 
         assistantsArray.put(memberData);
@@ -696,16 +697,17 @@ public class RestServiceUtil {
    *     The conversation ID to be used in the request. If it is not empty, the conversation history will be added to the request.
    * @param jsonRequestForCopilot
    *     The JSONObject to which the request parameters are to be added.
+   * @param appType
    * @throws JSONException
    *     If an error occurs while processing the JSON data.
    */
 
   private static void buildLangchainRequestForCopilot(CopilotApp copilotApp, String conversationId,
-      JSONObject jsonRequestForCopilot) throws JSONException, IOException {
+      JSONObject jsonRequestForCopilot, String appType) throws JSONException, IOException {
     StringBuilder prompt = new StringBuilder();
     prompt.append(copilotApp.getPrompt());
     jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
-    jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGCHAIN);
+    jsonRequestForCopilot.put(PROP_TYPE, appType);
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
     }

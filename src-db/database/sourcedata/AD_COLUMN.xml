@@ -128,7 +128,7 @@
 <!--03F7D5ACD32C40F797E158AB9E0FE19C-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--03F7D5ACD32C40F797E158AB9E0FE19C-->  <NAME><![CDATA[Active]]></NAME>
 <!--03F7D5ACD32C40F797E158AB9E0FE19C-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--03F7D5ACD32C40F797E158AB9E0FE19C-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--03F7D5ACD32C40F797E158AB9E0FE19C-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--03F7D5ACD32C40F797E158AB9E0FE19C-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -258,7 +258,7 @@
 <!--0C34069E7C2142F7B0858D8E4C43761E-->  <ISMANDATORY><![CDATA[Y]]></ISMANDATORY>
 <!--0C34069E7C2142F7B0858D8E4C43761E-->  <ISUPDATEABLE><![CDATA[Y]]></ISUPDATEABLE>
 <!--0C34069E7C2142F7B0858D8E4C43761E-->  <ISIDENTIFIER><![CDATA[Y]]></ISIDENTIFIER>
-<!--0C34069E7C2142F7B0858D8E4C43761E-->  <SEQNO><![CDATA[90]]></SEQNO>
+<!--0C34069E7C2142F7B0858D8E4C43761E-->  <SEQNO><![CDATA[20]]></SEQNO>
 <!--0C34069E7C2142F7B0858D8E4C43761E-->  <ISTRANSLATED><![CDATA[N]]></ISTRANSLATED>
 <!--0C34069E7C2142F7B0858D8E4C43761E-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
 <!--0C34069E7C2142F7B0858D8E4C43761E-->  <ISSELECTIONCOLUMN><![CDATA[N]]></ISSELECTIONCOLUMN>
@@ -522,7 +522,7 @@
 <!--12B2EC18B281472E95CB28563111E986-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--12B2EC18B281472E95CB28563111E986-->  <NAME><![CDATA[Active]]></NAME>
 <!--12B2EC18B281472E95CB28563111E986-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--12B2EC18B281472E95CB28563111E986-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--12B2EC18B281472E95CB28563111E986-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--12B2EC18B281472E95CB28563111E986-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -841,7 +841,7 @@
 <!--1D54B58E17E546858F52D77CF86AD177-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--1D54B58E17E546858F52D77CF86AD177-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--1D54B58E17E546858F52D77CF86AD177-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--1D54B58E17E546858F52D77CF86AD177-->  <NAME><![CDATA[Etcop_Openai_Model_ID]]></NAME>
+<!--1D54B58E17E546858F52D77CF86AD177-->  <NAME><![CDATA[Model]]></NAME>
 <!--1D54B58E17E546858F52D77CF86AD177-->  <DESCRIPTION><![CDATA[Dropdown with the LLM models available]]></DESCRIPTION>
 <!--1D54B58E17E546858F52D77CF86AD177-->  <HELP><![CDATA[If this field is empty, the 'Sync Assistant' process obtains the available models]]></HELP>
 <!--1D54B58E17E546858F52D77CF86AD177-->  <COLUMNNAME><![CDATA[Etcop_Openai_Model_ID]]></COLUMNNAME>
@@ -1038,7 +1038,7 @@
 <!--22F4A61A25134D65B3638BCBA59082C9-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--22F4A61A25134D65B3638BCBA59082C9-->  <NAME><![CDATA[Active]]></NAME>
 <!--22F4A61A25134D65B3638BCBA59082C9-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--22F4A61A25134D65B3638BCBA59082C9-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--22F4A61A25134D65B3638BCBA59082C9-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--22F4A61A25134D65B3638BCBA59082C9-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -1755,7 +1755,7 @@
 <!--4C454077BC9840A195A85965F28E18FD-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--4C454077BC9840A195A85965F28E18FD-->  <NAME><![CDATA[Active]]></NAME>
 <!--4C454077BC9840A195A85965F28E18FD-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--4C454077BC9840A195A85965F28E18FD-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--4C454077BC9840A195A85965F28E18FD-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--4C454077BC9840A195A85965F28E18FD-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -2274,7 +2274,7 @@
 <!--5C53C95750B34707AD261568946DC96F-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--5C53C95750B34707AD261568946DC96F-->  <NAME><![CDATA[Active]]></NAME>
 <!--5C53C95750B34707AD261568946DC96F-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--5C53C95750B34707AD261568946DC96F-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--5C53C95750B34707AD261568946DC96F-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--5C53C95750B34707AD261568946DC96F-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -2997,7 +2997,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--6B42D2C31EF44F3EB18DC0B93972E4BD-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--6B42D2C31EF44F3EB18DC0B93972E4BD-->  <NAME><![CDATA[Active]]></NAME>
 <!--6B42D2C31EF44F3EB18DC0B93972E4BD-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--6B42D2C31EF44F3EB18DC0B93972E4BD-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--6B42D2C31EF44F3EB18DC0B93972E4BD-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--6B42D2C31EF44F3EB18DC0B93972E4BD-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -3236,7 +3236,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--709AC49FDEC7430681188DB896768F7C-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--709AC49FDEC7430681188DB896768F7C-->  <NAME><![CDATA[Active]]></NAME>
 <!--709AC49FDEC7430681188DB896768F7C-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--709AC49FDEC7430681188DB896768F7C-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--709AC49FDEC7430681188DB896768F7C-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--709AC49FDEC7430681188DB896768F7C-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -4230,7 +4230,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <NAME><![CDATA[Active]]></NAME>
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--963BC17D0EDC490E97BB1315AFF4302B-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--963BC17D0EDC490E97BB1315AFF4302B-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--963BC17D0EDC490E97BB1315AFF4302B-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -4503,6 +4503,43 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--A1CB0D0CAE5A43CFA0107DB21A84CEBF-->  <IS_CHILD_PROPERTY_IN_PARENT><![CDATA[N]]></IS_CHILD_PROPERTY_IN_PARENT>
 <!--A1CB0D0CAE5A43CFA0107DB21A84CEBF--></AD_COLUMN>
 
+<!--A2BCFFFF138D4A0DA8E4421715880CBA--><AD_COLUMN>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <AD_COLUMN_ID><![CDATA[A2BCFFFF138D4A0DA8E4421715880CBA]]></AD_COLUMN_ID>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <NAME><![CDATA[Provider]]></NAME>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <COLUMNNAME><![CDATA[Provider]]></COLUMNNAME>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <AD_TABLE_ID><![CDATA[202E653C45A14493885FD8CEE5B60C2D]]></AD_TABLE_ID>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <AD_REFERENCE_ID><![CDATA[10]]></AD_REFERENCE_ID>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <FIELDLENGTH><![CDATA[200]]></FIELDLENGTH>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISKEY><![CDATA[N]]></ISKEY>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISPARENT><![CDATA[N]]></ISPARENT>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISMANDATORY><![CDATA[N]]></ISMANDATORY>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISUPDATEABLE><![CDATA[Y]]></ISUPDATEABLE>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISIDENTIFIER><![CDATA[Y]]></ISIDENTIFIER>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <SEQNO><![CDATA[10]]></SEQNO>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISTRANSLATED><![CDATA[N]]></ISTRANSLATED>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISENCRYPTED><![CDATA[N]]></ISENCRYPTED>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISSELECTIONCOLUMN><![CDATA[N]]></ISSELECTIONCOLUMN>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <AD_ELEMENT_ID><![CDATA[E9F57B65805A4F9FBDEDB22DD040039C]]></AD_ELEMENT_ID>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISSESSIONATTR><![CDATA[N]]></ISSESSIONATTR>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISSECONDARYKEY><![CDATA[N]]></ISSECONDARYKEY>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISDESENCRYPTABLE><![CDATA[N]]></ISDESENCRYPTABLE>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <DEVELOPMENTSTATUS><![CDATA[RE]]></DEVELOPMENTSTATUS>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <POSITION><![CDATA[12]]></POSITION>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISTRANSIENT><![CDATA[N]]></ISTRANSIENT>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISAUTOSAVE><![CDATA[Y]]></ISAUTOSAVE>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <VALIDATEONNEW><![CDATA[Y]]></VALIDATEONNEW>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <IMAGESIZEVALUESACTION><![CDATA[N]]></IMAGESIZEVALUESACTION>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ISUSEDSEQUENCE><![CDATA[N]]></ISUSEDSEQUENCE>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ALLOWSORTING><![CDATA[Y]]></ALLOWSORTING>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ALLOWFILTERING><![CDATA[Y]]></ALLOWFILTERING>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <ALLOWED_CROSS_ORG_LINK><![CDATA[N]]></ALLOWED_CROSS_ORG_LINK>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA-->  <IS_CHILD_PROPERTY_IN_PARENT><![CDATA[N]]></IS_CHILD_PROPERTY_IN_PARENT>
+<!--A2BCFFFF138D4A0DA8E4421715880CBA--></AD_COLUMN>
+
 <!--A4E6A79444814197B2F830AC5ED28CB8--><AD_COLUMN>
 <!--A4E6A79444814197B2F830AC5ED28CB8-->  <AD_COLUMN_ID><![CDATA[A4E6A79444814197B2F830AC5ED28CB8]]></AD_COLUMN_ID>
 <!--A4E6A79444814197B2F830AC5ED28CB8-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
@@ -4510,7 +4547,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--A4E6A79444814197B2F830AC5ED28CB8-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--A4E6A79444814197B2F830AC5ED28CB8-->  <NAME><![CDATA[Active]]></NAME>
 <!--A4E6A79444814197B2F830AC5ED28CB8-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--A4E6A79444814197B2F830AC5ED28CB8-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--A4E6A79444814197B2F830AC5ED28CB8-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--A4E6A79444814197B2F830AC5ED28CB8-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -5418,7 +5455,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--D2A0F92CAD8F48868507183BA4FA6559-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--D2A0F92CAD8F48868507183BA4FA6559-->  <NAME><![CDATA[Active]]></NAME>
 <!--D2A0F92CAD8F48868507183BA4FA6559-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--D2A0F92CAD8F48868507183BA4FA6559-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--D2A0F92CAD8F48868507183BA4FA6559-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--D2A0F92CAD8F48868507183BA4FA6559-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -5657,7 +5694,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--D8203893352D417290621B6834D6E6A7-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--D8203893352D417290621B6834D6E6A7-->  <NAME><![CDATA[Active]]></NAME>
 <!--D8203893352D417290621B6834D6E6A7-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--D8203893352D417290621B6834D6E6A7-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--D8203893352D417290621B6834D6E6A7-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--D8203893352D417290621B6834D6E6A7-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -6179,7 +6216,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--E9F21D26BDDE46D49F4B7913EE2F1ADD-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--E9F21D26BDDE46D49F4B7913EE2F1ADD-->  <NAME><![CDATA[Active]]></NAME>
 <!--E9F21D26BDDE46D49F4B7913EE2F1ADD-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--E9F21D26BDDE46D49F4B7913EE2F1ADD-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--E9F21D26BDDE46D49F4B7913EE2F1ADD-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--E9F21D26BDDE46D49F4B7913EE2F1ADD-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
@@ -6497,7 +6534,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--F7AF6C57ACC144FD8233365C1B7106E5-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--F7AF6C57ACC144FD8233365C1B7106E5-->  <NAME><![CDATA[Active]]></NAME>
 <!--F7AF6C57ACC144FD8233365C1B7106E5-->  <DESCRIPTION><![CDATA[A flag indicating whether this record is available for use or de-activated.]]></DESCRIPTION>
-<!--F7AF6C57ACC144FD8233365C1B7106E5-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records: 
+<!--F7AF6C57ACC144FD8233365C1B7106E5-->  <HELP><![CDATA[There are two methods of making records unavailable in the system: One is to delete the record, the other is to de-activate the record. A de-activated record is not available for selection, but available for reporting. There are two reasons for de-activating and not deleting records:
 (1) The system requires the record for auditing purposes.
 (2) The record is referenced by other records. E.g., you cannot delete a Business Partner, if there are existing invoices for it. By de-activating the Business Partner you prevent it from being used in future transactions.]]></HELP>
 <!--F7AF6C57ACC144FD8233365C1B7106E5-->  <COLUMNNAME><![CDATA[Isactive]]></COLUMNNAME>
