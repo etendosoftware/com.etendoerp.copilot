@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Final, Optional, Union
+from typing import AsyncGenerator, Dict, Final, Optional, Union
 
 from copilot.core.agent.agent import (
     AgentResponse,
@@ -12,16 +12,20 @@ from langchain.agents import (
     AgentOutputParser,
     create_tool_calling_agent,
 )
+from langchain.agents.output_parsers.tools import ToolsAgentOutputParser
 from langchain.chat_models import init_chat_model
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.prompts import MessagesPlaceholder
+from langchain_anthropic.chat_models import ChatAnthropic
 from langchain_core.agents import AgentAction, AgentFinish
-from langchain_core.runnables import AddableDict
+from langchain_core.prompts.chat import ChatPromptTemplate
+from langchain_core.runnables import AddableDict, RunnablePassthrough
+from langchain_openai.chat_models.base import ChatOpenAI
 from langsmith import traceable
 
 from .. import utils
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import QuestionSchema, ToolSchema
-from ..utils import get_full_question
+from ..utils import copilot_debug, get_full_question
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 
@@ -34,6 +38,34 @@ class CustomOutputParser(AgentOutputParser):
             log=output,
         )
         return agent_finish
+
+
+def get_llm(model, provider, temperature):
+    """
+    Initialize the language model with the given parameters.
+
+    Args:
+        model (str): The name of the model to be used.
+        provider (str): The provider of the model.
+        temperature (float): The temperature setting for the model, which controls the
+        randomness of the output.
+
+    Returns:
+        ChatModel: An initialized language model instance.
+    """
+    # Initialize the language model
+    llm = init_chat_model(model_provider=provider, model=model, temperature=temperature, streaming=True)
+    # Adjustments for specific models, because some models have different
+    # default parameters
+    if type(llm) is ChatOpenAI:
+        copilot_debug("OpenAI model detected")
+    elif type(llm) is ChatAnthropic:
+        copilot_debug("Anthropic model detected")
+        llm.max_retries = 10
+        llm.max_tokens = 8000
+    else:
+        copilot_debug("Custom model detected")
+    return llm
 
 
 class MultimodelAgent(CopilotAgent):
@@ -62,7 +94,7 @@ class MultimodelAgent(CopilotAgent):
             SystemPromptNotFound: raised when SYSTEM_PROMPT is not configured
         """
         self._assert_system_prompt_is_set()
-        llm = init_chat_model(model_provider=provider, model=model, temperature=temperature, streaming=True)
+        llm = get_llm(model, provider, temperature)
 
         # base_url = "http://127.0.0.1:1234/v1" -> can be used for local LLMs
         _enabled_tools = self.get_functions(tools)
@@ -74,13 +106,19 @@ class MultimodelAgent(CopilotAgent):
         prompt_structure = [
             ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
             MessagesPlaceholder(variable_name="messages"),
+            ("placeholder", "{agent_scratchpad}"),
         ]
-        if len(_enabled_tools):
-            prompt_structure.append(("placeholder", "{agent_scratchpad}"))
 
         prompt = ChatPromptTemplate.from_messages(prompt_structure)
-        agent = create_tool_calling_agent(llm=llm, tools=_enabled_tools, prompt=prompt)
-
+        if tools is not None and len(tools) > 0:
+            agent = create_tool_calling_agent(llm=llm, tools=_enabled_tools, prompt=prompt)
+        else:
+            agent = (
+                RunnablePassthrough.assign(agent_scratchpad=lambda x: x["intermediate_steps"])
+                | prompt
+                | llm
+                | ToolsAgentOutputParser()
+            )
         return agent
 
     @traceable
@@ -137,7 +175,7 @@ class MultimodelAgent(CopilotAgent):
     def get_tools(self):
         return self._configured_tools
 
-    async def aexecute(self, question: QuestionSchema) -> AgentResponse:
+    async def aexecute(self, question: QuestionSchema) -> AsyncGenerator[AgentResponse, None]:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
         agent = self.get_agent(
             question.provider,
@@ -167,6 +205,14 @@ class MultimodelAgent(CopilotAgent):
                     output = event["data"]["output"]
                     if type(output) == AgentFinish:
                         return_values = output.return_values
-                        yield AssistantResponse(
-                            response=str(return_values["output"]), conversation_id=question.conversation_id
-                        )
+                        output_ = return_values["output"]
+                        # check if the output is a list
+                        if type(output_) == list:
+                            for o in output_:
+                                yield AssistantResponse(
+                                    response=str(o["text"]), conversation_id=question.conversation_id
+                                )
+                        else:
+                            yield AssistantResponse(
+                                response=str(output_), conversation_id=question.conversation_id
+                            )
