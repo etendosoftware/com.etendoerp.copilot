@@ -57,6 +57,7 @@ import org.openbravo.model.common.enterprise.Warehouse;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotModel;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
@@ -105,7 +106,7 @@ public class CopilotUtils {
   public static String getProvider(CopilotApp app) {
     try {
       String provCode = null;
-      if (app != null && app.getModel()!=null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
+      if (app != null && app.getModel() != null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
         return app.getModel().getProvider();
       }
       if (app != null && StringUtils.isNotEmpty(app.getProvider())) {
@@ -437,25 +438,27 @@ public class CopilotUtils {
   }
 
   /**
- * Throws an OBException indicating that an attachment is missing.
- * This method checks the type of the CopilotFile and throws an exception with a specific error message
- * based on whether the file type is attached or not.
- *
- * @param fileToSync The CopilotFile instance for which the attachment is missing.
- * @throws OBException Always thrown to indicate the missing attachment.
- */
-public static void throwMissingAttachException(CopilotFile fileToSync) {
-  String errMsg;
-  String type = fileToSync.getType();
-  if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
-    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
-        fileToSync.getName());
-  } else {
-    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
-        fileToSync.getName());
+   * Throws an OBException indicating that an attachment is missing.
+   * This method checks the type of the CopilotFile and throws an exception with a specific error message
+   * based on whether the file type is attached or not.
+   *
+   * @param fileToSync
+   *     The CopilotFile instance for which the attachment is missing.
+   * @throws OBException
+   *     Always thrown to indicate the missing attachment.
+   */
+  public static void throwMissingAttachException(CopilotFile fileToSync) {
+    String errMsg;
+    String type = fileToSync.getType();
+    if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
+      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
+          fileToSync.getName());
+    } else {
+      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
+          fileToSync.getName());
+    }
+    throw new OBException(errMsg);
   }
-  throw new OBException(errMsg);
-}
 
   public static void checkPromptLength(StringBuilder prompt) {
     if (prompt.length() > CopilotConstants.LANGCHAIN_MAX_LENGTH_PROMPT) {
@@ -633,5 +636,36 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
           responseFromCopilot != null ? responseFromCopilot.body() : ""));
     }
 
+  }
+
+  /**
+   * Retrieves the configuration for all models in the system.
+   * <p>
+   * This method creates a JSON object containing the configuration details for each model,
+   * organized by provider and model name. The configuration includes the maximum number of tokens
+   * allowed for each model.
+   *
+   * @return A JSONObject representing the configuration of all models, organized by provider and model name.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
+  public static JSONObject getModelsConfigJSON() throws JSONException {
+    JSONObject modelsConfig = new JSONObject();
+    var models = OBDal.getInstance().createCriteria(CopilotModel.class).list();
+    for (CopilotModel model : models) {
+      String provider = model.getProvider() != null ? model.getProvider() : "null";
+      String modelName = model.getSearchkey();
+      Integer max_tokens = model.getMaxTokens() != null ? Math.toIntExact(model.getMaxTokens()) : null;
+      if (!modelsConfig.has(provider)) {
+        modelsConfig.put(provider, new JSONObject());
+      }
+      var providerConfig = modelsConfig.getJSONObject(provider);
+      if (!providerConfig.has(modelName)) {
+        providerConfig.put(modelName, new JSONObject());
+      }
+      var modelConfig = providerConfig.getJSONObject(modelName);
+      modelConfig.put("max_tokens", max_tokens);
+    }
+    return modelsConfig;
   }
 }
