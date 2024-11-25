@@ -15,17 +15,15 @@ from langchain.agents import (
 from langchain.agents.output_parsers.tools import ToolsAgentOutputParser
 from langchain.chat_models import init_chat_model
 from langchain.prompts import MessagesPlaceholder
-from langchain_anthropic.chat_models import ChatAnthropic
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import AddableDict, RunnablePassthrough
-from langchain_openai.chat_models.base import ChatOpenAI
 from langsmith import traceable
 
-from .. import utils
+from .. import etendo_utils, utils
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import QuestionSchema, ToolSchema
-from ..utils import copilot_debug, get_full_question
+from ..utils import get_full_question
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 
@@ -38,6 +36,28 @@ class CustomOutputParser(AgentOutputParser):
             log=output,
         )
         return agent_finish
+
+
+def get_model_config(provider, model):
+    """
+    Retrieve the configuration for a specific model from the extra information.
+
+    Args:
+        provider (str): The provider of the model.
+        model (str): The name of the model.
+
+    Returns:
+        dict: The configuration dictionary for the specified model.
+    """
+    extra_info = etendo_utils.get_extra_info()
+    if extra_info is None:
+        return {}
+    model_configs = extra_info.get("model_config")
+    if model_configs is None:
+        return {}
+    provider_searchkey = provider or "null"  # if provider is None, set it to "null"
+    provider_configs = model_configs.get(provider_searchkey, {})
+    return provider_configs.get(model, {})
 
 
 def get_llm(model, provider, temperature):
@@ -57,14 +77,11 @@ def get_llm(model, provider, temperature):
     llm = init_chat_model(model_provider=provider, model=model, temperature=temperature, streaming=True)
     # Adjustments for specific models, because some models have different
     # default parameters
-    if type(llm) is ChatOpenAI:
-        copilot_debug("OpenAI model detected")
-    elif type(llm) is ChatAnthropic:
-        copilot_debug("Anthropic model detected")
-        llm.max_retries = 10
-        llm.max_tokens = 8000
-    else:
-        copilot_debug("Custom model detected")
+    model_config = get_model_config(provider, model)
+    if not model_config:
+        return llm
+    if "max_tokens" in model_config:
+        llm.max_tokens = int(model_config["max_tokens"])
     return llm
 
 

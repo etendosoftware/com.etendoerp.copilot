@@ -321,7 +321,7 @@ public class RestServiceUtil {
         break;
       case CopilotConstants.APP_TYPE_MULTIMODEL:
         break;
-      case  CopilotConstants.APP_TYPE_LANGGRAPH:
+      case CopilotConstants.APP_TYPE_LANGGRAPH:
         break;
       default:
         log.warn("Unsupported app type: {}", copilotApp.getAppType());
@@ -887,6 +887,7 @@ public class RestServiceUtil {
         jsonExtraInfo.put("auth", new JSONObject().put("ETENDO_TOKEN",
             SecureWebServicesUtils.generateToken(user, role, currentOrganization,
                 warehouse)));
+        jsonExtraInfo.put("model_config", CopilotUtils.getModelsConfigJSON());
         jsonRequest.put("extra_info", jsonExtraInfo);
       } catch (Exception e) {
         log.error("Error adding auth token to extraInfo", e);
