@@ -97,11 +97,8 @@ public class RestService {
       } else if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
         handleCacheQuestion(request, response);
         return;
-      } else if (StringUtils.equalsIgnoreCase(path, "/configcheck")) {
-        checkHosts(response);
-        return;
-      }else
-      //if not a valid path, throw a error status
+      } else
+      //if not a valid path, throw an error status
       response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     } catch (Exception e) {
       log4j.error(e);
@@ -113,92 +110,6 @@ public class RestService {
       }
     } finally {
       OBContext.restorePreviousMode();
-    }
-  }
-
-  private void checkHosts(HttpServletResponse response) throws Exception {
-    //Obtenido el ETENDO_TOKEN
-    String token = getSecurityToken();
-
-    //Endpoint ETENDO_HOST
-    boolean etendoHostVerified = checkEtendoHost(response, token); //ENDPOINT A
-
-    //Endpoint COPILOT_HOST
-    if (etendoHostVerified) {
-      checkCopilotHost(token); //ENDPOINT B
-    }
-  }
-
-  private static String getSecurityToken() throws Exception {
-    OBContext context = OBContext.getOBContext();
-    Role role = OBDal.getInstance().get(Role.class, context.getRole().getId());
-    User user = OBDal.getInstance().get(User.class, context.getUser().getId());
-
-    return SecureWebServicesUtils.generateToken(user, role);
-  }
-
-  private boolean checkEtendoHost(HttpServletResponse response,
-      String token) throws IOException, JSONException {
-    String etendoHost = CopilotUtils.getEtendoHost();
-    HttpURLConnection connection = null;
-    try {
-      URL url = new URL(etendoHost + "/copilot/configcheck");
-      connection = (HttpURLConnection) url.openConnection();
-      connection.setRequestMethod("POST");
-      connection.setDoOutput(true);
-      connection.setRequestProperty("Authorization", "Bearer " + token);
-      connection.setRequestProperty("Content-Type", "application/json");
-      connection.setRequestProperty("Accept", "application/json");
-
-      int responseCode = connection.getResponseCode();
-      if (responseCode == HttpServletResponse.SC_OK) {
-        log4j.info("El ETENDO_HOST respondió correctamente con código 200.");
-        return true;
-      } else {
-        log4j.error("El host respondió con código: " + responseCode);
-        sendErrorResponse(response, responseCode, "Error en el host: " + connection.getResponseMessage());
-        return false;
-      }
-    } catch (Exception e) {
-      log4j.error("Error al verificar el host: ", e);
-      sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-    } finally {
-      if (connection != null) {
-        connection.disconnect();
-      }
-    }
-    return false;
-  }
-
-  private static boolean checkCopilotHost(String token) throws IOException {
-    String copilotHost = CopilotUtils.getCopilotHost();
-    String copilotPort = CopilotUtils.getCopilotPort();
-
-    HttpURLConnection pythonConnection = null;
-    try {
-      URL pythonUrl = new URL("http://" + copilotHost + ":" + copilotPort + "/checkCopilotHost");
-      pythonConnection = (HttpURLConnection) pythonUrl.openConnection();
-      pythonConnection.setRequestMethod("POST");
-      pythonConnection.setDoOutput(true);
-      pythonConnection.setRequestProperty("Authorization", "Bearer " + token);
-      pythonConnection.setRequestProperty("Content-Type", "application/json");
-      pythonConnection.setRequestProperty("Accept", "application/json");
-
-      int responsePythonCode = pythonConnection.getResponseCode();
-      if (responsePythonCode == HttpServletResponse.SC_OK) {
-        log4j.info("El COPILOT_HOST respondió correctamente con código 200.");
-        return true;
-      } else {
-        log4j.error("El endpoint de Python respondió con código: " + responsePythonCode);
-        throw new IOException("Error en el endpoint de Python: " + pythonConnection.getResponseMessage());
-      }
-    } catch (Exception e) {
-      log4j.error("Error al llamar al endpoint de Python: ", e);
-      throw new IOException("Error al llamar al endpoint de Python: " + e.getMessage());
-    } finally {
-      if (pythonConnection != null) {
-        pythonConnection.disconnect();
-      }
     }
   }
 
