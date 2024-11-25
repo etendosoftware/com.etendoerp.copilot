@@ -1,3 +1,4 @@
+from copilot.core.exceptions import ToolException
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, read_optional_env_var
 
@@ -13,13 +14,17 @@ def get_etendo_token():
         str: The Etendo token.
     """
     extra_info = get_extra_info()
-    if (extra_info is None or extra_info.get('auth') is None
-            or extra_info.get('auth').get('ETENDO_TOKEN') is None):
-        raise Exception("No access token provided, to work with Etendo, an access token is required."
-                        "Make sure that the Webservices are enabled to the user role and the WS are configured"
-                        " for the Entity."
-                        )
-    access_token = extra_info.get('auth').get('ETENDO_TOKEN')
+    if (
+        extra_info is None
+        or extra_info.get("auth") is None
+        or extra_info.get("auth").get("ETENDO_TOKEN") is None
+    ):
+        raise Exception(
+            "No access token provided, to work with Etendo, an access token is required."
+            "Make sure that the Webservices are enabled to the user role and the WS are configured"
+            " for the Entity."
+        )
+    access_token = extra_info.get("auth").get("ETENDO_TOKEN")
     return access_token
 
 
@@ -30,7 +35,7 @@ def get_extra_info():
     Returns:
         dict: The extra info from the thread context.
     """
-    return ThreadContext.get_data('extra_info')
+    return ThreadContext.get_data("extra_info")
 
 
 def _get_headers(access_token):
@@ -66,11 +71,13 @@ def call_webhook(access_token, body_params, url, webhook_name):
     dict: The response from the webhook call. If the call fails, returns an error message.
     """
     import requests
+
     headers = _get_headers(access_token)
     endpoint = "/webhooks/?name=" + webhook_name
     import json
+
     json_data = json.dumps(body_params)
-    full_url = (url + endpoint)
+    full_url = url + endpoint
     copilot_debug(f"Calling Webhook(POST): {full_url}")
     post_result = requests.post(url=full_url, data=json_data, headers=headers)
     if post_result.ok:
@@ -88,3 +95,33 @@ def get_etendo_host():
     str: The Etendo host URL.
     """
     return read_optional_env_var("ETENDO_HOST", "http://host.docker.internal:8080/etendo")
+
+
+def login_etendo(server_url, client_admin_user, client_admin_password):
+    """
+    Logs in to the Etendo system.
+
+    Parameters:
+    server_url (str): The URL of the Etendo server.
+    client_admin_user (str): The username of the client admin user.
+    client_admin_password (str): The password of the client admin user.
+
+    Returns:
+    str: The access token for the Etendo system.
+    """
+    import requests
+
+    url = f"{server_url}/sws/login"
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    data = {
+        "username": client_admin_user,
+        "password": client_admin_password,
+    }
+    response = requests.post(url, headers=headers, json=data)
+    if response.ok:
+        return response.json().get("token")
+    else:
+        raise ToolException(f"Error logging in to Etendo: {response.text}")
