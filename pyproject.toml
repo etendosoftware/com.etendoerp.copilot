@@ -48,6 +48,8 @@ tomli = "^2.0.2"
 langchain-chroma = "^0.1.4"
 langchain-anthropic = "^0.3.0"
 langchain-ollama = "^0.2.0"
+langchain-text-splitters = "^0.3.2"
+requests = "^2.32.3"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 

@@ -883,7 +883,8 @@ public class RestServiceUtil {
         User user = OBDal.getInstance().get(User.class, context.getUser().getId());
         Organization currentOrganization = OBDal.getInstance().get(Organization.class,
             context.getCurrentOrganization().getId());
-        Warehouse warehouse = OBDal.getInstance().get(Warehouse.class, context.getWarehouse().getId());
+        Warehouse warehouse = context.getWarehouse() != null ?
+            OBDal.getInstance().get(Warehouse.class, context.getWarehouse().getId()) : null;
         jsonExtraInfo.put("auth", new JSONObject().put("ETENDO_TOKEN",
             SecureWebServicesUtils.generateToken(user, role, currentOrganization,
                 warehouse)));
