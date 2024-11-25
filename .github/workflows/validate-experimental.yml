@@ -1,0 +1,57 @@
+name: Validate Merge to Develop and Experimental
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  validate-merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.ETENDOBOT_TOKEN}}
+
+      # 2. Fetch all branches
+      - name: Fetch all branches
+        run: git fetch --all
+
+      # 3. Checkout the PR branch (the branch from the pull request)
+      - name: Checkout PR branch
+        run: |
+          PR_BRANCH=${{ github.head_ref }}
+          git checkout $PR_BRANCH
+
+      # 4. Merge the PR branch into experimental
+      - name: Merge PR branch into experimental
+        run: |
+          git fetch origin experimental
+          git checkout experimental
+          git pull origin experimental
+          git merge $PR_BRANCH -m "Merge branch '$PR_BRANCH' into experimental"
+
+          # Check if merge was successful, otherwise fail
+          if [ $? -ne 0 ]; then
+            echo "Merge conflict occurred. Please resolve the conflicts before merging."
+            exit 1
+          fi
+
+      # 5. Setup Git config for pushing changes
+      - name: Setup Git config
+        run: |
+          git config --global user.email "${{ secrets.ETENDOBOT_EMAIL }}"
+          git config --global user.name "${{ secrets.ETENDOBOT_NAME }}"
+
+      # 6. Push merge to experimental
+      - name: Push merge to experimental
+        run: |
+          git push origin experimental
+        env:
+          GITHUB_TOKEN: ${{ secrets.ETENDOBOT_TOKEN}}
