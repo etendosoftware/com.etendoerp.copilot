@@ -14,17 +14,15 @@ import java.util.HashMap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
-import org.openbravo.dal.service.OBCriteria;
-import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
 
-import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.utility.Attachment;
 
 /**
@@ -35,9 +33,6 @@ public class RemoteFileHook implements CopilotFileHook {
 
   // Logger for this class
   private static final Logger log = LogManager.getLogger(RemoteFileHook.class);
-  // Tab ID for CopilotFile
-  public static final String COPILOT_FILE_TAB_ID = "09F802E423924081BC2947A64DDB5AF5";
-  public static final String COPILOT_FILE_AD_TABLE_ID = "6B246B1B3A6F4DE8AFC208E07DB29CE2";
 
   /**
    * Executes the hook for a given CopilotFile.
@@ -60,10 +55,9 @@ public class RemoteFileHook implements CopilotFileHook {
     try {
       Path path = downloadFile(url, fileName);
       AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-      removeAttachment(aim, hookObject);
+      CopilotUtils.removeAttachment(aim, hookObject);
       File file = new File(path.toString());
-      aim.upload(new HashMap<>(), COPILOT_FILE_TAB_ID, hookObject.getId(),
-          hookObject.getOrganization().getId(), file);
+      CopilotUtils.attachFile(hookObject, aim, file);
 
     } catch (IOException e) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileDownErr"), url), e);
@@ -71,21 +65,6 @@ public class RemoteFileHook implements CopilotFileHook {
 
   }
 
-  private void removeAttachment(AttachImplementationManager aim, CopilotFile hookObject) {
-    Attachment attachment = getAttachment(hookObject);
-    if (attachment != null) {
-      aim.delete(attachment);
-    }
-  }
-
-  public static Attachment getAttachment(CopilotFile targetInstance) {
-    OBCriteria<Attachment> attchCriteria = OBDal.getInstance().createCriteria(Attachment.class);
-    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_RECORD, targetInstance.getId()));
-    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_TABLE,
-        OBDal.getInstance().get(Table.class, COPILOT_FILE_AD_TABLE_ID)));
-    attchCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
-    return (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
-  }
 
   /**
    * Downloads a file from a given URL and stores it in a temporary directory.

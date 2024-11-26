@@ -367,6 +367,7 @@ def process_text_to_vector_db(
     extension: str = Form(...),
     overwrite: bool = Form(False),
     file: UploadFile = File(None),
+    skip_splitting: bool = Form(False),
 ):
     db_path = get_vector_db_path(kb_vectordb_id)
 
@@ -384,10 +385,10 @@ def process_text_to_vector_db(
             chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
             if extension == "zip":
                 # Process the ZIP file
-                texts = handle_zip_file(file_path, chroma_client)
+                texts = handle_zip_file(file_path, chroma_client, skip_splitting)
 
             else:
-                texts = index_file(extension, file_path, chroma_client)
+                texts = index_file(extension, file_path, chroma_client, skip_splitting)
                 # Remove the temporary file after use
 
             copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
