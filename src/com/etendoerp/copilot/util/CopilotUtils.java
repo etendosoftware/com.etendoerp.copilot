@@ -668,4 +668,53 @@ public class CopilotUtils {
     }
     return modelsConfig;
   }
+
+  /**
+   * Generates a JSON object containing authentication information.
+   * <p>
+   * This method creates a JSON object and adds an authentication token to it if the role has web service enabled.
+   *
+   * @param role
+   *     The role of the user.
+   * @param context
+   *     The OBContext containing the current session information.
+   * @return A JSON object containing the authentication token.
+   * @throws Exception
+   *     If an error occurs while generating the token.
+   */
+  public static JSONObject getAuthJson(Role role, OBContext context) throws Exception {
+    JSONObject authJson = new JSONObject();
+    // Adding auth token to interact with the Etendo web services
+    if (role.isWebServiceEnabled().booleanValue()) {
+      authJson.put("ETENDO_TOKEN", getEtendoSWSToken(context, role));
+    }
+    return authJson;
+  }
+
+  /**
+   * Generates a secure token for Etendo web services.
+   * <p>
+   * This method retrieves the user, current organization, and warehouse from the OBContext,
+   * and then generates a secure token using these details.
+   *
+   * @param context
+   *     The OBContext containing the current session information.
+   * @param role
+   *     The role of the user for which the token is being generated. If null, the role is retrieved from the context.
+   * @return A secure token for Etendo web services.
+   * @throws Exception
+   *     If an error occurs while generating the token.
+   */
+  private static String getEtendoSWSToken(OBContext context, Role role) throws Exception {
+    if (role == null) {
+      role = OBDal.getInstance().get(Role.class, context.getRole().getId());
+    }
+    // Refresh to avoid LazyInitializationException
+    User user = OBDal.getInstance().get(User.class, context.getUser().getId());
+    Organization currentOrganization = OBDal.getInstance().get(Organization.class,
+        context.getCurrentOrganization().getId());
+    Warehouse warehouse = context.getWarehouse() != null ? OBDal.getInstance().get(Warehouse.class,
+        context.getWarehouse().getId()) : null;
+    return SecureWebServicesUtils.generateToken(user, role, currentOrganization, warehouse);
+  }
 }
