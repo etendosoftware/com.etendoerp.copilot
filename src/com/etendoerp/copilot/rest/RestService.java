@@ -11,7 +11,12 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.ad.access.User;
+import org.openbravo.model.common.enterprise.Organization;
+import org.openbravo.model.common.enterprise.Warehouse;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -20,6 +25,8 @@ import javax.servlet.http.HttpSession;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +35,10 @@ import java.util.concurrent.TransferQueue;
 import static com.etendoerp.copilot.rest.RestServiceUtil.*;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
 
+import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
+import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 public class RestService {
   private static final Logger log4j = LogManager.getLogger(RestService.class);
@@ -87,8 +97,10 @@ public class RestService {
       } else if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
         handleCacheQuestion(request, response);
         return;
-      }
-      //if not a valid path, throw a error status
+      } else if (StringUtils.equalsIgnoreCase(path, "/configCheck")) {
+        checkEtendoHost(response);
+      } else
+      //if not a valid path, throw an error status
       response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     } catch (Exception e) {
       log4j.error(e);
@@ -100,6 +112,14 @@ public class RestService {
       }
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  private void checkEtendoHost(HttpServletResponse response) {
+    try {
+      response.setStatus(HttpServletResponse.SC_OK);
+    } catch (Exception e) {
+      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
   }
 
