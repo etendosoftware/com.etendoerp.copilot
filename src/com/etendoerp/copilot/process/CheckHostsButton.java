@@ -122,17 +122,26 @@ public class CheckHostsButton extends BaseProcessActionHandler {
                         result.put(ETENDO_HOST_DOCKER, "ETENDO_HOST_DOCKER successfully verified.");
                     } else {
                         log4j.error("Error verifying ETENDO_HOST_DOCKER.");
-                        result.put("etendo_host_docker", "Error verifying ETENDO_HOST_DOCKER.");
+                        result.put(ETENDO_HOST_DOCKER, "Error verifying ETENDO_HOST_DOCKER.");
                     }
                 } else {
-                    result.put("copilot_host", "Error verifying COPILOT_HOST: Error " + responsePythonCode);
+                    result.put(COPILOT_HOST, "Error verifying COPILOT_HOST: Error " + responsePythonCode);
                     result.put(ETENDO_HOST_DOCKER, "ETENDO_HOST_DOCKER not verified.");
                     log4j.error("Error verifying COPILOT_HOST: Error {}", responsePythonCode);
                 }
             }
 
         } catch (Exception e) {
-            log4j.error("Error verifying COPILOT_HOST: ", e);
+            if (e.getMessage() != null && e.getMessage().contains("Connection refused")) {
+                String message = "Connection refused. Is Copilot up?";
+                log4j.error("Error verifying COPILOT_HOST: {}", message);
+                result.put(COPILOT_HOST, "Error verifying COPILOT_HOST: Error " + message);
+            } else {
+                result.put(COPILOT_HOST, "Error verifying COPILOT_HOST: Error " + e);
+                log4j.error("Error verifying COPILOT_HOST: ", e);
+            }
+            result.put(ETENDO_HOST_DOCKER, "ETENDO_HOST_DOCKER not verified.");
+            log4j.error("ETENDO_HOST_DOCKER not verified.");
         } finally {
             if (pythonConnection != null) {
                 pythonConnection.disconnect();
