@@ -7,6 +7,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Map;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -29,6 +30,13 @@ public class CheckHostsButton extends BaseProcessActionHandler {
     private static final String COPILOT_HOST = "COPILOT_HOST";
     private static final String ETENDO_HOST_DOCKER = "ETENDO_HOST_DOCKER";
     public static final String CONTENT_TYPE = "application/json";
+    public static final String ERROR_COPILOT_HOST = "Error verifying COPILOT_HOST:";
+    public static final String ERROR_ETENDO_HOST_DOCKER = "ETENDO_HOST_DOCKER not verified.";
+    public static final String ERROR = " Error ";
+    public static final String COPILOT_HOST_SUCCESS = "COPILOT_HOST successfully verified.";
+    public static final String ETENDO_HOST_DOCKER_SUCCESS = "ETENDO_HOST_DOCKER successfully verified.";
+    public static final String ERROR_ETENDO_HOST = "Error verifying ETENDO_HOST";
+    public static final String ETENDO_HOST_SUCCESS = "ETENDO_HOST successfully verified.";
 
     @Override
     protected JSONObject doExecute(Map<String, Object> parameters, String content) {
@@ -78,15 +86,15 @@ public class CheckHostsButton extends BaseProcessActionHandler {
             int responseCode = connection.getResponseCode();
             String etendoHostMessage;
             if (responseCode == 200) {
-                log4j.info("ETENDO_HOST successfully verified.");
-                etendoHostMessage = "ETENDO_HOST successfully verified.";
+                log4j.info(ETENDO_HOST_SUCCESS);
+                etendoHostMessage = ETENDO_HOST_SUCCESS;
             } else {
-                etendoHostMessage = "Error verifying ETENDO_HOST: Error " + responseCode;
-                log4j.error("Error verifying ETENDO_HOST");
+                etendoHostMessage = ERROR_ETENDO_HOST + ": Error " + responseCode;
+                log4j.error(ERROR_ETENDO_HOST);
             }
             result.put(ETENDO_HOST, etendoHostMessage);
         } catch (Exception e) {
-            log4j.error("Error verifying ETENDO_HOST: ", e);
+            log4j.error(ERROR_ETENDO_HOST + ": ", e);
         } finally {
             if (connection != null) {
                 connection.disconnect();
@@ -112,8 +120,8 @@ public class CheckHostsButton extends BaseProcessActionHandler {
                 new InputStreamReader(pythonConnection.getInputStream()))) {
                 int responsePythonCode = pythonConnection.getResponseCode();
                 if (responsePythonCode == HttpServletResponse.SC_OK) {
-                    log4j.info("COPILOT_HOST successfully verified.");
-                    result.put(COPILOT_HOST, "COPILOT_HOST successfully verified.");
+                    log4j.info(COPILOT_HOST_SUCCESS);
+                    result.put(COPILOT_HOST, COPILOT_HOST_SUCCESS);
                     StringBuilder responseBuilder = new StringBuilder();
                     String line;
                     while ((line = reader.readLine()) != null) {
@@ -121,31 +129,30 @@ public class CheckHostsButton extends BaseProcessActionHandler {
                     }
                     String responseBody = responseBuilder.toString();
 
-                    if (responseBody.contains("ETENDO_HOST_DOCKER successfully verified")) {
-                        log4j.info("ETENDO_HOST_DOCKER successfully verified.");
-                        result.put(ETENDO_HOST_DOCKER, "ETENDO_HOST_DOCKER successfully verified.");
+                    if (StringUtils.contains(responseBody, ETENDO_HOST_DOCKER_SUCCESS)) {
+                        log4j.info(ETENDO_HOST_DOCKER_SUCCESS);
+                        result.put(ETENDO_HOST_DOCKER, ETENDO_HOST_DOCKER_SUCCESS);
                     } else {
-                        log4j.error("Error verifying ETENDO_HOST_DOCKER.");
-                        result.put(ETENDO_HOST_DOCKER, "Error verifying ETENDO_HOST_DOCKER.");
+                        log4j.error(CheckHostsButton.ERROR_ETENDO_HOST_DOCKER);
+                        result.put(ETENDO_HOST_DOCKER, CheckHostsButton.ERROR_ETENDO_HOST_DOCKER);
                     }
                 } else {
-                    result.put(COPILOT_HOST, "Error verifying COPILOT_HOST: Error " + responsePythonCode);
-                    result.put(ETENDO_HOST_DOCKER, "ETENDO_HOST_DOCKER not verified.");
-                    log4j.error("Error verifying COPILOT_HOST: Error {}", responsePythonCode);
+                    result.put(COPILOT_HOST, ERROR_COPILOT_HOST + ERROR + responsePythonCode);
+                    result.put(ETENDO_HOST_DOCKER, ERROR_ETENDO_HOST_DOCKER);
                 }
             }
 
         } catch (Exception e) {
-            if (e.getMessage() != null && e.getMessage().contains("Connection refused")) {
+            if (StringUtils.contains(e.getMessage(), "Connection refused")) {
                 String message = "Connection refused. Is Copilot up?";
-                log4j.error("Error verifying COPILOT_HOST: {}", message);
-                result.put(COPILOT_HOST, "Error verifying COPILOT_HOST: Error " + message);
+                log4j.error(ERROR_COPILOT_HOST + " {}", message);
+                result.put(COPILOT_HOST, ERROR_COPILOT_HOST + ERROR + message);
             } else {
-                result.put(COPILOT_HOST, "Error verifying COPILOT_HOST: Error " + e);
-                log4j.error("Error verifying COPILOT_HOST: ", e);
+                result.put(COPILOT_HOST, ERROR_COPILOT_HOST + ERROR + e);
+                log4j.error(ERROR_COPILOT_HOST + " ", e);
             }
-            result.put(ETENDO_HOST_DOCKER, "ETENDO_HOST_DOCKER not verified.");
-            log4j.error("ETENDO_HOST_DOCKER not verified.");
+            result.put(ETENDO_HOST_DOCKER, ERROR_ETENDO_HOST_DOCKER);
+            log4j.error(ERROR_ETENDO_HOST_DOCKER);
         } finally {
             if (pythonConnection != null) {
                 pythonConnection.disconnect();

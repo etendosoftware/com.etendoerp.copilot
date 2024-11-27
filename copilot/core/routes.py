@@ -485,7 +485,7 @@ def check_copilot_host(authorization: str = Header(None)):
 
         if response.status_code == 200:
             print("ETENDO_HOST_DOCKER successfully verified.")
-            return {"status": "success", "message": "ETENDO_HOST_DOCKER successfully verified"}
+            return {"status": "success", "message": "ETENDO_HOST_DOCKER successfully verified."}
         else:
             print(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
             return JSONResponse(

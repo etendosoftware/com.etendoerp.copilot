@@ -71,6 +71,8 @@ public class CopilotUtils {
   private static final Logger log = LogManager.getLogger(CopilotUtils.class);
   private static final String BOUNDARY = UUID.randomUUID().toString();
   public static final String KB_VECTORDB_ID = "kb_vectordb_id";
+  public static final String COPILOT_PORT = "COPILOT_PORT";
+  public static final String COPILOT_HOST = "COPILOT_HOST";
 
   private static HashMap<String, String> buildProviderCodeMap() {
     HashMap<String, String> map = new HashMap<>();
@@ -212,8 +214,8 @@ public class CopilotUtils {
 
     try {
       HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      String copilotPort = properties.getProperty(COPILOT_PORT, "5005");
+      String copilotHost = properties.getProperty(COPILOT_HOST, "localhost");
 
       HttpRequest.BodyPublisher requestBodyPublisher;
       String contentType;
@@ -245,8 +247,8 @@ public class CopilotUtils {
   private static HttpResponse<String> doGetCopilot(Properties properties, String endpoint) {
     try {
       HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      String copilotPort = properties.getProperty(COPILOT_PORT, "5005");
+      String copilotHost = properties.getProperty(COPILOT_HOST, "localhost");
 
       HttpRequest copilotRequest = HttpRequest.newBuilder()
           .uri(new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint)))
@@ -565,12 +567,12 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
 
   public static String getCopilotHost() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return properties.getProperty("COPILOT_HOST", "");
+    return properties.getProperty(COPILOT_HOST, "");
   }
 
   public static String getCopilotPort() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return properties.getProperty("COPILOT_PORT", "5005");
+    return properties.getProperty(COPILOT_PORT, "5005");
   }
 
 
