@@ -18,17 +18,18 @@ import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.access.User;
-
-
-import com.etendoerp.copilot.rest.RestService;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 public class CheckHostsButton extends BaseProcessActionHandler {
-    private static final Logger log4j = LogManager.getLogger(RestService.class);
+    private static final Logger log4j = LogManager.getLogger(CheckHostsButton.class);
+    private static final String ETENDO_HOST = "ETENDO_HOST";
+    private static final String COPILOT_HOST = "COPILOT_HOST";
+    private static final String ETENDO_HOST_DOCKER = "ETENDO_HOST_DOCKER";
+    public static final String CONTENT_TYPE = "application/json";
+
     @Override
     protected JSONObject doExecute(Map<String, Object> parameters, String content) throws JSONException {
         JSONObject result = new JSONObject();
@@ -67,8 +68,8 @@ public class CheckHostsButton extends BaseProcessActionHandler {
             connection.setRequestMethod("POST");
             connection.setDoOutput(true);
             connection.setRequestProperty("Authorization", "Bearer " + token);
-            connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Accept", "application/json");
+            connection.setRequestProperty("Content-Type", CONTENT_TYPE);
+            connection.setRequestProperty("Accept", CONTENT_TYPE);
 
             int responseCode = connection.getResponseCode();
             String etendoHostMessage;
@@ -79,7 +80,7 @@ public class CheckHostsButton extends BaseProcessActionHandler {
                 etendoHostMessage = "Error verifying ETENDO_HOST: Error " + responseCode;
                 log4j.error("Error verifying ETENDO_HOST");
             }
-            result.put("etendo_host", etendoHostMessage);
+            result.put(ETENDO_HOST, etendoHostMessage);
         } catch (Exception e) {
             log4j.error("Error verifying ETENDO_HOST: ", e);
         } finally {
@@ -100,16 +101,15 @@ public class CheckHostsButton extends BaseProcessActionHandler {
             pythonConnection.setRequestMethod("POST");
             pythonConnection.setDoOutput(true);
             pythonConnection.setRequestProperty("Authorization", "Bearer " + token);
-            pythonConnection.setRequestProperty("Content-Type", "application/json");
-            pythonConnection.setRequestProperty("Accept", "application/json");
+            pythonConnection.setRequestProperty("Content-Type", CONTENT_TYPE);
+            pythonConnection.setRequestProperty("Accept", CONTENT_TYPE);
 
-            int responsePythonCode = pythonConnection.getResponseCode();
-            if (responsePythonCode == HttpServletResponse.SC_OK) {
-                log4j.info("COPILOT_HOST successfully verified.");
-                result.put("copilot_host", "COPILOT_HOST successfully verified.");
-                BufferedReader reader;
-                    reader = new BufferedReader(new InputStreamReader(pythonConnection.getInputStream()));
-
+            try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(pythonConnection.getInputStream()))) {
+                int responsePythonCode = pythonConnection.getResponseCode();
+                if (responsePythonCode == HttpServletResponse.SC_OK) {
+                    log4j.info("COPILOT_HOST successfully verified.");
+                    result.put(COPILOT_HOST, "COPILOT_HOST successfully verified.");
                     StringBuilder responseBuilder = new StringBuilder();
                     String line;
                     while ((line = reader.readLine()) != null) {
@@ -119,16 +119,18 @@ public class CheckHostsButton extends BaseProcessActionHandler {
 
                     if (responseBody.contains("ETENDO_HOST_DOCKER successfully verified")) {
                         log4j.info("ETENDO_HOST_DOCKER successfully verified.");
-                        result.put("etendo_host_docker", "ETENDO_HOST_DOCKER successfully verified.");
+                        result.put(ETENDO_HOST_DOCKER, "ETENDO_HOST_DOCKER successfully verified.");
                     } else {
                         log4j.error("Error verifying ETENDO_HOST_DOCKER.");
                         result.put("etendo_host_docker", "Error verifying ETENDO_HOST_DOCKER.");
                     }
-            } else {
-                result.put("copilot_host", "Error verifying COPILOT_HOST: Error " + responsePythonCode);
-                result.put("etendo_host_docker", "ETENDO_HOST_DOCKER not verified.");
-                log4j.error("Error verifying COPILOT_HOST: Error " + responsePythonCode);
+                } else {
+                    result.put("copilot_host", "Error verifying COPILOT_HOST: Error " + responsePythonCode);
+                    result.put(ETENDO_HOST_DOCKER, "ETENDO_HOST_DOCKER not verified.");
+                    log4j.error("Error verifying COPILOT_HOST: Error {}", responsePythonCode);
+                }
             }
+
         } catch (Exception e) {
             log4j.error("Error verifying COPILOT_HOST: ", e);
         } finally {
@@ -143,9 +145,9 @@ public class CheckHostsButton extends BaseProcessActionHandler {
         JSONArray actions = new JSONArray();
         JSONObject showMsgInProcessView = new JSONObject();
         showMsgInProcessView.put("msgType", "info");
-        showMsgInProcessView.put("msgText", result.getString("etendo_host") + "\n" +
-                                            result.getString("copilot_host") + "\n" +
-                                            result.getString("etendo_host_docker"));
+        showMsgInProcessView.put("msgText", result.getString(ETENDO_HOST) + "\n" +
+                                            result.getString(COPILOT_HOST) + "\n" +
+                                            result.getString(ETENDO_HOST_DOCKER));
         showMsgInProcessView.put("wait", true);
         JSONObject showMsgInProcessViewAction = new JSONObject();
         showMsgInProcessViewAction.put("showMsgInProcessView", showMsgInProcessView);
