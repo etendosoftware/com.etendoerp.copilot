@@ -31,7 +31,7 @@ public class CheckHostsButton extends BaseProcessActionHandler {
     public static final String CONTENT_TYPE = "application/json";
 
     @Override
-    protected JSONObject doExecute(Map<String, Object> parameters, String content) throws JSONException {
+    protected JSONObject doExecute(Map<String, Object> parameters, String content) {
         JSONObject result = new JSONObject();
         try {
             String token = getSecurityToken();
@@ -45,9 +45,13 @@ public class CheckHostsButton extends BaseProcessActionHandler {
                 result.put("success", true);
             }
         } catch (Exception e) {
-            log4j.error("Fail obtaining token or a verifying host.", e);
+            log4j.error("Fail obtaining token or verifying host.", e);
         }
-        returnSuccessMsg(result);
+        try {
+            returnSuccessMsg(result);
+        } catch (JSONException e) {
+            log4j.error("Error constructing success message: ", e);
+        }
         return result;
     }
 
