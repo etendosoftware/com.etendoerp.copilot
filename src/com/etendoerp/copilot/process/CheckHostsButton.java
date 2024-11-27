@@ -24,6 +24,10 @@ import org.openbravo.model.ad.access.User;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
+/**
+ * Class responsible for verifying the connectivity and configuration of Etendo and Copilot hosts.
+ * Provides feedback on the verification results in the form of JSON responses.
+ */
 public class CheckHostsButton extends BaseProcessActionHandler {
     private static final Logger log4j = LogManager.getLogger(CheckHostsButton.class);
     private static final String ETENDO_HOST = "ETENDO_HOST";
@@ -38,6 +42,13 @@ public class CheckHostsButton extends BaseProcessActionHandler {
     public static final String ERROR_ETENDO_HOST = "Error verifying ETENDO_HOST";
     public static final String ETENDO_HOST_SUCCESS = "ETENDO_HOST successfully verified.";
 
+    /**
+     * Executes the process to check the Etendo and Copilot hosts.
+     *
+     * @param parameters The parameters received for the process execution.
+     * @param content    The content of the request.
+     * @return A JSON object containing the results of the host checks and messages.
+     */
     @Override
     protected JSONObject doExecute(Map<String, Object> parameters, String content) {
         JSONObject result = new JSONObject();
@@ -63,6 +74,12 @@ public class CheckHostsButton extends BaseProcessActionHandler {
         return result;
     }
 
+    /**
+     * Generates a security token based on the current user's role and credentials.
+     *
+     * @return A string representing the generated token.
+     * @throws Exception If there is an error generating the token.
+     */
     private static String getSecurityToken() throws Exception {
         OBContext context = OBContext.getOBContext();
         Role role = OBDal.getInstance().get(Role.class, context.getRole().getId());
@@ -71,6 +88,13 @@ public class CheckHostsButton extends BaseProcessActionHandler {
         return SecureWebServicesUtils.generateToken(user, role);
     }
 
+    /**
+     * Checks the Etendo host connectivity and configuration.
+     *
+     * @param token  The security token used for authentication.
+     * @param result The JSON object to store the results of the check.
+     * @throws IOException If an error occurs while connecting to the Etendo host.
+     */
     private void checkEtendoHost(String token, JSONObject result) throws IOException {
         String etendoHost = CopilotUtils.getEtendoHost();
         HttpURLConnection connection = null;
@@ -102,6 +126,14 @@ public class CheckHostsButton extends BaseProcessActionHandler {
         }
     }
 
+    /**
+     * Checks the Copilot host connectivity and configuration.
+     *
+     * @param token  The security token used for authentication.
+     * @param result The JSON object to store the results of the check.
+     * @throws IOException   If an error occurs while connecting to the Copilot host.
+     * @throws JSONException If an error occurs while processing JSON responses.
+     */
     private void checkCopilotHost(String token, JSONObject result) throws IOException, JSONException {
         String copilotHost = CopilotUtils.getCopilotHost();
         String copilotPort = CopilotUtils.getCopilotPort();
@@ -160,6 +192,12 @@ public class CheckHostsButton extends BaseProcessActionHandler {
         }
     }
 
+    /**
+     * Constructs and sends a success message containing the results of the host checks.
+     *
+     * @param result The JSON object containing the results to be included in the success message.
+     * @throws JSONException If an error occurs while constructing the JSON response.
+     */
     private void returnSuccessMsg(JSONObject result) throws JSONException {
         // Message in tab from where the process is executed
         JSONArray actions = new JSONArray();
