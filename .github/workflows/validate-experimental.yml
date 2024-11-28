@@ -58,5 +58,5 @@ jobs:
         run: |
           git push origin experimental
         env:
-          GITHUB_TOKEN: ${{ secrets.ETENDOBOT_TOKEN}}
+          GITHUB_TOKEN: ${{ secrets.ETENDOBOT_TOKEN }}
 
