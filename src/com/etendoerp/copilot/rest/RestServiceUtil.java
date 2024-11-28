@@ -20,6 +20,7 @@ import java.net.http.HttpResponse;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -304,7 +305,7 @@ public class RestServiceUtil {
     String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID);
     String appId = jsonRequest.getString(APP_ID);
     String question = jsonRequest.getString(PROP_QUESTION);
-    String questionAttachedFileId = jsonRequest.optString("file");
+    List<String> filesReceived = getFilesReceived(jsonRequest);
     CopilotApp copilotApp = OBDal.getInstance().get(CopilotApp.class, appId);
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
@@ -326,9 +327,34 @@ public class RestServiceUtil {
       default:
         log.warn("Unsupported app type: {}", copilotApp.getAppType());
     }
-    List<String> filesReceived = new ArrayList<>();
-    filesReceived.add(questionAttachedFileId); // File path in temp folder. This files were attached in the pop-up.
     return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived);
+  }
+
+  /**
+   * Extracts a list of file identifiers from a JSON request.
+   *
+   * @param jsonRequest the JSON object containing the file identifiers.
+   * @return a list of file identifiers. If the "file" field is empty or not a valid JSON array, an empty list is returned.
+   */
+  private static List<String> getFilesReceived(JSONObject jsonRequest) {
+    List<String> result = new ArrayList<>();
+    String questionAttachedFileIds = jsonRequest.optString("file");
+    if (StringUtils.isEmpty(questionAttachedFileIds)) {
+      return result;
+    }
+    if (!StringUtils.startsWith(questionAttachedFileIds, "[")) {
+      result.add(questionAttachedFileIds);
+      return result;
+    }
+    try {
+      JSONArray jsonArray = new JSONArray(questionAttachedFileIds);
+      for (int i = 0; i < jsonArray.length(); i++) {
+        result.add(jsonArray.getString(i));
+      }
+    } catch (JSONException e) {
+      log.error(e);
+    }
+    return result;
   }
 
   private static void validateOpenAIKey() {
