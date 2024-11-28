@@ -35,12 +35,16 @@ public class CheckHostsButton extends BaseProcessActionHandler {
     private static final String ETENDO_HOST_DOCKER = "ETENDO_HOST_DOCKER";
     public static final String CONTENT_TYPE = "application/json";
     public static final String ERROR_COPILOT_HOST = "Error verifying COPILOT_HOST:";
-    public static final String ERROR_ETENDO_HOST_DOCKER = "ETENDO_HOST_DOCKER not verified.";
+    public static final String ERROR_ETENDO_HOST_DOCKER = "Error verifying ETENDO_HOST_DOCKER.";
+    public static final String ETENDO_HOST_DOCKER_NOT_VERIFIED = "ETENDO_HOST_DOCKER not verified.";
     public static final String ERROR = " Error ";
     public static final String COPILOT_HOST_SUCCESS = "COPILOT_HOST successfully verified.";
     public static final String ETENDO_HOST_DOCKER_SUCCESS = "ETENDO_HOST_DOCKER successfully verified.";
     public static final String ERROR_ETENDO_HOST = "Error verifying ETENDO_HOST";
     public static final String ETENDO_HOST_SUCCESS = "ETENDO_HOST successfully verified.";
+    public static final String SUCCESS = "success";
+    public static final Integer ERROR_NUMBER_VALUE = 0;
+    public static final String ERROR_NUMBER_KEY = "ERROR_NUMBER";
 
     /**
      * Executes the process to check the Etendo and Copilot hosts.
@@ -53,15 +57,15 @@ public class CheckHostsButton extends BaseProcessActionHandler {
     protected JSONObject doExecute(Map<String, Object> parameters, String content) {
         JSONObject result = new JSONObject();
         try {
+            result.put(ERROR_NUMBER_KEY, ERROR_NUMBER_VALUE);
             String token = getSecurityToken();
             if (token == null) {
                 log4j.error("Token is null. Unable to proceed with host checks.");
-                result.put("success", false);
+                result.put(ERROR_NUMBER_KEY, ERROR_NUMBER_VALUE + 1);
                 result.put("message", "Token is null. Unable to proceed with host checks.");
             } else {
                 checkEtendoHost(token, result);
                 checkCopilotHost(token, result);
-                result.put("success", true);
             }
         } catch (Exception e) {
             log4j.error("Fail obtaining token or verifying host.", e);
@@ -99,22 +103,17 @@ public class CheckHostsButton extends BaseProcessActionHandler {
         String etendoHost = CopilotUtils.getEtendoHost();
         HttpURLConnection connection = null;
         try {
-            URL url = new URL(etendoHost + "/sws/copilot/configcheck");
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("POST");
-            connection.setDoOutput(true);
-            connection.setRequestProperty("Authorization", "Bearer " + token);
-            connection.setRequestProperty("Content-Type", CONTENT_TYPE);
-            connection.setRequestProperty("Accept", CONTENT_TYPE);
-
+            String url = etendoHost + "/sws/copilot/configcheck";
+            connection = createConnection(url, token);
             int responseCode = connection.getResponseCode();
             String etendoHostMessage;
             if (responseCode == 200) {
                 log4j.info(ETENDO_HOST_SUCCESS);
                 etendoHostMessage = ETENDO_HOST_SUCCESS;
             } else {
-                etendoHostMessage = ERROR_ETENDO_HOST + ": Error " + responseCode;
+                etendoHostMessage = ERROR_ETENDO_HOST + ": " + ERROR + responseCode;
                 log4j.error(ERROR_ETENDO_HOST);
+                result.put(ERROR_NUMBER_KEY, ERROR_NUMBER_VALUE + 1);
             }
             result.put(ETENDO_HOST, etendoHostMessage);
         } catch (Exception e) {
@@ -140,13 +139,8 @@ public class CheckHostsButton extends BaseProcessActionHandler {
 
         HttpURLConnection pythonConnection = null;
         try {
-            URL pythonUrl = new URL("http://" + copilotHost + ":" + copilotPort + "/checkCopilotHost");
-            pythonConnection = (HttpURLConnection) pythonUrl.openConnection();
-            pythonConnection.setRequestMethod("POST");
-            pythonConnection.setDoOutput(true);
-            pythonConnection.setRequestProperty("Authorization", "Bearer " + token);
-            pythonConnection.setRequestProperty("Content-Type", CONTENT_TYPE);
-            pythonConnection.setRequestProperty("Accept", CONTENT_TYPE);
+            String pythonUrl = "http://" + copilotHost + ":" + copilotPort + "/checkCopilotHost";
+            pythonConnection = createConnection(pythonUrl, token);
 
             try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(pythonConnection.getInputStream()))) {
@@ -154,6 +148,7 @@ public class CheckHostsButton extends BaseProcessActionHandler {
                 if (responsePythonCode == HttpServletResponse.SC_OK) {
                     log4j.info(COPILOT_HOST_SUCCESS);
                     result.put(COPILOT_HOST, COPILOT_HOST_SUCCESS);
+
                     StringBuilder responseBuilder = new StringBuilder();
                     String line;
                     while ((line = reader.readLine()) != null) {
@@ -165,12 +160,14 @@ public class CheckHostsButton extends BaseProcessActionHandler {
                         log4j.info(ETENDO_HOST_DOCKER_SUCCESS);
                         result.put(ETENDO_HOST_DOCKER, ETENDO_HOST_DOCKER_SUCCESS);
                     } else {
-                        log4j.error(CheckHostsButton.ERROR_ETENDO_HOST_DOCKER);
-                        result.put(ETENDO_HOST_DOCKER, CheckHostsButton.ERROR_ETENDO_HOST_DOCKER);
+                        result.put(ETENDO_HOST_DOCKER, ERROR_ETENDO_HOST_DOCKER);
+                        result.put(ERROR_NUMBER_KEY, ERROR_NUMBER_VALUE + 1);
                     }
+
                 } else {
                     result.put(COPILOT_HOST, ERROR_COPILOT_HOST + ERROR + responsePythonCode);
-                    result.put(ETENDO_HOST_DOCKER, ERROR_ETENDO_HOST_DOCKER);
+                    result.put(ETENDO_HOST_DOCKER, ETENDO_HOST_DOCKER_NOT_VERIFIED);
+                    result.put(ERROR_NUMBER_KEY, ERROR_NUMBER_VALUE + 1);
                 }
             }
 
@@ -183,8 +180,9 @@ public class CheckHostsButton extends BaseProcessActionHandler {
                 result.put(COPILOT_HOST, ERROR_COPILOT_HOST + ERROR + e);
                 log4j.error(ERROR_COPILOT_HOST + " ", e);
             }
-            result.put(ETENDO_HOST_DOCKER, ERROR_ETENDO_HOST_DOCKER);
-            log4j.error(ERROR_ETENDO_HOST_DOCKER);
+            result.put(ETENDO_HOST_DOCKER, ETENDO_HOST_DOCKER_NOT_VERIFIED);
+            log4j.error(ETENDO_HOST_DOCKER_NOT_VERIFIED);
+            result.put(ERROR_NUMBER_KEY, ERROR_NUMBER_VALUE + 1);
         } finally {
             if (pythonConnection != null) {
                 pythonConnection.disconnect();
@@ -199,10 +197,13 @@ public class CheckHostsButton extends BaseProcessActionHandler {
      * @throws JSONException If an error occurs while constructing the JSON response.
      */
     private void returnSuccessMsg(JSONObject result) throws JSONException {
-        // Message in tab from where the process is executed
+        String messageType = SUCCESS;
+        if (result.getInt(ERROR_NUMBER_KEY) > 0) {
+            messageType = "error";
+        }
         JSONArray actions = new JSONArray();
         JSONObject showMsgInProcessView = new JSONObject();
-        showMsgInProcessView.put("msgType", "info");
+        showMsgInProcessView.put("msgType", messageType);
         showMsgInProcessView.put("msgText", result.getString(ETENDO_HOST) + "\n" +
                                             result.getString(COPILOT_HOST) + "\n" +
                                             result.getString(ETENDO_HOST_DOCKER));
@@ -211,5 +212,24 @@ public class CheckHostsButton extends BaseProcessActionHandler {
         showMsgInProcessViewAction.put("showMsgInProcessView", showMsgInProcessView);
         actions.put(showMsgInProcessViewAction);
         result.put("responseActions", actions);
+    }
+
+    /**
+     * Creates and configures an HttpURLConnection for a given URL and token.
+     *
+     * @param urlString The URL to connect to.
+     * @param token     The security token for authentication.
+     * @return Configured HttpURLConnection.
+     * @throws IOException If an error occurs while creating the connection.
+     */
+    private HttpURLConnection createConnection(String urlString, String token) throws IOException {
+        URL url = new URL(urlString);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Authorization", "Bearer " + token);
+        connection.setRequestProperty("Content-Type", CONTENT_TYPE);
+        connection.setRequestProperty("Accept", CONTENT_TYPE);
+        return connection;
     }
 }

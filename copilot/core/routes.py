@@ -466,9 +466,6 @@ def check_copilot_host(authorization: str = Header(None)):
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
 
-        token = authorization.split("Bearer ")[1]
-
-
         if not etendo_host_docker:
             print("Error: ETENDO_HOST_DOCKER environment variable is not set")
             return
@@ -477,7 +474,7 @@ def check_copilot_host(authorization: str = Header(None)):
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Authorization': f"Bearer {token}"
+            'Authorization': authorization
         }
 
         print(f"Connecting to {url}...")
@@ -488,13 +485,8 @@ def check_copilot_host(authorization: str = Header(None)):
             return {"status": "success", "message": "ETENDO_HOST_DOCKER successfully verified."}
         else:
             print(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
-            return JSONResponse(
-                status_code=response.status_code,
-                content={
-                    "status": "error",
-                    "message": f"Failed to verify ETENDO_HOST_DOCKER. Response: {response.text}"
-                }
-            )
+            return {"status": "success", "message": "Error verifying ETENDO_HOST_DOCKER."}
+
 
     except requests.exceptions.RequestException as e:
         print(f"Error verifying ETENDO_HOST_DOCKER: {str(e)}")
