@@ -47,7 +47,7 @@ def get_chroma_settings(db_path=None):
     return settings
 
 
-def handle_zip_file(zip_file_path, chroma_client):
+def handle_zip_file(zip_file_path, chroma_client, skip_splitting: bool = False):
     temp_dir = tempfile.mkdtemp()
     acum_texts = []
     with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
@@ -60,7 +60,7 @@ def handle_zip_file(zip_file_path, chroma_client):
             if ext in ALLOWED_EXTENSIONS:
                 try:
                     copilot_debug(f"Processing file {file_path}")
-                    acum_texts.extend(index_file(ext, file_path, chroma_client))
+                    acum_texts.extend(index_file(ext, file_path, chroma_client, skip_splitting))
                 except Exception as e:
                     copilot_debug(f"Error processing file {file_path}: {e}")
     # Remove the entire temporary directory
@@ -77,9 +77,13 @@ def load_chroma_collection_from_path(db_path):
     return collection
 
 
-def index_file(ext, item_path, chroma_client):
+def index_file(ext, item_path, chroma_client, skip_splitting: bool = False):
     # Process the file and get its content and MD5
     file_content, md5 = process_file(item_path, ext)
+    # If we are skipping splitting, we will add the "-full" suffix to the MD5, to avoid
+    # conflicts with already indexed files that were split
+    if skip_splitting:
+        md5 = md5 + "-full"
 
     collection = chroma_client.get_or_create_collection(LANGCHAIN_DEFAULT_COLLECTION_NAME)
     copilot_debug(f"Coleccion id {collection.id}")
@@ -99,7 +103,7 @@ def index_file(ext, item_path, chroma_client):
         # Split the document and add it to the collection
         copilot_debug(f"File with md5 {md5} added to index with 'purge': False.")
         documents: list[Document] = [document]
-        if text_splitter:
+        if text_splitter and not skip_splitting:
             documents = text_splitter.split_documents(documents)
         else:
             copilot_debug(
