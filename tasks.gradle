@@ -95,6 +95,7 @@ task 'copilot.do' {
         def username = project.findProperty('username')
         def password = project.findProperty('password')
         def app_id = project.findProperty("app_id")
+        def role = project.findProperty("role")
         String question = project.findProperty("question")
         if (project.hasProperty("single")) {
             project.logger.lifecycle("${yellowText}🤖 Single mode enabled. Only one question will be asked.${resetText}")
@@ -123,7 +124,7 @@ task 'copilot.do' {
         String login = JsonOutput.toJson([
                 "username": username,
                 "password": password
-        ])
+        ] + (role != null && !role.isEmpty() ? ["role": role] : [:]))
 
         String loginURL = "${etendoHost}/sws/login"
 
@@ -131,7 +132,7 @@ task 'copilot.do' {
         HttpRequest hRequest = HttpRequest.newBuilder()
                 .uri(URI.create(loginURL))
                 .header("Content-Type", "application/json")
-                .method("GET", HttpRequest.BodyPublishers.ofString(login))
+                .method("POST", HttpRequest.BodyPublishers.ofString(login))
                 .build()
 
         HttpResponse<String> hResponse = hClient.send(hRequest, HttpResponse.BodyHandlers.ofString())
