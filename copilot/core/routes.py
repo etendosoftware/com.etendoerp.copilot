@@ -482,10 +482,10 @@ def check_copilot_host(authorization: str = Header(None)):
 
         if response.status_code == 200:
             copilot_debug("ETENDO_HOST_DOCKER successfully verified.")
-            return {"status": "success", "message": "ETENDO_HOST_DOCKER successfully verified."}
+            return "success"
         else:
             copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
-            return {"status": "success", "message": "Error verifying ETENDO_HOST_DOCKER."}
+            return "failed"
 
 
     except requests.exceptions.RequestException as e:
