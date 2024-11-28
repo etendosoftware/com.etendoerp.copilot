@@ -98,7 +98,13 @@ def index_file(ext, item_path, chroma_client):
 
         # Split the document and add it to the collection
         copilot_debug(f"File with md5 {md5} added to index with 'purge': False.")
-        documents = text_splitter.split_documents([document])
+        documents: list[Document] = [document]
+        if text_splitter:
+            documents = text_splitter.split_documents(documents)
+        else:
+            copilot_debug(
+                f"No text splitter found for extension {ext}. Check if exists " f"some text splitter for it."
+            )
 
     return documents
 
@@ -111,11 +117,11 @@ def get_text_splitter(ext):
     elif ext in ["json"]:
         return CopilotRecursiveJsonSplitter(max_chunk_size=300)
     elif ext in ["java"]:
-        return RecursiveCharacterTextSplitter.from_language(language=Language.JAVA)
+        return RecursiveCharacterTextSplitter.from_language(language=Language.JAVA, max_chunk_size=10000)
     elif ext in ["js"]:
-        return RecursiveCharacterTextSplitter.from_language(language=Language.JS)
+        return RecursiveCharacterTextSplitter.from_language(language=Language.JS, max_chunk_size=10000)
     elif ext in ["py"]:
-        return RecursiveCharacterTextSplitter.from_language(language=Language.PYTHON)
+        return RecursiveCharacterTextSplitter.from_language(language=Language.PYTHON, max_chunk_size=10000)
     else:
         raise ValueError(f"Unsupported file extension: {ext}")
 
