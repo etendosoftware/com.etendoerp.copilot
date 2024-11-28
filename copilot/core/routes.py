@@ -467,7 +467,7 @@ def check_copilot_host(authorization: str = Header(None)):
             raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
 
         if not etendo_host_docker:
-            print("Error: ETENDO_HOST_DOCKER environment variable is not set")
+            copilot_debug("Error: ETENDO_HOST_DOCKER environment variable is not set")
             return
 
         url = f"{etendo_host_docker}/sws/copilot/configcheck"
@@ -477,17 +477,17 @@ def check_copilot_host(authorization: str = Header(None)):
             'Authorization': authorization
         }
 
-        print(f"Connecting to {url}...")
+        copilot_debug(f"Connecting to {url}...")
         response = requests.post(url, headers=headers, json={})
 
         if response.status_code == 200:
-            print("ETENDO_HOST_DOCKER successfully verified.")
+            copilot_debug("ETENDO_HOST_DOCKER successfully verified.")
             return {"status": "success", "message": "ETENDO_HOST_DOCKER successfully verified."}
         else:
-            print(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
+            copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
             return {"status": "success", "message": "Error verifying ETENDO_HOST_DOCKER."}
 
 
     except requests.exceptions.RequestException as e:
-        print(f"Error verifying ETENDO_HOST_DOCKER: {str(e)}")
+        copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: {str(e)}")
 
