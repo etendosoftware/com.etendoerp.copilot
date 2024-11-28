@@ -58,6 +58,7 @@ import org.openbravo.model.common.enterprise.Warehouse;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotModel;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
@@ -698,4 +699,34 @@ public class CopilotUtils {
     }
   }
 
+  /**
+   * Retrieves the configuration for all models in the system.
+   * <p>
+   * This method creates a JSON object containing the configuration details for each model,
+   * organized by provider and model name. The configuration includes the maximum number of tokens
+   * allowed for each model.
+   *
+   * @return A JSONObject representing the configuration of all models, organized by provider and model name.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
+  public static JSONObject getModelsConfigJSON() throws JSONException {
+    JSONObject modelsConfig = new JSONObject();
+    var models = OBDal.getInstance().createCriteria(CopilotModel.class).list();
+    for (CopilotModel model : models) {
+      String provider = model.getProvider() != null ? model.getProvider() : "null";
+      String modelName = model.getSearchkey();
+      Integer max_tokens = model.getMaxTokens() != null ? Math.toIntExact(model.getMaxTokens()) : null;
+      if (!modelsConfig.has(provider)) {
+        modelsConfig.put(provider, new JSONObject());
+      }
+      var providerConfig = modelsConfig.getJSONObject(provider);
+      if (!providerConfig.has(modelName)) {
+        providerConfig.put(modelName, new JSONObject());
+      }
+      var modelConfig = providerConfig.getJSONObject(modelName);
+      modelConfig.put("max_tokens", max_tokens);
+    }
+    return modelsConfig;
+  }
 }
