@@ -3955,7 +3955,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--8A20FD025A7F4691B33BDAA96445C336-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--8A20FD025A7F4691B33BDAA96445C336-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--8A20FD025A7F4691B33BDAA96445C336-->  <NAME><![CDATA[Lineno]]></NAME>
-<!--8A20FD025A7F4691B33BDAA96445C336-->  <DESCRIPTION><![CDATA[This column is the line number of messages in a Copilot chat. It increments by 10 for each message, starting at 10. ]]></DESCRIPTION>
+<!--8A20FD025A7F4691B33BDAA96445C336-->  <DESCRIPTION><![CDATA[This column is the line number of messages in a Copilot chat. ]]></DESCRIPTION>
 <!--8A20FD025A7F4691B33BDAA96445C336-->  <HELP><![CDATA[This column helps maintain the order and spacing of messages, ensuring each message is uniquely identified within the chat.]]></HELP>
 <!--8A20FD025A7F4691B33BDAA96445C336-->  <COLUMNNAME><![CDATA[Lineno]]></COLUMNNAME>
 <!--8A20FD025A7F4691B33BDAA96445C336-->  <AD_TABLE_ID><![CDATA[2ECCDDB5C80E467B9FCDFAF179E62996]]></AD_TABLE_ID>
