@@ -6,8 +6,8 @@
 <!--30F66066197F43368E354DC4630D3378-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--30F66066197F43368E354DC4630D3378-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--30F66066197F43368E354DC4630D3378-->  <NAME><![CDATA[Assistant]]></NAME>
-<!--30F66066197F43368E354DC4630D3378-->  <DESCRIPTION><![CDATA[Define and configure applications for Copilot]]></DESCRIPTION>
-<!--30F66066197F43368E354DC4630D3378-->  <HELP><![CDATA[Define and configure applications for Copilot]]></HELP>
+<!--30F66066197F43368E354DC4630D3378-->  <DESCRIPTION><![CDATA[Define and configure assistants for Copilot]]></DESCRIPTION>
+<!--30F66066197F43368E354DC4630D3378-->  <HELP><![CDATA[Define and configure assistants for Copilot]]></HELP>
 <!--30F66066197F43368E354DC4630D3378-->  <WINDOWTYPE><![CDATA[M]]></WINDOWTYPE>
 <!--30F66066197F43368E354DC4630D3378-->  <ISSOTRX><![CDATA[Y]]></ISSOTRX>
 <!--30F66066197F43368E354DC4630D3378-->  <PROCESSING><![CDATA[N]]></PROCESSING>
@@ -56,7 +56,7 @@
 <!--7ABB2C9233C14F398F7F19842BC12C1B-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--7ABB2C9233C14F398F7F19842BC12C1B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--7ABB2C9233C14F398F7F19842BC12C1B-->  <NAME><![CDATA[Skill/Tool]]></NAME>
-<!--7ABB2C9233C14F398F7F19842BC12C1B-->  <DESCRIPTION><![CDATA[Add tools to add functionality to Copilot App]]></DESCRIPTION>
+<!--7ABB2C9233C14F398F7F19842BC12C1B-->  <DESCRIPTION><![CDATA[Add tools to add functionality to Assistant]]></DESCRIPTION>
 <!--7ABB2C9233C14F398F7F19842BC12C1B-->  <HELP><![CDATA[These tools are developed in Python and run in the same level as Copilot does. They are created within Etendo Classic modules, and there can be many tools in a single module.
 
 Each Tool represents a separate independent project, designed to excel at specific tasks]]></HELP>

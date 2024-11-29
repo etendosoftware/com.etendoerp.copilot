@@ -29,7 +29,7 @@
 <!--402D175C908142B39C12E6FE287CD098-->  <VALUE><![CDATA[ETCOP_SyncToolStructure]]></VALUE>
 <!--402D175C908142B39C12E6FE287CD098-->  <NAME><![CDATA[Sync Tool Structure]]></NAME>
 <!--402D175C908142B39C12E6FE287CD098-->  <DESCRIPTION><![CDATA[Get a Tool's parameter information from its class]]></DESCRIPTION>
-<!--402D175C908142B39C12E6FE287CD098-->  <HELP><![CDATA[This process will load the Description and the JSON Info fields of the tool. This data is get from the tool class. This information is used to create the parameters in the Copilot App]]></HELP>
+<!--402D175C908142B39C12E6FE287CD098-->  <HELP><![CDATA[This process will load the Description and the JSON Info fields of the tool. This data is get from the tool class. This information is used to create the parameters in the Assistant.]]></HELP>
 <!--402D175C908142B39C12E6FE287CD098-->  <ACCESSLEVEL><![CDATA[7]]></ACCESSLEVEL>
 <!--402D175C908142B39C12E6FE287CD098-->  <CLASSNAME><![CDATA[com.etendoerp.copilot.process.SyncToolStructure]]></CLASSNAME>
 <!--402D175C908142B39C12E6FE287CD098-->  <ISBACKGROUND><![CDATA[N]]></ISBACKGROUND>
