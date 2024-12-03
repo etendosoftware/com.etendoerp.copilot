@@ -105,7 +105,7 @@ public class CopilotUtils {
   public static String getProvider(CopilotApp app) {
     try {
       String provCode = null;
-      if (app != null && app.getModel()!=null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
+      if (app != null && app.getModel() != null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
         return app.getModel().getProvider();
       }
       if (app != null && StringUtils.isNotEmpty(app.getProvider())) {
@@ -437,25 +437,27 @@ public class CopilotUtils {
   }
 
   /**
- * Throws an OBException indicating that an attachment is missing.
- * This method checks the type of the CopilotFile and throws an exception with a specific error message
- * based on whether the file type is attached or not.
- *
- * @param fileToSync The CopilotFile instance for which the attachment is missing.
- * @throws OBException Always thrown to indicate the missing attachment.
- */
-public static void throwMissingAttachException(CopilotFile fileToSync) {
-  String errMsg;
-  String type = fileToSync.getType();
-  if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
-    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
-        fileToSync.getName());
-  } else {
-    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
-        fileToSync.getName());
+   * Throws an OBException indicating that an attachment is missing.
+   * This method checks the type of the CopilotFile and throws an exception with a specific error message
+   * based on whether the file type is attached or not.
+   *
+   * @param fileToSync
+   *     The CopilotFile instance for which the attachment is missing.
+   * @throws OBException
+   *     Always thrown to indicate the missing attachment.
+   */
+  public static void throwMissingAttachException(CopilotFile fileToSync) {
+    String errMsg;
+    String type = fileToSync.getType();
+    if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
+      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
+          fileToSync.getName());
+    } else {
+      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
+          fileToSync.getName());
+    }
+    throw new OBException(errMsg);
   }
-  throw new OBException(errMsg);
-}
 
   public static void checkPromptLength(StringBuilder prompt) {
     if (prompt.length() > CopilotConstants.LANGCHAIN_MAX_LENGTH_PROMPT) {
@@ -554,7 +556,7 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
     return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
   }
 
-  private static String getEtendoHostDocker() {
+  public static String getEtendoHostDocker() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String hostDocker = properties.getProperty("ETENDO_HOST_DOCKER", "");
     if (StringUtils.isEmpty(hostDocker)) {
@@ -587,10 +589,10 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
 
   public static String getAppSourceContent(CopilotAppSource appSource) throws IOException {
     File tempFile;
-    if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
-      tempFile = getFileFromCopilotFile(appSource.getFile());
-    } else {
+    if (isHQLQueryFile(appSource.getFile())) {
       tempFile = ProcessHQLAppSource.getInstance().generate(appSource);
+    } else {
+      tempFile = getFileFromCopilotFile(appSource.getFile());
     }
     return Files.readString(tempFile.toPath());
   }
