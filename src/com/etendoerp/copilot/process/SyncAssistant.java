@@ -30,6 +30,7 @@ import org.openbravo.service.db.DbUtility;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
@@ -259,7 +260,15 @@ public class SyncAssistant extends BaseProcessActionHandler {
         // Collect all defined webhooks into a Set
         .collect(Collectors.toSet());
 
-        log.debug("Hooks: {}", hooks);
+    log.debug("Hooks: {}", hooks);
+    Set<Role> roles = OBDal.getInstance().createCriteria(CopilotRoleApp.class)
+        .add(Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, app)).list().stream().map(
+            CopilotRoleApp::getRole).collect(Collectors.toSet());
+    for (Role role : roles) {
+      for (DefinedWebHook hook : hooks) {
+        upsertAccess(hook, role, false);
+      }
+    }
 
 
   }

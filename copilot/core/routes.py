@@ -41,7 +41,6 @@ from langchain_community.vectorstores import Chroma
 from langsmith import traceable
 from starlette.responses import StreamingResponse
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 core_router = APIRouter()
