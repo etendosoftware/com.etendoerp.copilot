@@ -1,0 +1,210 @@
+package com.etendoerp.copilot.eventhandler;
+
+import static org.mockito.Mockito.*;
+
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Collections;
+
+import com.etendoerp.copilot.data.CopilotApp;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.MockitoAnnotations;
+import org.openbravo.base.model.Entity;
+import org.openbravo.base.model.ModelProvider;
+import org.openbravo.base.model.Property;
+import org.openbravo.base.weld.test.WeldBaseTest;
+import org.openbravo.client.kernel.event.EntityDeleteEvent;
+import org.openbravo.client.kernel.event.EntityNewEvent;
+import org.openbravo.client.kernel.event.EntityPersistenceEvent;
+import org.openbravo.client.kernel.event.EntityUpdateEvent;
+import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.OBDal;
+
+import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
+
+public class KBSyncStatusHandlerTest extends WeldBaseTest {
+    
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
+
+    private KBSyncStatusHandler handler;
+    private AutoCloseable mocks;
+    private Method isValidEventMethod;
+    
+    @Mock
+    private EntityUpdateEvent updateEvent;
+    @Mock
+    private EntityDeleteEvent deleteEvent;
+    @Mock
+    private EntityNewEvent newEvent;
+    @Mock
+    private CopilotFile copilotFile;
+    @Mock
+    private Entity fileEntity;
+    @Mock
+    private OBDal obDal;
+    @Mock
+    private OBCriteria<CopilotAppSource> criteria;
+    @Mock
+    private CopilotAppSource appSource;
+    @Mock
+    private CopilotApp copilotApp;
+    @Mock
+    private Property property;
+    
+    private MockedStatic<OBDal> mockedOBDal;
+    private MockedStatic<CopilotUtils> mockedCopilotUtils;
+    private MockedStatic<ModelProvider> mockedModelProvider;
+
+    @Before
+    public void setUp() throws Exception {
+        mocks = MockitoAnnotations.openMocks(this);
+        handler = new KBSyncStatusHandler() {
+            protected boolean isValidEvent(EntityPersistenceEvent event) {
+                return true;
+            }
+        };
+        
+        // Setup static mocks
+        mockedOBDal = mockStatic(OBDal.class);
+        mockedCopilotUtils = mockStatic(CopilotUtils.class);
+        mockedModelProvider = mockStatic(ModelProvider.class);
+        
+        // Configure common mock behavior
+        mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
+        when(obDal.createCriteria(CopilotAppSource.class)).thenReturn(criteria);
+        when(criteria.list()).thenReturn(Collections.singletonList(appSource));
+        when(appSource.getEtcopApp()).thenReturn(copilotApp);
+        when(copilotFile.getEntity()).thenReturn(fileEntity);
+
+        // Prepare reflection for isValidEvent if needed
+        isValidEventMethod = KBSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        isValidEventMethod.setAccessible(true);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        if (mockedOBDal != null) {
+            mockedOBDal.close();
+        }
+        if (mockedCopilotUtils != null) {
+            mockedCopilotUtils.close();
+        }
+        if (mockedModelProvider != null) {
+            mockedModelProvider.close();
+        }
+        if (mocks != null) {
+            mocks.close();
+        }
+    }
+
+    @Test
+    public void testOnUpdate_WithChangedProperties() {
+        // Given
+        when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
+        when(fileEntity.getProperty(CopilotFile.PROPERTY_NAME)).thenReturn(property);
+        when(updateEvent.getPreviousState(property)).thenReturn("oldName");
+        when(updateEvent.getCurrentState(property)).thenReturn("newName");
+        
+        // When
+        handler.onUpdate(updateEvent);
+        
+        // Then
+        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
+        verify(obDal).save(copilotApp);
+    }
+
+    @Test
+    public void testOnUpdate_WithoutChangedProperties() {
+        // Given
+        when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
+        when(fileEntity.getProperty(anyString())).thenReturn(property);
+        when(updateEvent.getPreviousState(property)).thenReturn("sameName");
+        when(updateEvent.getCurrentState(property)).thenReturn("sameName");
+        
+        // When
+        handler.onUpdate(updateEvent);
+        
+        // Then
+        verify(copilotApp, never()).setSyncStatus(anyString());
+        verify(obDal, never()).save(any(CopilotApp.class));
+    }
+
+    @Test
+    public void testOnDelete_Success() {
+        // Given
+        when(deleteEvent.getTargetInstance()).thenReturn(copilotFile);
+        
+        // When
+        handler.onDelete(deleteEvent);
+        
+        // Then
+        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
+        verify(obDal).save(copilotApp);
+    }
+
+    @Test
+    public void testOnSave_NoAction() {
+        // Given
+        when(newEvent.getTargetInstance()).thenReturn(copilotFile);
+        
+        // When
+        handler.onSave(newEvent);
+        
+        // Then
+        verify(copilotApp, never()).setSyncStatus(anyString());
+        verify(obDal, never()).save(any(CopilotApp.class));
+    }
+
+    @Test
+    public void testOnUpdate_MultipleProperties() {
+        // Given
+        when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
+        when(fileEntity.getProperty(anyString())).thenReturn(property);
+        
+        // Mock different values for different properties
+        when(updateEvent.getPreviousState(property))
+            .thenReturn("old")
+            .thenReturn(true)
+            .thenReturn("oldDesc");
+        when(updateEvent.getCurrentState(property))
+            .thenReturn("new")
+            .thenReturn(false)
+            .thenReturn("newDesc");
+        
+        // When
+        handler.onUpdate(updateEvent);
+        
+        // Then
+        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
+        verify(obDal).save(copilotApp);
+    }
+
+    @Test
+    public void testOnDelete_MultipleAppSources() {
+        // Given
+        when(deleteEvent.getTargetInstance()).thenReturn(copilotFile);
+        CopilotAppSource appSource2 = mock(CopilotAppSource.class);
+        CopilotApp etcopApp2 = mock(CopilotApp.class);
+        when(appSource2.getEtcopApp()).thenReturn(etcopApp2);
+        when(criteria.list()).thenReturn(Arrays.asList(appSource, appSource2));
+        
+        // When
+        handler.onDelete(deleteEvent);
+        
+        // Then
+        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
+        verify(etcopApp2).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
+        verify(obDal).save(copilotApp);
+        verify(obDal).save(etcopApp2);
+    }
+}
