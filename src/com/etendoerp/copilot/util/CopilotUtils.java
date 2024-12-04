@@ -57,6 +57,7 @@ import org.openbravo.model.common.enterprise.Warehouse;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotModel;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
@@ -107,7 +108,7 @@ public class CopilotUtils {
   public static String getProvider(CopilotApp app) {
     try {
       String provCode = null;
-      if (app != null && app.getModel()!=null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
+      if (app != null && app.getModel() != null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
         return app.getModel().getProvider();
       }
       if (app != null && StringUtils.isNotEmpty(app.getProvider())) {
@@ -439,25 +440,27 @@ public class CopilotUtils {
   }
 
   /**
- * Throws an OBException indicating that an attachment is missing.
- * This method checks the type of the CopilotFile and throws an exception with a specific error message
- * based on whether the file type is attached or not.
- *
- * @param fileToSync The CopilotFile instance for which the attachment is missing.
- * @throws OBException Always thrown to indicate the missing attachment.
- */
-public static void throwMissingAttachException(CopilotFile fileToSync) {
-  String errMsg;
-  String type = fileToSync.getType();
-  if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
-    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
-        fileToSync.getName());
-  } else {
-    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
-        fileToSync.getName());
+   * Throws an OBException indicating that an attachment is missing.
+   * This method checks the type of the CopilotFile and throws an exception with a specific error message
+   * based on whether the file type is attached or not.
+   *
+   * @param fileToSync
+   *     The CopilotFile instance for which the attachment is missing.
+   * @throws OBException
+   *     Always thrown to indicate the missing attachment.
+   */
+  public static void throwMissingAttachException(CopilotFile fileToSync) {
+    String errMsg;
+    String type = fileToSync.getType();
+    if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
+      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
+          fileToSync.getName());
+    } else {
+      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
+          fileToSync.getName());
+    }
+    throw new OBException(errMsg);
   }
-  throw new OBException(errMsg);
-}
 
   public static void checkPromptLength(StringBuilder prompt) {
     if (prompt.length() > CopilotConstants.LANGCHAIN_MAX_LENGTH_PROMPT) {
@@ -646,5 +649,85 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
           responseFromCopilot != null ? responseFromCopilot.body() : ""));
     }
 
+  }
+
+  /**
+   * Retrieves the configuration for all models in the system.
+   * <p>
+   * This method creates a JSON object containing the configuration details for each model,
+   * organized by provider and model name. The configuration includes the maximum number of tokens
+   * allowed for each model.
+   *
+   * @return A JSONObject representing the configuration of all models, organized by provider and model name.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
+  public static JSONObject getModelsConfigJSON() throws JSONException {
+    JSONObject modelsConfig = new JSONObject();
+    var models = OBDal.getInstance().createCriteria(CopilotModel.class).list();
+    for (CopilotModel model : models) {
+      String provider = model.getProvider() != null ? model.getProvider() : "null";
+      String modelName = model.getSearchkey();
+      Integer max_tokens = model.getMaxTokens() != null ? Math.toIntExact(model.getMaxTokens()) : null;
+      if (!modelsConfig.has(provider)) {
+        modelsConfig.put(provider, new JSONObject());
+      }
+      var providerConfig = modelsConfig.getJSONObject(provider);
+      if (!providerConfig.has(modelName)) {
+        providerConfig.put(modelName, new JSONObject());
+      }
+      var modelConfig = providerConfig.getJSONObject(modelName);
+      modelConfig.put("max_tokens", max_tokens);
+    }
+    return modelsConfig;
+  }
+
+  /**
+   * Generates a JSON object containing authentication information.
+   * <p>
+   * This method creates a JSON object and adds an authentication token to it if the role has web service enabled.
+   *
+   * @param role
+   *     The role of the user.
+   * @param context
+   *     The OBContext containing the current session information.
+   * @return A JSON object containing the authentication token.
+   * @throws Exception
+   *     If an error occurs while generating the token.
+   */
+  public static JSONObject getAuthJson(Role role, OBContext context) throws Exception {
+    JSONObject authJson = new JSONObject();
+    // Adding auth token to interact with the Etendo web services
+    if (role.isWebServiceEnabled().booleanValue()) {
+      authJson.put("ETENDO_TOKEN", getEtendoSWSToken(context, role));
+    }
+    return authJson;
+  }
+
+  /**
+   * Generates a secure token for Etendo web services.
+   * <p>
+   * This method retrieves the user, current organization, and warehouse from the OBContext,
+   * and then generates a secure token using these details.
+   *
+   * @param context
+   *     The OBContext containing the current session information.
+   * @param role
+   *     The role of the user for which the token is being generated. If null, the role is retrieved from the context.
+   * @return A secure token for Etendo web services.
+   * @throws Exception
+   *     If an error occurs while generating the token.
+   */
+  private static String getEtendoSWSToken(OBContext context, Role role) throws Exception {
+    if (role == null) {
+      role = OBDal.getInstance().get(Role.class, context.getRole().getId());
+    }
+    // Refresh to avoid LazyInitializationException
+    User user = OBDal.getInstance().get(User.class, context.getUser().getId());
+    Organization currentOrganization = OBDal.getInstance().get(Organization.class,
+        context.getCurrentOrganization().getId());
+    Warehouse warehouse = context.getWarehouse() != null ? OBDal.getInstance().get(Warehouse.class,
+        context.getWarehouse().getId()) : null;
+    return SecureWebServicesUtils.generateToken(user, role, currentOrganization, warehouse);
   }
 }

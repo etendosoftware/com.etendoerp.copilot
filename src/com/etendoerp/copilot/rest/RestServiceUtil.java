@@ -58,7 +58,6 @@ import org.openbravo.model.ad.system.Language;
 import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
 import org.openbravo.model.common.enterprise.Organization;
-import org.openbravo.model.common.enterprise.Warehouse;
 import org.openbravo.service.db.DalConnectionProvider;
 
 import com.etendoerp.copilot.data.Conversation;
@@ -73,7 +72,6 @@ import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.ToolsUtil;
 import com.etendoerp.copilot.util.TrackingUtil;
-import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 public class RestServiceUtil {
 
@@ -877,21 +875,12 @@ public class RestServiceUtil {
     OBContext context = OBContext.getOBContext();
     JSONObject jsonExtraInfo = new JSONObject();
     Role role = OBDal.getInstance().get(Role.class, context.getRole().getId());
-    if (role.isWebServiceEnabled().booleanValue()) {
-      try {
-        //Refresh to avoid LazyInitializationException
-        User user = OBDal.getInstance().get(User.class, context.getUser().getId());
-        Organization currentOrganization = OBDal.getInstance().get(Organization.class,
-            context.getCurrentOrganization().getId());
-        Warehouse warehouse = context.getWarehouse() != null ?
-            OBDal.getInstance().get(Warehouse.class, context.getWarehouse().getId()) : null;
-        jsonExtraInfo.put("auth", new JSONObject().put("ETENDO_TOKEN",
-            SecureWebServicesUtils.generateToken(user, role, currentOrganization,
-                warehouse)));
-        jsonRequest.put("extra_info", jsonExtraInfo);
-      } catch (Exception e) {
-        log.error("Error adding auth token to extraInfo", e);
-      }
+    try {
+      jsonExtraInfo.put("auth", CopilotUtils.getAuthJson(role, context));
+      jsonExtraInfo.put("model_config", CopilotUtils.getModelsConfigJSON());
+      jsonRequest.put("extra_info", jsonExtraInfo);
+    } catch (Exception e) {
+      log.error("Error adding auth token to extraInfo", e);
     }
     try {
       WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class).executeHooks(copilotApp,
