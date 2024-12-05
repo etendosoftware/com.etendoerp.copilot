@@ -738,6 +738,7 @@ public class CopilotUtils {
         context.getWarehouse().getId()) : null;
     return SecureWebServicesUtils.generateToken(user, role, currentOrganization, warehouse);
   }
+  /**
    * Retrieves an attachment associated with the given CopilotFile instance.
    * <p>
    * This method creates a criteria query to find an attachment that matches the given CopilotFile instance.
