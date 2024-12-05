@@ -27,6 +27,9 @@ public class CopilotConstants {
   public static final String KBF_TYPE_ATTACHED = "F";
   public static final String PROP_QUESTION = "question";
   public static final String PROP_ERROR = "error";
+  // Tab ID for CopilotFile
+  public static final String COPILOT_FILE_TAB_ID = "09F802E423924081BC2947A64DDB5AF5";
+  public static final String COPILOT_FILE_AD_TABLE_ID = "6B246B1B3A6F4DE8AFC208E07DB29CE2";
   private static final String FILE_TYPE_HQL = "HQL";
   public static final String PROVIDER_OPENAI = "openai";
   public static final String PROVIDER_GEMINI = "gemini";
