@@ -59,7 +59,6 @@ import org.openbravo.model.ad.system.Language;
 import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
 import org.openbravo.model.common.enterprise.Organization;
-import org.openbravo.model.common.enterprise.Warehouse;
 import org.openbravo.service.db.DalConnectionProvider;
 
 import com.etendoerp.copilot.data.Conversation;
@@ -74,7 +73,6 @@ import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.ToolsUtil;
 import com.etendoerp.copilot.util.TrackingUtil;
-import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 public class RestServiceUtil {
 
@@ -306,10 +304,19 @@ public class RestServiceUtil {
     String appId = jsonRequest.getString(APP_ID);
     String question = jsonRequest.getString(PROP_QUESTION);
     List<String> filesReceived = getFilesReceived(jsonRequest);
+    String questionAttachedFileId = jsonRequest.optString("file");
+
     CopilotApp copilotApp = OBDal.getInstance().get(CopilotApp.class, appId);
+
     if (copilotApp == null) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
+      //This is in case the appId provided was the name of the Assistant
+      CopilotApp app = getAppIdByAssistantName(appId);
+      if (app == null) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
+      }
+      copilotApp = app;
     }
+
     switch (copilotApp.getAppType()) {
       case CopilotConstants.APP_TYPE_OPENAI:
         if (StringUtils.isEmpty(copilotApp.getOpenaiIdAssistant())) {
@@ -333,7 +340,8 @@ public class RestServiceUtil {
   /**
    * Extracts a list of file identifiers from a JSON request.
    *
-   * @param jsonRequest the JSON object containing the file identifiers.
+   * @param jsonRequest
+   *     the JSON object containing the file identifiers.
    * @return a list of file identifiers. If the "file" field is empty or not a valid JSON array, an empty list is returned.
    */
   private static List<String> getFilesReceived(JSONObject jsonRequest) {
@@ -355,6 +363,13 @@ public class RestServiceUtil {
       log.error(e);
     }
     return result;
+  }
+
+  private static CopilotApp getAppIdByAssistantName(String appId) {
+    OBCriteria<CopilotApp> appCrit = OBDal.getInstance().createCriteria(CopilotApp.class);
+    appCrit.add(Restrictions.eq(CopilotApp.PROPERTY_NAME, appId));
+    appCrit.setMaxResults(1);
+    return (CopilotApp) appCrit.uniqueResult();
   }
 
   private static void validateOpenAIKey() {
@@ -903,21 +918,12 @@ public class RestServiceUtil {
     OBContext context = OBContext.getOBContext();
     JSONObject jsonExtraInfo = new JSONObject();
     Role role = OBDal.getInstance().get(Role.class, context.getRole().getId());
-    if (role.isWebServiceEnabled().booleanValue()) {
-      try {
-        //Refresh to avoid LazyInitializationException
-        User user = OBDal.getInstance().get(User.class, context.getUser().getId());
-        Organization currentOrganization = OBDal.getInstance().get(Organization.class,
-            context.getCurrentOrganization().getId());
-        Warehouse warehouse = context.getWarehouse() != null ?
-            OBDal.getInstance().get(Warehouse.class, context.getWarehouse().getId()) : null;
-        jsonExtraInfo.put("auth", new JSONObject().put("ETENDO_TOKEN",
-            SecureWebServicesUtils.generateToken(user, role, currentOrganization,
-                warehouse)));
-        jsonRequest.put("extra_info", jsonExtraInfo);
-      } catch (Exception e) {
-        log.error("Error adding auth token to extraInfo", e);
-      }
+    try {
+      jsonExtraInfo.put("auth", CopilotUtils.getAuthJson(role, context));
+      jsonExtraInfo.put("model_config", CopilotUtils.getModelsConfigJSON());
+      jsonRequest.put("extra_info", jsonExtraInfo);
+    } catch (Exception e) {
+      log.error("Error adding auth token to extraInfo", e);
     }
     try {
       WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class).executeHooks(copilotApp,

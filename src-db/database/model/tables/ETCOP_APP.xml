@@ -57,10 +57,6 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
-      <column name="ETCOP_OPENAI_MODEL_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
       <column name="RETRIEVAL" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
@@ -99,6 +95,14 @@
       </column>
       <column name="SYNC_STATUS" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
         <default><![CDATA[PS]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="ETCOP_OPENAI_MODEL_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="CHECK_HOSTS" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
       <foreign-key foreignTable="AD_CLIENT" name="ETCOP_APP_CLI_FK">

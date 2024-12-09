@@ -28,7 +28,6 @@ import java.util.concurrent.TransferQueue;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.*;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
-
 import com.etendoerp.copilot.util.CopilotConstants;
 
 public class RestService {
@@ -88,9 +87,11 @@ public class RestService {
       } else if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
         handleCacheQuestion(request, response);
         return;
-      }
-      //if not a valid path, throw a error status
-      response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+      } else if (StringUtils.equalsIgnoreCase(path, "/configCheck")) {
+        checkEtendoHost(response);
+      } else
+        //if not a valid path, throw an error status
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     } catch (Exception e) {
       log4j.error(e);
       try {
@@ -101,6 +102,14 @@ public class RestService {
       }
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  private void checkEtendoHost(HttpServletResponse response) {
+    try {
+      response.setStatus(HttpServletResponse.SC_OK);
+    } catch (Exception e) {
+      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
   }
 

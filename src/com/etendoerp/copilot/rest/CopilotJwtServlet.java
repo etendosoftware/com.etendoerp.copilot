@@ -3,6 +3,7 @@ package com.etendoerp.copilot.rest;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,6 +14,7 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 
 /**
@@ -32,8 +34,6 @@ public class CopilotJwtServlet extends HttpBaseServlet {
 
   /**
    * Get the instance of the RestService
-   *
-   * @return
    */
   public static RestService getInstance() {
     if (instance == null) {
@@ -46,7 +46,6 @@ public class CopilotJwtServlet extends HttpBaseServlet {
    * Obtain the token from the request
    *
    * @param request
-   * @return
    */
   private String obtainToken(HttpServletRequest request) {
     String authStr = request.getHeader("Authorization");
@@ -66,11 +65,11 @@ public class CopilotJwtServlet extends HttpBaseServlet {
   private void checkJwt(HttpServletRequest request) throws Exception {
     try {
       DecodedJWT decodedToken = SecureWebServicesUtils.decodeToken(obtainToken(request));
-      String userId = getRequiredClaim(decodedToken, "user");
-      String roleId = getRequiredClaim(decodedToken, "role");
-      String orgId = getRequiredClaim(decodedToken, "organization");
-      String warehouseId = getRequiredClaim(decodedToken, "warehouse");
-      String clientId = getRequiredClaim(decodedToken, "client");
+      String userId = getRequiredClaim(decodedToken, "ad_user_id", "user");
+      String roleId = getRequiredClaim(decodedToken, "ad_role_id", "role");
+      String orgId = getRequiredClaim(decodedToken, "ad_org_id", "organization");
+      String warehouseId = getRequiredClaim(decodedToken, "m_warehouse_id", "warehouse");
+      String clientId = getRequiredClaim(decodedToken, "ad_client_id", "client");
 
       OBContext context = SecureWebServicesUtils.createContext(userId, roleId, orgId, warehouseId, clientId);
       OBContext.setOBContext(context);
@@ -81,9 +80,12 @@ public class CopilotJwtServlet extends HttpBaseServlet {
     }
   }
 
-  private String getRequiredClaim(DecodedJWT token, String claimName) throws OBException {
+  private String getRequiredClaim(DecodedJWT token, String claimName, String alternativeClaimName) throws OBException {
     String claimValue = token.getClaim(claimName).asString();
-    if (claimValue == null || StringUtils.isEmpty(claimValue)) {
+    if (StringUtils.isEmpty(claimValue) && alternativeClaimName != null) {
+      claimValue = token.getClaim(alternativeClaimName).asString();
+    }
+    if (StringUtils.isEmpty(claimValue)) {
       throw new OBException(OBMessageUtils.messageBD(TOKEN_INVALID_MESSAGE));
     }
     return claimValue;
@@ -102,12 +104,16 @@ public class CopilotJwtServlet extends HttpBaseServlet {
   /**
    * Process the request for both GET and POST methods.
    *
-   * @param request  an {@link HttpServletRequest} object
-   * @param response an {@link HttpServletResponse} object
-   * @param method   the HTTP method ("GET" or "POST")
+   * @param request
+   *     an {@link HttpServletRequest} object
+   * @param response
+   *     an {@link HttpServletResponse} object
+   * @param method
+   *     the HTTP method ("GET" or "POST")
    * @throws IOException
    */
-  private void processRequest(HttpServletRequest request, HttpServletResponse response, String method) throws IOException {
+  private void processRequest(HttpServletRequest request, HttpServletResponse response,
+      String method) throws IOException {
     try {
       checkJwt(request);
     } catch (Exception e) {

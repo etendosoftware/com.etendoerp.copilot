@@ -14,7 +14,8 @@ import uuid
 from pathlib import Path
 
 import chromadb
-from copilot.core import utils
+import requests
+from copilot.core import etendo_utils, utils
 from copilot.core.agent import AgentEnum, AgentResponse, copilot_agents
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
@@ -36,7 +37,7 @@ from copilot.core.vectordb_utils import (
     handle_zip_file,
     index_file,
 )
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from langchain_community.vectorstores import Chroma
 from langsmith import traceable
 from starlette.responses import StreamingResponse
@@ -367,6 +368,7 @@ def process_text_to_vector_db(
     extension: str = Form(...),
     overwrite: bool = Form(False),
     file: UploadFile = File(None),
+    skip_splitting: bool = Form(False),
 ):
     db_path = get_vector_db_path(kb_vectordb_id)
 
@@ -384,10 +386,10 @@ def process_text_to_vector_db(
             chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
             if extension == "zip":
                 # Process the ZIP file
-                texts = handle_zip_file(file_path, chroma_client)
+                texts = handle_zip_file(file_path, chroma_client, skip_splitting)
 
             else:
-                texts = index_file(extension, file_path, chroma_client)
+                texts = index_file(extension, file_path, chroma_client, skip_splitting)
                 # Remove the temporary file after use
 
             copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
@@ -446,3 +448,37 @@ def attach_file(file: UploadFile = File(...)):
     with temp_file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     return {"answer": str(temp_file_path)}
+
+
+@traceable
+@core_router.post("/checkCopilotHost")
+def check_copilot_host(authorization: str = Header(None)):
+    try:
+        etendo_host_docker = etendo_utils.get_etendo_host()
+
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
+
+        if not etendo_host_docker:
+            copilot_debug("Error: ETENDO_HOST_DOCKER environment variable is not set")
+            return
+
+        url = f"{etendo_host_docker}/sws/copilot/configcheck"
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": authorization,
+        }
+
+        copilot_debug(f"Connecting to {url}...")
+        response = requests.post(url, headers=headers, json={})
+
+        if response.status_code == 200:
+            copilot_debug("ETENDO_HOST_DOCKER successfully verified.")
+            return "success"
+        else:
+            copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
+            return "failed"
+
+    except requests.exceptions.RequestException as e:
+        copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: {str(e)}")
