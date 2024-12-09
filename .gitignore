@@ -70,5 +70,5 @@ graph.png
 
 /**/checkpoints.sqlite
 /.scannerwork/**
-vectordbs
-
+vectordbs/*
+tests/vectordbs/*

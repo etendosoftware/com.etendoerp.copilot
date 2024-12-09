@@ -107,7 +107,7 @@ public class ProcessScheduleApps extends DalBaseProcess {
         Role role = OBContext.getOBContext().getRole();
         if (!checkRoleAccessApp(role, copilotApp)) {
           logger.log(
-                  "<- Error: The Role" + role.getName() + " does not have access to Copilot App " + copilotApp.getName() + "\n");
+                  "<- Error: The Role" + role.getName() + " does not have access to the Assistant " + copilotApp.getName() + "\n");
           break;
         }
         for (var source : copilotApp.getETCOPAppSourceList()) {
@@ -155,7 +155,7 @@ public class ProcessScheduleApps extends DalBaseProcess {
           .add(Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, copilotApp)).setMaxResults(1).uniqueResult();
       return roleApp != null;
     } catch (OBException e) {
-      logger.log("Error checking role access to Copilot App " + copilotApp.getName() + ": " + e.getMessage());
+      logger.log("Error checking role access to the Assistant " + copilotApp.getName() + ": " + e.getMessage());
       return false;
     } finally {
       OBContext.restorePreviousMode();

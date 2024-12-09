@@ -82,12 +82,11 @@ function App() {
       }
     });
     if( role === ROLE_USER ){
-      setTimeout(() => 
-      handleNewMessage( ROLE_WAIT, {
+      await handleNewMessage( ROLE_WAIT, {
         text: 'Processing...',
         sender: ROLE_WAIT,
         timestamp: formatTimeNewDate(new Date()),
-      }), 100);
+      });
     }
     scrollToBottom();
   };
@@ -186,7 +185,7 @@ function App() {
           headers: headers,
           heartbeatTimeout: 12000000,
         });
-        eventSource.onmessage = function (event) {
+        eventSource.onmessage = async function (event) {
           const data = JSON.parse(event.data);
           const answer = data?.answer;
           if (answer?.conversation_id) {
@@ -197,7 +196,7 @@ function App() {
               // Don't delete
               console.log('Debug message', answer.response);
             } else {
-              handleNewMessage(answer.role ? answer.role : ROLE_BOT, answer);
+              await handleNewMessage(answer.role ? answer.role : ROLE_BOT, answer);
             }
           }
         };
