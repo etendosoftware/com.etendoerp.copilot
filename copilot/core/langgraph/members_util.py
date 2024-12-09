@@ -1,14 +1,13 @@
 import functools
 from typing import List, Sequence
 
-from langchain.agents import AgentExecutor
-from langchain_core.messages import BaseMessage, AIMessage
-from langsmith import traceable
-
-from copilot.core.agent import LangchainAgent, AssistantAgent
+from copilot.core.agent import AssistantAgent, MultimodelAgent
 from copilot.core.langgraph.patterns.base_pattern import GraphMember
 from copilot.core.schemas import AssistantSchema
 from copilot.core.utils import copilot_debug, is_debug_enabled
+from langchain.agents import AgentExecutor
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langsmith import traceable
 
 
 def debug_messages(messages):
@@ -49,9 +48,10 @@ class MembersUtil:
     @traceable
     def model_langchain_invoker(self):
         def invoke_model_langchain(state: Sequence[BaseMessage], _agent, _name: str, **kwargs):
-            copilot_debug(f"Invoking model LANGCHAIN: {_name} with state: ")
+            copilot_debug(f"Invoking model {_agent}: {_name} with state: ")
             messages = state["messages"]
-            messages.append(AIMessage(content=state["instructions"], name="Supervisor"))
+            new_message = HumanMessage(content=state["instructions"], name="Supervisor")
+            messages.append(new_message)
             debug_messages(messages)
             response = _agent.invoke({"messages": messages})
             response_msg = response["output"]
@@ -67,15 +67,25 @@ class MembersUtil:
             agent: AssistantAgent = self.get_assistant_agent()
             _agent = agent.get_agent(assistant.assistant_id)
             agent_executor = agent.get_agent_executor(_agent)
-            model_node = functools.partial(self.model_openai_invoker(), _agent=agent_executor, _name=assistant.name)
+            model_node = functools.partial(
+                self.model_openai_invoker(), _agent=agent_executor, _name=assistant.name
+            )
             member = GraphMember(assistant.name, model_node)
         else:
-            langchain_agent = LangchainAgent()
+            agent_build = MultimodelAgent()
             kb_vectordb_id = assistant.kb_vectordb_id if hasattr(assistant, "kb_vectordb_id") else None
-            _agent = langchain_agent.get_agent(assistant.provider, assistant.model, assistant.tools,
-                                               assistant.system_prompt, assistant.temperature, kb_vectordb_id)
-            agent_executor = langchain_agent.get_agent_executor(_agent)
-            model_node = functools.partial(self.model_langchain_invoker(), _agent=agent_executor, _name=assistant.name)
+            _agent = agent_build.get_agent(
+                assistant.provider,
+                assistant.model,
+                assistant.tools,
+                assistant.system_prompt,
+                assistant.temperature,
+                kb_vectordb_id,
+            )
+            agent_executor = agent_build.get_agent_executor(_agent)
+            model_node = functools.partial(
+                self.model_langchain_invoker(), _agent=agent_executor, _name=assistant.name
+            )
             member = GraphMember(assistant.name, model_node)
         return member
 
