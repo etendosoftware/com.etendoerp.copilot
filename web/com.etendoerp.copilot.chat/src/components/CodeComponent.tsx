@@ -1,5 +1,7 @@
+import React from 'react'
+import {Prism, SyntaxHighlighterProps} from 'react-syntax-highlighter';
+const SyntaxHighlighter = (Prism as any) as React.FC<SyntaxHighlighterProps>;
 import { nightOwl } from "react-syntax-highlighter/dist/cjs/styles/hljs";
-import SyntaxHighlighter from "react-syntax-highlighter";
 
 export const CodeComponent = ({
     node,
