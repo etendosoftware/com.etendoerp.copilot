@@ -5,9 +5,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
@@ -28,12 +30,17 @@ import org.openbravo.service.db.DbUtility;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
+import com.etendoerp.openapi.data.OpenAPIRequest;
+import com.etendoerp.openapi.data.OpenApiFlow;
+import com.etendoerp.openapi.data.OpenApiFlowPoint;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
+import com.etendoerp.webhookevents.data.OpenAPIWebhook;
 
 /**
  * The {@code SyncAssistant} class is responsible for synchronizing assistant knowledge bases and file attachments.
@@ -82,6 +89,10 @@ public class SyncAssistant extends BaseProcessActionHandler {
       JSONObject request = new JSONObject(content);
       JSONArray selectedRecords = request.optJSONArray("recordIds");
       List<CopilotApp> appList = getSelectedApps(selectedRecords);
+      // update accesses
+      for (CopilotApp app : appList) {
+        checkWebHookAccess(app);
+      }
       // Generate attachment for each file
       generateFilesAttachment(appList);
       // Sync knowledge files to each assistant
@@ -117,8 +128,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
    *
    * @param selectedRecords
    *     The {@link JSONArray} containing the IDs of the selected records to be retrieved.
-   * @return
-   *     A list of {@link CopilotApp} objects corresponding to the provided record IDs.
+   * @return A list of {@link CopilotApp} objects corresponding to the provided record IDs.
    * @throws JSONException
    *     If an error occurs while processing the {@link JSONArray}.
    * @throws OBException
@@ -154,7 +164,6 @@ public class SyncAssistant extends BaseProcessActionHandler {
   private void generateFilesAttachment(List<CopilotApp> appList) {
     Set<CopilotAppSource> appSourcesToRefresh = new HashSet<>();
     for (CopilotApp app : appList) {
-      checkWebHookAccess(app);
       List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
       app.setSyncStatus(CopilotConstants.SYNCHRONIZED_STATE);
       appSourcesToRefresh.addAll(appSources);
@@ -164,7 +173,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
       log.debug("Syncing file {}", as.getFile().getName());
       CopilotFile fileToSync = as.getFile();
       WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
-              .executeHooks(fileToSync);
+          .executeHooks(fileToSync);
     }
   }
 
@@ -204,7 +213,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
     Basically, we are looking for the roles that don't have access to the webhook, if the quantity of records is 0, the role doesn't have access
    */
     List<Object[]> results = OBDal.getInstance().getSession().createQuery(hql.toString())
-            .setParameter("appId", app.getId()).list();
+        .setParameter("appId", app.getId()).list();
     if (log.isDebugEnabled()) {
       log.debug(String.format("Results: %d", results.size()));
     }
@@ -225,6 +234,43 @@ public class SyncAssistant extends BaseProcessActionHandler {
         }
       }
     }
+
+    /// Create a set of hooks used by the assistant
+    Set<DefinedWebHook> hooks = app.getETCOPAppSourceList().stream()
+        // Get the file associated with each source
+        .map(CopilotAppSource::getFile)
+        // Filter files of type "FLOW"
+        .filter(f -> StringUtils.equalsIgnoreCase(f.getType(), "FLOW"))
+        // Map to the corresponding OpenAPI flow objects
+        .map(CopilotFile::getEtapiOpenapiFlow)
+        // Safeguard against null values
+        .filter(Objects::nonNull)
+        // Extract and process flow points to retrieve defined webhooks
+        .flatMap(flow -> flow.getETAPIOpenApiFlowPointList().stream())
+        // Get the request from each flow point
+        .map(OpenApiFlowPoint::getEtapiOpenapiReq)
+        // Safeguard against null requests
+        .filter(Objects::nonNull)
+        // Extract the list of webhooks from the requests
+        .flatMap(req -> req.getSmfwheOpenapiWebhkList().stream())
+        // Get the defined webhook from each webhook object
+        .map(OpenAPIWebhook::getSmfwheDefinedwebhook)
+        // Safeguard against null webhooks
+        .filter(Objects::nonNull)
+        // Collect all defined webhooks into a Set
+        .collect(Collectors.toSet());
+
+    log.debug("Hooks: {}", hooks);
+    Set<Role> roles = OBDal.getInstance().createCriteria(CopilotRoleApp.class)
+        .add(Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, app)).list().stream().map(
+            CopilotRoleApp::getRole).collect(Collectors.toSet());
+    for (Role role : roles) {
+      for (DefinedWebHook hook : hooks) {
+        upsertAccess(hook, role, false);
+      }
+    }
+
+
   }
 
   /**
@@ -277,8 +323,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
    *
    * @param appList
    *     A list of {@link CopilotApp} instances for which knowledge base files are being synchronized.
-   * @return
-   *     A {@link JSONObject} containing a message indicating the number of successfully
+   * @return A {@link JSONObject} containing a message indicating the number of successfully
    *     synchronized applications and the total number of applications processed.
    * @throws JSONException
    *     If an error occurs while building the result message.
@@ -295,8 +340,8 @@ public class SyncAssistant extends BaseProcessActionHandler {
     }
     for (CopilotApp app : appList) {
       List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream()
-              .filter(CopilotConstants::isKbBehaviour)
-              .collect(Collectors.toList());
+          .filter(CopilotConstants::isKbBehaviour)
+          .collect(Collectors.toList());
       switch (app.getAppType()) {
         case CopilotConstants.APP_TYPE_OPENAI:
           syncKBFilesToOpenAI(app, knowledgeBaseFiles, openaiApiKey);
@@ -345,7 +390,8 @@ public class SyncAssistant extends BaseProcessActionHandler {
    * @throws OBException
    *     If the application's configuration does not allow for knowledge base synchronization.
    */
-  private void syncKBFilesToOpenAI(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles, String openaiApiKey) throws JSONException, IOException {
+  private void syncKBFilesToOpenAI(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles,
+      String openaiApiKey) throws JSONException, IOException {
     OpenAIUtils.checkIfAppCanUseAttachedFiles(app, knowledgeBaseFiles);
     for (CopilotAppSource appSource : knowledgeBaseFiles) {
       OpenAIUtils.syncAppSource(appSource, openaiApiKey);
@@ -374,7 +420,8 @@ public class SyncAssistant extends BaseProcessActionHandler {
    * @throws IOException
    *     If an input/output error occurs during the synchronization process.
    */
-  private void syncKBFilesToLangChain(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles) throws JSONException, IOException {
+  private void syncKBFilesToLangChain(CopilotApp app,
+      List<CopilotAppSource> knowledgeBaseFiles) throws JSONException, IOException {
     CopilotUtils.resetVectorDB(app);
     for (CopilotAppSource appSource : knowledgeBaseFiles) {
       CopilotUtils.syncAppLangchainSource(appSource);
@@ -390,7 +437,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
     showMsgInProcessView.put("msgType", "success");
     showMsgInProcessView.put("msgTitle", OBMessageUtils.messageBD("Success"));
     showMsgInProcessView.put("msgText",
-            String.format(String.format(OBMessageUtils.messageBD("ETCOP_SuccessSync"), syncCount, totalRecords)));
+        String.format(String.format(OBMessageUtils.messageBD("ETCOP_SuccessSync"), syncCount, totalRecords)));
     showMsgInProcessView.put("wait", true);
     JSONObject showMsgInProcessViewAction = new JSONObject();
     showMsgInProcessViewAction.put("showMsgInProcessView", showMsgInProcessView);

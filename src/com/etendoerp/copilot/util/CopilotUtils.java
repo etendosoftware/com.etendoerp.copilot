@@ -71,6 +71,8 @@ public class CopilotUtils {
   private static final Logger log = LogManager.getLogger(CopilotUtils.class);
   private static final String BOUNDARY = UUID.randomUUID().toString();
   public static final String KB_VECTORDB_ID = "kb_vectordb_id";
+  public static final String COPILOT_PORT = "COPILOT_PORT";
+  public static final String COPILOT_HOST = "COPILOT_HOST";
 
   private static HashMap<String, String> buildProviderCodeMap() {
     HashMap<String, String> map = new HashMap<>();
@@ -105,7 +107,7 @@ public class CopilotUtils {
   public static String getProvider(CopilotApp app) {
     try {
       String provCode = null;
-      if (app != null && app.getModel()!=null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
+      if (app != null && app.getModel() != null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
         return app.getModel().getProvider();
       }
       if (app != null && StringUtils.isNotEmpty(app.getProvider())) {
@@ -212,8 +214,8 @@ public class CopilotUtils {
 
     try {
       HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      String copilotPort = properties.getProperty(COPILOT_PORT, "5005");
+      String copilotHost = properties.getProperty(COPILOT_HOST, "localhost");
 
       HttpRequest.BodyPublisher requestBodyPublisher;
       String contentType;
@@ -245,8 +247,8 @@ public class CopilotUtils {
   private static HttpResponse<String> doGetCopilot(Properties properties, String endpoint) {
     try {
       HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      String copilotPort = properties.getProperty(COPILOT_PORT, "5005");
+      String copilotHost = properties.getProperty(COPILOT_HOST, "localhost");
 
       HttpRequest copilotRequest = HttpRequest.newBuilder()
           .uri(new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint)))
@@ -437,25 +439,27 @@ public class CopilotUtils {
   }
 
   /**
- * Throws an OBException indicating that an attachment is missing.
- * This method checks the type of the CopilotFile and throws an exception with a specific error message
- * based on whether the file type is attached or not.
- *
- * @param fileToSync The CopilotFile instance for which the attachment is missing.
- * @throws OBException Always thrown to indicate the missing attachment.
- */
-public static void throwMissingAttachException(CopilotFile fileToSync) {
-  String errMsg;
-  String type = fileToSync.getType();
-  if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
-    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
-        fileToSync.getName());
-  } else {
-    errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
-        fileToSync.getName());
+   * Throws an OBException indicating that an attachment is missing.
+   * This method checks the type of the CopilotFile and throws an exception with a specific error message
+   * based on whether the file type is attached or not.
+   *
+   * @param fileToSync
+   *     The CopilotFile instance for which the attachment is missing.
+   * @throws OBException
+   *     Always thrown to indicate the missing attachment.
+   */
+  public static void throwMissingAttachException(CopilotFile fileToSync) {
+    String errMsg;
+    String type = fileToSync.getType();
+    if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
+      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
+          fileToSync.getName());
+    } else {
+      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
+          fileToSync.getName());
+    }
+    throw new OBException(errMsg);
   }
-  throw new OBException(errMsg);
-}
 
   public static void checkPromptLength(StringBuilder prompt) {
     if (prompt.length() > CopilotConstants.LANGCHAIN_MAX_LENGTH_PROMPT) {
@@ -549,12 +553,12 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
    *
    * @return The host name of Etendo if found, otherwise "ERROR".
    */
-  private static String getEtendoHost() {
+  public static String getEtendoHost() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
   }
 
-  private static String getEtendoHostDocker() {
+  public static String getEtendoHostDocker() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String hostDocker = properties.getProperty("ETENDO_HOST_DOCKER", "");
     if (StringUtils.isEmpty(hostDocker)) {
@@ -562,6 +566,17 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
     }
     return hostDocker;
   }
+
+  public static String getCopilotHost() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return properties.getProperty(COPILOT_HOST, "");
+  }
+
+  public static String getCopilotPort() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return properties.getProperty(COPILOT_PORT, "5005");
+  }
+
 
   public static String getAppSourceContent(List<CopilotAppSource> appSourceList, String type) {
     StringBuilder content = new StringBuilder();
@@ -587,10 +602,10 @@ public static void throwMissingAttachException(CopilotFile fileToSync) {
 
   public static String getAppSourceContent(CopilotAppSource appSource) throws IOException {
     File tempFile;
-    if (CopilotConstants.isFileTypeLocalOrRemoteFile(appSource.getFile())) {
-      tempFile = getFileFromCopilotFile(appSource.getFile());
-    } else {
+    if (isHQLQueryFile(appSource.getFile())) {
       tempFile = ProcessHQLAppSource.getInstance().generate(appSource);
+    } else {
+      tempFile = getFileFromCopilotFile(appSource.getFile());
     }
     return Files.readString(tempFile.toPath());
   }
