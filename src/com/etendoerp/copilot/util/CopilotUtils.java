@@ -50,6 +50,7 @@ import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.access.User;
+import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.utility.Attachment;
 import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.model.common.enterprise.Warehouse;
@@ -57,6 +58,7 @@ import org.openbravo.model.common.enterprise.Warehouse;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotModel;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
@@ -192,7 +194,7 @@ public class CopilotUtils {
 
 
   public static void toVectorDB(String content, File fileToSend, String dbName, String format,
-      boolean isBinary) throws JSONException {
+      boolean isBinary, boolean skipSplitting) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String endpoint = "addToVectorDB";
     HttpResponse<String> responseFromCopilot;
@@ -201,6 +203,7 @@ public class CopilotUtils {
     jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
+    jsonRequestForCopilot.put("skip_splitting", skipSplitting);
 
     responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot, fileToSend);
 
@@ -273,7 +276,7 @@ public class CopilotUtils {
     String text = jsonBody.optString("text", null);
     String extension = jsonBody.optString("extension");
     boolean overwrite = jsonBody.optBoolean("overwrite", false);
-
+    boolean skipSplitting = jsonBody.optBoolean("skip_splitting", false);
     if (kbVectorDBId != null) {
       writer.append("--").append(BOUNDARY).append("\r\n");
       writer.append("Content-Disposition: form-data; name=\"kb_vectordb_id\"\r\n\r\n");
@@ -293,6 +296,11 @@ public class CopilotUtils {
       writer.append("--").append(BOUNDARY).append("\r\n");
       writer.append("Content-Disposition: form-data; name=\"overwrite\"\r\n\r\n");
       writer.append(String.valueOf(overwrite)).append("\r\n");
+    }
+    if (skipSplitting) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"skip_splitting\"\r\n\r\n");
+      writer.append(String.valueOf(skipSplitting)).append("\r\n");
     }
     // File part
     if (file != null) {
@@ -390,13 +398,14 @@ public class CopilotUtils {
     }
 
     String dbName = "KB_" + appSource.getEtcopApp().getId();
+    boolean skipSplitting = appSource.getFile().isSkipSplitting();
 
     if (StringUtils.isEmpty(extension)) {
       extension = fileFromCopilotFile.getName().substring(fileFromCopilotFile.getName().lastIndexOf(".") + 1);
     }
 
     if (isValidExtension(extension)) {
-      binaryFileToVectorDB(fileFromCopilotFile, dbName, extension);
+      binaryFileToVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting);
     } else {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
     }
@@ -423,8 +432,8 @@ public class CopilotUtils {
   }
 
   private static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName,
-      String extension) throws JSONException {
-    toVectorDB(null, fileFromCopilotFile, dbName, extension, true);
+      String extension, boolean skipSplitting) throws JSONException {
+    toVectorDB(null, fileFromCopilotFile, dbName, extension, true, skipSplitting);
   }
 
   static File generateHQLFile(CopilotAppSource appSource) {
@@ -649,4 +658,137 @@ public class CopilotUtils {
     }
 
   }
+
+  /**
+   * Retrieves the configuration for all models in the system.
+   * <p>
+   * This method creates a JSON object containing the configuration details for each model,
+   * organized by provider and model name. The configuration includes the maximum number of tokens
+   * allowed for each model.
+   *
+   * @return A JSONObject representing the configuration of all models, organized by provider and model name.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
+  public static JSONObject getModelsConfigJSON() throws JSONException {
+    JSONObject modelsConfig = new JSONObject();
+    var models = OBDal.getInstance().createCriteria(CopilotModel.class).list();
+    for (CopilotModel model : models) {
+      String provider = model.getProvider() != null ? model.getProvider() : "null";
+      String modelName = model.getSearchkey();
+      Integer max_tokens = model.getMaxTokens() != null ? Math.toIntExact(model.getMaxTokens()) : null;
+      if (!modelsConfig.has(provider)) {
+        modelsConfig.put(provider, new JSONObject());
+      }
+      var providerConfig = modelsConfig.getJSONObject(provider);
+      if (!providerConfig.has(modelName)) {
+        providerConfig.put(modelName, new JSONObject());
+      }
+      var modelConfig = providerConfig.getJSONObject(modelName);
+      modelConfig.put("max_tokens", max_tokens);
+    }
+    return modelsConfig;
+  }
+
+  /**
+   * Generates a JSON object containing authentication information.
+   * <p>
+   * This method creates a JSON object and adds an authentication token to it if the role has web service enabled.
+   *
+   * @param role
+   *     The role of the user.
+   * @param context
+   *     The OBContext containing the current session information.
+   * @return A JSON object containing the authentication token.
+   * @throws Exception
+   *     If an error occurs while generating the token.
+   */
+  public static JSONObject getAuthJson(Role role, OBContext context) throws Exception {
+    JSONObject authJson = new JSONObject();
+    // Adding auth token to interact with the Etendo web services
+    if (role.isWebServiceEnabled().booleanValue()) {
+      authJson.put("ETENDO_TOKEN", getEtendoSWSToken(context, role));
+    }
+    return authJson;
+  }
+
+  /**
+   * Generates a secure token for Etendo web services.
+   * <p>
+   * This method retrieves the user, current organization, and warehouse from the OBContext,
+   * and then generates a secure token using these details.
+   *
+   * @param context
+   *     The OBContext containing the current session information.
+   * @param role
+   *     The role of the user for which the token is being generated. If null, the role is retrieved from the context.
+   * @return A secure token for Etendo web services.
+   * @throws Exception
+   *     If an error occurs while generating the token.
+   */
+  private static String getEtendoSWSToken(OBContext context, Role role) throws Exception {
+    if (role == null) {
+      role = OBDal.getInstance().get(Role.class, context.getRole().getId());
+    }
+    // Refresh to avoid LazyInitializationException
+    User user = OBDal.getInstance().get(User.class, context.getUser().getId());
+    Organization currentOrganization = OBDal.getInstance().get(Organization.class,
+        context.getCurrentOrganization().getId());
+    Warehouse warehouse = context.getWarehouse() != null ? OBDal.getInstance().get(Warehouse.class,
+        context.getWarehouse().getId()) : null;
+    return SecureWebServicesUtils.generateToken(user, role, currentOrganization, warehouse);
+  }
+  /**
+   * Retrieves an attachment associated with the given CopilotFile instance.
+   * <p>
+   * This method creates a criteria query to find an attachment that matches the given CopilotFile instance.
+   * It filters the attachments by the record ID and table ID, and excludes the attachment with the same ID as the target instance.
+   *
+   * @param targetInstance
+   *     The CopilotFile instance for which the attachment is to be retrieved.
+   * @return The Attachment associated with the given CopilotFile instance, or null if no attachment is found.
+   */
+  public static Attachment getAttachment(CopilotFile targetInstance) {
+    OBCriteria<Attachment> attchCriteria = OBDal.getInstance().createCriteria(Attachment.class);
+    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_RECORD, targetInstance.getId()));
+    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_TABLE,
+        OBDal.getInstance().get(Table.class, CopilotConstants.COPILOT_FILE_AD_TABLE_ID)));
+    attchCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
+    return (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
+  }
+
+  /**
+   * Attaches a file to the given CopilotFile instance.
+   * <p>
+   * This method uploads a file and associates it with the specified CopilotFile instance.
+   *
+   * @param hookObject
+   *     The CopilotFile instance to which the file is to be attached.
+   * @param aim
+   *     The AttachImplementationManager used to handle the file upload.
+   * @param file
+   *     The file to be attached.
+   */
+  public static void attachFile(CopilotFile hookObject, AttachImplementationManager aim, File file) {
+    aim.upload(new HashMap<>(), CopilotConstants.COPILOT_FILE_TAB_ID, hookObject.getId(),
+        hookObject.getOrganization().getId(), file);
+  }
+
+  /**
+   * Removes the attachment associated with the given CopilotFile instance.
+   * <p>
+   * This method retrieves the attachment associated with the specified CopilotFile instance and deletes it.
+   *
+   * @param aim
+   *     The AttachImplementationManager used to handle the file deletion.
+   * @param hookObject
+   *     The CopilotFile instance whose attachment is to be removed.
+   */
+  public static void removeAttachment(AttachImplementationManager aim, CopilotFile hookObject) {
+    Attachment attachment = CopilotUtils.getAttachment(hookObject);
+    if (attachment != null) {
+      aim.delete(attachment);
+    }
+  }
+
 }

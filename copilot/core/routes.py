@@ -13,19 +13,10 @@ import threading
 import uuid
 from pathlib import Path
 
-import requests
-
 import chromadb
-from fastapi import APIRouter, UploadFile, File, Form
-from langchain.vectorstores import Chroma
-from langsmith import traceable
-from starlette.responses import StreamingResponse
-from fastapi import Header, HTTPException
-from fastapi.responses import JSONResponse
-
-
-from copilot.core import utils, etendo_utils
-from copilot.core.agent import AgentResponse, copilot_agents, AgentEnum
+import requests
+from copilot.core import etendo_utils, utils
+from copilot.core.agent import AgentEnum, AgentResponse, copilot_agents
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
@@ -46,7 +37,7 @@ from copilot.core.vectordb_utils import (
     handle_zip_file,
     index_file,
 )
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from langchain_community.vectorstores import Chroma
 from langsmith import traceable
 from starlette.responses import StreamingResponse
@@ -376,6 +367,7 @@ def process_text_to_vector_db(
     extension: str = Form(...),
     overwrite: bool = Form(False),
     file: UploadFile = File(None),
+    skip_splitting: bool = Form(False),
 ):
     db_path = get_vector_db_path(kb_vectordb_id)
 
@@ -393,10 +385,10 @@ def process_text_to_vector_db(
             chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
             if extension == "zip":
                 # Process the ZIP file
-                texts = handle_zip_file(file_path, chroma_client)
+                texts = handle_zip_file(file_path, chroma_client, skip_splitting)
 
             else:
-                texts = index_file(extension, file_path, chroma_client)
+                texts = index_file(extension, file_path, chroma_client, skip_splitting)
                 # Remove the temporary file after use
 
             copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
@@ -456,6 +448,7 @@ def attach_file(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
     return {"answer": str(temp_file_path)}
 
+
 @traceable
 @core_router.post("/checkCopilotHost")
 def check_copilot_host(authorization: str = Header(None)):
@@ -471,9 +464,9 @@ def check_copilot_host(authorization: str = Header(None)):
 
         url = f"{etendo_host_docker}/sws/copilot/configcheck"
         headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': authorization
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": authorization,
         }
 
         copilot_debug(f"Connecting to {url}...")
@@ -486,7 +479,5 @@ def check_copilot_host(authorization: str = Header(None)):
             copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
             return "failed"
 
-
     except requests.exceptions.RequestException as e:
         copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: {str(e)}")
-

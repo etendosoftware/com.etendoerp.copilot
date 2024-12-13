@@ -77,6 +77,14 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="TEXT" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="SKIP_SPLITTING" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_MODULE" name="AD_MODULE_FK">
         <reference local="AD_MODULE_ID" foreign="AD_MODULE_ID"/>
       </foreign-key>
@@ -91,5 +99,6 @@
       </foreign-key>
       <check name="ETCOP_FILE_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
       <check name="ETCOP_FILE_ISTEMP_CHK"><![CDATA[ISTEMP IN ('Y', 'N')]]></check>
+      <check name="ETCOP_FILE_SKSPLIT_CHK"><![CDATA[SKIP_SPLITTING IN ('Y', 'N')]]></check>
     </table>
   </database>
