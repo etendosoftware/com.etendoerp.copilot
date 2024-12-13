@@ -239,7 +239,7 @@ task 'copilot.build' {
                 exclude "**/.venv/**"
                 eachFile { fileCopyDetails ->
                     counter++
-                    project.logger.info("Copiando archivo Copilot ${counter}: ${fileCopyDetails.file.path}")
+                    project.logger.info("Copying Copilot files ${counter}: ${fileCopyDetails.file.path}")
                 }
 
             }
