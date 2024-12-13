@@ -72,3 +72,4 @@ graph.png
 /.scannerwork/**
 vectordbs/*
 tests/vectordbs/*
+!**/modulescript/**
