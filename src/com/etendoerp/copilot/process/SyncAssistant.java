@@ -254,7 +254,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
         // Extract the list of webhooks from the requests
         .flatMap(req -> req.getSmfwheOpenapiWebhkList().stream())
         // Get the defined webhook from each webhook object
-        .map(OpenAPIWebhook::getSmfwheDefinedwebhook)
+        .map(OpenAPIWebhook::getWebHook)
         // Safeguard against null webhooks
         .filter(Objects::nonNull)
         // Collect all defined webhooks into a Set
