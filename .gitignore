@@ -74,3 +74,4 @@ vectordbs/*
 tests/vectordbs/*
 checkpoints.sqlite-shm
 checkpoints.sqlite-wal
+!**/modulescript/**
