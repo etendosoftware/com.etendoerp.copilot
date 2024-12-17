@@ -40,7 +40,7 @@ public class AutoRegistrationAssistantHandler extends BaseActionHandler {
         result.put("success", false);
         result.put("message", "Error: " + e.getMessage());
       } catch (Exception ignore) {
-        throw new OBException(OBMessageUtils.messageBD("Role not added to the Assistant."));
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_RoleNotAdded"));
       }
     }
     return result;
