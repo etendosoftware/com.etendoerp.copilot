@@ -1,37 +1,62 @@
-name: Validate Merge to Develop
+name: Validate Merge to Develop and Experimental
 
 on:
   pull_request:
-    types: [ opened, reopened, synchronize ]
-    branches:
-      - develop
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
 
 jobs:
   validate-merge:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Clone the repository
+      # 1. Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.ETENDOBOT_TOKEN}}
 
       # 2. Fetch all branches
       - name: Fetch all branches
         run: git fetch --all
 
-      # 3. Check if the latest commit exists in experimental
-      - name: Check if last commit is in experimental branch
+      # 3. Checkout the PR branch (the branch from the pull request)
+      - name: Checkout PR branch
         run: |
-          # Get the source branch of the PR
-          PR_BRANCH=${{ github.head_ref }}
 
-          # Get the hash of the last commit in the PR branch
-          LAST_COMMIT=$(git rev-parse origin/$PR_BRANCH)
+          echo "git checkout ${{ github.head_ref }}"
+          git checkout ${{ github.head_ref }}
 
-          # Check if the last commit exists in experimental
-          if git merge-base --is-ancestor $LAST_COMMIT origin/experimental; then
-            echo "The latest commit ($LAST_COMMIT) from $PR_BRANCH is already included in experimental."
-          else
-            echo "Error: The latest commit ($LAST_COMMIT) from $PR_BRANCH is not included in experimental."
+      # 4. Setup Git config for pushing changes
+      - name: Setup Git config
+        run: |
+          git config --global user.email "${{ secrets.ETENDOBOT_EMAIL }}"
+          git config --global user.name "${{ secrets.ETENDOBOT_NAME }}"
+
+      # 5. Merge the PR branch into experimental
+      - name: Merge PR branch into experimental
+        run: |
+          git fetch origin experimental
+          echo "git checkout experimental"
+          git checkout experimental
+          git pull origin experimental
+          # print command
+          echo "git merge ${{ github.head_ref }} "
+          git merge ${{ github.head_ref }}
+
+          # Check if merge was successful, otherwise fail
+          if [ $? -ne 0 ]; then
+            echo "Merge conflict occurred. Please resolve the conflicts before merging."
             exit 1
           fi
+
+      # 6. Push merge to experimental
+      - name: Push merge to experimental
+        run: |
+          git push origin experimental
+        env:
+          GITHUB_TOKEN: ${{ secrets.ETENDOBOT_TOKEN }}
+

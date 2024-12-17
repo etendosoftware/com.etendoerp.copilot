@@ -34,8 +34,14 @@ def get_extra_info():
 
     Returns:
         dict: The extra info from the thread context.
+
+    If an error occurs, returns an empty dictionary.
     """
-    return ThreadContext.get_data("extra_info")
+    try:
+        return ThreadContext.get_data("extra_info")
+    except Exception as e:
+        copilot_debug(f"Error getting extra info: {e}")
+    return {}
 
 
 def _get_headers(access_token):

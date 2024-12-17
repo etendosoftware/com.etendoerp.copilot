@@ -7,6 +7,7 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
@@ -27,7 +28,6 @@ import java.util.concurrent.TransferQueue;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.*;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
-
 import com.etendoerp.copilot.util.CopilotConstants;
 
 public class RestService {
@@ -87,9 +87,11 @@ public class RestService {
       } else if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
         handleCacheQuestion(request, response);
         return;
-      }
-      //if not a valid path, throw a error status
-      response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+      } else if (StringUtils.equalsIgnoreCase(path, "/configCheck")) {
+        checkEtendoHost(response);
+      } else
+        //if not a valid path, throw an error status
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     } catch (Exception e) {
       log4j.error(e);
       try {
@@ -100,6 +102,14 @@ public class RestService {
       }
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  private void checkEtendoHost(HttpServletResponse response) {
+    try {
+      response.setStatus(HttpServletResponse.SC_OK);
+    } catch (Exception e) {
+      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -313,17 +323,86 @@ public class RestService {
     addParameterIfExists(json, request, CopilotConstants.PROP_QUESTION);
     addParameterIfExists(json, request, CopilotConstants.PROP_APP_ID);
     addParameterIfExists(json, request, CopilotConstants.PROP_CONVERSATION_ID);
-    addParameterIfExists(json, request, CopilotConstants.PROP_FILE);
+    addParameterIfExists(json, request, CopilotConstants.PROP_FILE, true);
 
     return json;
   }
 
+  /**
+   * Adds a parameter to the provided JSON object if it exists in the HTTP request.
+   * <p>
+   * This method checks if the specified parameter exists in the HTTP request.
+   * If the parameter is found and is not an array, it is added to the JSON object.
+   * If the parameter is an array and has multiple values, all values are added to the JSON object.
+   *
+   * @param json
+   *     the {@link JSONObject} to which the parameter will be added
+   * @param request
+   *     the {@link HttpServletRequest} object containing client request information
+   * @param paramName
+   *     the name of the parameter to be added
+   * @param isArray
+   *     a boolean indicating whether the parameter is expected to be an array
+   * @throws JSONException
+   *     if there is an error in adding the parameter to the JSON object
+   */
+  private void addParameterIfExists(JSONObject json, HttpServletRequest request,
+      String paramName, boolean isArray) throws JSONException {
+
+    if (!isArray) {
+      String paramValue = request.getParameter(paramName);
+      if (paramValue != null) {
+        json.put(paramName, paramValue);
+      }
+      return;
+    }
+
+    String[] paramMultipleValues = request.getParameterValues(paramName);
+    if (paramMultipleValues != null) {
+      json.put(paramName, StringArrayToJsonArray(paramMultipleValues));
+    }
+  }
+
+  /**
+   * Adds a parameter to the provided JSON object if it exists in the HTTP request.
+   * <p>
+   * This method checks if the specified parameter exists in the HTTP request.
+   * If the parameter is found, it is added to the JSON object.
+   *
+   * @param json
+   *     the {@link JSONObject} to which the parameter will be added
+   * @param request
+   *     the {@link HttpServletRequest} object containing client request information
+   * @param paramName
+   *     the name of the parameter to be added
+   * @throws JSONException
+   *     if there is an error in adding the parameter to the JSON object
+   */
   private void addParameterIfExists(JSONObject json, HttpServletRequest request,
       String paramName) throws JSONException {
-    String paramValue = request.getParameter(paramName);
-    if (paramValue != null) {
-      json.put(paramName, paramValue);
+    addParameterIfExists(json, request, paramName, false);
+  }
+
+
+  /**
+   * Converts an array of strings to a JSON array.
+   * <p>
+   * This method takes an array of strings and converts it into a JSON array.
+   * If the input array is null, an empty JSON array is returned.
+   *
+   * @param paramMultipleValues
+   *     an array of strings to be converted to a JSON array
+   * @return a {@link JSONArray} containing the values from the input array
+   */
+  private JSONArray StringArrayToJsonArray(String[] paramMultipleValues) {
+    if (paramMultipleValues == null) {
+      return new JSONArray();
     }
+    JSONArray jsonArray = new JSONArray();
+    for (String value : paramMultipleValues) {
+      jsonArray.put(value);
+    }
+    return jsonArray;
   }
 
   /**

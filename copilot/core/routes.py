@@ -14,7 +14,8 @@ import uuid
 from pathlib import Path
 
 import chromadb
-from copilot.core import utils
+import requests
+from copilot.core import etendo_utils, utils
 from copilot.core.agent import AgentEnum, AgentResponse, copilot_agents
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
@@ -36,7 +37,7 @@ from copilot.core.vectordb_utils import (
     handle_zip_file,
     index_file,
 )
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from langchain_community.vectorstores import Chroma
 from langsmith import traceable
 from starlette.responses import StreamingResponse
@@ -447,3 +448,37 @@ def attach_file(file: UploadFile = File(...)):
     with temp_file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     return {"answer": str(temp_file_path)}
+
+
+@traceable
+@core_router.post("/checkCopilotHost")
+def check_copilot_host(authorization: str = Header(None)):
+    try:
+        etendo_host_docker = etendo_utils.get_etendo_host()
+
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
+
+        if not etendo_host_docker:
+            copilot_debug("Error: ETENDO_HOST_DOCKER environment variable is not set")
+            return
+
+        url = f"{etendo_host_docker}/sws/copilot/configcheck"
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": authorization,
+        }
+
+        copilot_debug(f"Connecting to {url}...")
+        response = requests.post(url, headers=headers, json={})
+
+        if response.status_code == 200:
+            copilot_debug("ETENDO_HOST_DOCKER successfully verified.")
+            return "success"
+        else:
+            copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
+            return "failed"
+
+    except requests.exceptions.RequestException as e:
+        copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: {str(e)}")

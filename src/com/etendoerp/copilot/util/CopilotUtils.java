@@ -73,6 +73,8 @@ public class CopilotUtils {
   private static final Logger log = LogManager.getLogger(CopilotUtils.class);
   private static final String BOUNDARY = UUID.randomUUID().toString();
   public static final String KB_VECTORDB_ID = "kb_vectordb_id";
+  public static final String COPILOT_PORT = "COPILOT_PORT";
+  public static final String COPILOT_HOST = "COPILOT_HOST";
 
   private static HashMap<String, String> buildProviderCodeMap() {
     HashMap<String, String> map = new HashMap<>();
@@ -215,8 +217,8 @@ public class CopilotUtils {
 
     try {
       HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      String copilotPort = properties.getProperty(COPILOT_PORT, "5005");
+      String copilotHost = properties.getProperty(COPILOT_HOST, "localhost");
 
       HttpRequest.BodyPublisher requestBodyPublisher;
       String contentType;
@@ -248,8 +250,8 @@ public class CopilotUtils {
   private static HttpResponse<String> doGetCopilot(Properties properties, String endpoint) {
     try {
       HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      String copilotPort = properties.getProperty(COPILOT_PORT, "5005");
+      String copilotHost = properties.getProperty(COPILOT_HOST, "localhost");
 
       HttpRequest copilotRequest = HttpRequest.newBuilder()
           .uri(new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint)))
@@ -560,7 +562,7 @@ public class CopilotUtils {
    *
    * @return The host name of Etendo if found, otherwise "ERROR".
    */
-  private static String getEtendoHost() {
+  public static String getEtendoHost() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
   }
@@ -573,6 +575,17 @@ public class CopilotUtils {
     }
     return hostDocker;
   }
+
+  public static String getCopilotHost() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return properties.getProperty(COPILOT_HOST, "");
+  }
+
+  public static String getCopilotPort() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return properties.getProperty(COPILOT_PORT, "5005");
+  }
+
 
   public static String getAppSourceContent(List<CopilotAppSource> appSourceList, String type) {
     StringBuilder content = new StringBuilder();
@@ -729,4 +742,106 @@ public class CopilotUtils {
     }
     return modelsConfig;
   }
+
+  /**
+   * Generates a JSON object containing authentication information.
+   * <p>
+   * This method creates a JSON object and adds an authentication token to it if the role has web service enabled.
+   *
+   * @param role
+   *     The role of the user.
+   * @param context
+   *     The OBContext containing the current session information.
+   * @return A JSON object containing the authentication token.
+   * @throws Exception
+   *     If an error occurs while generating the token.
+   */
+  public static JSONObject getAuthJson(Role role, OBContext context) throws Exception {
+    JSONObject authJson = new JSONObject();
+    // Adding auth token to interact with the Etendo web services
+    if (role.isWebServiceEnabled().booleanValue()) {
+      authJson.put("ETENDO_TOKEN", getEtendoSWSToken(context, role));
+    }
+    return authJson;
+  }
+
+  /**
+   * Generates a secure token for Etendo web services.
+   * <p>
+   * This method retrieves the user, current organization, and warehouse from the OBContext,
+   * and then generates a secure token using these details.
+   *
+   * @param context
+   *     The OBContext containing the current session information.
+   * @param role
+   *     The role of the user for which the token is being generated. If null, the role is retrieved from the context.
+   * @return A secure token for Etendo web services.
+   * @throws Exception
+   *     If an error occurs while generating the token.
+   */
+  private static String getEtendoSWSToken(OBContext context, Role role) throws Exception {
+    if (role == null) {
+      role = OBDal.getInstance().get(Role.class, context.getRole().getId());
+    }
+    // Refresh to avoid LazyInitializationException
+    User user = OBDal.getInstance().get(User.class, context.getUser().getId());
+    Organization currentOrganization = OBDal.getInstance().get(Organization.class,
+        context.getCurrentOrganization().getId());
+    Warehouse warehouse = context.getWarehouse() != null ? OBDal.getInstance().get(Warehouse.class,
+        context.getWarehouse().getId()) : null;
+    return SecureWebServicesUtils.generateToken(user, role, currentOrganization, warehouse);
+  }
+  /**
+   * Retrieves an attachment associated with the given CopilotFile instance.
+   * <p>
+   * This method creates a criteria query to find an attachment that matches the given CopilotFile instance.
+   * It filters the attachments by the record ID and table ID, and excludes the attachment with the same ID as the target instance.
+   *
+   * @param targetInstance
+   *     The CopilotFile instance for which the attachment is to be retrieved.
+   * @return The Attachment associated with the given CopilotFile instance, or null if no attachment is found.
+   */
+  public static Attachment getAttachment(CopilotFile targetInstance) {
+    OBCriteria<Attachment> attchCriteria = OBDal.getInstance().createCriteria(Attachment.class);
+    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_RECORD, targetInstance.getId()));
+    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_TABLE,
+        OBDal.getInstance().get(Table.class, CopilotConstants.COPILOT_FILE_AD_TABLE_ID)));
+    attchCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
+    return (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
+  }
+
+  /**
+   * Attaches a file to the given CopilotFile instance.
+   * <p>
+   * This method uploads a file and associates it with the specified CopilotFile instance.
+   *
+   * @param hookObject
+   *     The CopilotFile instance to which the file is to be attached.
+   * @param aim
+   *     The AttachImplementationManager used to handle the file upload.
+   * @param file
+   *     The file to be attached.
+   */
+  public static void attachFile(CopilotFile hookObject, AttachImplementationManager aim, File file) {
+    aim.upload(new HashMap<>(), CopilotConstants.COPILOT_FILE_TAB_ID, hookObject.getId(),
+        hookObject.getOrganization().getId(), file);
+  }
+
+  /**
+   * Removes the attachment associated with the given CopilotFile instance.
+   * <p>
+   * This method retrieves the attachment associated with the specified CopilotFile instance and deletes it.
+   *
+   * @param aim
+   *     The AttachImplementationManager used to handle the file deletion.
+   * @param hookObject
+   *     The CopilotFile instance whose attachment is to be removed.
+   */
+  public static void removeAttachment(AttachImplementationManager aim, CopilotFile hookObject) {
+    Attachment attachment = CopilotUtils.getAttachment(hookObject);
+    if (attachment != null) {
+      aim.delete(attachment);
+    }
+  }
+
 }
