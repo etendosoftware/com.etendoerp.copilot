@@ -1,6 +1,7 @@
 package com.etendoerp.copilot;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -24,7 +25,7 @@ public class CopilotComponentProvider extends BaseComponentProvider {
   public List<ComponentResource> getGlobalComponentResources() {
     final List<ComponentResource> globalResources = new ArrayList<ComponentResource>();
     globalResources.add(createStyleSheetResource("web/styles/style.css", false));
-    
+    globalResources.add(createStaticResource("web/com.etendoerp.copilot/js/assistantAutoRegistration.js", false));
     return globalResources;
   }
 
