@@ -36,7 +36,6 @@ class ToolLoader:
     """Responsible for loading the user tools and making them available to the copilot agent."""
     installed_deps = []  # Save tools that have already installed dependencies
 
-    @traceable
     def __init__(
             self,
             config_filename: Optional[str] = CONFIGURED_TOOLS_FILENAME,
@@ -53,7 +52,6 @@ class ToolLoader:
     def third_party_tool_config(self) -> Dict:
         return self._tools_config.get(THIRD_PARTY_TOOLS_NODE_NAME, {})
 
-    @traceable
     def _get_tool_config(self, filepath: Optional[str]) -> Dict:
         """Returs the content of the tools configuration file."""
         if not filepath or not Path(filepath).is_file():
@@ -65,7 +63,6 @@ class ToolLoader:
             except json.decoder.JSONDecodeError as ex:
                 raise ApplicationError("Unsupported tool configuration file format") from ex
 
-    @traceable
     def _get_tool_dependencies(self, filepath: Optional[str]) -> ToolsDependencies:
         """Returs the content of the tools dependencies formatted."""
         if not filepath or not Path(filepath).is_file():
@@ -89,15 +86,12 @@ class ToolLoader:
                 ]
             return tools_dependencies
 
-    @traceable
     def rigth_side(self, k):
         return self.split_string(k, '|', False)
 
-    @traceable
     def left_side(self, k):
         return self.split_string(k, '|', True)
 
-    @traceable
     def split_string(self, s: str, delimiter: str, left: bool):
         # amount of times that delimiter appears in string
         delimiter_amount = s.count(delimiter)
@@ -111,7 +105,6 @@ class ToolLoader:
         parts = s.split(delimiter)
         return parts[0] if left else parts[1]
 
-    @traceable
     def _is_tool_implemented(self, tool_name: str) -> bool:
         return tool_name in {tool.__name__ for tool in ToolWrapper.__subclasses__()}
 

@@ -1,0 +1,1 @@
+../.././com.etendoerp.copilot.toolpack/tests/test_file_copy_tool.py

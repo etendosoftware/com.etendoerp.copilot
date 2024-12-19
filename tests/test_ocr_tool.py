@@ -1,0 +1,1 @@
+../.././com.etendoerp.copilot.toolpack/tests/test_ocr_tool.py

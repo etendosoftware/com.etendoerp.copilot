@@ -27,12 +27,10 @@ async def validate_paris_response(response):
 
 
 class TestGraphEndpoint(unittest.TestCase):
-    @unit
     @pytest.fixture()
     def vcr_config(self):
         return {"record_mode": "rewrite"}
 
-    @unit
     def setUp(self):
         self.client = TestClient(app)
         self.url = "/graph"
@@ -89,12 +87,10 @@ class TestGraphEndpoint(unittest.TestCase):
             }
         }
 
-    @unit
     def test_graph_endpoint(self):
         response = serve_graph(GraphQuestionSchema.model_validate(self.payload))
         validate_paris_response(response)
 
-    @unit
     async def test_agraph_endpoint(self):
         response = await serve_async_graph(GraphQuestionSchema.model_validate(self.payload))
         await validate_paris_response(response)

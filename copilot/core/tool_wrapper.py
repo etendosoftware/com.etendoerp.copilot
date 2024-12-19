@@ -6,7 +6,6 @@ from copilot.core.utils import copilot_debug, copilot_info
 from langchain.tools import BaseTool
 from langchain_core.runnables import RunnableConfig
 from langchain_core.runnables.config import Callbacks
-from langsmith import traceable
 from pydantic import BaseModel
 
 
@@ -127,12 +126,10 @@ allowing for a standardized way to handle different types of responses from tool
 class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
     handle_validation_error: bool = True
 
-    @traceable
     @abc.abstractmethod
     def run(self, input_params: Dict = None, *args, **kwarg) -> ToolOutput:
         raise NotImplementedError
 
-    @traceable
     async def arun(
         self,
         tool_input: Union[str, Dict],
@@ -178,7 +175,6 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
         )
         return result
 
-    @traceable
     def _run(self, input_params: Dict, *args, **kwarg):
         copilot_debug("Running tool synchronously")
         input_params = accum_params(input_params, k_args=kwarg)
@@ -189,7 +185,6 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
             copilot_debug(f"Error executing tool {self.name}: " + str(e))
             return parse_response(ToolOutputError(error=str(e)))
 
-    @traceable
     async def _arun(self, input_params: Dict = None, *args, **kwarg):
         """Use the tool asynchronously."""
         copilot_debug("Running tool asynchronously")

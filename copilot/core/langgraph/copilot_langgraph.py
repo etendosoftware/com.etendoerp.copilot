@@ -16,7 +16,6 @@ class CopilotLangGraph:
     _pattern: BasePattern
     _graph: LoopPattern
 
-    @traceable
     def __init__(self, members, assistant_graph, pattern: BasePattern, memory, full_question=None):
         self._pattern = pattern
         self._full_question = full_question
@@ -26,11 +25,9 @@ class CopilotLangGraph:
         self._graph = workflow.compile(checkpointer=memory)
         self._graph.get_graph().print_ascii()
 
-    @traceable
     def get_pattern(self):
         return self._pattern
 
-    @traceable
     def invoke(self, question, thread_id, get_image=False):
         config = {
             "configurable": {"thread_id": thread_id},
@@ -45,7 +42,6 @@ class CopilotLangGraph:
             return ""
         return message[list(message.keys())[0]]["messages"][-1].content
 
-    @traceable
     def print_messages(self, config, question):
         message = None
         for message in self._graph.stream(

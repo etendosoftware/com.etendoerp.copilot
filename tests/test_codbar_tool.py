@@ -1,0 +1,1 @@
+../.././com.etendoerp.copilot.toolpack/tests/test_codbar_tool.py

@@ -67,7 +67,6 @@ payload: GraphQuestionSchema = GraphQuestionSchema.model_validate({
 
 class TestPatternBase(unittest.TestCase):
 
-    @unit
     def test_initialization(self):
 
         members = MembersUtil().get_members(payload)

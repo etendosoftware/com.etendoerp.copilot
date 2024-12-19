@@ -26,7 +26,6 @@ def debug_messages(messages):
 
 
 class MembersUtil:
-    @traceable
     def get_members(self, question) -> list[GraphMember]:
         members = []
         if question.assistants:
@@ -34,7 +33,6 @@ class MembersUtil:
                 members.append(self.get_member(assistant))
         return members
 
-    @traceable
     def model_openai_invoker(self):
         def invoke_model_openai(state: List[BaseMessage], _agent: AgentExecutor, _name: str):
             copilot_debug(f"Invoking model OPENAI: {_name} with state: {str(state)}")
@@ -46,7 +44,6 @@ class MembersUtil:
 
         return invoke_model_openai
 
-    @traceable
     def model_langchain_invoker(self):
         def invoke_model_langchain(state: Sequence[BaseMessage], _agent, _name: str, **kwargs):
             copilot_debug(f"Invoking model LANGCHAIN: {_name} with state: ")
@@ -60,7 +57,6 @@ class MembersUtil:
 
         return invoke_model_langchain
 
-    @traceable
     def get_member(self, assistant: AssistantSchema):
         member = None
         if assistant.type == "openai-assistant":
@@ -79,11 +75,9 @@ class MembersUtil:
             member = GraphMember(assistant.name, model_node)
         return member
 
-    @traceable
     def get_assistant_agent(self):
         return AssistantAgent()
 
-    @traceable
     def get_assistant_supervisor_info(self, assistant_name, full_question):
         if full_question is None:
             return None

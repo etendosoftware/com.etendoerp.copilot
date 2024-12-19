@@ -89,12 +89,10 @@ class MultimodelAgent(CopilotAgent):
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
     _memory: MemoryHandler = None
 
-    @traceable
     def __init__(self):
         super().__init__()
         self._memory = MemoryHandler()
 
-    @traceable
     def get_agent(
         self,
         provider: str,
@@ -138,7 +136,6 @@ class MultimodelAgent(CopilotAgent):
             )
         return agent
 
-    @traceable
     def get_agent_executor(self, agent) -> AgentExecutor:
         agent_exec = AgentExecutor(
             agent=agent,
@@ -153,7 +150,6 @@ class MultimodelAgent(CopilotAgent):
         agent_exec.max_execution_time = None if max_exec_time == 0 else max_exec_time
         return agent_exec
 
-    @traceable
     def get_functions(self, tools):
         _enabled_tools = []
         if tools:
@@ -164,7 +160,6 @@ class MultimodelAgent(CopilotAgent):
                         break
         return _enabled_tools
 
-    @traceable
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
         agent = self.get_agent(
@@ -188,7 +183,6 @@ class MultimodelAgent(CopilotAgent):
             ),
         )
 
-    @traceable
     def get_tools(self):
         return self._configured_tools
 
