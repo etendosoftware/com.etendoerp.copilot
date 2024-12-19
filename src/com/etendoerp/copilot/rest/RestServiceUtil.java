@@ -20,7 +20,6 @@ import java.net.http.HttpResponse;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -305,18 +304,7 @@ public class RestServiceUtil {
     String question = jsonRequest.getString(PROP_QUESTION);
     List<String> filesReceived = getFilesReceived(jsonRequest);
     String questionAttachedFileId = jsonRequest.optString("file");
-
-    CopilotApp copilotApp = OBDal.getInstance().get(CopilotApp.class, appId);
-
-    if (copilotApp == null) {
-      //This is in case the appId provided was the name of the Assistant
-      CopilotApp app = getAppIdByAssistantName(appId);
-      if (app == null) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), appId));
-      }
-      copilotApp = app;
-    }
-
+    CopilotApp copilotApp = getAssistantByIDOrName(appId);
     switch (copilotApp.getAppType()) {
       case CopilotConstants.APP_TYPE_OPENAI:
         if (StringUtils.isEmpty(copilotApp.getOpenaiIdAssistant())) {
@@ -335,6 +323,52 @@ public class RestServiceUtil {
         log.warn("Unsupported app type: {}", copilotApp.getAppType());
     }
     return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived);
+  }
+
+  /**
+   * Retrieves a CopilotApp instance based on the provided ID or name.
+   * <p>
+   * This method first attempts to fetch the CopilotApp instance using the provided ID.
+   * If no instance is found, it treats the ID as the name of the Assistant and attempts to fetch the CopilotApp instance by the Assistant's name.
+   * If still no instance is found, an OBException is thrown.
+   *
+   * @param idOrName
+   *     the ID or name of the CopilotApp to retrieve
+   * @return the CopilotApp instance corresponding to the provided ID or name
+   * @throws OBException
+   *     if no CopilotApp instance is found for the provided ID or name
+   */
+  public static CopilotApp getAssistantByIDOrName(String idOrName) {
+    CopilotApp copilotApp = OBDal.getInstance().get(CopilotApp.class, idOrName);
+    if (copilotApp != null) {
+      return copilotApp;
+    }
+    // This is in case the appId provided was the name of the Assistant
+    copilotApp = getAppIdByAssistantName(idOrName);
+    if (copilotApp != null) {
+      return copilotApp;
+    }
+    throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), idOrName));
+  }
+
+  /**
+   * Retrieves a CopilotApp instance based on the provided ID.
+   * <p>
+   * This method fetches the CopilotApp instance using the provided ID.
+   * If no instance is found, an OBException is thrown.
+   *
+   * @param id
+   *     the ID of the CopilotApp to retrieve
+   * @return the CopilotApp instance corresponding to the provided ID
+   * @throws OBException
+   *     if no CopilotApp instance is found for the provided ID
+   */
+  public static CopilotApp getAssistantByID(String id) {
+    CopilotApp copilotApp = OBDal.getInstance().get(CopilotApp.class, id);
+    if (copilotApp == null) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), id));
+    }
+    return copilotApp;
   }
 
   /**
@@ -365,7 +399,18 @@ public class RestServiceUtil {
     return result;
   }
 
-  private static CopilotApp getAppIdByAssistantName(String appId) {
+  /**
+   * Retrieves a CopilotApp instance based on the provided Assistant name.
+   * <p>
+   * This method creates a criteria query to fetch the CopilotApp instance
+   * where the name matches the provided Assistant name. It sets a maximum
+   * result limit of one and returns the unique result.
+   *
+   * @param appId
+   *     the name of the Assistant to retrieve the CopilotApp instance for
+   * @return the CopilotApp instance corresponding to the provided Assistant name, or null if no match is found
+   */
+  public static CopilotApp getAppIdByAssistantName(String appId) {
     OBCriteria<CopilotApp> appCrit = OBDal.getInstance().createCriteria(CopilotApp.class);
     appCrit.add(Restrictions.eq(CopilotApp.PROPERTY_NAME, appId));
     appCrit.setMaxResults(1);
@@ -473,25 +518,10 @@ public class RestServiceUtil {
     appType = copilotApp.getAppType();
     List<String> allowedAppTypes = List.of(CopilotConstants.APP_TYPE_LANGCHAIN, CopilotConstants.APP_TYPE_LANGGRAPH,
         CopilotConstants.APP_TYPE_OPENAI, CopilotConstants.APP_TYPE_MULTIMODEL);
-
-    if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)
-        || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGGRAPH)
-        || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_MULTIMODEL)
-    ) {
-      if (StringUtils.isEmpty(conversationId)) {
-        conversationId = UUID.randomUUID().toString();
-      }
-      if (!isGraph) {
-        buildLangchainRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot, appType);
-      } else {
-        buildLangraphRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
-      }
-    } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
-      buildOpenAIrequestForCopilot(copilotApp, jsonRequestForCopilot);
-    } else {
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
+    if (isLangchainDerivatedAssistant(appType) && StringUtils.isEmpty(conversationId)) {
+      conversationId = UUID.randomUUID().toString();
     }
+    generateAssistantStructure(copilotApp, conversationId, appType, isGraph, jsonRequestForCopilot);
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
     }
@@ -590,6 +620,90 @@ public class RestServiceUtil {
     return responseOriginal;
   }
 
+  /**
+   * Generates the assistant structure for the given CopilotApp.
+   * <p>
+   * This method determines the type of assistant and builds the appropriate request structure.
+   * If the assistant type is derived from Langchain, it builds either a Langchain or Langraph request.
+   * If the assistant type is OpenAI, it builds an OpenAI request.
+   * If the assistant type is not recognized, it throws an OBException.
+   *
+   * @param copilotApp
+   *     the CopilotApp instance for which the assistant structure is generated
+   * @param conversationId
+   *     the conversation ID to be used in the request
+   * @param appType
+   *     the type of the assistant
+   * @param isGraph
+   *     a boolean indicating if the assistant is a graph-based assistant
+   * @param jsonRequestForCopilot
+   *     the JSON object to which the request parameters are added
+   * @throws JSONException
+   *     if an error occurs while processing the JSON data
+   * @throws IOException
+   *     if an I/O error occurs
+   */
+  private static void generateAssistantStructure(CopilotApp copilotApp, String conversationId, String appType,
+      boolean isGraph,
+      JSONObject jsonRequestForCopilot) throws JSONException, IOException {
+    if (isLangchainDerivatedAssistant(appType)) {
+      if (!isGraph) {
+        buildLangchainRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot, appType);
+      } else {
+        buildLangraphRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
+      }
+    } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
+      buildOpenAIrequestForCopilot(copilotApp, jsonRequestForCopilot);
+    } else {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
+    }
+  }
+
+  /**
+   * Generates the assistant structure for the given CopilotApp.
+   * <p>
+   * This method is an overloaded version that does not require a conversation ID.
+   * It determines the type of assistant and builds the appropriate request structure.
+   *
+   * @param copilotApp
+   *     the CopilotApp instance for which the assistant structure is generated
+   * @param jsonRequestForCopilot
+   *     the JSON object to which the request parameters are added
+   * @throws JSONException
+   *     if an error occurs while processing the JSON data
+   * @throws IOException
+   *     if an I/O error occurs
+   */
+  public static void generateAssistantStructure(CopilotApp copilotApp,
+      JSONObject jsonRequestForCopilot) throws JSONException, IOException {
+    generateAssistantStructure(copilotApp, null, copilotApp.getAppType(), checkIfGraphQuestion(copilotApp),
+        jsonRequestForCopilot);
+  }
+
+  /**
+   * Checks if the given assistant type is derived from Langchain.
+   *
+   * @param appType
+   *     the type of the assistant
+   * @return true if the assistant type is derived from Langchain, false otherwise
+   */
+  private static boolean isLangchainDerivatedAssistant(String appType) {
+    return StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)
+        || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGGRAPH)
+        || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_MULTIMODEL);
+  }
+
+  /**
+   * Checks if the given question exceeds the maximum allowed length for Langchain questions.
+   * <p>
+   * If the question length exceeds the defined maximum length, an OBException is thrown.
+   *
+   * @param question
+   *     the question to be checked
+   * @throws OBException
+   *     if the question length exceeds the maximum allowed length
+   */
   private static void checkQuestionPrompt(String question) {
     if (question.length() > LANGCHAIN_MAX_LENGTH_QUESTION) {
       throw new OBException(OBMessageUtils.messageBD("ETCOP_MaxLengthQuestion"));
