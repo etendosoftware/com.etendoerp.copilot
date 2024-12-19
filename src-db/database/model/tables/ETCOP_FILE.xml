@@ -73,6 +73,10 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="ETAPI_OPENAPI_FLOW_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
       <column name="TEXT" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
         <default/>
         <onCreateDefault/>
@@ -86,6 +90,9 @@
       </foreign-key>
       <foreign-key foreignTable="AD_CLIENT" name="ETCOP_FILE_CLI_FK">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="ETAPI_OPENAPI_FLOW" name="ETCOP_FILE_FLOW">
+        <reference local="ETAPI_OPENAPI_FLOW_ID" foreign="ETAPI_OPENAPI_FLOW_ID"/>
       </foreign-key>
       <foreign-key foreignTable="AD_ORG" name="ETCOP_FILE_ORG_FK">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>

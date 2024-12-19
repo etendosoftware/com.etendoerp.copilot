@@ -28,7 +28,12 @@ import java.util.concurrent.TransferQueue;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.*;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
+
+import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
+
+import io.swagger.v3.core.util.Json;
 
 public class RestService {
   private static final Logger log4j = LogManager.getLogger(RestService.class);
@@ -42,20 +47,23 @@ public class RestService {
       OBContext.setAdminMode();
       if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
         handleAssistants(response);
-        return;
       } else if (StringUtils.equalsIgnoreCase(path, AQUESTION)) {
         try {
           handleQuestion(request, response);
         } catch (OBException e) {
           throw new OBException("Error handling question: " + e.getMessage());
         }
-        return;
       } else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         response.getWriter().write(RestServiceUtil.getJSONLabels().toString());
-        return;
+      } else if (StringUtils.equalsIgnoreCase(path, "/structure")) {
+        JSONObject params = extractRequestBody(request);
+        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+        JSONObject structure = handleStructure(params);
+        response.getWriter().write(structure.toString());
+      } else {
+        response.sendError(HttpServletResponse.SC_NOT_FOUND);
       }
-      response.sendError(HttpServletResponse.SC_NOT_FOUND);
     } catch (Exception e) {
       log4j.error(e);
       try {
@@ -64,6 +72,38 @@ public class RestService {
         log4j.error(ioException);
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
       }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Handles the structure of the assistant based on the provided parameters.
+   * <p>
+   * This method sets the admin mode, retrieves the assistant by ID or name,
+   * generates the assistant structure, and returns the result as a JSON object.
+   * If an error occurs, an OBException is thrown with an appropriate message.
+   *
+   * @param params
+   *     the JSON object containing the parameters for the request
+   * @return the JSON object containing the assistant structure
+   * @throws OBException
+   *     if the app ID is missing or an error occurs while generating the structure
+   */
+  private JSONObject handleStructure(JSONObject params) {
+    try {
+      OBContext.setAdminMode(false);
+      JSONObject result = new JSONObject();
+      String appId = params.optString(CopilotConstants.PROP_APP_ID);
+      if (StringUtils.isEmpty(appId)) {
+        throw new OBException("App ID is required"); //TODO: add to OBMessageUtils
+      }
+      CopilotApp assistant = RestServiceUtil.getAssistantByIDOrName(appId);
+      RestServiceUtil.generateAssistantStructure(assistant, result);
+      return result;
+    } catch (Exception e) {
+      throw new OBException(
+          OBMessageUtils.messageBD("ETCOP_ErrorStructure") + e.getMessage()); //TODO: add to OBMessageUtils
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -240,9 +280,10 @@ public class RestService {
    * The method determines this by comparing the request's path with predefined
    * constants representing asynchronous request types.
    *
-   * @param request the {@link HttpServletRequest} object containing client request information
+   * @param request
+   *     the {@link HttpServletRequest} object containing client request information
    * @return {@code true} if the request path matches an asynchronous request type,
-   *         otherwise {@code false}
+   *     otherwise {@code false}
    */
   public boolean isAsyncRequest(HttpServletRequest request) {
     String path = request.getPathInfo();
@@ -257,10 +298,14 @@ public class RestService {
    * This method extracts parameters from the request, validates them,
    * and determines whether to process the request asynchronously or synchronously.
    *
-   * @param request  the {@link HttpServletRequest} object containing client request information
-   * @param response the {@link HttpServletResponse} object used to return response to the client
-   * @throws IOException   if an input or output error occurs during the handling of the request
-   * @throws JSONException if there is an error in processing JSON data
+   * @param request
+   *     the {@link HttpServletRequest} object containing client request information
+   * @param response
+   *     the {@link HttpServletResponse} object used to return response to the client
+   * @throws IOException
+   *     if an input or output error occurs during the handling of the request
+   * @throws JSONException
+   *     if there is an error in processing JSON data
    */
   public void handleQuestion(HttpServletRequest request, HttpServletResponse response)
       throws IOException, JSONException {
@@ -313,9 +358,11 @@ public class RestService {
    * This method checks for the existence of specific parameters
    * defined in {@link CopilotConstants} and adds them to the JSON object.
    *
-   * @param request the {@link HttpServletRequest} object containing client request information
+   * @param request
+   *     the {@link HttpServletRequest} object containing client request information
    * @return a {@link JSONObject} containing the retrieved parameters
-   * @throws JSONException if there is an error in constructing the JSON object
+   * @throws JSONException
+   *     if there is an error in constructing the JSON object
    */
   public JSONObject retrieveParametersAsJson(HttpServletRequest request) throws JSONException {
     JSONObject json = new JSONObject();
@@ -411,9 +458,12 @@ public class RestService {
    * This method checks for a cached question in the request and populates
    * the JSON object accordingly.
    *
-   * @param request the {@link HttpServletRequest} object containing client request information
-   * @param json    the {@link JSONObject} to which the cached question may be added
-   * @throws JSONException if there is an error in adding the question to the JSON object
+   * @param request
+   *     the {@link HttpServletRequest} object containing client request information
+   * @param json
+   *     the {@link JSONObject} to which the cached question may be added
+   * @throws JSONException
+   *     if there is an error in adding the question to the JSON object
    */
   public void addCachedQuestionIfPresent(HttpServletRequest request, JSONObject json) throws JSONException {
     String cachedQuestion = readCachedQuestion(request);
@@ -428,8 +478,10 @@ public class RestService {
    * {@link CopilotConstants}. If any required parameter is missing, an {@link OBException}
    * is thrown with a corresponding error message.
    *
-   * @param json the {@link JSONObject} containing parameters to be validated
-   * @throws OBException if any required parameter is missing in the JSON object
+   * @param json
+   *     the {@link JSONObject} containing parameters to be validated
+   * @throws OBException
+   *     if any required parameter is missing in the JSON object
    */
   public void validateRequiredParams(JSONObject json) {
     if (!json.has(CopilotConstants.PROP_QUESTION)) {
@@ -459,10 +511,14 @@ public class RestService {
    * and writing the response back to the client. This method invokes a REST service
    * to handle the question and manages the response and any potential errors.
    *
-   * @param response the {@link HttpServletResponse} object used to return the response to the client
-   * @param json     the {@link JSONObject} containing the request parameters to be processed
-   * @throws IOException   if an input or output error occurs during the response writing process
-   * @throws JSONException if there is an error in processing the JSON data
+   * @param response
+   *     the {@link HttpServletResponse} object used to return the response to the client
+   * @param json
+   *     the {@link JSONObject} containing the request parameters to be processed
+   * @throws IOException
+   *     if an input or output error occurs during the response writing process
+   * @throws JSONException
+   *     if there is an error in processing the JSON data
    */
   public void processSyncRequest(HttpServletResponse response, JSONObject json) throws IOException, JSONException {
     try {
