@@ -1,13 +1,13 @@
 import functools
 from typing import List, Sequence
 
+from colorama import Fore, Style
 from copilot.core.agent import AssistantAgent, MultimodelAgent
 from copilot.core.langgraph.patterns.base_pattern import GraphMember
 from copilot.core.schemas import AssistantSchema
-from copilot.core.utils import copilot_debug, is_debug_enabled
+from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
 from langchain.agents import AgentExecutor
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-from langsmith import traceable
 
 
 def debug_messages(messages):
@@ -25,7 +25,6 @@ def debug_messages(messages):
 
 
 class MembersUtil:
-    @traceable
     def get_members(self, question) -> list[GraphMember]:
         members = []
         if question.assistants:
@@ -33,7 +32,6 @@ class MembersUtil:
                 members.append(self.get_member(assistant))
         return members
 
-    @traceable
     def model_openai_invoker(self):
         def invoke_model_openai(state: List[BaseMessage], _agent: AgentExecutor, _name: str):
             copilot_debug(f"Invoking model OPENAI: {_name} with state: {str(state)}")
@@ -45,22 +43,23 @@ class MembersUtil:
 
         return invoke_model_openai
 
-    @traceable
     def model_langchain_invoker(self):
         def invoke_model_langchain(state: Sequence[BaseMessage], _agent, _name: str, **kwargs):
-            copilot_debug(f"Invoking model {_agent}: {_name} with state: ")
+            copilot_debug_custom(
+                f"Supervisor call {_name} with this instructions:\n {state['instructions']}",
+                Fore.MAGENTA + Style.BRIGHT,
+            )
             messages = state["messages"]
-            new_message = HumanMessage(content=state["instructions"], name="Supervisor")
-            messages.append(new_message)
-            debug_messages(messages)
+            messages.append(HumanMessage(content=state["instructions"], name="Supervisor"))
+            if _name == "output":
+                return {"messages": [AIMessage(content=state["instructions"], name=_name)]}
             response = _agent.invoke({"messages": messages})
             response_msg = response["output"]
-            copilot_debug(f"Response from LANGCHAIN: {_name} is: {response_msg}")
+            copilot_debug_custom(f"Node {_name} response: \n{response_msg}", Fore.BLUE + Style.BRIGHT)
             return {"messages": [AIMessage(content=response_msg, name=_name)]}
 
         return invoke_model_langchain
 
-    @traceable
     def get_member(self, assistant: AssistantSchema):
         member = None
         if assistant.type == "openai-assistant":
@@ -89,11 +88,9 @@ class MembersUtil:
             member = GraphMember(assistant.name, model_node)
         return member
 
-    @traceable
     def get_assistant_agent(self):
         return AssistantAgent()
 
-    @traceable
     def get_assistant_supervisor_info(self, assistant_name, full_question):
         if full_question is None:
             return None

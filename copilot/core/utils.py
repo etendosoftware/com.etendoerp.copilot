@@ -82,6 +82,12 @@ def copilot_debug(message: str):
         print_yellow(message)
 
 
+def copilot_debug_custom(message: str, color: str):
+    """Prints a message if COPILOT_DEBUG is set to True."""
+    if is_debug_enabled():
+        print(color + message)
+
+
 def is_debug_enabled():
     return os.getenv("COPILOT_DEBUG", "False").lower() in "true"
 

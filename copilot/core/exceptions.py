@@ -1,14 +1,12 @@
 from .tool_dependencies import Dependency
-from langsmith import traceable
+
 
 class ApplicationError(RuntimeError):
     message = "There was an unexpected error, if this error persist contact support."
 
-    @traceable
     def __init__(self, msg: str = None):
         self._message = msg or self.message
 
-    @traceable
     def __str__(self) -> str:
         return self._message
 
@@ -30,7 +28,6 @@ class ToolDependenciesFileNotFound(ApplicationError):
 
 
 class ToolDependencyMismatch(ApplicationError):
-    @traceable
     def __init__(self, dependency: Dependency, installed_version: str):
         message = (
             f"Dependency mismatch error for {dependency.name}. "
@@ -44,7 +41,6 @@ class UnsupportedAgent(ApplicationError):
 
 
 class AssistantIdNotFound(ApplicationError):
-    @traceable
     def __init__(self, assistant_id: str):
         message = f"No assistant found with id '{assistant_id}'"
         super().__init__(msg=message)

@@ -4,7 +4,6 @@ from typing import AsyncGenerator
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langsmith import traceable
 
 from ..langgraph.copilot_langgraph import CopilotLangGraph
 from ..langgraph.members_util import MembersUtil
@@ -159,14 +158,13 @@ async def handle_events(copilot_stream_debug, event, thread_id):
 class LanggraphAgent(CopilotAgent):
     _memory: MemoryHandler = None
 
-    @traceable
     def __init__(self):
         """Initializes the LanggraphAgent instance and sets up the memory handler."""
         super().__init__()
         self._memory = MemoryHandler()
 
     # The agent state is the input to each node in the graph
-    @traceable
+
     def execute(self, question: GraphQuestionSchema) -> AgentResponse:
         """
         Executes the agent synchronously to process the given question.
@@ -192,7 +190,6 @@ class LanggraphAgent(CopilotAgent):
                 output=AssistantResponse(response=final_response, conversation_id=thread_id),
             )
 
-    @traceable
     async def aexecute(self, question: GraphQuestionSchema) -> AsyncGenerator[AgentResponse, None]:
         """
         Executes the agent asynchronously to process the given question.
