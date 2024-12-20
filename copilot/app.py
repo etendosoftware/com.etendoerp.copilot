@@ -15,7 +15,6 @@ app.include_router(api_router)
 register_error_handlers(app)
 
 
-@traceable
 @app.middleware("http")
 async def add_request_context(request: Request, call_next):
     token = request_context.set({})
@@ -25,7 +24,6 @@ async def add_request_context(request: Request, call_next):
         request_context.reset(token)
     return response
 
-@traceable
 @app.get("/", include_in_schema=False)
 def get_root(request: Request):
     return RedirectResponse(url="/docs")
