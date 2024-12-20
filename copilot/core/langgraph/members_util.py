@@ -2,12 +2,12 @@ import functools
 from typing import List, Sequence
 
 from colorama import Fore, Style
-from copilot.core.agent import AssistantAgent, LangchainAgent
+from copilot.core.agent import AssistantAgent, MultimodelAgent
 from copilot.core.langgraph.patterns.base_pattern import GraphMember
 from copilot.core.schemas import AssistantSchema
 from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
 from langchain.agents import AgentExecutor
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 
 def debug_messages(messages):
@@ -50,7 +50,7 @@ class MembersUtil:
                 Fore.MAGENTA + Style.BRIGHT,
             )
             messages = state["messages"]
-            messages.append(AIMessage(content=state["instructions"], name="Supervisor"))
+            messages.append(HumanMessage(content=state["instructions"], name="Supervisor"))
             if _name == "output":
                 return {"messages": [AIMessage(content=state["instructions"], name=_name)]}
             response = _agent.invoke({"messages": messages})
@@ -71,9 +71,9 @@ class MembersUtil:
             )
             member = GraphMember(assistant.name, model_node)
         else:
-            langchain_agent = LangchainAgent()
+            agent_build = MultimodelAgent()
             kb_vectordb_id = assistant.kb_vectordb_id if hasattr(assistant, "kb_vectordb_id") else None
-            _agent = langchain_agent.get_agent(
+            _agent = agent_build.get_agent(
                 assistant.provider,
                 assistant.model,
                 assistant.tools,
@@ -81,7 +81,7 @@ class MembersUtil:
                 assistant.temperature,
                 kb_vectordb_id,
             )
-            agent_executor = langchain_agent.get_agent_executor(_agent)
+            agent_executor = agent_build.get_agent_executor(_agent)
             model_node = functools.partial(
                 self.model_langchain_invoker(), _agent=agent_executor, _name=assistant.name
             )
