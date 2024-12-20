@@ -7,7 +7,6 @@ from .langchain_agent import LangchainAgent
 from .multimodel_agent import MultimodelAgent
 
 
-@traceable
 def _get_agent_executors():
     _agents = {
         AgentEnum.OPENAI_ASSISTANT.value: AssistantAgent.__name__,
