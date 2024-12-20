@@ -149,7 +149,7 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
         if self.input_schema is not None:
             copilot_debug("Parsing input with schema to check for errors")
             try:
-                self._parse_input(tool_input)
+                self._parse_input(tool_input, tool_call_id=None)
                 schema_input: BaseModel = self.args_schema
                 if hasattr(schema_input, "model_validate"):
                     schema_input.model_validate(tool_input)

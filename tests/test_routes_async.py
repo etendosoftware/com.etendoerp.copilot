@@ -14,7 +14,6 @@ from copilot.core.schemas import QuestionSchema, GraphQuestionSchema
 
 
 # Simulación de QuestionSchema
-@unit
 @pytest.fixture
 def question():
     return QuestionSchema(
@@ -31,7 +30,6 @@ app = FastAPI()
 app.include_router(core_router)
 client = TestClient(app)
 
-@unit
 @pytest.mark.asyncio
 async def test_serve_question_async(question):
     with patch('copilot.core.routes._initialize_agent') as mock_initialize_agent, \
@@ -53,7 +51,6 @@ async def test_serve_question_async(question):
 
         assert responses == ["response1", "response2"]
 
-@unit
 @pytest.mark.asyncio
 async def test_serve_async_question():
     async with AsyncClient(app=app, base_url="http://test") as ac:
@@ -64,7 +61,6 @@ async def test_serve_async_question():
         async for data in response.aiter_text():
             print(data)  # You can add more assertions based on the expected output
 
-@unit
 @pytest.fixture
 def graph_question_payload():
     return GraphQuestionSchema.model_validate({
@@ -112,7 +108,6 @@ def graph_question_payload():
         }
     })
 
-@unit
 @pytest.mark.asyncio
 @patch('copilot.core.agent.langgraph_agent.LanggraphAgent')
 @patch('copilot.core.routes.gather_responses', new_callable=AsyncMock)
@@ -149,7 +144,6 @@ async def test_serve_async_graph(mock_gather_responses, MockLanggraphAgent, grap
     assert response.status_code == 200
     assert 'data: {"answer": {"response": "Hi!", "conversation_id": "123", "role": "bot"}}\n' in response.text
 
-@unit
 def test_serve_agraph_exception_handling(graph_question_payload):
     with patch('copilot.core.agent.langgraph_agent.LanggraphAgent') as MockLanggraphAgent:
         mock_agent = MockLanggraphAgent.return_value
