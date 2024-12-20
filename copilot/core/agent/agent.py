@@ -6,7 +6,6 @@ from typing import Final, Optional
 
 from langchain.tools.retriever import create_retriever_tool
 from langchain_chroma.vectorstores import Chroma
-from langsmith import traceable
 
 from .. import tool_installer, utils
 from ..exceptions import (
@@ -76,21 +75,17 @@ class CopilotAgent:
         "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.",
     )
 
-    @traceable
     def __init__(self):
         self._configured_tools: LangChainTools = ToolLoader().load_configured_tools()
 
-    @traceable
     def _assert_open_api_key_is_set(self):
         if not self.OPENAI_API_KEY:
             raise OpenAIApiKeyNotFound()
 
-    @traceable
     def _assert_system_prompt_is_set(self):
         if not self.SYSTEM_PROMPT:
             raise SystemPromptNotFound()
 
-    @traceable
     def _assert_openai_is_installed(self, version: str):
         dependency = Dependency(name="openai", version=f"=={version}")
         try:
@@ -100,7 +95,6 @@ class CopilotAgent:
             tool_installer._pip_uninstall(package=dependency.fullname())
             tool_installer._pip_install(package=dependency.fullname())
 
-    @traceable
     @abstractmethod
     def execute(self, question: QuestionSchema) -> AgentResponse:
         raise NotImplementedError

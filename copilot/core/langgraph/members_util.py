@@ -1,14 +1,13 @@
 import functools
 from typing import List, Sequence
 
-from langchain.agents import AgentExecutor
-from langchain_core.messages import BaseMessage, AIMessage
-from langsmith import traceable
-
-from copilot.core.agent import LangchainAgent, AssistantAgent
+from colorama import Fore, Style
+from copilot.core.agent import AssistantAgent, LangchainAgent
 from copilot.core.langgraph.patterns.base_pattern import GraphMember
 from copilot.core.schemas import AssistantSchema
-from copilot.core.utils import copilot_debug, is_debug_enabled
+from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
+from langchain.agents import AgentExecutor
+from langchain_core.messages import AIMessage, BaseMessage
 
 
 def debug_messages(messages):
@@ -26,7 +25,6 @@ def debug_messages(messages):
 
 
 class MembersUtil:
-    @traceable
     def get_members(self, question) -> list[GraphMember]:
         members = []
         if question.assistants:
@@ -34,7 +32,6 @@ class MembersUtil:
                 members.append(self.get_member(assistant))
         return members
 
-    @traceable
     def model_openai_invoker(self):
         def invoke_model_openai(state: List[BaseMessage], _agent: AgentExecutor, _name: str):
             copilot_debug(f"Invoking model OPENAI: {_name} with state: {str(state)}")
@@ -46,44 +43,54 @@ class MembersUtil:
 
         return invoke_model_openai
 
-    @traceable
     def model_langchain_invoker(self):
         def invoke_model_langchain(state: Sequence[BaseMessage], _agent, _name: str, **kwargs):
-            copilot_debug(f"Invoking model LANGCHAIN: {_name} with state: ")
+            copilot_debug_custom(
+                f"Supervisor call {_name} with this instructions:\n {state['instructions']}",
+                Fore.MAGENTA + Style.BRIGHT,
+            )
             messages = state["messages"]
             messages.append(AIMessage(content=state["instructions"], name="Supervisor"))
-            debug_messages(messages)
+            if _name == "output":
+                return {"messages": [AIMessage(content=state["instructions"], name=_name)]}
             response = _agent.invoke({"messages": messages})
             response_msg = response["output"]
-            copilot_debug(f"Response from LANGCHAIN: {_name} is: {response_msg}")
+            copilot_debug_custom(f"Node {_name} response: \n{response_msg}", Fore.BLUE + Style.BRIGHT)
             return {"messages": [AIMessage(content=response_msg, name=_name)]}
 
         return invoke_model_langchain
 
-    @traceable
     def get_member(self, assistant: AssistantSchema):
         member = None
         if assistant.type == "openai-assistant":
             agent: AssistantAgent = self.get_assistant_agent()
             _agent = agent.get_agent(assistant.assistant_id)
             agent_executor = agent.get_agent_executor(_agent)
-            model_node = functools.partial(self.model_openai_invoker(), _agent=agent_executor, _name=assistant.name)
+            model_node = functools.partial(
+                self.model_openai_invoker(), _agent=agent_executor, _name=assistant.name
+            )
             member = GraphMember(assistant.name, model_node)
         else:
             langchain_agent = LangchainAgent()
             kb_vectordb_id = assistant.kb_vectordb_id if hasattr(assistant, "kb_vectordb_id") else None
-            _agent = langchain_agent.get_agent(assistant.provider, assistant.model, assistant.tools,
-                                               assistant.system_prompt, assistant.temperature, kb_vectordb_id)
+            _agent = langchain_agent.get_agent(
+                assistant.provider,
+                assistant.model,
+                assistant.tools,
+                assistant.system_prompt,
+                assistant.temperature,
+                kb_vectordb_id,
+            )
             agent_executor = langchain_agent.get_agent_executor(_agent)
-            model_node = functools.partial(self.model_langchain_invoker(), _agent=agent_executor, _name=assistant.name)
+            model_node = functools.partial(
+                self.model_langchain_invoker(), _agent=agent_executor, _name=assistant.name
+            )
             member = GraphMember(assistant.name, model_node)
         return member
 
-    @traceable
     def get_assistant_agent(self):
         return AssistantAgent()
 
-    @traceable
     def get_assistant_supervisor_info(self, assistant_name, full_question):
         if full_question is None:
             return None

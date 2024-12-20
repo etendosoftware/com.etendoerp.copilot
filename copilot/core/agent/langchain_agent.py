@@ -18,7 +18,6 @@ from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.runnables import AddableDict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-from langsmith import traceable
 
 from .. import utils
 from ..memory.memory_handler import MemoryHandler
@@ -42,12 +41,10 @@ class LangchainAgent(CopilotAgent):
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
     _memory: MemoryHandler = None
 
-    @traceable
     def __init__(self):
         super().__init__()
         self._memory = MemoryHandler()
 
-    @traceable
     def get_agent(
         self,
         provider: str,
@@ -73,7 +70,6 @@ class LangchainAgent(CopilotAgent):
 
         return agent
 
-    @traceable
     def get_agent_executor(self, agent) -> AgentExecutor:
         agent_exec = AgentExecutor(
             agent=agent,
@@ -88,7 +84,6 @@ class LangchainAgent(CopilotAgent):
         agent_exec.max_execution_time = None if max_exec_time == 0 else max_exec_time
         return agent_exec
 
-    @traceable
     def get_openai_agent(
         self, open_ai_model, tools, system_prompt, temperature=1, kb_vectordb_id: Optional[str] = None
     ):
@@ -120,7 +115,6 @@ class LangchainAgent(CopilotAgent):
             agent = prompt | llm | OpenAIToolsAgentOutputParser()
         return agent
 
-    @traceable
     def get_functions(self, tools):
         _enabled_tools = []
         if tools:
@@ -131,7 +125,6 @@ class LangchainAgent(CopilotAgent):
                         break
         return _enabled_tools
 
-    @traceable
     def get_gemini_agent(self, open_ai_model, temperature=1):
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -154,7 +147,6 @@ class LangchainAgent(CopilotAgent):
         )
         return agent
 
-    @traceable
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
         agent = self.get_agent(
@@ -178,7 +170,6 @@ class LangchainAgent(CopilotAgent):
             ),
         )
 
-    @traceable
     def get_tools(self):
         return self._configured_tools
 
