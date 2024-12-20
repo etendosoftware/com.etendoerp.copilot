@@ -544,8 +544,7 @@ public class CopilotUtils {
   private static String getSourcesPath(Properties properties) {
     boolean inDocker;
     try {
-      var resp = doGetCopilot(properties, "runningCheck");
-      inDocker = StringUtils.contains(resp.body(), "docker");
+      inDocker = isCopilotRunningInDocker(properties);
       if (inDocker) {
         return "";
       }
@@ -553,6 +552,18 @@ public class CopilotUtils {
     } catch (Exception e) {
       throw new OBException(e);
     }
+  }
+
+  private static boolean isCopilotRunningInDocker(Properties properties) {
+    boolean inDocker = false;
+    try {
+      var resp = doGetCopilot(properties, "runningCheck");
+      inDocker = StringUtils.contains(resp.body(), "docker");
+    } catch (Exception e) {
+      log.error(OBMessageUtils.messageBD("ETCOP_ErrorRunningCheck"),
+          e);//TODO: message like "Error checking if running in Docker, assuming not"
+    }
+    return inDocker;
   }
 
   /**
@@ -738,6 +749,7 @@ public class CopilotUtils {
         context.getWarehouse().getId()) : null;
     return SecureWebServicesUtils.generateToken(user, role, currentOrganization, warehouse);
   }
+
   /**
    * Retrieves an attachment associated with the given CopilotFile instance.
    * <p>
