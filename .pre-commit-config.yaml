@@ -11,7 +11,9 @@ repos:
       - id: check-json
       - id: check-yaml
       - id: end-of-file-fixer
+        exclude: \.xml$
       - id: trailing-whitespace
+        exclude: \.xml$
       - id: mixed-line-ending
       - id: debug-statements
       - id: check-added-large-files

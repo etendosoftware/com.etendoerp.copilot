@@ -18,7 +18,6 @@ from langchain.prompts import MessagesPlaceholder
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import AddableDict, RunnablePassthrough
-from langsmith import traceable
 
 from .. import etendo_utils, utils
 from ..memory.memory_handler import MemoryHandler

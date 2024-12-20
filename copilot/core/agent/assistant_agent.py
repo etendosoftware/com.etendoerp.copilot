@@ -6,7 +6,6 @@ from langchain.agents.openai_assistant.base import OpenAIAssistantAction
 from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
 from langchain_core.agents import AgentFinish
 from langchain_core.runnables import AddableDict
-from langsmith import traceable
 
 from .. import utils
 from ..schemas import QuestionSchema

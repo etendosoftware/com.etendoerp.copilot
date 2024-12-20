@@ -2,8 +2,6 @@ import re
 from dataclasses import dataclass
 from typing import ClassVar, Dict, List, Optional, TypeAlias
 
-from langsmith import traceable
-
 import pkg_resources
 
 

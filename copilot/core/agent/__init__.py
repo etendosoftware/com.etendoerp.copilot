@@ -1,5 +1,3 @@
-from langsmith import traceable
-
 from ...core.utils import print_green
 from .agent import AgentEnum, AgentResponse
 from .assistant_agent import AssistantAgent

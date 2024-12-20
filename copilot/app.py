@@ -1,12 +1,8 @@
-from fastapi import FastAPI, Request
-from starlette.responses import RedirectResponse
-
-from langsmith import traceable
-
-
 from copilot.core import api_router
 from copilot.core.threadcontext import request_context
 from copilot.handlers import register_error_handlers
+from fastapi import FastAPI, Request
+from starlette.responses import RedirectResponse
 
 app: FastAPI = FastAPI(title="Copilot API")
 
@@ -23,6 +19,7 @@ async def add_request_context(request: Request, call_next):
     finally:
         request_context.reset(token)
     return response
+
 
 @app.get("/", include_in_schema=False)
 def get_root(request: Request):

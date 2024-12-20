@@ -2,13 +2,12 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional, TypeAlias
 
-from langsmith import traceable
-
-
 import toml
 
 from tools import *  # noqa: F403
+
 from . import tool_installer, utils
+
 # tools need to be imported so they can be inferred from globals
 # ruff: noqa: F401
 # fmt: off
@@ -19,27 +18,32 @@ from .exceptions import (
 )
 from .tool_dependencies import Dependency, ToolsDependencies
 from .tool_wrapper import ToolWrapper
+
 # fmt: on
 from .utils import SUCCESS_CODE, print_green, print_yellow
 
 LangChainTools: TypeAlias = List[ToolWrapper]
 
-NATIVE_TOOL_IMPLEMENTATION: Final[str] = "copilot"
-NATIVE_TOOLS_NODE_NAME: Final[str] = "native_tools"
-THIRD_PARTY_TOOLS_NODE_NAME: Final[str] = "third_party_tools"
-CONFIGURED_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var("CONFIGURED_TOOLS_FILENAME", "tools_config.json")
-DEPENDENCIES_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var("DEPENDENCIES_TOOLS_FILENAME",
-                                                                         "tools_deps.toml")
+NATIVE_TOOL_IMPLEMENTATION: Final[str] = "copilot"  # noqa: F405
+NATIVE_TOOLS_NODE_NAME: Final[str] = "native_tools"  # noqa: F405
+THIRD_PARTY_TOOLS_NODE_NAME: Final[str] = "third_party_tools"  # noqa: F405
+CONFIGURED_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var(
+    "CONFIGURED_TOOLS_FILENAME", "tools_config.json"
+)
+DEPENDENCIES_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var(
+    "DEPENDENCIES_TOOLS_FILENAME", "tools_deps.toml"
+)
 
 
 class ToolLoader:
     """Responsible for loading the user tools and making them available to the copilot agent."""
+
     installed_deps = []  # Save tools that have already installed dependencies
 
     def __init__(
-            self,
-            config_filename: Optional[str] = CONFIGURED_TOOLS_FILENAME,
-            tools_deps_filename: Optional[str] = DEPENDENCIES_TOOLS_FILENAME,
+        self,
+        config_filename: Optional[str] = CONFIGURED_TOOLS_FILENAME,
+        tools_deps_filename: Optional[str] = DEPENDENCIES_TOOLS_FILENAME,
     ):
         self._tools_config = self._get_tool_config(filepath=config_filename)
         self._tools_dependencies = self._get_tool_dependencies(filepath=tools_deps_filename)
@@ -80,17 +84,20 @@ class ToolLoader:
                     # the depencies are defined as depency_name = "version". If the dependency_name has a |, it means
                     # that the name for install is different than the name for import. In this case, the left side of
                     # the | is the name for install and the right side is the name for import.
-                    Dependency(name=self.left_side(dependency_name), version=None if version == "*" else version,
-                               import_name=self.rigth_side(dependency_name)) for dependency_name, version in
-                    value.items()
+                    Dependency(
+                        name=self.left_side(dependency_name),
+                        version=None if version == "*" else version,
+                        import_name=self.rigth_side(dependency_name),
+                    )
+                    for dependency_name, version in value.items()
                 ]
             return tools_dependencies
 
     def rigth_side(self, k):
-        return self.split_string(k, '|', False)
+        return self.split_string(k, "|", False)
 
     def left_side(self, k):
-        return self.split_string(k, '|', True)
+        return self.split_string(k, "|", True)
 
     def split_string(self, s: str, delimiter: str, left: bool):
         # amount of times that delimiter appears in string
@@ -127,7 +134,9 @@ class ToolLoader:
             if enabled and self._is_tool_implemented(tool_name):
                 class_name = globals()[tool_name]
                 configured_tools.append(class_name())
-                if tool_name in self._tools_dependencies.keys() and (tool_name not in ToolLoader.installed_deps):
+                if tool_name in self._tools_dependencies.keys() and (
+                    tool_name not in ToolLoader.installed_deps
+                ):
                     print_yellow(f"Installing dependencies for {tool_name} tool: ...")
                     tool_installer.install_dependencies(dependencies=self._tools_dependencies[tool_name])
                     ToolLoader.installed_deps.append(tool_name)

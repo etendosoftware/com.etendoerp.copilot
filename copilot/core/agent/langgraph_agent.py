@@ -4,7 +4,6 @@ from typing import AsyncGenerator
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langsmith import traceable
 
 from ..langgraph.copilot_langgraph import CopilotLangGraph
 from ..langgraph.members_util import MembersUtil
@@ -165,6 +164,7 @@ class LanggraphAgent(CopilotAgent):
         self._memory = MemoryHandler()
 
     # The agent state is the input to each node in the graph
+
     def execute(self, question: GraphQuestionSchema) -> AgentResponse:
         """
         Executes the agent synchronously to process the given question.

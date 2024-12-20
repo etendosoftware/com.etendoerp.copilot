@@ -1,5 +1,5 @@
 from .tool_dependencies import Dependency
-from langsmith import traceable
+
 
 class ApplicationError(RuntimeError):
     message = "There was an unexpected error, if this error persist contact support."

@@ -6,7 +6,6 @@ from typing import Final, Optional
 
 from langchain.tools.retriever import create_retriever_tool
 from langchain_chroma.vectorstores import Chroma
-from langsmith import traceable
 
 from .. import tool_installer, utils
 from ..exceptions import (

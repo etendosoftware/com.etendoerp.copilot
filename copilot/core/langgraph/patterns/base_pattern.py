@@ -1,15 +1,13 @@
 import operator
 from abc import abstractmethod
-from typing import TypedDict, Annotated, Sequence, Final
+from typing import Annotated, Final, Sequence, TypedDict
 
-from langchain.agents import create_openai_tools_agent, AgentExecutor
+from copilot.core import utils
+from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph
-from langsmith import traceable
-
-from copilot.core import utils
 
 
 class BasePattern:
