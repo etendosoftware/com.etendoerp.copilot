@@ -17,12 +17,24 @@ borderRadius: "8px !important",
 iconWidth: 14,
 iconHeight: 14,
 // Event handler for button click
-click: function() {
+_handleClick: function (q, assistant_id) {
 // Check if the window is already open
-if (window.myWindow && window.myWindow.isVisible()) {
+if (window.myWindow && window.myWindow.isVisible() && q === null) {
 // If it is already open, simply return without doing anything
 return;
 }
+if (q === null) {
+q = '';
+} else {
+q = encodeURI(q)
+}
+if (assistant_id === null) {
+assistant_id = '';
+} else {
+const idRegex = /^[A-Fa-f0-9]{32}$/;
+assistant_id = idRegex.test(assistant_id) ? assistant_id : '';
+}
+URL = `web/com.etendoerp.copilot.dist/?question=$${"{"}q${"}"}&assistant_id=$${"{"}assistant_id${"}"}`;
 // Define constants for commonly used values
 LIGHT_GRAY_COLOR = "#F2F5F9"
 BUTTON_WIDTH = 80
@@ -276,7 +288,7 @@ contents: `
                 <img class="icon-button" onclick="window.closeCopilotWindow()" src="web/images/close.svg" alt="C">
             </div>
         </div>
-        <iframe id='react-iframe' style="display: block; width: 100%; flex:1" src="web/com.etendoerp.copilot.dist" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        <iframe id='react-iframe' style="display: block; width: 100%; flex:1" src="$${"{"}URL${"}"}" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
     </div>
 </body>
 
@@ -290,5 +302,11 @@ contents: `
 window.copilotWindow.show();
 isc.Page.setEvent("resize", resizeWindow);
 adjustMaximizeWindowPosition();
+},
+open: function(q, assistant_id) {
+this._handleClick(q, assistant_id);
+},
+click: function () {
+this._handleClick(null, null);
 }
 })
