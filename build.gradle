@@ -7,21 +7,13 @@
  */
 
 group          = "com.etendoerp"
-version        = "1.9.4"
+version        = "1.10.0"
 description    = "Etendo Copilot Platform"
 ext.artifact   = "copilot"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
 
 configurations {
     moduleDependencyContainer
-}
-
-sourceSets {
-    main {
-        resources {
-            srcDirs("etendo-resources")
-        }
-    }
 }
 
 publishing {
@@ -40,6 +32,14 @@ publishing {
     }
 }
 
+sourceSets {
+    main {
+        resources {
+            srcDirs("etendo-resources")
+        }
+    }
+}
+
 repositories {
     mavenCentral()
     maven {
@@ -53,7 +53,7 @@ repositories {
  */
  dependencies {
     implementation group: 'com.konghq', name: 'unirest-java', version: '3.14.5'
-    implementation('com.etendoerp:webhookevents:1.11.1')
-    implementation('com.etendoerp:docker:1.5.1')
+    implementation('com.etendoerp:webhookevents:1.12.0')
+    implementation('com.etendoerp:docker:1.6.0')
  }
  
