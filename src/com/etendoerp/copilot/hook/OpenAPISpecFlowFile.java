@@ -14,6 +14,8 @@ import java.util.HashMap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.weld.WeldUtils;
@@ -27,6 +29,7 @@ import org.openbravo.model.ad.utility.Attachment;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.openapi.OpenAPIController;
 import com.etendoerp.openapi.data.OpenApiFlow;
+import com.google.gson.JsonObject;
 
 /**
  *
@@ -93,13 +96,36 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
    */
   private Path getOpenAPIFile(OpenApiFlow flow, String fileName) throws OBException {
     try {
-      String openAPISpec = new OpenAPIController().getOpenAPIJson(flow.getName(), getEtendoHostDocker(), true);
+      String openAPISpec = new OpenAPIController().getOpenAPIJson(flow.getName(), getEtendoHostDocker());
+      openAPISpec = addInfoForCopilot(openAPISpec);
       return Files.writeString(Files.createTempFile(fileName, ".json"), openAPISpec);
     } catch (Exception e) {
       throw new OBException(e);
     }
   }
 
+  /**
+   * Adds information for Copilot to the OpenAPI specification.
+   * <p>
+   * This method modifies the description field of the OpenAPI specification's info object to include
+   * instructions for using the API with Copilot. It appends a note about using the literal string 'ETENDO_TOKEN'
+   * as a Bearer token in all requests, which will be replaced by the real token in the request to the API.
+   *
+   * @param openAPISpec
+   *     the original OpenAPI specification as a JSON string
+   * @return the modified OpenAPI specification as a formatted JSON string
+   * @throws JSONException
+   *     if there is an error parsing or modifying the JSON
+   */
+  private String addInfoForCopilot(String openAPISpec) throws JSONException {
+    JSONObject openapi = new JSONObject(openAPISpec);
+    String description = openapi.getJSONObject("info").getString("description");
+    description = description + "\n ## Using this API with Copilot" +
+        "\n To use this API with Copilot, its necessary to use the literal string 'ETENDO_TOKEN' as Bearer token in " +
+        "all the requests. This special token will be replaced by the real token in the request to the API.";
+    openapi.getJSONObject("info").put("description", description);
+    return openapi.toString(2);
+  }
 
   private void removeAttachment(AttachImplementationManager aim, CopilotFile hookObject) {
     Attachment attachment = getAttachment(hookObject);
