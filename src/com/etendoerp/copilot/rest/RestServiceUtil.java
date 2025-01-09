@@ -1078,6 +1078,7 @@ public class RestServiceUtil {
           .createCriteria(CopilotRoleApp.class)
           .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, context.getRole()))
           .list()).stream().map(CopilotRoleApp::getCopilotApp)
+          .distinct()
           .collect(Collectors.toList());
       appList.sort((app1, app2) -> getLastConversation(context.getUser(), app2)
           .compareTo(getLastConversation(context.getUser(), app1)));
