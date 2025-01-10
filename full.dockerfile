@@ -1,6 +1,6 @@
 FROM python:3.10-slim-buster AS requirements-stage
 WORKDIR /tmp
-RUN pip install poetry
+RUN pip install poetry && poetry self add poetry-plugin-export
 COPY ./pyproject.toml ./poetry.lock* /tmp/
 RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
 # Second stage, copy over the requirements and install them
