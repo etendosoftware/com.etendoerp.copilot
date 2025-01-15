@@ -4,5 +4,6 @@ export interface IMessage {
   response?: string;
   sender: string;
   timestamp?: string;
-  file?: any;
+  file?: File;
+  files?: File[];
 }
