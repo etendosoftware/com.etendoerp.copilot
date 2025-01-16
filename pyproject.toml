@@ -32,7 +32,7 @@ pylint = "^3.2.5"
 chromadb = "^0.5.5"
 pymupdf = "^1.24.9"
 langchain-core = ">0.3.0"
-langsmith = "^0.1.99"
+langsmith = "^0.2.4"
 python-multipart = "^0.0.19"
 poetry-core = "^1.9.1"
 langgraph-checkpoint-sqlite = "^2.0.1"
@@ -63,6 +63,8 @@ pytest-cov = "^5.0.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
 
 
 [[tool.poetry.source]]

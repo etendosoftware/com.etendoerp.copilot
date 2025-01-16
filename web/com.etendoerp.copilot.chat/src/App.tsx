@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import ContextTitlePreview from './components/context-name-preview';
 import TextMessage from 'etendo-ui-library/dist-web/components/text-message/TextMessage';
 import FileSearchInput from 'etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput';
 import { useAssistants } from './hooks/useAssistants';
 import { formatTimeNewDate, getMessageType } from './utils/functions';
-import enterIcon from './assets/enter.svg';
 import botIcon from './assets/bot.svg';
 import responseSent from './assets/response-sent.svg';
 import { ILabels } from './interfaces';
@@ -18,19 +18,38 @@ import { ROLE_BOT, ROLE_ERROR, ROLE_NODE, ROLE_TOOL, ROLE_USER, ROLE_WAIT } from
 import { getMessageContainerClasses } from './utils/styles';
 
 function App() {
+  const search = window.location.search;
+  const params = new URLSearchParams(search);
+  const contextValue = params.get("context_value");
+
   // States
   const [file, setFile] = useState<any>(null);
   const [labels, setLabels] = useState<ILabels>({});
-  const [statusIcon, setStatusIcon] = useState(enterIcon);
-  const [files, setFiles] = useState<File[] | null>(null);
+  const [statusIcon, setStatusIcon] = useState(botIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [inputValue, setInputValue] = useState<string>('');
+  const [isFirstMessage, setIsFirstMessage] = useState(true);
   const [fileId, setFileId] = useState<string[] | null>(null);
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
+  const [files, setFiles] = useState<(string | File)[] | null>(null);
   const [areLabelsLoaded, setAreLabelsLoaded] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState<string>(params.get("question") ?? '');
+  const [contextTitle, setContextTitle] = useState<string | null>(params.get("context_title"));
+
+  // Hooks
   const { selectedOption, assistants, getAssistants, handleOptionSelected } =
     useAssistants();
+
+  // Effect to handle the assistant_id parameter
+  useEffect(() => {
+    const assistant_id = params.get("assistant_id");
+    if (assistant_id && assistants.length > 0) {
+      const assistant = assistants.find(assistant => assistant.app_id === assistant_id);
+      if (assistant) {
+        handleOptionSelected(assistant);
+      }
+    }
+  }, [assistants, params]);
 
   // Constants
   const noAssistants = assistants?.length === 0 ? true : false;
@@ -52,6 +71,15 @@ function App() {
     }
 
     setMessages((prevMessages: any) => {
+      // Get files or context title
+      let fileNames: { name: string }[] = [];
+      if (files && files.length > 0) {
+        fileNames = files.map((file: any) => ({ name: file.name }));
+      } else if (contextTitle) {
+        fileNames = [{ name: contextTitle }];
+      }
+
+      // Replace the last message if the role is the same
       const lastMessage = prevMessages[prevMessages.length - 1];
       if (
         lastMessage &&
@@ -66,7 +94,7 @@ function App() {
             text: _text,
             sender: role,
             timestamp: formatTimeNewDate(new Date()),
-            files: files,
+            files: fileNames,
           },
         ];
       } else {
@@ -78,11 +106,12 @@ function App() {
             text: _text,
             sender: role,
             timestamp: formatTimeNewDate(new Date()),
-            files: files,
+            files: fileNames,
           },
         ];
       }
     });
+    setContextTitle(null);
     if (role === ROLE_USER) {
       await handleNewMessage(ROLE_WAIT, {
         text: 'Processing...',
@@ -97,9 +126,6 @@ function App() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
-  // Function to update the bot interpretation message
-  const updateInterpretingMessage = () => {};
 
   // Fetch labels data
   const getLabels = async () => {
@@ -122,6 +148,7 @@ function App() {
     setIsBotLoading(true);
     setFile(null);
     setFileId(null);
+
     if (!isBotLoading) {
       const question = inputValue.trim();
       setInputValue('');
@@ -145,6 +172,14 @@ function App() {
         question: inputValue,
         app_id: selectedOption?.app_id,
       };
+
+      if (isFirstMessage) {
+        setIsFirstMessage(false);
+        if (contextValue) {
+          requestBody.context_value = contextValue;
+        }
+      }
+
       if (conversationId) {
         requestBody.conversation_id = conversationId;
       }
@@ -170,6 +205,7 @@ function App() {
           delete requestBody.question;
         }
       }
+
       try {
         const params = Object.keys(requestBody)
           .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(requestBody[key])}`)
@@ -177,11 +213,11 @@ function App() {
         const eventSourceUrl = isDevelopment()
           ? `${References.DEV}${References.url.SEND_AQUESTION}?${params}`
           : `${References.PROD}${References.url.SEND_AQUESTION}?${params}`;
-        let headers = {}
-        if(isDevelopment()) {
+        let headers = {};
+        if (isDevelopment()) {
           headers = {
-            Authorization: 'Basic ' + btoa('admin:admin')
-          }
+            Authorization: 'Basic ' + btoa('admin:admin'),
+          };
         }
         const eventSource = new EventSourcePolyfill(eventSourceUrl, {
           headers: headers,
@@ -210,7 +246,7 @@ function App() {
         };
         setStatusIcon(botIcon);
         const intervalTimeOut = setInterval(() => {
-          if(eventSource.readyState === EventSourcePolyfill.CLOSED) {
+          if (eventSource.readyState === EventSourcePolyfill.CLOSED) {
             setIsBotLoading(false);
             eventSource.close();
             setTimeout(() => scrollToBottom(), 100);
@@ -272,7 +308,7 @@ function App() {
 
     if (isBotLoading && statusIcon !== responseSent) {
       const randomDelay = Math.random() * (10000 - 5000) + 5000;
-      intervalId = setTimeout(updateInterpretingMessage, randomDelay);
+      intervalId = setTimeout(() => { }, randomDelay);
     }
 
     return () => {
@@ -460,6 +496,12 @@ function App() {
           className={`mx-[12px]`}
           ref={inputRef}
         >
+          {/* Conditionally render the context name title */}
+          {contextTitle && isFirstMessage && (
+            <ContextTitlePreview contextTitle={contextTitle} />
+          )}
+
+          {/* Input area */}
           <FileSearchInput
             value={inputValue}
             placeholder={labels.ETCOP_Message_Placeholder!}

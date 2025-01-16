@@ -17,7 +17,6 @@ from copilot.core.agent import AssistantAgent
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.schemas import QuestionSchema
 
-@unit 
 @pytest.fixture
 def mock_openai_chatcompletion(monkeypatch):
 
@@ -43,7 +42,6 @@ def mock_openai_chatcompletion(monkeypatch):
 
     monkeypatch.setattr(ChatCompletion, "acreate", mock_acreate)
 
-@unit 
 @patch("copilot.core.agent.AssistantAgent.get_agent", autospec=True)
 def test_get_agent(mock_get_agent):
     assistant_agent = AssistantAgent()
@@ -56,7 +54,6 @@ def test_get_agent(mock_get_agent):
     mock_get_agent.assert_called_once_with(assistant_agent, assistant_id)
     assert agent == agent_instance
 
-@unit 
 @patch("langchain.agents.AgentExecutor.invoke")
 def test_execute(mock_invoke):
     assistant_agent = AssistantAgent()
@@ -69,7 +66,6 @@ def test_execute(mock_invoke):
     assert response.output.response == "test response"
     assert response.output.conversation_id == "test_thread_id"
 
-@unit 
 @patch('copilot.core.utils.read_optional_env_var')
 @patch('langchain_community.agents.openai_assistant.OpenAIAssistantV2Runnable')
 def setUp(mock_openai_assistant, mock_read_optional_env_var):
@@ -100,7 +96,6 @@ def setUp(mock_openai_assistant, mock_read_optional_env_var):
         system_prompt="",
     )
     
-@unit
 @patch('langchain.agents.AgentExecutor')
 def test_aexecute(mock_agent_executor):
     client = OpenAI()
