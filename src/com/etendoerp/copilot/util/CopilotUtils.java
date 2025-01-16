@@ -660,59 +660,6 @@ public class CopilotUtils {
   }
 
   /**
-   * Retrieves an attachment associated with the given CopilotFile instance.
-   * <p>
-   * This method creates a criteria query to find an attachment that matches the given CopilotFile instance.
-   * It filters the attachments by the record ID and table ID, and excludes the attachment with the same ID as the target instance.
-   *
-   * @param targetInstance
-   *     The CopilotFile instance for which the attachment is to be retrieved.
-   * @return The Attachment associated with the given CopilotFile instance, or null if no attachment is found.
-   */
-  public static Attachment getAttachment(CopilotFile targetInstance) {
-    OBCriteria<Attachment> attchCriteria = OBDal.getInstance().createCriteria(Attachment.class);
-    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_RECORD, targetInstance.getId()));
-    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_TABLE,
-        OBDal.getInstance().get(Table.class, CopilotConstants.COPILOT_FILE_AD_TABLE_ID)));
-    attchCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
-    return (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
-  }
-
-  /**
-   * Attaches a file to the given CopilotFile instance.
-   * <p>
-   * This method uploads a file and associates it with the specified CopilotFile instance.
-   *
-   * @param hookObject
-   *     The CopilotFile instance to which the file is to be attached.
-   * @param aim
-   *     The AttachImplementationManager used to handle the file upload.
-   * @param file
-   *     The file to be attached.
-   */
-  public static void attachFile(CopilotFile hookObject, AttachImplementationManager aim, File file) {
-    aim.upload(new HashMap<>(), CopilotConstants.COPILOT_FILE_TAB_ID, hookObject.getId(),
-        hookObject.getOrganization().getId(), file);
-  }
-
-  /**
-   * Removes the attachment associated with the given CopilotFile instance.
-   * <p>
-   * This method retrieves the attachment associated with the specified CopilotFile instance and deletes it.
-   *
-   * @param aim
-   *     The AttachImplementationManager used to handle the file deletion.
-   * @param hookObject
-   *     The CopilotFile instance whose attachment is to be removed.
-   */
-  public static void removeAttachment(AttachImplementationManager aim, CopilotFile hookObject) {
-    Attachment attachment = CopilotUtils.getAttachment(hookObject);
-    if (attachment != null) {
-      aim.delete(attachment);
-    }
-  }
-
-  /**
    * Retrieves the configuration for all models in the system.
    * <p>
    * This method creates a JSON object containing the configuration details for each model,

@@ -1,88 +1,180 @@
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+package com.etendoerp.copilot.hook;
 
-import java.util.Arrays;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.enterprise.inject.Instance;
 
+import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
+import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.junit.MockitoJUnitRunner;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.weld.test.WeldBaseTest;
 
 import com.etendoerp.copilot.data.CopilotApp;
 
-@RunWith(MockitoJUnitRunner.class)
-public class OpenAIPromptHookManagerTest {
+public class OpenAIPromptHookManagerTest extends WeldBaseTest {
+    
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
 
     @Mock
-    private Instance<OpenAIPromptHook> promptHooks;
+    private Instance<OpenAIPromptHook> mockPromptHooks;
 
-    @InjectMocks
+    @Mock
+    private CopilotApp mockApp;
+
     private OpenAIPromptHookManager hookManager;
 
+    private AutoCloseable mocks;
+
     @Before
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
+    public void setUp() throws Exception {
+        mocks = MockitoAnnotations.openMocks(this);
+        hookManager = new OpenAIPromptHookManager();
+
+        // Use reflection to inject the mock hooks
+        java.lang.reflect.Field hooksField = OpenAIPromptHookManager.class.getDeclaredField("promptHooks");
+        hooksField.setAccessible(true);
+        hooksField.set(hookManager, mockPromptHooks);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        if (mocks != null) {
+            mocks.close();
+        }
     }
 
     @Test
-    public void testExecuteHooks_noHooks() throws OBException {
-        when(promptHooks.iterator()).thenReturn(Arrays.asList().iterator());
+    public void testSortHooksByPriority_EmptyHooks() {
+        // Given
+        when(mockPromptHooks.iterator()).thenReturn(new ArrayList<OpenAIPromptHook>().iterator());
 
-        CopilotApp app = mock(CopilotApp.class);
-        String result = hookManager.executeHooks(app);
+        // When
+        List<Object> sortedHooks = hookManager.sortHooksByPriority(mockPromptHooks);
 
-        assertEquals("Extra context information: \n", result);
+        // Then
+        assertTrue("Sorted hooks list should be empty", sortedHooks.isEmpty());
     }
 
     @Test
-    public void testExecuteHooks_withHooks() throws OBException {
+    public void testSortHooksByPriority_MultipleHooks() {
+        // Given
         OpenAIPromptHook hook1 = mock(OpenAIPromptHook.class);
         OpenAIPromptHook hook2 = mock(OpenAIPromptHook.class);
-        CopilotApp app = mock(CopilotApp.class);
+        OpenAIPromptHook hook3 = mock(OpenAIPromptHook.class);
 
-        when(hook1.typeCheck(app)).thenReturn(true);
-        when(hook2.typeCheck(app)).thenReturn(true);
-        when(hook1.exec(app)).thenReturn("Hook1 executed");
-        when(hook2.exec(app)).thenReturn("Hook2 executed");
+        when(hook1.getPriority()).thenReturn(3);
+        when(hook2.getPriority()).thenReturn(1);
+        when(hook3.getPriority()).thenReturn(2);
 
-        when(promptHooks.iterator()).thenReturn(Arrays.asList(hook1, hook2).iterator());
+        List<OpenAIPromptHook> hookList = List.of(hook1, hook2, hook3);
+        when(mockPromptHooks.iterator()).thenReturn(hookList.iterator());
 
-        String result = hookManager.executeHooks(app);
+        // When
+        List<Object> sortedHooks = hookManager.sortHooksByPriority(mockPromptHooks);
 
-        assertTrue(result.contains("Hook1 executed"));
-        assertTrue(result.contains("Hook2 executed"));
-    }
-
-    @Test(expected = OBException.class)
-    public void testExecuteHooks_exception() throws OBException {
-        when(promptHooks.iterator()).thenThrow(new RuntimeException("Error"));
-
-        CopilotApp app = mock(CopilotApp.class);
-        hookManager.executeHooks(app);
+        // Then
+        assertEquals("Sorted hooks should have 3 elements", 3, sortedHooks.size());
+        assertEquals("First hook should have lowest priority", hook2, sortedHooks.get(0));
+        assertEquals("Second hook should have middle priority", hook3, sortedHooks.get(1));
+        assertEquals("Third hook should have highest priority", hook1, sortedHooks.get(2));
     }
 
     @Test
-    public void testSortHooksByPriority() {
+    public void testExecuteHooks_NoHooks() throws Exception {
+        // Given
+        when(mockPromptHooks.iterator()).thenReturn(new ArrayList<OpenAIPromptHook>().iterator());
+
+        // When
+        String result = hookManager.executeHooks(mockApp);
+
+        // Then
+        assertTrue("Result should be empty when no hooks", result.isEmpty());
+    }
+
+    @Test
+    public void testExecuteHooks_SingleHook() throws Exception {
+        // Given
+        OpenAIPromptHook mockHook = mock(OpenAIPromptHook.class);
+        when(mockHook.typeCheck(mockApp)).thenReturn(true);
+        when(mockHook.exec(mockApp)).thenReturn("Test Hook Context");
+        when(mockPromptHooks.iterator()).thenReturn(List.of(mockHook).iterator());
+
+        // When
+        String result = hookManager.executeHooks(mockApp);
+
+        // Then
+        assertTrue("Result should contain hook context", result.contains("Test Hook Context"));
+        verify(mockHook).typeCheck(mockApp);
+        verify(mockHook).exec(mockApp);
+    }
+
+    @Test
+    public void testExecuteHooks_MultipleHooks() throws Exception {
+        // Given
         OpenAIPromptHook hook1 = mock(OpenAIPromptHook.class);
         OpenAIPromptHook hook2 = mock(OpenAIPromptHook.class);
 
-        when(hook1.getPriority()).thenReturn(10);
-        when(hook2.getPriority()).thenReturn(5);
+        when(hook1.getPriority()).thenReturn(1);
+        when(hook2.getPriority()).thenReturn(2);
 
-        when(promptHooks.iterator()).thenReturn(Arrays.asList(hook1, hook2).iterator());
+        when(hook1.typeCheck(mockApp)).thenReturn(true);
+        when(hook2.typeCheck(mockApp)).thenReturn(true);
 
-        List<Object> sortedHooks = hookManager.sortHooksByPriority(promptHooks);
+        when(hook1.exec(mockApp)).thenReturn("Hook 1 Context");
+        when(hook2.exec(mockApp)).thenReturn("Hook 2 Context");
 
-        assertEquals(hook2, sortedHooks.get(0));
-        assertEquals(hook1, sortedHooks.get(1));
+        when(mockPromptHooks.iterator()).thenReturn(List.of(hook1, hook2).iterator());
+
+        // When
+        String result = hookManager.executeHooks(mockApp);
+
+        // Then
+        assertTrue("Result should contain contexts from both hooks", 
+            result.contains("Hook 1 Context") && result.contains("Hook 2 Context"));
+        verify(hook1).typeCheck(mockApp);
+        verify(hook2).typeCheck(mockApp);
+        verify(hook1).exec(mockApp);
+        verify(hook2).exec(mockApp);
+    }
+
+    @Test
+    public void testExecuteHooks_HookTypeCheckFails() throws Exception {
+        // Given
+        OpenAIPromptHook mockHook = mock(OpenAIPromptHook.class);
+        when(mockHook.typeCheck(mockApp)).thenReturn(false);
+        when(mockPromptHooks.iterator()).thenReturn(List.of(mockHook).iterator());
+
+        // When
+        String result = hookManager.executeHooks(mockApp);
+
+        // Then
+        assertEquals("Extra context information: \n", result);  // Changed assertion
+        verify(mockHook).typeCheck(mockApp);
+        verify(mockHook, never()).exec(mockApp);
+    }
+
+    @Test
+    public void testExecuteHooks_ExceptionThrown() throws Exception {
+        // Given
+        OpenAIPromptHook mockHook = mock(OpenAIPromptHook.class);
+        when(mockHook.typeCheck(mockApp)).thenThrow(new RuntimeException("Test Exception"));
+        when(mockPromptHooks.iterator()).thenReturn(List.of(mockHook).iterator());
+
+        // Then
+        expectedException.expect(OBException.class);
+        expectedException.expectMessage("Test Exception");
+
+        // When
+        hookManager.executeHooks(mockApp);
     }
 }

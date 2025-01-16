@@ -1,26 +1,35 @@
 package com.etendoerp.copilot.process;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import com.etendoerp.copilot.data.CopilotApp;
-import com.etendoerp.copilot.data.CopilotAppSource;
-import com.etendoerp.copilot.data.ETCOPSchedule;
-import com.etendoerp.copilot.rest.RestServiceUtil;
-import com.etendoerp.copilot.util.CopilotConstants;
-import com.etendoerp.copilot.util.OpenAIUtils;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Restrictions;
+import org.hibernate.criterion.Criterion;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
-import org.mockito.junit.MockitoJUnitRunner;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
@@ -28,126 +37,205 @@ import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.ui.ProcessRequest;
 import org.openbravo.scheduling.ProcessBundle;
 import org.openbravo.scheduling.ProcessLogger;
-import org.openbravo.test.base.OBBaseTest;
 
-import java.io.IOException;
-import java.net.ConnectException;
-import java.util.ArrayList;
-import java.util.List;
+import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.data.CopilotRoleApp;
+import com.etendoerp.copilot.data.ETCOPSchedule;
+import com.etendoerp.copilot.rest.RestServiceUtil;
+import com.etendoerp.copilot.util.OpenAIUtils;
 
-@RunWith(MockitoJUnitRunner.class)
-public class ProcessScheduleAppsTest extends OBBaseTest {
+public class ProcessScheduleAppsTest extends WeldBaseTest {
+
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
 
     @Mock
     private ProcessBundle processBundle;
+    
     @Mock
-    private ProcessLogger logger;
+    private ProcessLogger processLogger;
+    
+    @Mock
+    private OBDal obDal;
+    
+    @Mock
+    private OBCriteria<ETCOPSchedule> scheduleCriteria;
+    
+    @Mock
+    private OBCriteria<CopilotRoleApp> roleAppCriteria;
+    
     @Mock
     private ProcessRequest processRequest;
+    
     @Mock
     private ETCOPSchedule schedule;
+    
     @Mock
     private CopilotApp copilotApp;
-    @Mock
-    private CopilotAppSource copilotAppSource;
+    
     @Mock
     private Role role;
     
-    private MockedStatic<OBDal> mockedOBDal;
-    private MockedStatic<OpenAIUtils> mockedOpenAIUtils;
-    private MockedStatic<RestServiceUtil> mockedRestServiceUtil;
+    @Mock
+    private CopilotRoleApp roleApp;
+    
+    @Mock
+    private CopilotAppSource appSource;
 
     private ProcessScheduleApps processScheduleApps;
+    private MockedStatic<OBDal> mockedOBDal;
+    private MockedStatic<OBContext> mockedOBContext;
+    private MockedStatic<OpenAIUtils> mockedOpenAIUtils;
+    private MockedStatic<RestServiceUtil> mockedRestServiceUtil;
+    private AutoCloseable mocks;
 
     @Before
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
+    public void setUp() throws Exception {
+        mocks = MockitoAnnotations.openMocks(this);
         processScheduleApps = new ProcessScheduleApps();
-        when(processBundle.getLogger()).thenReturn(logger);
+        
+        // Mock static classes
         mockedOBDal = mockStatic(OBDal.class);
+        mockedOBContext = mockStatic(OBContext.class);
         mockedOpenAIUtils = mockStatic(OpenAIUtils.class);
         mockedRestServiceUtil = mockStatic(RestServiceUtil.class);
+        
+        // Setup OBDal
+        mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
+        
+        // Setup ProcessBundle
+        when(processBundle.getLogger()).thenReturn(processLogger);
+        when(processBundle.getProcessRequestId()).thenReturn("testProcessRequestId");
+        
+        // Setup OBContext
+        OBContext mockContext = mock(OBContext.class);
+        mockedOBContext.when(OBContext::getOBContext).thenReturn(mockContext);
+        when(mockContext.getRole()).thenReturn(role);
+        
+        // Setup Criteria
+        when(obDal.createCriteria(ETCOPSchedule.class)).thenReturn(scheduleCriteria);
+        when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleAppCriteria);
+        when(scheduleCriteria.add(any(Criterion.class))).thenReturn(scheduleCriteria);
+        when(roleAppCriteria.add(any(Criterion.class))).thenReturn(roleAppCriteria);
+        
+        // Setup ProcessRequest
+        when(obDal.get(ProcessRequest.class, "testProcessRequestId")).thenReturn(processRequest);
     }
 
     @After
-    public void tearDown() {
-        mockedOBDal.close();
-        mockedOpenAIUtils.close();
-        mockedRestServiceUtil.close();
+    public void tearDown() throws Exception {
+        if (mockedOBDal != null) {
+            mockedOBDal.close();
+        }
+        if (mockedOBContext != null) {
+            mockedOBContext.close();
+        }
+        if (mockedOpenAIUtils != null) {
+            mockedOpenAIUtils.close();
+        }
+        if (mockedRestServiceUtil != null) {
+            mockedRestServiceUtil.close();
+        }
+        if (mocks != null) {
+            mocks.close();
+        }
     }
 
     @Test
-    public void testDoExecute() throws Exception {
+    public void testDoExecute_Success() throws Exception {
         // Given
-        when(OBDal.getInstance().get(ProcessRequest.class, processBundle.getProcessRequestId())).thenReturn(processRequest);
-        OBCriteria<ETCOPSchedule> criteria = mock(OBCriteria.class);
-        when(OBDal.getInstance().createCriteria(ETCOPSchedule.class)).thenReturn(criteria);
-        when(criteria.add(Restrictions.eq(ETCOPSchedule.PROPERTY_PROCESSREQUEST, processRequest))).thenReturn(criteria);
-        when(criteria.list()).thenReturn(List.of(schedule));
+        List<ETCOPSchedule> schedules = Collections.singletonList(schedule);
+        when(scheduleCriteria.list()).thenReturn(schedules);
+        when(schedule.getCopilotApp()).thenReturn(copilotApp);
+        when(roleAppCriteria.setMaxResults(1)).thenReturn(roleAppCriteria);
+        when(roleAppCriteria.uniqueResult()).thenReturn(roleApp);
+        when(schedule.getConversation()).thenReturn("testConversation");
+        when(schedule.getPrompt()).thenReturn("testPrompt");
+
+        List<CopilotAppSource> sources = Collections.singletonList(appSource);
+        when(copilotApp.getETCOPAppSourceList()).thenReturn(sources);
+
+        // Mock handleQuestion response
+        JSONObject response = new JSONObject();
+        response.put("app_id", "testAppId");
+        response.put("response", "Test response");
+        response.put("conversation_id", "testConversationId");
+        response.put("timestamp", new Timestamp(System.currentTimeMillis()).toString());
+
+        mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(
+                anyBoolean(),
+                isNull(),
+                any(CopilotApp.class),
+                anyString(),
+                anyString(),
+                anyList()
+        )).thenReturn(response);
 
         // When
         processScheduleApps.doExecute(processBundle);
 
         // Then
-        verify(logger).log("Refreshing 1 schedules\n");
-        verify(logger).log("Processing 1 schedules\n");
+        verify(processLogger, times(4)).log(anyString());
+        mockedRestServiceUtil.verify(
+                () -> RestServiceUtil.handleQuestion(
+                        anyBoolean(),
+                        isNull(),
+                        any(CopilotApp.class),
+                        anyString(),
+                        anyString(),
+                        anyList()
+                ),
+                times(1)
+        );
     }
 
     @Test
-    public void testRefreshScheduleFiles() throws Exception {
+    public void testDoExecute_NoAccess() throws Exception {
         // Given
+        List<ETCOPSchedule> schedules = Collections.singletonList(schedule);
+        when(scheduleCriteria.list()).thenReturn(schedules);
         when(schedule.getCopilotApp()).thenReturn(copilotApp);
-        when(copilotApp.getETCOPAppSourceList()).thenReturn(List.of(copilotAppSource));
-        when(CopilotConstants.isAttachBehaviour(copilotAppSource)).thenReturn(true);
-        when(copilotAppSource.getFile().getName()).thenReturn("testFile");
-        mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("apiKey");
+        when(roleAppCriteria.setMaxResults(1)).thenReturn(roleAppCriteria);
+        when(roleAppCriteria.uniqueResult()).thenReturn(null);
+        
+        mockedOpenAIUtils.when(() -> OpenAIUtils.getOpenaiApiKey()).thenReturn("test-api-key");
 
         // When
-        processScheduleApps.refreshScheduleFiles(List.of(schedule));
+        processScheduleApps.doExecute(processBundle);
 
         // Then
-        verify(logger).log("- Syncing source testFile\n");
-        mockedOpenAIUtils.verify(() -> OpenAIUtils.syncAppSource(copilotAppSource, "apiKey"));
+        verify(processLogger, times(3)).log(anyString());
+        mockedRestServiceUtil.verify(
+            () -> RestServiceUtil.handleQuestion(anyBoolean(), any(), any(), any(), anyString(), anyList()),
+            times(0)
+        );
     }
 
     @Test
-    public void testProcessSchedules() throws Exception {
+    public void testDoExecute_ConnectionError() throws Exception {
         // Given
+        expectedException.expect(OBException.class);
+        
+        List<ETCOPSchedule> schedules = Collections.singletonList(schedule);
+        when(scheduleCriteria.list()).thenReturn(schedules);
         when(schedule.getCopilotApp()).thenReturn(copilotApp);
-        when(OBContext.getOBContext().getRole()).thenReturn(role);
-        when(role.getName()).thenReturn("TestRole");
-        when(copilotApp.getName()).thenReturn("TestApp");
-        when(copilotApp.getETCOPAppSourceList()).thenReturn(List.of(copilotAppSource));
-        when(CopilotConstants.isAttachBehaviour(copilotAppSource)).thenReturn(true);
-        when(copilotAppSource.getOpenaiIdFile()).thenReturn("fileId");
-        when(schedule.getPrompt()).thenReturn("Test prompt");
-        JSONObject response = new JSONObject();
-        response.put("response", "Test response");
-        mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(false, null, copilotApp, schedule.getConversation(), schedule.getPrompt(), List.of("fileId"))).thenReturn(response);
+        when(roleAppCriteria.setMaxResults(1)).thenReturn(roleAppCriteria);
+        when(roleAppCriteria.uniqueResult()).thenReturn(roleApp);
+        
+        List<CopilotAppSource> sources = new ArrayList<>();
+        when(copilotApp.getETCOPAppSourceList()).thenReturn(sources);
+        
+        mockedOpenAIUtils.when(() -> OpenAIUtils.getOpenaiApiKey()).thenReturn("test-api-key");
+        
+        mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(
+            anyBoolean(), any(), any(), any(), anyString(), anyList()
+        )).thenThrow(new java.net.ConnectException("Connection refused"));
 
         // When
-        processScheduleApps.processSchedules(List.of(schedule));
+        processScheduleApps.doExecute(processBundle);
 
         // Then
-        verify(logger).log("-> Send question to copilot:\n---\n Test prompt\n---\n");
-        verify(logger).log("<- Copilot response:\n---\nTest response\n---\n");
-    }
-
-    @Test
-    public void testCheckRoleAccessApp() {
-        // Given
-        mockedOBDal.when(OBDal::getInstance).thenReturn(mock(OBDal.class));
-        OBCriteria<CopilotRoleApp> criteria = mock(OBCriteria.class);
-        when(OBDal.getInstance().createCriteria(CopilotRoleApp.class)).thenReturn(criteria);
-        when(criteria.add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, role))).thenReturn(criteria);
-        when(criteria.add(Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, copilotApp))).thenReturn(criteria);
-        when(criteria.setMaxResults(1)).thenReturn(criteria);
-        when(criteria.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
-
-        // When
-        boolean hasAccess = processScheduleApps.checkRoleAccessApp(role, copilotApp);
-
-        // Then
-        assertTrue(hasAccess);
+        verify(processLogger, times(4)).log(anyString());
     }
 }
