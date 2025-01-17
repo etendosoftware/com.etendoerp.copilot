@@ -37,9 +37,9 @@ function App() {
 
   useEffect(() => {
     const assistant_id = params.get("assistant_id");
-    if(assistant_id && assistants.length > 0) {
+    if (assistant_id && assistants.length > 0) {
       const assistant = assistants.find(assistant => assistant.app_id === assistant_id);
-      if(assistant) {
+      if (assistant) {
         handleOptionSelected(assistant);
       }
     }
@@ -112,7 +112,7 @@ function App() {
   };
 
   // Function to update the bot interpretation message
-  const updateInterpretingMessage = () => {};
+  const updateInterpretingMessage = () => { };
 
   // Fetch labels data
   const getLabels = async () => {
@@ -191,7 +191,7 @@ function App() {
           ? `${References.DEV}${References.url.SEND_AQUESTION}?${params}`
           : `${References.PROD}${References.url.SEND_AQUESTION}?${params}`;
         let headers = {}
-        if(isDevelopment()) {
+        if (isDevelopment()) {
           headers = {
             Authorization: 'Basic ' + btoa('admin:admin')
           }
@@ -223,7 +223,7 @@ function App() {
         };
         setStatusIcon(botIcon);
         const intervalTimeOut = setInterval(() => {
-          if(eventSource.readyState === EventSourcePolyfill.CLOSED) {
+          if (eventSource.readyState === EventSourcePolyfill.CLOSED) {
             setIsBotLoading(false);
             eventSource.close();
             setTimeout(() => scrollToBottom(), 100);

@@ -31,7 +31,8 @@ q = encodeURI(q)
 if (assistant_id === null) {
 assistant_id = '';
 } else {
-const idRegex = /^[A-Fa-f0-9]{32}$/;
+const idRegex = /^[A-Fa-f0-9]
+{32}$/;
 assistant_id = idRegex.test(assistant_id) ? assistant_id : '';
 }
 URL = `web/com.etendoerp.copilot.dist/?question=$${"{"}q${"}"}&assistant_id=$${"{"}assistant_id${"}"}`;
@@ -288,7 +289,7 @@ contents: `
                 <img class="icon-button" onclick="window.closeCopilotWindow()" src="web/images/close.svg" alt="C">
             </div>
         </div>
-        <iframe id='react-iframe' style="display: block; width: 100%; flex:1" src="$${"{"}URL${"}"}" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        <iframe id='react-iframe' style="display: block; width: 100%; flex:1" src="$${"{"}URL${"}" }" title="Copilot Chat" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
     </div>
 </body>
 

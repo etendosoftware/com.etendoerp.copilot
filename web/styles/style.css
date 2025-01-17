@@ -22,3 +22,9 @@
  .widgetContainer + div {
   display: none;
 }
+
+.OBToolbarIconButton_icon_etcop {
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-image: url(../../web/images/copilot-toolbar.png) !important;
+}
