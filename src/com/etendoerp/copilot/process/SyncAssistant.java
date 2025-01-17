@@ -89,6 +89,8 @@ public class SyncAssistant extends BaseProcessActionHandler {
       JSONObject request = new JSONObject(content);
       JSONArray selectedRecords = request.optJSONArray("recordIds");
       List<CopilotApp> appList = getSelectedApps(selectedRecords);
+      // Sync models with Copilot remote dataset
+      CopilotUtils.syncModels();
       // update accesses
       for (CopilotApp app : appList) {
         checkWebHookAccess(app);
@@ -333,11 +335,10 @@ public class SyncAssistant extends BaseProcessActionHandler {
   private JSONObject syncKnowledgeFiles(List<CopilotApp> appList) throws JSONException, IOException {
     int syncCount = 0;
     String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
-    if (openaiApiKey != null) {
-      OpenAIUtils.syncOpenaiModels(openaiApiKey);
-    } else {
+    if (openaiApiKey == null) {
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ApiKeyNotFound"));
     }
+    OpenAIUtils.getModelList(openaiApiKey);
     for (CopilotApp app : appList) {
       List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream()
           .filter(CopilotConstants::isKbBehaviour)
