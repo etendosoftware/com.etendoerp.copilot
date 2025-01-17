@@ -67,8 +67,6 @@ import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 public class CopilotUtils {
 
-  public static final HashMap<String, String> PROVIDER_MAP_CODE_NAME = buildProviderCodeMap();
-  public static final HashMap<String, String> PROVIDER_MAP_CODE_DEFAULT_PROP = buildProviderCodeDefaulMap();
 
   private static final Logger log = LogManager.getLogger(CopilotUtils.class);
   private static final String BOUNDARY = UUID.randomUUID().toString();
@@ -76,51 +74,27 @@ public class CopilotUtils {
   public static final String COPILOT_PORT = "COPILOT_PORT";
   public static final String COPILOT_HOST = "COPILOT_HOST";
 
-  private static HashMap<String, String> buildProviderCodeMap() {
-    HashMap<String, String> map = new HashMap<>();
-    map.put(PROVIDER_OPENAI_VALUE, PROVIDER_OPENAI);
-    map.put(PROVIDER_GEMINI_VALUE, PROVIDER_GEMINI);
-    return map;
-  }
-
-  private static HashMap<String, String> buildProviderCodeDefaulMap() {
-    HashMap<String, String> map = new HashMap<>();
-    map.put(PROVIDER_OPENAI, "ETCOP_DefaultModelOpenAI");
-    map.put(PROVIDER_GEMINI, "ETCOP_DefaultModelGemini");
-    return map;
-  }
-
 
   /**
-   * This method is used to get the provider of a given CopilotApp instance.
-   * It first checks if the CopilotApp instance and its provider are not null. If they are not null, it returns the provider of the CopilotApp instance.
-   * If the CopilotApp instance or its provider is null, it retrieves the default provider from the system preferences.
-   * The default provider is retrieved using the preference key "ETCOP_DefaultProvider".
-   * The method uses the OBContext to get the current client, organization, user, and role for retrieving the preference value.
-   * The provider code is then retrieved from the PROVIDER_MAP_CODE_NAME map using the provider code as the key.
-   * If an exception occurs while executing any of the above steps, it throws an OBException with the message of the exception.
+   * Retrieves the provider of the given CopilotApp instance.
+   * <p>
+   * This method checks if the provided CopilotApp instance and its model are not null,
+   * and if the model's provider is not empty. If these conditions are met, it returns the provider.
+   * Otherwise, it returns "openai" as the default provider.
+   * If an exception occurs, it throws an OBException with the message of the exception.
    *
    * @param app
    *     The CopilotApp instance for which the provider is to be retrieved.
-   * @return The provider of the CopilotApp instance, or the default provider if the CopilotApp instance or its provider is null.
+   * @return The provider of the CopilotApp instance, or "openai" if the provider is not set.
    * @throws OBException
    *     If an error occurs while retrieving the provider.
    */
   public static String getProvider(CopilotApp app) {
     try {
-      String provCode = null;
       if (app != null && app.getModel() != null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
         return app.getModel().getProvider();
       }
-      if (app != null && StringUtils.isNotEmpty(app.getProvider())) {
-        provCode = app.getProvider();
-      } else {
-        OBContext context = OBContext.getOBContext();
-        provCode = Preferences.getPreferenceValue("ETCOP_DefaultProvider", true, context.getCurrentClient(),
-            context.getCurrentOrganization(), context.getUser(), context.getRole(), null);
-      }
-
-      return PROVIDER_MAP_CODE_NAME.get(provCode);
+      return PROVIDER_OPENAI;
     } catch (Exception e) {
       throw new OBException(e.getMessage());
     }
@@ -140,6 +114,9 @@ public class CopilotUtils {
    */
   public static String getAppModel(CopilotApp app) {
     try {
+      if (app.getModel() != null) {
+        return app.getModel().getSearchkey();
+      }
       String model = getAppModel(app, getProvider(app));
       logIfDebug("Selected model: " + model);
       return model;
@@ -169,27 +146,37 @@ public class CopilotUtils {
    */
   public static String getAppModel(CopilotApp app, String provider) {
     try {
-      String current_provider = provider;
-      if (app.getModel() != null && app.getModel().getSearchkey() != null) {
-        return app.getModel().getSearchkey();
+      CopilotModel model = app.getModel();
+      if (model != null && model.getSearchkey() != null) {
+        return model.getSearchkey();
       }
-      // if the provider is not indicated we will read the provider of the app ( or the default if not set)
-      OBContext context = OBContext.getOBContext();
-      if (current_provider == null) {
-        current_provider = getProvider(app);
-      }
-      String preference;
-      if (!PROVIDER_MAP_CODE_DEFAULT_PROP.containsKey(current_provider)) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingModel"), app.getName()));
-      }
-      preference = PROVIDER_MAP_CODE_DEFAULT_PROP.get(current_provider);
-
-      return Preferences.getPreferenceValue(preference, true, context.getCurrentClient(),
-          context.getCurrentOrganization(), context.getUser(), context.getRole(), null);
-
+      model = getDefaultModel(provider);
+      return model.getSearchkey();
     } catch (Exception e) {
       throw new OBException(e.getMessage());
     }
+  }
+
+  /**
+   * Retrieves the default CopilotModel based on the provided provider.
+   * <p>
+   * This method creates a criteria query to find the default CopilotModel.
+   * If the provider is not empty, it adds a restriction to filter by the provider.
+   * It also adds a restriction to filter by the default property and orders the results by creation date.
+   * The method returns the first result of the query.
+   *
+   * @param provider
+   *     The provider to filter the CopilotModel by.
+   * @return The default CopilotModel for the given provider.
+   */
+  private static CopilotModel getDefaultModel(String provider) {
+    OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
+    if (StringUtils.isNotEmpty(provider)) {
+      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, provider));
+    }
+    modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true));
+    modelCriteria.addOrderBy(CopilotModel.PROPERTY_CREATIONDATE, true);
+    return (CopilotModel) modelCriteria.setMaxResults(1).uniqueResult();
   }
 
 

@@ -33,6 +33,11 @@ public class CopilotSetup extends ModuleScript {
       PreparedStatement ps2 = cp.getPreparedStatement(
           "UPDATE etcop_app SET sync_status = 'PS' WHERE sync_status IS NULL;");
       ps2.executeUpdate();
+      //Remove custom preferences for old model/provider configuration:
+      PreparedStatement ps3 = cp.getPreparedStatement(
+          "DELETE FROM ad_preference WHERE ad_client_id <>'0' AND property IN ('ETCOP_DefaultProvider', " +
+              "'ETCOP_DefaultModelOpenAI', 'ETCOP_DefaultModelGoogle');");
+      ps3.executeUpdate();
     } catch (Exception e) {
       handleError(e);
     }
