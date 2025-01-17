@@ -20,13 +20,11 @@ app.include_router(core_router)
 client = TestClient(app)
 
 
-@unit
 @fixture
 def mocked_agent_response() -> AssistantResponse:
     return AssistantResponse(response="Mocked agent response", conversation_id="mocked_conversation_id")
 
 
-@unit
 @fixture
 def mocked_agent(mocked_agent_response, monkeypatch):
     from copilot.core.agent import AgentResponse
@@ -44,14 +42,12 @@ def mocked_agent(mocked_agent_response, monkeypatch):
         routes.select_copilot_agent = mocked_agent_executor
 
 
-@unit
 def test_copilot_question_with_wrong_payload(client):
     response = client.post("/question", json={})
     assert response.status_code == HTTPStatus.BAD_REQUEST
     assert response.json()["detail"][0]["message"] == "Field required"
 
 
-@unit
 def test_copilot_question_with_valid_payload(client, mocked_agent, mocked_agent_response):
     response = client.post(
         "/question", json={"question": "What is Etendo?", "provider": "langchain", "model": "gpt-4o"}
@@ -61,7 +57,6 @@ def test_copilot_question_with_valid_payload(client, mocked_agent, mocked_agent_
     assert response.json()["answer"] == {}
 
 
-@unit
 @fixture
 def mock_langchain_agent():
     mock_agent = MagicMock()
@@ -84,13 +79,11 @@ def mock_langchain_agent():
     return mock_agent
 
 
-@unit
 @fixture
 def mock_chat_history():
     return {"messages": ["Hello", "How are you?"]}
 
 
-@unit
 @fixture
 def mock_assistant_agent():
     mock_agent = MagicMock(spec=AssistantAgent)
@@ -98,7 +91,6 @@ def mock_assistant_agent():
     return mock_agent
 
 
-@unit
 @patch("copilot.core.routes.select_copilot_agent")
 def test_serve_tools(mock_select_copilot_agent, mock_langchain_agent):
     mock_select_copilot_agent.return_value = mock_langchain_agent

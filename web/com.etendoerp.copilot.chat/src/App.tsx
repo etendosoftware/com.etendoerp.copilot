@@ -18,19 +18,32 @@ import { ROLE_BOT, ROLE_ERROR, ROLE_NODE, ROLE_TOOL, ROLE_USER, ROLE_WAIT } from
 import { getMessageContainerClasses } from './utils/styles';
 
 function App() {
+  const search = window.location.search;
+  const params = new URLSearchParams(search);
+
   // States
   const [file, setFile] = useState<any>(null);
   const [labels, setLabels] = useState<ILabels>({});
   const [statusIcon, setStatusIcon] = useState(enterIcon);
   const [files, setFiles] = useState<File[] | null>(null);
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [inputValue, setInputValue] = useState<string>('');
+  const [inputValue, setInputValue] = useState<string>(params.get("question") ?? '');
   const [fileId, setFileId] = useState<string[] | null>(null);
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
   const [areLabelsLoaded, setAreLabelsLoaded] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const { selectedOption, assistants, getAssistants, handleOptionSelected } =
     useAssistants();
+
+  useEffect(() => {
+    const assistant_id = params.get("assistant_id");
+    if (assistant_id && assistants.length > 0) {
+      const assistant = assistants.find(assistant => assistant.app_id === assistant_id);
+      if (assistant) {
+        handleOptionSelected(assistant);
+      }
+    }
+  }, [assistants, params]);
 
   // Constants
   const noAssistants = assistants?.length === 0 ? true : false;
@@ -99,7 +112,7 @@ function App() {
   };
 
   // Function to update the bot interpretation message
-  const updateInterpretingMessage = () => {};
+  const updateInterpretingMessage = () => { };
 
   // Fetch labels data
   const getLabels = async () => {
@@ -178,7 +191,7 @@ function App() {
           ? `${References.DEV}${References.url.SEND_AQUESTION}?${params}`
           : `${References.PROD}${References.url.SEND_AQUESTION}?${params}`;
         let headers = {}
-        if(isDevelopment()) {
+        if (isDevelopment()) {
           headers = {
             Authorization: 'Basic ' + btoa('admin:admin')
           }
@@ -210,7 +223,7 @@ function App() {
         };
         setStatusIcon(botIcon);
         const intervalTimeOut = setInterval(() => {
-          if(eventSource.readyState === EventSourcePolyfill.CLOSED) {
+          if (eventSource.readyState === EventSourcePolyfill.CLOSED) {
             setIsBotLoading(false);
             eventSource.close();
             setTimeout(() => scrollToBottom(), 100);
