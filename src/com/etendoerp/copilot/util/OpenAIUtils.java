@@ -474,19 +474,6 @@ public class OpenAIUtils {
     return properties.getProperty(OPENAI_API_KEY);
   }
 
-  public static void deleteLocalAssistants(String openaiApiKey) {
-    try {
-      JSONArray assistants = listAssistants(openaiApiKey);
-      for (int i = 0; i < assistants.length(); i++) {
-        JSONObject assistant = assistants.getJSONObject(i);
-        if (assistant.getString("name").startsWith("Copilot [LOCAL]")) {
-          deleteAssistant(assistant.getString("id"), openaiApiKey);
-        }
-      }
-    } catch (JSONException e) {
-      throw new OBException(e);
-    }
-  }
 
   public static void refreshVectorDb(CopilotApp app) throws JSONException {
     String openAIVectorDbId = getOrCreateVectorDbId(app);
@@ -588,104 +575,6 @@ public class OpenAIUtils {
     }
   }
 
-  /**
-   * Synchronizes the list of available OpenAI models by fetching the latest
-   * models from OpenAI and updating the database accordingly. This method retrieves
-   * the models via OpenAI's API, excludes specific models based on ownership and naming,
-   * and then compares the retrieved models with the current models in the database.
-   * <p>If a model exists in the database but is no longer available in OpenAI's list,
-   * it is marked as inactive. New models that do not exist in the database are added.
-   *
-   * @param openaiApiKey
-   *     The API key used to authenticate requests to OpenAI's API for retrieving model information.
-   */
-  public static void syncOpenaiModels(String openaiApiKey) {
-    //ask to openai for the list of models
-    JSONArray modelJSONArray = OpenAIUtils.getModelList(openaiApiKey);
-    //transfer ids of json array to a list of strings
-    List<JSONObject> modelIds = new ArrayList<>();
-    for (int i = 0; i < modelJSONArray.length(); i++) {
-      try {
-        JSONObject modelObj = modelJSONArray.getJSONObject(i);
-        if (!StringUtils.startsWith(modelObj.getString("id"), "ft:") && //exclude the models that start with gpt-4o
-            !StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
-            !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
-          modelIds.add(modelObj);
-        }
-      } catch (JSONException e) {
-        log.error("Error in syncOpenaiModels", e);
-      }
-    }
-    //now we have a list of ids, we can get the list of models in the database
-    List<CopilotModel> modelsInDB = OBDal.getInstance().createCriteria(CopilotModel.class)
-        .add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, "openai")).list();
-
-    //now we will check the models of the database that are not in the list of models from openai, to mark them as not active
-    for (CopilotModel modelInDB : modelsInDB) {
-      //check if the model is in the list of models from openai
-      if (modelIds.stream().noneMatch(modelInModelList(modelInDB))) {
-        modelInDB.setActive(false);
-        OBDal.getInstance().save(modelInDB);
-        continue;
-      }
-      modelIds.removeIf(modelInModelList(modelInDB));
-    }
-    //the models that are not in the database, we will create them,
-    saveNewModels(modelIds);
-  }
-
-  /**
-   * Returns a predicate to check if a specified {@link CopilotModel}
-   * instance matches a given OpenAI model (represented as a {@link JSONObject}).
-   * This helper is primarily used to determine whether a model fetched from OpenAI
-   * is already present in the database by comparing model IDs.
-   *
-   * @param modelInDB
-   *     The {@link CopilotModel} instance to be matched.
-   * @return A predicate that checks if the model ID in the database matches the ID of a given
-   *     OpenAI model.
-   */
-  private static Predicate<JSONObject> modelInModelList(CopilotModel modelInDB) {
-    return model -> StringUtils.equals(model.optString("id"), modelInDB.getSearchkey());
-  }
-
-  /**
-   * This method is used to save new models into the database.
-   * It iterates over a list of JSONObjects, each representing a model, and creates a new CopilotOpenAIModel instance for each one.
-   * The method sets the client, organization, search key, name, and active status for each new model.
-   * It also retrieves the creation date of the model from the JSONObject, converts it from a Unix timestamp to a Date object, and sets it for the new model.
-   * The new model is then saved into the database.
-   * After all models have been saved, the method flushes the session to ensure that all changes are persisted to the database.
-   * If an exception occurs during the execution of the method, it logs the error message and continues with the next iteration.
-   * The method uses the OBContext to set and restore the admin mode before and after the execution of the method, respectively.
-   *
-   * @param modelIds
-   *     A list of JSONObjects, each representing a model to be saved into the database.
-   */
-  private static void saveNewModels(List<JSONObject> modelIds) {
-    try {
-      OBContext.setAdminMode();
-      for (JSONObject modelData : modelIds) {
-        CopilotModel model = OBProvider.getInstance().get(CopilotModel.class);
-        model.setNewOBObject(true);
-        model.setClient(OBDal.getInstance().get(Client.class, "0"));
-        model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
-        model.setSearchkey(modelData.optString("id"));
-        model.setName(modelData.optString("id"));
-        model.setProvider("openai");
-        model.setActive(true);
-        //get the date in The Unix timestamp (in seconds) when the model was created. Convert to date
-        long creationDate = modelData.optLong("created"); // Unix timestamp (in seconds) when the model was created
-        model.setCreationDate(new java.util.Date(creationDate * 1000L));
-        OBDal.getInstance().save(model);
-      }
-      OBDal.getInstance().flush();
-    } catch (Exception e) {
-      log.error("Error in saveNewModels", e);
-    } finally {
-      OBContext.restorePreviousMode();
-    }
-  }
 
   /**
    * Verifies whether the specified {@link CopilotApp} can use attached files
