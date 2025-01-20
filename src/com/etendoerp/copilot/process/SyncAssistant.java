@@ -35,8 +35,6 @@ import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
-import com.etendoerp.openapi.data.OpenAPIRequest;
-import com.etendoerp.openapi.data.OpenApiFlow;
 import com.etendoerp.openapi.data.OpenApiFlowPoint;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
@@ -97,8 +95,14 @@ public class SyncAssistant extends BaseProcessActionHandler {
       }
       // Generate attachment for each file
       generateFilesAttachment(appList);
+      //validates OpenAI API key
+      String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
+      if (openaiApiKey == null) {
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_ApiKeyNotFound"));
+      }
+      OpenAIUtils.getModelList(openaiApiKey);
       // Sync knowledge files to each assistant
-      result = syncKnowledgeFiles(appList);
+      result = syncKnowledgeFiles(appList, openaiApiKey);
     } catch (Exception e) {
       log.error("Error in process", e);
       try {
@@ -325,6 +329,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
    *
    * @param appList
    *     A list of {@link CopilotApp} instances for which knowledge base files are being synchronized.
+   * @param openaiApiKey1
    * @return A {@link JSONObject} containing a message indicating the number of successfully
    *     synchronized applications and the total number of applications processed.
    * @throws JSONException
@@ -332,13 +337,10 @@ public class SyncAssistant extends BaseProcessActionHandler {
    * @throws IOException
    *     If an input/output error occurs during synchronization.
    */
-  private JSONObject syncKnowledgeFiles(List<CopilotApp> appList) throws JSONException, IOException {
+  private JSONObject syncKnowledgeFiles(List<CopilotApp> appList,
+      String openaiApiKey) throws JSONException, IOException {
     int syncCount = 0;
-    String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
-    if (openaiApiKey == null) {
-      throw new OBException(OBMessageUtils.messageBD("ETCOP_ApiKeyNotFound"));
-    }
-    OpenAIUtils.getModelList(openaiApiKey);
+
     for (CopilotApp app : appList) {
       List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream()
           .filter(CopilotConstants::isKbBehaviour)
@@ -430,6 +432,20 @@ public class SyncAssistant extends BaseProcessActionHandler {
     CopilotUtils.purgeVectorDB(app);
   }
 
+  /**
+   * Builds a JSON message object to be displayed in the process view.
+   * <p>
+   * This method constructs a JSON object containing a success message with the given synchronization count and total records.
+   * The message is formatted and added to the response actions to be shown in the process view.
+   *
+   * @param syncCount
+   *     The number of successfully synchronized applications.
+   * @param totalRecords
+   *     The total number of applications processed.
+   * @return A JSONObject containing the response actions with the success message.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
   private JSONObject buildMessage(int syncCount, int totalRecords) throws JSONException {
     JSONObject result = new JSONObject();
     // Message in tab from where the process is executed
