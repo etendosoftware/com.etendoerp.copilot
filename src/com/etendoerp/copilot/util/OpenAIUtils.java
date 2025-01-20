@@ -70,9 +70,20 @@ public class OpenAIUtils {
     throw new IllegalStateException("Utility class");
   }
 
+  /**
+   * Synchronizes the assistant for the given CopilotApp instance.
+   * <p>
+   * This method checks if the assistant exists for the provided CopilotApp instance.
+   * If the assistant does not exist, it creates a new one.
+   *
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @param app
+   *     The CopilotApp instance for which the assistant is to be synchronized.
+   * @throws OBException
+   *     If an error occurs during the synchronization process.
+   */
   public static void syncAssistant(String openaiApiKey, CopilotApp app) throws OBException {
-    //first we need to get the assistant
-    //if the app not has an assistant, we need to create it
     try {
       upsertAssistant(app, openaiApiKey);
     } catch (JSONException | IOException e) {
@@ -80,6 +91,21 @@ public class OpenAIUtils {
     }
   }
 
+  /**
+   * Matches the parameter and code in the response JSON object.
+   * <p>
+   * This method checks if the response contains an error with the specified parameter and code.
+   *
+   * @param response
+   *     The JSON object containing the response.
+   * @param param
+   *     The parameter to match.
+   * @param code
+   *     The code to match.
+   * @return true if the parameter and code match, false otherwise.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON object.
+   */
   private static boolean matchParamAndCode(JSONObject response, String param, String code)
       throws JSONException {
     if (!response.has(ERROR)) {
@@ -90,6 +116,22 @@ public class OpenAIUtils {
         param) && StringUtils.equals(error.getString("code"), code);
   }
 
+  /**
+   * Inserts or updates the assistant for the given CopilotApp instance.
+   * <p>
+   * This method checks if the assistant exists for the provided CopilotApp instance.
+   * If the assistant does not exist, it creates a new one and sets its properties.
+   *
+   * @param app
+   *     The CopilotApp instance for which the assistant is to be inserted or updated.
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @return The JSON object containing the response from the OpenAI API.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON object.
+   * @throws IOException
+   *     If an error occurs while making the request to the OpenAI API.
+   */
   private static JSONObject upsertAssistant(CopilotApp app, String openaiApiKey)
       throws JSONException, IOException {
     String openaiIdAssistant = app.getOpenaiIdAssistant();
@@ -112,10 +154,8 @@ public class OpenAIUtils {
     String model = CopilotUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI);
     logIfDebug("Selected model: " + model);
     body.put("model", model);
-    //make the request to openai
     JSONObject response = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null, false);
     logIfDebug(response.toString());
-    //
     if (response.has(ERROR)) {
       if (matchParamAndCode(response, INSTRUCTIONS, "string_above_max_length")) {
         throw new OBException(
@@ -135,7 +175,6 @@ public class OpenAIUtils {
               response.getJSONObject(ERROR).getString(MESSAGE)));
     }
     if (!StringUtils.equals(app.getOpenaiIdAssistant(), response.getString("id"))) {
-      //if the assistant has changed, we need to update the assistant id
       app.setOpenaiIdAssistant(response.getString("id"));
       OBDal.getInstance().save(app);
       OBDal.getInstance().flush();
@@ -143,6 +182,17 @@ public class OpenAIUtils {
     return response;
   }
 
+  /**
+   * Generates the tool resources for the given CopilotApp instance.
+   * <p>
+   * This method creates a JSON object containing the tool resources for the provided CopilotApp instance.
+   *
+   * @param app
+   *     The CopilotApp instance for which the tool resources are to be generated.
+   * @return The JSON object containing the tool resources.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
   private static JSONObject generateToolsResources(CopilotApp app) throws JSONException {
     JSONObject toolsResources = new JSONObject();
     if (app.isCodeInterpreter()) {
@@ -154,6 +204,17 @@ public class OpenAIUtils {
     return toolsResources;
   }
 
+  /**
+   * Generates the code interpreter resources for the given CopilotApp instance.
+   * <p>
+   * This method creates a JSON object containing the code interpreter resources for the provided CopilotApp instance.
+   *
+   * @param app
+   *     The CopilotApp instance for which the code interpreter resources are to be generated.
+   * @return The JSON object containing the code interpreter resources.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
   private static JSONObject generateCodeInterpreterResources(CopilotApp app) throws JSONException {
     JSONArray files = getKbArrayFiles(app);
     JSONObject fileIds = new JSONObject();
@@ -161,6 +222,17 @@ public class OpenAIUtils {
     return fileIds;
   }
 
+  /**
+   * Generates the file search resources for the given CopilotApp instance.
+   * <p>
+   * This method creates a JSON object containing the file search resources for the provided CopilotApp instance.
+   *
+   * @param app
+   *     The CopilotApp instance for which the file search resources are to be generated.
+   * @return The JSON object containing the file search resources.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
   private static JSONObject generateFileSearchResources(CopilotApp app) throws JSONException {
     JSONObject vectordb = new JSONObject();
     JSONArray vectorIds = new JSONArray();
@@ -169,6 +241,18 @@ public class OpenAIUtils {
     return vectordb;
   }
 
+  /**
+   * Lists all assistants from the OpenAI API.
+   * <p>
+   * This method makes a GET request to the OpenAI API to retrieve a list of assistants.
+   * It then logs the ID, name, and creation date of each assistant.
+   *
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @return A JSONArray containing the data of all assistants.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   private static JSONArray listAssistants(String openaiApiKey) throws JSONException {
     String endpoint = ENDPOINT_ASSISTANTS;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, "GET",
@@ -184,15 +268,32 @@ public class OpenAIUtils {
               date));
     }
     return data;
-
   }
 
+  /**
+   * Logs the given text if debug logging is enabled.
+   *
+   * @param text
+   *     The text to log.
+   */
   public static void logIfDebug(String text) {
     if (log.isDebugEnabled()) {
       log.debug(text);
     }
   }
 
+  /**
+   * Deletes an assistant from the OpenAI API.
+   * <p>
+   * This method makes a DELETE request to the OpenAI API to delete the specified assistant.
+   *
+   * @param openaiAssistantId
+   *     The ID of the assistant to delete.
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   private static void deleteAssistant(String openaiAssistantId, String openaiApiKey)
       throws JSONException {
     String endpoint = ENDPOINT_ASSISTANTS + "/" + openaiAssistantId;
@@ -200,11 +301,30 @@ public class OpenAIUtils {
     logIfDebug(json.toString());
   }
 
-
+  /**
+   * Wraps the given parameters in a JSON schema.
+   * <p>
+   * This method creates a JSON object with a "type" of "object" and the given parameters as properties.
+   *
+   * @param parameters
+   *     The parameters to wrap in the JSON schema.
+   * @return A JSONObject representing the JSON schema.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
   public static JSONObject wrappWithJSONSchema(JSONObject parameters) throws JSONException {
     return new JSONObject().put("type", "object").put("properties", parameters);
   }
 
+  /**
+   * Retrieves the knowledge base files for the given CopilotApp instance.
+   * <p>
+   * This method iterates through the app's sources and collects the file IDs of those that are not excluded from the code interpreter.
+   *
+   * @param app
+   *     The CopilotApp instance for which to retrieve the knowledge base files.
+   * @return A JSONArray containing the file IDs.
+   */
   private static JSONArray getKbArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
@@ -222,7 +342,23 @@ public class OpenAIUtils {
     return result;
   }
 
-
+  /**
+   * Makes a request to the OpenAI API to upload a file.
+   * <p>
+   * This method uploads the given file to the OpenAI API for the specified purpose.
+   *
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @param endpoint
+   *     The endpoint to which the file should be uploaded.
+   * @param purpose
+   *     The purpose of the file upload.
+   * @param fileToSend
+   *     The file to upload.
+   * @return A JSONObject containing the response from the OpenAI API.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint,
       String purpose, File fileToSend) throws JSONException {
     String mimeType = URLConnection.guessContentTypeFromName(fileToSend.getName());
@@ -242,11 +378,58 @@ public class OpenAIUtils {
     return jsonResponse;
   }
 
+  /**
+   * Makes a request to the OpenAI API.
+   * <p>
+   * This method constructs the URL and makes an HTTP request to the OpenAI API using the specified method.
+   * It handles different HTTP methods (GET, POST, PUT, DELETE) and returns the JSON response.
+   *
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @param endpoint
+   *     The API endpoint to call.
+   * @param body
+   *     The JSON body to send with the request (for POST and PUT methods).
+   * @param method
+   *     The HTTP method to use (GET, POST, PUT, DELETE).
+   * @param queryParams
+   *     The query parameters to include in the URL.
+   * @return The JSON response from the OpenAI API.
+   * @throws UnirestException
+   *     If an error occurs while making the HTTP request.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   private static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
       JSONObject body, String method, String queryParams) throws UnirestException, JSONException {
     return makeRequestToOpenAI(openaiApiKey, endpoint, body, method, queryParams, true);
   }
 
+  /**
+   * Makes a request to the OpenAI API with an option to catch HTTP errors.
+   * <p>
+   * This method constructs the URL and makes an HTTP request to the OpenAI API using the specified method.
+   * It handles different HTTP methods (GET, POST, PUT, DELETE) and returns the JSON response.
+   * If `catchHttpErrors` is true, it throws an OBException for HTTP errors.
+   *
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @param endpoint
+   *     The API endpoint to call.
+   * @param body
+   *     The JSON body to send with the request (for POST and PUT methods).
+   * @param method
+   *     The HTTP method to use (GET, POST, PUT, DELETE).
+   * @param queryParams
+   *     The query parameters to include in the URL.
+   * @param catchHttpErrors
+   *     Whether to catch HTTP errors and throw an OBException.
+   * @return The JSON response from the OpenAI API.
+   * @throws UnirestException
+   *     If an error occurs while making the HTTP request.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   private static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
       JSONObject body, String method, String queryParams, boolean catchHttpErrors)
       throws UnirestException, JSONException {
@@ -299,6 +482,17 @@ public class OpenAIUtils {
     return new JSONObject(response.getBody());
   }
 
+  /**
+   * Builds an array of tools for the given CopilotApp instance.
+   * <p>
+   * This method creates a JSON array containing the tools configured for the provided CopilotApp instance.
+   *
+   * @param app
+   *     The CopilotApp instance for which to build the tools array.
+   * @return A JSONArray containing the tools.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON array.
+   */
   private static JSONArray buildToolsArray(CopilotApp app) throws JSONException {
     JSONArray toolSet = ToolsUtil.getToolSet(app);
     JSONObject tool = new JSONObject();
@@ -314,6 +508,21 @@ public class OpenAIUtils {
     return toolSet;
   }
 
+  /**
+   * Synchronizes the given CopilotAppSource instance with the OpenAI API.
+   * <p>
+   * This method checks if the file associated with the CopilotAppSource has changed.
+   * If the file has changed, it uploads the file to the OpenAI API and updates the CopilotAppSource.
+   *
+   * @param appSource
+   *     The CopilotAppSource instance to synchronize.
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   * @throws IOException
+   *     If an error occurs while uploading the file.
+   */
   public static void syncAppSource(CopilotAppSource appSource, String openaiApiKey)
       throws JSONException, IOException {
     //first we need to get the file
@@ -344,9 +553,22 @@ public class OpenAIUtils {
     fileToSync.setUpdated(new Date());
     OBDal.getInstance().save(fileToSync);
     OBDal.getInstance().flush();
-
   }
 
+  /**
+   * Synchronizes the HQL app source with the OpenAI API.
+   * <p>
+   * This method deletes the existing file if it exists, generates a new HQL file,
+   * uploads it to the OpenAI API, and updates the app source with the new file ID.
+   *
+   * @param appSource
+   *     The CopilotAppSource instance to synchronize.
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @return The ID of the uploaded file.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   private static String syncHQLAppSource(CopilotAppSource appSource, String openaiApiKey)
       throws JSONException {
     String openaiFileId = appSource.getOpenaiIdFile();
@@ -362,13 +584,25 @@ public class OpenAIUtils {
     aim.upload(new HashMap<>(), APP_SOURCE_TAB_ID, appSource.getId(),
         appSource.getOrganization().getId(), file);
 
-
     appSource.setOpenaiIdFile(fileId);
     OBDal.getInstance().save(appSource);
     OBDal.getInstance().flush();
     return fileId;
   }
 
+  /**
+   * Checks if a remote file exists on the OpenAI API.
+   * <p>
+   * This method makes a GET request to the OpenAI API to check if the specified file exists.
+   *
+   * @param openaiFileId
+   *     The ID of the file to check.
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @return true if the file exists, false otherwise.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   private static boolean existsRemoteFile(String openaiFileId, String openaiApiKey)
       throws JSONException {
     var response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiFileId, null,
@@ -376,6 +610,16 @@ public class OpenAIUtils {
     return !response.has(ERROR);
   }
 
+  /**
+   * Checks if a file has changed since the last synchronization.
+   * <p>
+   * This method compares the last synchronization date and the updated date of the file.
+   * It also checks if there are any attachments that have been updated since the last synchronization.
+   *
+   * @param fileToSync
+   *     The CopilotFile instance to check.
+   * @return true if the file has changed, false otherwise.
+   */
   private static boolean fileHasChanged(CopilotFile fileToSync) {
     if (StringUtils.isEmpty(fileToSync.getOpenaiIdFile())) {
       return true;
@@ -385,14 +629,14 @@ public class OpenAIUtils {
       return true;
     }
     Date updated = fileToSync.getUpdated();
-    //clean the milliseconds
+    // Clean the milliseconds
     lastSyncDate = new Date(lastSyncDate.getTime() / 1000 * 1000);
     updated = new Date(updated.getTime() / 1000 * 1000);
 
     if ((updated.after(lastSyncDate))) {
       return true;
     }
-    //check Attachments
+    // Check Attachments
     OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
     Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
@@ -405,6 +649,18 @@ public class OpenAIUtils {
     return updatedAtt.after(lastSyncDate);
   }
 
+  /**
+   * Deletes a file from the OpenAI API.
+   * <p>
+   * This method makes a DELETE request to the OpenAI API to delete the specified file.
+   *
+   * @param openaiIdFile
+   *     The ID of the file to delete.
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
     if (existsRemoteFile(openaiIdFile, openaiApiKey)) {
       JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiIdFile,
@@ -413,13 +669,41 @@ public class OpenAIUtils {
     }
   }
 
+  /**
+   * Downloads an attachment and uploads it to the OpenAI API.
+   * <p>
+   * This method retrieves the file from the CopilotFile instance, uploads it to the OpenAI API,
+   * and returns the ID of the uploaded file.
+   *
+   * @param fileToSync
+   *     The CopilotFile instance to download and upload.
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @return The ID of the uploaded file.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   * @throws IOException
+   *     If an error occurs while handling the file.
+   */
   private static String downloadAttachmentAndUploadFile(CopilotFile fileToSync, String openaiApiKey)
       throws JSONException, IOException {
-    //make the request to openai
+    // Make the request to OpenAI
     File tempFile = getFileFromCopilotFile(fileToSync);
     return uploadFileToOpenAI(openaiApiKey, tempFile);
   }
 
+  /**
+   * Retrieves a file from a CopilotFile instance.
+   * <p>
+   * This method downloads the attachment associated with the CopilotFile instance,
+   * saves it to a temporary file, and returns the temporary file.
+   *
+   * @param fileToSync
+   *     The CopilotFile instance to retrieve the file from.
+   * @return The temporary file.
+   * @throws IOException
+   *     If an error occurs while handling the file.
+   */
   public static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(
         AttachImplementationManager.class);
@@ -431,8 +715,8 @@ public class OpenAIUtils {
     }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);
-    //save os to temp file
-    //create a temp file
+    // Save os to temp file
+    // Create a temp file
     String filename = attach.getName();
     String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
     String extension = filename.substring(filename.lastIndexOf(".") + 1);
@@ -446,6 +730,19 @@ public class OpenAIUtils {
     return tempFile;
   }
 
+  /**
+   * Uploads a file to the OpenAI API.
+   * <p>
+   * This method uploads the given file to the OpenAI API for the specified purpose.
+   *
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @param fileToSend
+   *     The file to upload.
+   * @return The ID of the uploaded file.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   public static String uploadFileToOpenAI(String openaiApiKey, File fileToSend)
       throws JSONException {
     JSONObject jsonResponse;
@@ -459,35 +756,48 @@ public class OpenAIUtils {
     return jsonResponse.getString("id");
   }
 
+  /**
+   * Retrieves the list of models from the OpenAI API.
+   * <p>
+   * This method makes a GET request to the OpenAI API to retrieve a list of available models.
+   *
+   * @param openaiApiKey
+   *     The API key for OpenAI.
+   * @return A JSONArray containing the list of models.
+   * @throws OBException
+   *     If an error occurs while parsing the JSON response.
+   */
   public static JSONArray getModelList(String openaiApiKey) {
     try {
       JSONObject list = makeRequestToOpenAI(openaiApiKey, ENDPOINT_MODELS, null, "GET", null);
-
       return new JSONArray(list.getString("data"));
     } catch (JSONException e) {
       throw new OBException(e.getMessage());
     }
   }
 
+  /**
+   * Retrieves the OpenAI API key from the Openbravo properties.
+   * <p>
+   * This method reads the OpenAI API key from the Openbravo properties file.
+   *
+   * @return The OpenAI API key.
+   */
   public static String getOpenaiApiKey() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     return properties.getProperty(OPENAI_API_KEY);
   }
 
-  public static void deleteLocalAssistants(String openaiApiKey) {
-    try {
-      JSONArray assistants = listAssistants(openaiApiKey);
-      for (int i = 0; i < assistants.length(); i++) {
-        JSONObject assistant = assistants.getJSONObject(i);
-        if (assistant.getString("name").startsWith("Copilot [LOCAL]")) {
-          deleteAssistant(assistant.getString("id"), openaiApiKey);
-        }
-      }
-    } catch (JSONException e) {
-      throw new OBException(e);
-    }
-  }
-
+  /**
+   * Refreshes the vector database for the given CopilotApp instance.
+   * <p>
+   * This method updates the vector database with the latest files and removes outdated files.
+   *
+   * @param app
+   *     The CopilotApp instance for which to refresh the vector database.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   public static void refreshVectorDb(CopilotApp app) throws JSONException {
     String openAIVectorDbId = getOrCreateVectorDbId(app);
     JSONObject currentFiles = makeRequestToOpenAI(getOpenaiApiKey(),
@@ -496,6 +806,18 @@ public class OpenAIUtils {
     removeOutdatedFiles(updatedFiles, currentFiles, openAIVectorDbId);
   }
 
+  /**
+   * Retrieves or creates a vector database ID for the given CopilotApp instance.
+   * <p>
+   * This method checks if the vector database ID exists for the provided CopilotApp instance.
+   * If it does not exist, it creates a new one.
+   *
+   * @param app
+   *     The CopilotApp instance for which to retrieve or create the vector database ID.
+   * @return The vector database ID.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON response.
+   */
   private static String getOrCreateVectorDbId(CopilotApp app) throws JSONException {
     if (app.getOpenaiVectordbID() != null) {
       if (!existsVectorDb(app.getOpenaiVectordbID())) {
@@ -506,6 +828,15 @@ public class OpenAIUtils {
     return createVectorDbId(app);
   }
 
+  /**
+   * Checks if a vector database exists on the OpenAI API.
+   * <p>
+   * This method makes a GET request to the OpenAI API to check if the specified vector database exists.
+   *
+   * @param openaiIdVectordb
+   *     The ID of the vector database to check.
+   * @return true if the vector database exists, false otherwise.
+   */
   private static boolean existsVectorDb(String openaiIdVectordb) {
     try {
       JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(),
@@ -516,6 +847,15 @@ public class OpenAIUtils {
     }
   }
 
+  /**
+   * Checks if an assistant exists on the OpenAI API.
+   * <p>
+   * This method makes a GET request to the OpenAI API to check if the specified assistant exists.
+   *
+   * @param openaiAssistantId
+   *     The ID of the assistant to check.
+   * @return true if the assistant exists, false otherwise.
+   */
   private static boolean existsAssistant(String openaiAssistantId) {
     try {
       JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(),
@@ -526,11 +866,22 @@ public class OpenAIUtils {
     }
   }
 
+  /**
+   * Creates a vector database ID for the given CopilotApp instance.
+   * <p>
+   * This method creates a new vector database for the provided CopilotApp instance
+   * and sets its properties. It then saves the vector database ID in the app instance.
+   *
+   * @param app
+   *     The CopilotApp instance for which the vector database ID is to be created.
+   * @return The vector database ID.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
   private static String createVectorDbId(CopilotApp app) throws JSONException {
     JSONObject vectordb = new JSONObject();
     vectordb.put("name", app.getName());
-    JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(), ENDPOINT_VECTORDB, vectordb,
-        "POST", null);
+    JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(), ENDPOINT_VECTORDB, vectordb, "POST", null);
     String openAIVectorDbId = response.getString("id");
     app.setOpenaiVectordbID(openAIVectorDbId);
     OBDal.getInstance().save(app);
@@ -539,8 +890,21 @@ public class OpenAIUtils {
     return openAIVectorDbId;
   }
 
-  private static List<String> updateVectorDbFiles(CopilotApp app, String openAIVectorDbId)
-      throws JSONException {
+  /**
+   * Updates the vector database files for the given CopilotApp instance.
+   * <p>
+   * This method iterates through the app's sources and updates the vector database
+   * with the latest files. It returns a list of updated file IDs.
+   *
+   * @param app
+   *     The CopilotApp instance for which the vector database files are to be updated.
+   * @param openAIVectorDbId
+   *     The ID of the vector database to update.
+   * @return A list of updated file IDs.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
+  private static List<String> updateVectorDbFiles(CopilotApp app, String openAIVectorDbId) throws JSONException {
     List<String> updatedFiles = new ArrayList<>();
     for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
       if (!copilotAppSource.isExcludeFromRetrieval() && CopilotConstants.isKbBehaviour(copilotAppSource)) {
@@ -554,8 +918,7 @@ public class OpenAIUtils {
         JSONObject fileSearch = new JSONObject();
         fileSearch.put("file_id", openAIFileId);
         var response = makeRequestToOpenAI(getOpenaiApiKey(),
-            ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES, fileSearch, "POST", null,
-            false);
+            ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES, fileSearch, "POST", null, false);
         if (!response.has(ERROR)) {
           updatedFiles.add(openAIFileId);
         } else {
@@ -572,6 +935,21 @@ public class OpenAIUtils {
     return updatedFiles;
   }
 
+  /**
+   * Removes outdated files from the vector database.
+   * <p>
+   * This method iterates through the current files in the vector database and removes
+   * any files that are not in the list of updated files.
+   *
+   * @param updatedFiles
+   *     A list of updated file IDs.
+   * @param currentFiles
+   *     The JSON object containing the current files in the vector database.
+   * @param openAIVectorDbId
+   *     The ID of the vector database to update.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON object.
+   */
   private static void removeOutdatedFiles(List<String> updatedFiles, JSONObject currentFiles,
       String openAIVectorDbId) throws JSONException {
     if (currentFiles == null || !currentFiles.has("data")) {
@@ -582,108 +960,9 @@ public class OpenAIUtils {
       if (!updatedFiles.contains(existingFile.getString("id"))) {
         String existingFileId = existingFile.getString("id");
         makeRequestToOpenAI(getOpenaiApiKey(),
-            OpenAIUtils.ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES + "/" + existingFileId,
-            null, METHOD_DELETE, null);
+            OpenAIUtils.ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES + "/" + existingFileId, null,
+            METHOD_DELETE, null);
       }
-    }
-  }
-
-  /**
-   * Synchronizes the list of available OpenAI models by fetching the latest
-   * models from OpenAI and updating the database accordingly. This method retrieves
-   * the models via OpenAI's API, excludes specific models based on ownership and naming,
-   * and then compares the retrieved models with the current models in the database.
-   * <p>If a model exists in the database but is no longer available in OpenAI's list,
-   * it is marked as inactive. New models that do not exist in the database are added.
-   *
-   * @param openaiApiKey
-   *     The API key used to authenticate requests to OpenAI's API for retrieving model information.
-   */
-  public static void syncOpenaiModels(String openaiApiKey) {
-    //ask to openai for the list of models
-    JSONArray modelJSONArray = OpenAIUtils.getModelList(openaiApiKey);
-    //transfer ids of json array to a list of strings
-    List<JSONObject> modelIds = new ArrayList<>();
-    for (int i = 0; i < modelJSONArray.length(); i++) {
-      try {
-        JSONObject modelObj = modelJSONArray.getJSONObject(i);
-        if (!StringUtils.startsWith(modelObj.getString("id"), "ft:") && //exclude the models that start with gpt-4o
-            !StringUtils.equals(modelObj.getString("owned_by"), "openai-dev") &&
-            !StringUtils.equals(modelObj.getString("owned_by"), "openai-internal")) {
-          modelIds.add(modelObj);
-        }
-      } catch (JSONException e) {
-        log.error("Error in syncOpenaiModels", e);
-      }
-    }
-    //now we have a list of ids, we can get the list of models in the database
-    List<CopilotModel> modelsInDB = OBDal.getInstance().createCriteria(CopilotModel.class)
-        .add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, "openai")).list();
-
-    //now we will check the models of the database that are not in the list of models from openai, to mark them as not active
-    for (CopilotModel modelInDB : modelsInDB) {
-      //check if the model is in the list of models from openai
-      if (modelIds.stream().noneMatch(modelInModelList(modelInDB))) {
-        modelInDB.setActive(false);
-        OBDal.getInstance().save(modelInDB);
-        continue;
-      }
-      modelIds.removeIf(modelInModelList(modelInDB));
-    }
-    //the models that are not in the database, we will create them,
-    saveNewModels(modelIds);
-  }
-
-  /**
-   * Returns a predicate to check if a specified {@link CopilotModel}
-   * instance matches a given OpenAI model (represented as a {@link JSONObject}).
-   * This helper is primarily used to determine whether a model fetched from OpenAI
-   * is already present in the database by comparing model IDs.
-   *
-   * @param modelInDB
-   *     The {@link CopilotModel} instance to be matched.
-   * @return A predicate that checks if the model ID in the database matches the ID of a given
-   *     OpenAI model.
-   */
-  private static Predicate<JSONObject> modelInModelList(CopilotModel modelInDB) {
-    return model -> StringUtils.equals(model.optString("id"), modelInDB.getSearchkey());
-  }
-
-  /**
-   * This method is used to save new models into the database.
-   * It iterates over a list of JSONObjects, each representing a model, and creates a new CopilotOpenAIModel instance for each one.
-   * The method sets the client, organization, search key, name, and active status for each new model.
-   * It also retrieves the creation date of the model from the JSONObject, converts it from a Unix timestamp to a Date object, and sets it for the new model.
-   * The new model is then saved into the database.
-   * After all models have been saved, the method flushes the session to ensure that all changes are persisted to the database.
-   * If an exception occurs during the execution of the method, it logs the error message and continues with the next iteration.
-   * The method uses the OBContext to set and restore the admin mode before and after the execution of the method, respectively.
-   *
-   * @param modelIds
-   *     A list of JSONObjects, each representing a model to be saved into the database.
-   */
-  private static void saveNewModels(List<JSONObject> modelIds) {
-    try {
-      OBContext.setAdminMode();
-      for (JSONObject modelData : modelIds) {
-        CopilotModel model = OBProvider.getInstance().get(CopilotModel.class);
-        model.setNewOBObject(true);
-        model.setClient(OBDal.getInstance().get(Client.class, "0"));
-        model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
-        model.setSearchkey(modelData.optString("id"));
-        model.setName(modelData.optString("id"));
-        model.setProvider("openai");
-        model.setActive(true);
-        //get the date in The Unix timestamp (in seconds) when the model was created. Convert to date
-        long creationDate = modelData.optLong("created"); // Unix timestamp (in seconds) when the model was created
-        model.setCreationDate(new java.util.Date(creationDate * 1000L));
-        OBDal.getInstance().save(model);
-      }
-      OBDal.getInstance().flush();
-    } catch (Exception e) {
-      log.error("Error in saveNewModels", e);
-    } finally {
-      OBContext.restorePreviousMode();
     }
   }
 
@@ -708,5 +987,4 @@ public class OpenAIUtils {
           String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
     }
   }
-
 }
