@@ -128,6 +128,9 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Function to update the bot interpretation message
+  const updateInterpretingMessage = () => { };
+
   // Fetch labels data
   const getLabels = async () => {
     const requestOptions = {
