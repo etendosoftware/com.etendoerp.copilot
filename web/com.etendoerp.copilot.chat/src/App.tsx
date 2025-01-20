@@ -27,7 +27,6 @@ function App() {
   const [labels, setLabels] = useState<ILabels>({});
   const [statusIcon, setStatusIcon] = useState(botIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [inputValue, setInputValue] = useState<string>(params.get("question") ?? '');
   const [isFirstMessage, setIsFirstMessage] = useState(true);
   const [fileId, setFileId] = useState<string[] | null>(null);
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
