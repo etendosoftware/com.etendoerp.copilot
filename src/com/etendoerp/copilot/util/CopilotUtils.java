@@ -873,6 +873,29 @@ public class CopilotUtils {
         ? Long.parseLong(modelElem.elementText("maxTokens")) : null);
     model.setDefault(Boolean.parseBoolean(modelElem.elementText("default")));
     OBDal.getInstance().save(model);
+    disableReplicated(model.getId(), model.getSearchkey());
+  }
+
+  /**
+   * Disables replicated models with the same search key.
+   * <p>
+   * This method finds all CopilotModel instances with the same search key but different ID,
+   * and sets their active status to false.
+   *
+   * @param id
+   *     The ID of the model to exclude from the search.
+   * @param searchkey
+   *     The search key to match for disabling replicated models.
+   */
+  private static void disableReplicated(String id, String searchkey) {
+    OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
+    modelCriteria.add(Restrictions.ne(CopilotModel.PROPERTY_ID, id));
+    modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_SEARCHKEY, searchkey));
+    List<CopilotModel> models = modelCriteria.list();
+    for (CopilotModel modelrep : models) {
+      modelrep.setActive(false);
+      OBDal.getInstance().save(modelrep);
+    }
   }
 
   /**
