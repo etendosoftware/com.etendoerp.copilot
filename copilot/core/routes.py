@@ -39,10 +39,8 @@ from copilot.core.vectordb_utils import (
 )
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from langchain_community.vectorstores import Chroma
-from langsmith import traceable
 from starlette.responses import StreamingResponse
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 core_router = APIRouter()
@@ -50,14 +48,12 @@ core_router = APIRouter()
 current_agent = None
 
 
-@traceable
 def select_copilot_agent(copilot_type: str):
     if copilot_type not in copilot_agents:
         raise UnsupportedAgent()
     return copilot_agents[copilot_type]
 
 
-@traceable
 def _response(response: AssistantResponse):
     if type(response) == AssistantResponse:
         json_value = json.dumps(
@@ -83,7 +79,6 @@ def _response(response: AssistantResponse):
     return "data: " + json_value + "\n"
 
 
-@traceable
 async def gather_responses(agent, question, queue):
     try:
         async for agent_response in agent.aexecute(question):
@@ -93,7 +88,6 @@ async def gather_responses(agent, question, queue):
     await queue.put(None)  # Signal that processing is done
 
 
-@traceable
 def _serve_question_sync(question: QuestionSchema):
     """Copilot endpoint for answering questions synchronously."""
     agent_type, copilot_agent = _initialize_agent(question)
@@ -106,7 +100,6 @@ def _serve_question_sync(question: QuestionSchema):
     return {"answer": response}
 
 
-@traceable
 def _initialize_agent(question: QuestionSchema):
     """Initialize and return the copilot agent."""
     agent_type = question.type
@@ -125,14 +118,12 @@ def _initialize_agent(question: QuestionSchema):
     return agent_type, copilot_agent
 
 
-@traceable
 def _execute_agent(copilot_agent, question: QuestionSchema):
     """Execute the agent and return the response."""
     agent_response: AgentResponse = copilot_agent.execute(question)
     return agent_response.output
 
 
-@traceable
 def _handle_exception(e: Exception):
     """Handle exceptions and return an error response."""
     logger.exception(e)
@@ -148,7 +139,6 @@ def _handle_exception(e: Exception):
     }
 
 
-@traceable
 @core_router.post("/graph")
 def serve_graph(question: GraphQuestionSchema):
     """Copilot main endpdoint to answering questions."""
@@ -189,20 +179,17 @@ def serve_graph(question: GraphQuestionSchema):
     return {"answer": response}
 
 
-@traceable
 def event_stream_graph(question: GraphQuestionSchema):
     responses = _serve_agraph(question)
     for response in responses:
         yield response
 
 
-@traceable
 @core_router.post("/agraph")
 def serve_async_graph(question: GraphQuestionSchema):
     return StreamingResponse(event_stream_graph(question), media_type="text/event-stream")
 
 
-@traceable
 def _serve_agraph(question: GraphQuestionSchema):
     """Copilot main endpdoint to answering questions."""
     copilot_agent = LanggraphAgent()
@@ -249,13 +236,11 @@ def _serve_agraph(question: GraphQuestionSchema):
         yield _response(response_error)
 
 
-@traceable
 @core_router.post("/question")
 def serve_question(question: QuestionSchema):
     return _serve_question_sync(question)
 
 
-@traceable
 async def _serve_question_async(question: QuestionSchema):
     """Copilot endpoint for answering questions asynchronously."""
     agent_type, copilot_agent = _initialize_agent(question)
@@ -283,19 +268,16 @@ async def _serve_question_async(question: QuestionSchema):
         yield {"answer": response}
 
 
-@traceable
 async def event_stream(question: QuestionSchema):
     async for response in _serve_question_async(question):
         yield response
 
 
-@traceable
 @core_router.post("/aquestion")
 async def serve_async_question(question: QuestionSchema):
     return StreamingResponse(event_stream(question), media_type="text/event-stream")
 
 
-@traceable
 @core_router.get("/tools")
 def serve_tools():
     """Show tools available, with their information."""
@@ -310,14 +292,12 @@ def serve_tools():
     return {"answer": tool_dict}
 
 
-@traceable
 @core_router.get("/history")
 def get_chat_history():
     chat_history: ChatHistory = local_history_recorder.get_chat_history()
     return chat_history
 
 
-@traceable
 @core_router.get("/assistant")
 def serve_assistant():
     if not isinstance(current_agent, AssistantAgent):
@@ -326,7 +306,6 @@ def serve_assistant():
     return {"assistant_id": current_agent.get_assistant_id()}
 
 
-@traceable
 @core_router.post("/ResetVectorDB")
 def resetVectorDB(body: VectorDBInputSchema):
     try:
@@ -360,7 +339,6 @@ def resetVectorDB(body: VectorDBInputSchema):
     return {"answer": "VectorDB marked for purge successfully."}
 
 
-@traceable
 @core_router.post("/addToVectorDB")
 def process_text_to_vector_db(
     kb_vectordb_id: str = Form(...),
@@ -409,7 +387,6 @@ def process_text_to_vector_db(
     return {"answer": message, "success": success, "db_path": db_path}
 
 
-@traceable
 @core_router.post("/purgeVectorDB")
 def purge_vectordb(body: VectorDBInputSchema):
     try:
@@ -433,24 +410,25 @@ def purge_vectordb(body: VectorDBInputSchema):
     return {"answer": "Documents marked for purge have been removed."}
 
 
-@traceable
 @core_router.get("/runningCheck")
 def running_check():
     return {"answer": "docker" if utils.is_docker() else "pycharm"}
 
 
-@traceable
 @core_router.post("/attachFile")
 def attach_file(file: UploadFile = File(...)):
     # save the file inside /tmp and return the path
-    temp_file_path = Path(f"/copilotAttachedFiles/{uuid.uuid4()}/{file.filename}")
+    if not utils.is_docker():
+        prefix = os.getcwd()
+    else:
+        prefix = ""
+    temp_file_path = Path(f"{prefix}/copilotAttachedFiles/{uuid.uuid4()}/{file.filename}")
     temp_file_path.parent.mkdir(parents=True, exist_ok=True)
     with temp_file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     return {"answer": str(temp_file_path)}
 
 
-@traceable
 @core_router.post("/checkCopilotHost")
 def check_copilot_host(authorization: str = Header(None)):
     try:

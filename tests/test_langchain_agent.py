@@ -12,7 +12,6 @@ from langchain_core.runnables import RunnableSequence
 from langsmith import unit
 
 
-@unit
 @pytest.fixture
 def langchain_agent():
     with patch("copilot.core.tool_loader.ToolLoader") as mock_tool_loader:
@@ -21,7 +20,6 @@ def langchain_agent():
         return LangchainAgent()
 
 
-@unit
 def test_get_agent_openai(langchain_agent):
     with patch("langchain_openai.ChatOpenAI"):
         agent = langchain_agent.get_agent(
@@ -31,7 +29,6 @@ def test_get_agent_openai(langchain_agent):
         assert isinstance(agent, RunnableSequence)
 
 
-@unit
 def test_get_agent_gemini(langchain_agent):
     with patch("langchain_google_genai.ChatGoogleGenerativeAI"):
         agent = langchain_agent.get_agent(
@@ -41,7 +38,6 @@ def test_get_agent_gemini(langchain_agent):
         assert isinstance(agent, RunnableSequence)
 
 
-@unit
 def test_get_agent_executor(langchain_agent):
     with patch.object(langchain_agent, "get_openai_agent") as mock_get_openai_agent:
         agent = langchain_agent.get_agent(
@@ -52,7 +48,6 @@ def test_get_agent_executor(langchain_agent):
         assert agent_executor.agent.runnable == agent
 
 
-@unit
 def test_execute(langchain_agent):
     question = QuestionSchema(
         provider="openai",
@@ -81,7 +76,6 @@ def test_execute(langchain_agent):
         assert response.input == get_full_question(question)
 
 
-@unit
 async def test_aexecute():
     langchain_agent = LangchainAgent()
     question = QuestionSchema(
@@ -117,7 +111,6 @@ async def test_aexecute():
         [response async for response in response_generator]
 
 
-@unit
 def test_custom_output_parser():
     parser = CustomOutputParser()
     output = "Test output"
