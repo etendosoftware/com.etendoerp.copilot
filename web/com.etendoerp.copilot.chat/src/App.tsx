@@ -15,20 +15,35 @@ import { SparksIcon } from 'etendo-ui-library/dist-web/assets/images/icons';
 import { RestUtils, isDevelopment } from './utils/environment';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { ROLE_BOT, ROLE_ERROR, ROLE_NODE, ROLE_TOOL, ROLE_USER, ROLE_WAIT } from './utils/constants';
+import { getMessageContainerClasses } from './utils/styles';
 
 function App() {
+  const search = window.location.search;
+  const params = new URLSearchParams(search);
+
   // States
   const [file, setFile] = useState<any>(null);
   const [labels, setLabels] = useState<ILabels>({});
   const [statusIcon, setStatusIcon] = useState(enterIcon);
+  const [files, setFiles] = useState<File[] | null>(null);
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [inputValue, setInputValue] = useState<string>('');
-  const [fileId, setFileId] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState<string>(params.get("question") ?? '');
+  const [fileId, setFileId] = useState<string[] | null>(null);
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
   const [areLabelsLoaded, setAreLabelsLoaded] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const { selectedOption, assistants, getAssistants, handleOptionSelected } =
     useAssistants();
+
+  useEffect(() => {
+    const assistant_id = params.get("assistant_id");
+    if(assistant_id && assistants.length > 0) {
+      const assistant = assistants.find(assistant => assistant.app_id === assistant_id);
+      if(assistant) {
+        handleOptionSelected(assistant);
+      }
+    }
+  }, [assistants, params]);
 
   // Constants
   const noAssistants = assistants?.length === 0 ? true : false;
@@ -49,8 +64,8 @@ function App() {
       _text = '🤖 ' + _text + '';
     }
 
-    setMessages(prevMessages => {
-      const lastMessage = prevMessages[prevMessages.length - 1];      
+    setMessages((prevMessages: any) => {
+      const lastMessage = prevMessages[prevMessages.length - 1];
       if (
         lastMessage &&
         (lastMessage.sender === ROLE_TOOL || lastMessage.sender === ROLE_NODE || lastMessage.sender === ROLE_WAIT) &&
@@ -64,7 +79,7 @@ function App() {
             text: _text,
             sender: role,
             timestamp: formatTimeNewDate(new Date()),
-            file: message.file,
+            files: files,
           },
         ];
       } else {
@@ -76,13 +91,13 @@ function App() {
             text: _text,
             sender: role,
             timestamp: formatTimeNewDate(new Date()),
-            file: message.file,
+            files: files,
           },
         ];
       }
     });
-    if( role === ROLE_USER ){
-      await handleNewMessage( ROLE_WAIT, {
+    if (role === ROLE_USER) {
+      await handleNewMessage(ROLE_WAIT, {
         text: 'Processing...',
         sender: ROLE_WAIT,
         timestamp: formatTimeNewDate(new Date()),
@@ -160,7 +175,7 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
         };
         const cacheQuestionResponse = await RestUtils.fetch(
-           `${References.url.CACHE_QUESTION}`,
+          `${References.url.CACHE_QUESTION}`,
           cacheQuestionRequest,
         );
         const cacheQuestionData = await cacheQuestionResponse.json();
@@ -224,9 +239,9 @@ function App() {
   };
 
   // Modify setFile to reset the error state when a new file is selected
-  const handleSetFile = (newFile: any) => {
-    if (newFile !== file) {
-      setFile(newFile);
+  const handleSetFiles = (newFiles: any) => {
+    if (newFiles !== file) {
+      setFiles(newFiles);
     }
   };
 
@@ -242,7 +257,7 @@ function App() {
 
   // Handles ID received from file uploaded in the server
   const handleFileId = (uploadedFile: any) => {
-    setFileId(uploadedFile.file);
+    setFileId(Object.values(uploadedFile) as string[]);
   };
 
   // Manage error
@@ -307,7 +322,7 @@ function App() {
     url = References.PROD + References.url.UPLOAD_FILE;
   }
   const uploadConfig = {
-    file: file,
+    file: files,
     url: url,
     method: References.method.POST,
   };
@@ -378,15 +393,7 @@ function App() {
           {messages.map((message, index) => (
             <div
               key={index}
-              className={`text-sm mt-[12px] ${
-                message.sender === ROLE_USER
-                  ? 'text-right user-message slide-up-fade-in'
-                  : message.sender === 'interpreting'
-                    ? ''
-                    : message.sender === ROLE_ERROR
-                      ? 'text-red-900 rounded-lg'
-                      : 'text-black rounded-lg'
-              }`}
+              className={getMessageContainerClasses(message.sender)}
             >
               {message.sender === 'interpreting' && (
                 <div className={`flex items-center`}>
@@ -406,13 +413,12 @@ function App() {
               )}
               {message.sender !== 'interpreting' && (
                 <p
-                  className={`slide-up-fade-in inline-flex flex-col rounded-lg ${
-                    message.sender === ROLE_USER
-                      ? 'text-gray-600 rounded-tr-none'
-                      : message.sender === ROLE_ERROR
-                        ? 'rounded-tl-none'
-                        : 'text-black rounded-tl-none'
-                  } break-words overflow-hidden max-w-[90%]`}
+                  className={`slide-up-fade-in inline-flex flex-col rounded-lg ${message.sender === ROLE_USER
+                    ? 'text-gray-600 rounded-tr-none'
+                    : message.sender === ROLE_ERROR
+                      ? 'rounded-tl-none'
+                      : 'text-black rounded-tl-none'
+                    } break-words overflow-hidden max-w-[90%]`}
                 >
                   {message.sender === ROLE_ERROR ? (
                     <TextMessage
@@ -422,37 +428,37 @@ function App() {
                       type={getMessageType(message.sender)}
                     />
                   ) : // Normal message with Copilot's response
-                  message.sender === ROLE_BOT ? (
-                    <TextMessage
-                      key={index}
-                      text={message.text ? message.text : '...'}
-                      time={message.timestamp}
-                      type="left-user"
-                    />
-                  ) : message.sender === ROLE_TOOL || message.sender === ROLE_NODE || message.sender === ROLE_WAIT ? (
-                    <div className={`flex items-center`}>
-                      <img
-                        src={statusIcon}
-                        alt="Status Icon"
-                        className={
-                          statusIcon === responseSent
-                            ? 'w-5 h-5 mr-1'
-                            : 'w-8 h-8 slow-bounce'
-                        }
+                    message.sender === ROLE_BOT ? (
+                      <TextMessage
+                        key={index}
+                        text={message.text ? message.text : '...'}
+                        time={message.timestamp}
+                        type="left-user"
                       />
-                      <span className={`text-sm ml-1 font-normal`}>
-                        {message.text ? message.text : '...'}
-                      </span>
-                    </div>
-                  ) : (
-                    <TextMessage
-                      key={index}
-                      text={message.text}
-                      time={message.timestamp}
-                      type="right-user"
-                      file={message.file}
-                    />
-                  )}
+                    ) : message.sender === ROLE_TOOL || message.sender === ROLE_NODE || message.sender === ROLE_WAIT ? (
+                      <div className={`flex items-center`}>
+                        <img
+                          src={statusIcon}
+                          alt="Status Icon"
+                          className={
+                            statusIcon === responseSent
+                              ? 'w-5 h-5 mr-1'
+                              : 'w-8 h-8 slow-bounce'
+                          }
+                        />
+                        <span className={`text-sm ml-1 font-normal`}>
+                          {message.text ? message.text : '...'}
+                        </span>
+                      </div>
+                    ) : (
+                      <TextMessage
+                        key={index}
+                        text={message.text}
+                        time={message.timestamp}
+                        type="right-user"
+                        files={message.files}
+                      />
+                    )}
                 </p>
               )}
             </div>
@@ -473,7 +479,7 @@ function App() {
             onChangeText={text => setInputValue(text)}
             onSubmit={handleSendMessage}
             onSubmitEditing={handleSendMessage}
-            setFile={handleSetFile}
+            setFile={handleSetFiles}
             uploadConfig={uploadConfig}
             isDisabled={noAssistants}
             isSendDisable={isBotLoading}
