@@ -628,15 +628,7 @@ public class CopilotUtils {
   }
 
   public static String generateEtendoToken() throws Exception {
-
-    OBContext context = OBContext.getOBContext();
-    Organization currentOrganization = OBDal.getInstance().get(Organization.class,
-        context.getCurrentOrganization().getId());
-    Role role = OBDal.getInstance().get(Role.class, context.getRole().getId());
-    User user = OBDal.getInstance().get(User.class, context.getUser().getId());
-    Warehouse warehouse = OBDal.getInstance().get(Warehouse.class, context.getWarehouse().getId());
-    return SecureWebServicesUtils.generateToken(user, role, currentOrganization,
-        warehouse);
+    return getEtendoSWSToken(OBContext.getOBContext(), null);
   }
 
   /**
