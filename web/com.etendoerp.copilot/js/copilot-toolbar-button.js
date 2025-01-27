@@ -284,6 +284,30 @@
     action: function () {
       console.log("Copilot button clicked");
       openCopilotWindow(null, null);
+
+      var callback, orders = [], i,
+        view = this.view,
+        grid = view.viewGrid,
+        selectedRecords = grid.getSelectedRecords();
+
+      for (i = 0; i < selectedRecords.length; i++) {
+        orders.push(selectedRecords[i].id);
+      }
+
+      console.log("Selected orders:", orders);
+
+      callback = function (rpcResponse, data, rpcRequest) {
+        console.log("rpcResponse:", rpcResponse);
+        console.log("data:", data);
+        console.log("rpcRequest:", rpcRequest);
+      };
+
+      OB.RemoteCallManager.call(
+        'com.etendoerp.copilot.rest.CopilotContextActionHandler',
+        { orders: orders },
+        {},
+        callback
+      );
     },
 
     buttonType: 'etcop',
