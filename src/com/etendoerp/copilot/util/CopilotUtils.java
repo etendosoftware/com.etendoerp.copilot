@@ -2,18 +2,13 @@ package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.replaceAliasInPrompt;
 import static com.etendoerp.copilot.util.CopilotConstants.KB_FILE_VALID_EXTENSIONS;
-import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI;
-import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
-import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.isHQLQueryFile;
 import static com.etendoerp.copilot.util.OpenAIUtils.deleteFile;
-
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,7 +48,7 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.erpCommon.businessUtility.Preferences;
+import org.openbravo.dal.xml.XMLUtil;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.access.User;
@@ -72,8 +67,6 @@ import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
-import org.openbravo.dal.xml.XMLUtil;
-
 public class CopilotUtils {
 
 
@@ -82,7 +75,7 @@ public class CopilotUtils {
   public static final String KB_VECTORDB_ID = "kb_vectordb_id";
   public static final String COPILOT_PORT = "COPILOT_PORT";
   public static final String COPILOT_HOST = "COPILOT_HOST";
-  public static final String DEFAULT_MODELS_DATASET_URL = "https://raw.githubusercontent.com/etendosoftware/com.etendoerp.copilot/refs/heads/feature/<BRANCH>/referencedata/standard/AI_Models_Dataset.xml";
+  public static final String DEFAULT_MODELS_DATASET_URL = "https://raw.githubusercontent.com/etendosoftware/com.etendoerp.copilot/refs/heads/<BRANCH>/referencedata/standard/AI_Models_Dataset.xml";
 
 
   /**
@@ -160,7 +153,7 @@ public class CopilotUtils {
       if (model != null && model.getSearchkey() != null) {
         return model.getSearchkey();
       }
-      model = getDefaultModel(provider);
+      model = getDefaultModel(provider, false);
       return model.getSearchkey();
     } catch (Exception e) {
       throw new OBException(e.getMessage());
@@ -177,16 +170,40 @@ public class CopilotUtils {
    *
    * @param provider
    *     The provider to filter the CopilotModel by.
+   * @param onlyOverrided
+   *     A boolean indicating whether to filter by the default override property.
    * @return The default CopilotModel for the given provider.
    */
-  private static CopilotModel getDefaultModel(String provider) {
+  private static CopilotModel getDefaultModel(String provider, boolean onlyOverrided) {
+    CopilotModel result = getOverridedDefault(provider);
+    if (result != null) {
+      return result;
+    }
     OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
     if (StringUtils.isNotEmpty(provider)) {
       modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, provider));
     }
-    modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true));
+    if (onlyOverrided) {
+      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_DEFAULTOVERRIDE, true));
+    } else {
+      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true));
+    }
     modelCriteria.addOrderBy(CopilotModel.PROPERTY_CREATIONDATE, true);
-    return (CopilotModel) modelCriteria.setMaxResults(1).uniqueResult();
+    result = (CopilotModel) modelCriteria.setMaxResults(1).uniqueResult();
+    return result;
+  }
+
+  /**
+   * Retrieves the overridden default CopilotModel based on the provided provider.
+   * <p>
+   * This method calls the getDefaultModel method with the onlyOverrided parameter set to true.
+   *
+   * @param provider
+   *     The provider to filter the CopilotModel by.
+   * @return The overridden default CopilotModel for the given provider.
+   */
+  private static CopilotModel getOverridedDefault(String provider) {
+    return getDefaultModel(provider, true);
   }
 
 
