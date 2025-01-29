@@ -1,13 +1,11 @@
 package com.etendoerp.copilot.hook;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.enterprise.inject.Instance;
 
+import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -20,8 +18,21 @@ import org.openbravo.base.weld.test.WeldBaseTest;
 
 import com.etendoerp.copilot.data.CopilotApp;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Open AI prompt hook manager test.
+ */
 public class OpenAIPromptHookManagerTest extends WeldBaseTest {
-    
+
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -46,6 +57,11 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
         hooksField.set(hookManager, mockPromptHooks);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mocks != null) {
@@ -53,6 +69,9 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test sort hooks by priority empty hooks.
+     */
     @Test
     public void testSortHooksByPriority_EmptyHooks() {
         // Given
@@ -65,6 +84,9 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
         assertTrue("Sorted hooks list should be empty", sortedHooks.isEmpty());
     }
 
+    /**
+     * Test sort hooks by priority multiple hooks.
+     */
     @Test
     public void testSortHooksByPriority_MultipleHooks() {
         // Given
@@ -89,6 +111,11 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
         assertEquals("Third hook should have highest priority", hook1, sortedHooks.get(2));
     }
 
+    /**
+     * Test execute hooks no hooks.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_NoHooks() throws Exception {
         // Given
@@ -98,9 +125,14 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
         String result = hookManager.executeHooks(mockApp);
 
         // Then
-        assertTrue("Result should be empty when no hooks", result.isEmpty());
+        assertTrue("Result should be empty when no hooks", StringUtils.isEmpty(result));
     }
 
+    /**
+     * Test execute hooks single hook.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_SingleHook() throws Exception {
         // Given
@@ -113,11 +145,16 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
         String result = hookManager.executeHooks(mockApp);
 
         // Then
-        assertTrue("Result should contain hook context", result.contains("Test Hook Context"));
+        assertTrue("Result should contain hook context", StringUtils.contains(result, "Test Hook Context"));
         verify(mockHook).typeCheck(mockApp);
         verify(mockHook).exec(mockApp);
     }
 
+    /**
+     * Test execute hooks multiple hooks.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_MultipleHooks() throws Exception {
         // Given
@@ -139,14 +176,19 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
         String result = hookManager.executeHooks(mockApp);
 
         // Then
-        assertTrue("Result should contain contexts from both hooks", 
-            result.contains("Hook 1 Context") && result.contains("Hook 2 Context"));
+        assertTrue("Result should contain contexts from both hooks",
+                StringUtils.contains(result, "Hook 1 Context") && StringUtils.contains(result, "Hook 2 Context"));
         verify(hook1).typeCheck(mockApp);
         verify(hook2).typeCheck(mockApp);
         verify(hook1).exec(mockApp);
         verify(hook2).exec(mockApp);
     }
 
+    /**
+     * Test execute hooks hook type check fails.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_HookTypeCheckFails() throws Exception {
         // Given
@@ -163,6 +205,11 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
         verify(mockHook, never()).exec(mockApp);
     }
 
+    /**
+     * Test execute hooks exception thrown.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_ExceptionThrown() throws Exception {
         // Given

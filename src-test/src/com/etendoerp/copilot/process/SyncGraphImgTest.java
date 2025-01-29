@@ -2,8 +2,16 @@ package com.etendoerp.copilot.process;
 
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,8 +40,14 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
+/**
+ * Sync graph img test.
+ */
 public class SyncGraphImgTest extends WeldBaseTest {
 
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -50,6 +64,10 @@ public class SyncGraphImgTest extends WeldBaseTest {
     private MockedStatic<RestServiceUtil> mockedRestServiceUtil;
     private MockedStatic<OBMessageUtils> mockedMessageUtils;
 
+    private final String TEST_MSG = "Test Message";
+    private final String RECORD_1 = "record1";
+    private final String RECORD_IDS = "recordIds";
+    
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
@@ -73,9 +91,12 @@ public class SyncGraphImgTest extends WeldBaseTest {
                 .thenReturn(mockProperties);
 
         // Configure message utils
-        mockedMessageUtils.when(() -> OBMessageUtils.messageBD(anyString())).thenReturn("Test Message");
+        mockedMessageUtils.when(() -> OBMessageUtils.messageBD(anyString())).thenReturn(TEST_MSG);
     }
 
+    /**
+     * Tear down.
+     */
     @After
     public void tearDown() {
         if (mockedOBDal != null) {
@@ -92,6 +113,11 @@ public class SyncGraphImgTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test do execute no selected records.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_NoSelectedRecords() throws Exception {
         // Given
@@ -100,10 +126,10 @@ public class SyncGraphImgTest extends WeldBaseTest {
 
         // Expect
         expectedException.expect(OBException.class);
-        expectedException.expectMessage("Test Message");
+        expectedException.expectMessage(TEST_MSG);
 
         // When
-        doThrow(new OBException("Test Message"))
+        doThrow(new OBException(TEST_MSG))
                 .when(syncGraphImg)
                 .doExecute(anyMap(),anyString());
 
@@ -111,13 +137,18 @@ public class SyncGraphImgTest extends WeldBaseTest {
         syncGraphImg.doExecute(parameters, content);
     }
 
+    /**
+     * Test do execute successful sync.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_SuccessfulSync() throws Exception {
         // Given
         JSONObject request = new JSONObject();
         JSONArray selectedRecords = new JSONArray();
-        selectedRecords.put("record1");
-        request.put("recordIds", selectedRecords);
+        selectedRecords.put(RECORD_1);
+        request.put(RECORD_IDS, selectedRecords);
 
         List<CopilotApp> mockAppList = new ArrayList<>();
         mockCopilotApp = mock(CopilotApp.class);
@@ -139,13 +170,18 @@ public class SyncGraphImgTest extends WeldBaseTest {
         verify(OBDal.getInstance()).flush();
     }
 
+    /**
+     * Test do execute no image generated.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_NoImageGenerated() throws Exception {
         // Given
         JSONObject request = new JSONObject();
         JSONArray selectedRecords = new JSONArray();
-        selectedRecords.put("record1");
-        request.put("recordIds", selectedRecords);
+        selectedRecords.put(RECORD_1);
+        request.put(RECORD_IDS, selectedRecords);
 
         List<CopilotApp> mockAppList = new ArrayList<>();
         mockCopilotApp = mock(CopilotApp.class);
@@ -165,14 +201,19 @@ public class SyncGraphImgTest extends WeldBaseTest {
         verify(OBDal.getInstance(), never()).save(mockCopilotApp);
     }
 
+    /**
+     * Test do execute multiple records sync.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_MultipleRecordsSync() throws Exception {
         // Given
         JSONObject request = new JSONObject();
         JSONArray selectedRecords = new JSONArray();
-        selectedRecords.put("record1");
+        selectedRecords.put(RECORD_1);
         selectedRecords.put("record2");
-        request.put("recordIds", selectedRecords);
+        request.put(RECORD_IDS, selectedRecords);
 
         List<CopilotApp> mockAppList = new ArrayList<>();
         CopilotApp mockApp1 = mock(CopilotApp.class);

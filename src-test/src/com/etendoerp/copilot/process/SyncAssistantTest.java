@@ -3,7 +3,14 @@ package com.etendoerp.copilot.process;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.util.ArrayList;
@@ -23,8 +30,6 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
-import org.openbravo.base.exception.OBException;
-import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.core.OBContext;
@@ -32,7 +37,6 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBError;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.system.Language;
 import org.openbravo.test.base.TestConstants;
 
@@ -43,13 +47,15 @@ import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
-import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
 
 /**
- * Test class for {@link SyncAssistant}
+ * Sync assistant test.
  */
 public class SyncAssistantTest extends WeldBaseTest {
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -80,6 +86,11 @@ public class SyncAssistantTest extends WeldBaseTest {
     private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
     private MockedStatic<WeldUtils> mockedWeldUtils;
 
+    private final String TEST_APP_ID = "testAppId";
+    private final String RECORD_IDS = "recordIds";
+    private final String RESULT_NOT_NULL = "Result should not be null";
+
+
     @Before
     public void setUp() throws Exception {
         mocks = MockitoAnnotations.openMocks(this);
@@ -98,7 +109,7 @@ public class SyncAssistantTest extends WeldBaseTest {
         when(obDal.createCriteria(DefinedwebhookRole.class)).thenReturn(criteria);
 
         // Set up basic mocks
-        when(mockApp.getId()).thenReturn("testAppId");
+        when(mockApp.getId()).thenReturn(TEST_APP_ID);
         when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_OPENAI);
         List<CopilotAppSource> sources = new ArrayList<>();
         sources.add(mockAppSource);
@@ -144,6 +155,11 @@ public class SyncAssistantTest extends WeldBaseTest {
         doNothing().when(mockHookManager).executeHooks(any(CopilotFile.class));
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mocks != null) {
@@ -170,38 +186,49 @@ public class SyncAssistantTest extends WeldBaseTest {
         OBContext.restorePreviousMode();
     }
 
+    /**
+     * Test do execute success.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_Success() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
         JSONArray recordIds = new JSONArray();
-        recordIds.put("testAppId");
-        content.put("recordIds", recordIds);
+        recordIds.put(TEST_APP_ID);
+        content.put(RECORD_IDS, recordIds);
 
-        when(obDal.get(CopilotApp.class, "testAppId")).thenReturn(mockApp);
+        when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
         when(criteria.uniqueResult()).thenReturn(null);
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
         // Then
-        assertNotNull("Result should not be null", result);
+        assertNotNull(RESULT_NOT_NULL, result);
         verify(mockApp).setSyncStatus(CopilotConstants.SYNCHRONIZED_STATE);
         mockedOpenAIUtils.verify(() -> OpenAIUtils.syncOpenaiModels(anyString()));
     }
 
+    /**
+     * Test do execute no records selected.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_NoRecordsSelected() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
-        content.put("recordIds", new JSONArray());
+        content.put(RECORD_IDS, new JSONArray());
 
         OBError error = new OBError();
-        error.setMessage("No records selected");
+        String errorMsg = "No records selected";
+        error.setMessage(errorMsg);
         mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_NoSelectedRecords"))
-                .thenReturn("No records selected");
+                .thenReturn(errorMsg);
         mockedOBMessageUtils.when(() -> OBMessageUtils.translateError(anyString()))
                 .thenReturn(error);
 
@@ -209,73 +236,89 @@ public class SyncAssistantTest extends WeldBaseTest {
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
         // Then
-        assertNotNull("Result should not be null", result);
+        assertNotNull(RESULT_NOT_NULL, result);
         JSONObject message = result.getJSONObject("message");
         assertEquals("Should have error severity", "error", message.getString("severity"));
-        assertEquals("Should have connection error message", "No records selected", message.getString("text"));
+        assertEquals("Should have connection error message", errorMsg, message.getString("text"));
     }
 
+    /**
+     * Test do execute open ai sync.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_OpenAISync() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
         JSONArray recordIds = new JSONArray();
-        recordIds.put("testAppId");
-        content.put("recordIds", recordIds);
+        recordIds.put(TEST_APP_ID);
+        content.put(RECORD_IDS, recordIds);
 
-        when(obDal.get(CopilotApp.class, "testAppId")).thenReturn(mockApp);
+        when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
         when(criteria.uniqueResult()).thenReturn(null);
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
         // Then
-        assertNotNull("Result should not be null", result);
+        assertNotNull(RESULT_NOT_NULL, result);
         mockedOpenAIUtils.verify(() -> OpenAIUtils.syncOpenaiModels(anyString()));
         mockedOpenAIUtils.verify(() -> OpenAIUtils.syncAppSource(any(CopilotAppSource.class), anyString()));
         mockedOpenAIUtils.verify(() -> OpenAIUtils.refreshVectorDb(any(CopilotApp.class)));
     }
 
+    /**
+     * Test do execute lang chain sync.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_LangChainSync() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
         JSONArray recordIds = new JSONArray();
-        recordIds.put("testAppId");
-        content.put("recordIds", recordIds);
+        recordIds.put(TEST_APP_ID);
+        content.put(RECORD_IDS, recordIds);
 
         when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_LANGCHAIN);
-        when(obDal.get(CopilotApp.class, "testAppId")).thenReturn(mockApp);
+        when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
         when(criteria.uniqueResult()).thenReturn(null);
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
         // Then
-        assertNotNull("Result should not be null", result);
+        assertNotNull(RESULT_NOT_NULL, result);
         mockedCopilotUtils.verify(() -> CopilotUtils.resetVectorDB(any(CopilotApp.class)));
         mockedCopilotUtils.verify(() -> CopilotUtils.syncAppLangchainSource(any(CopilotAppSource.class)));
         mockedCopilotUtils.verify(() -> CopilotUtils.purgeVectorDB(any(CopilotApp.class)));
     }
 
+    /**
+     * Test do execute no api key.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_NoApiKey() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
         JSONArray recordIds = new JSONArray();
-        recordIds.put("testAppId");
-        content.put("recordIds", recordIds);
+        recordIds.put(TEST_APP_ID);
+        content.put(RECORD_IDS, recordIds);
 
         mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(null);
-        when(obDal.get(CopilotApp.class, "testAppId")).thenReturn(mockApp);
+        when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
 
         OBError error = new OBError();
-        error.setMessage("No ApiKey Found");
+        String errorMsg = "No ApiKey Found";
+        error.setMessage(errorMsg);
         mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_ApiKeyNotFound"))
-                .thenReturn("No ApiKey Found");
+                .thenReturn(errorMsg);
         mockedOBMessageUtils.when(() -> OBMessageUtils.translateError(anyString()))
                 .thenReturn(error);
 
@@ -283,30 +326,35 @@ public class SyncAssistantTest extends WeldBaseTest {
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
         // Then
-        assertNotNull("Result should not be null", result);
+        assertNotNull(RESULT_NOT_NULL, result);
         JSONObject message = result.getJSONObject("message");
         assertEquals("Should have error severity", "error", message.getString("severity"));
-        assertEquals("Should have connection error message", "No ApiKey Found", message.getString("text"));
+        assertEquals("Should have connection error message", errorMsg, message.getString("text"));
     }
 
+    /**
+     * Test do execute unsupported app type.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_UnsupportedAppType() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
         JSONArray recordIds = new JSONArray();
-        recordIds.put("testAppId");
-        content.put("recordIds", recordIds);
+        recordIds.put(TEST_APP_ID);
+        content.put(RECORD_IDS, recordIds);
 
         when(mockApp.getAppType()).thenReturn("UNSUPPORTED_TYPE");
-        when(obDal.get(CopilotApp.class, "testAppId")).thenReturn(mockApp);
+        when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
         when(criteria.uniqueResult()).thenReturn(null);
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
         // Then
-        assertNotNull("Result should not be null", result);
+        assertNotNull(RESULT_NOT_NULL, result);
         // Verify that no synchronization methods were called
         mockedOpenAIUtils.verify(() -> OpenAIUtils.syncAppSource(any(), any()), never());
         mockedCopilotUtils.verify(() -> CopilotUtils.syncAppLangchainSource(any()), never());

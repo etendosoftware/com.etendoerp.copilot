@@ -1,7 +1,5 @@
 package com.etendoerp.copilot.eventhandler;
 
-import static org.mockito.Mockito.*;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -27,8 +25,20 @@ import org.openbravo.model.ad.system.Language;
 
 import java.lang.reflect.Method;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * System Assistant Tools test.
+ */
 public class ToolAddedToSystemAppTest extends WeldBaseTest {
 
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -36,7 +46,6 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
     private MockedStatic<ModelProvider> mockedModelProvider;
     private MockedStatic<OBContext> mockedOBContext;
     private AutoCloseable mocks;
-    private Method isValidEventMethod;
 
     @Mock
     private EntityUpdateEvent updateEvent;
@@ -86,10 +95,15 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
         when(obContext.getLanguage()).thenReturn(mockLanguage);
 
         // Prepare reflection for isValidEvent if needed
-        isValidEventMethod = ToolAddedToSystemApp.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        Method isValidEventMethod = ToolAddedToSystemApp.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
         isValidEventMethod.setAccessible(true);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedModelProvider != null) {
@@ -103,6 +117,9 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test on update same client success.
+     */
     @Test
     public void testOnUpdate_SameClient_Success() {
         // Given
@@ -120,6 +137,9 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
         verify(obContext).getCurrentClient();
     }
 
+    /**
+     * Test on update different client throws exception.
+     */
     @Test
     public void testOnUpdate_DifferentClient_ThrowsException() {
         // Given
@@ -135,6 +155,9 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
         handler.onUpdate(updateEvent);
     }
 
+    /**
+     * Test on save same client success.
+     */
     @Test
     public void testOnSave_SameClient_Success() {
         // Given
@@ -152,6 +175,9 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
         verify(obContext).getCurrentClient();
     }
 
+    /**
+     * Test on save different client throws exception.
+     */
     @Test
     public void testOnSave_DifferentClient_ThrowsException() {
         // Given

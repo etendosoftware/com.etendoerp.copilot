@@ -1,7 +1,5 @@
 package com.etendoerp.copilot.eventhandler;
 
-import static org.mockito.Mockito.*;
-
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,15 +29,28 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Knowledge Base FIle sync status handler test.
+ */
 public class KBSyncStatusHandlerTest extends WeldBaseTest {
-    
+
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
     private KBSyncStatusHandler handler;
     private AutoCloseable mocks;
-    private Method isValidEventMethod;
-    
+
     @Mock
     private EntityUpdateEvent updateEvent;
     @Mock
@@ -87,10 +98,15 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         when(copilotFile.getEntity()).thenReturn(fileEntity);
 
         // Prepare reflection for isValidEvent if needed
-        isValidEventMethod = KBSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        Method isValidEventMethod = KBSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
         isValidEventMethod.setAccessible(true);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedOBDal != null) {
@@ -107,6 +123,9 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test on update with changed properties.
+     */
     @Test
     public void testOnUpdate_WithChangedProperties() {
         // Given
@@ -123,6 +142,9 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         verify(obDal).save(copilotApp);
     }
 
+    /**
+     * Test on update without changed properties.
+     */
     @Test
     public void testOnUpdate_WithoutChangedProperties() {
         // Given
@@ -139,6 +161,9 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         verify(obDal, never()).save(any(CopilotApp.class));
     }
 
+    /**
+     * Test on delete success.
+     */
     @Test
     public void testOnDelete_Success() {
         // Given
@@ -152,6 +177,9 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         verify(obDal).save(copilotApp);
     }
 
+    /**
+     * Test on save no action.
+     */
     @Test
     public void testOnSave_NoAction() {
         // Given
@@ -165,6 +193,9 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         verify(obDal, never()).save(any(CopilotApp.class));
     }
 
+    /**
+     * Test on update multiple properties.
+     */
     @Test
     public void testOnUpdate_MultipleProperties() {
         // Given
@@ -189,6 +220,9 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         verify(obDal).save(copilotApp);
     }
 
+    /**
+     * Test on delete multiple app sources.
+     */
     @Test
     public void testOnDelete_MultipleAppSources() {
         // Given

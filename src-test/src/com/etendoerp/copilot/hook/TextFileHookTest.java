@@ -1,16 +1,12 @@
 package com.etendoerp.copilot.hook;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import java.io.File;
 
 import org.junit.After;
 import org.junit.Before;
@@ -28,8 +24,14 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.util.CopilotUtils;
 
+/**
+ * Text file hook test.
+ */
 public class TextFileHookTest extends WeldBaseTest {
 
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -43,6 +45,8 @@ public class TextFileHookTest extends WeldBaseTest {
     
     @Mock
     private AttachImplementationManager mockAttachManager;
+    
+    private final String TEST_CONTENT = "";
 
     @Before
     public void setUp() throws Exception {
@@ -57,6 +61,11 @@ public class TextFileHookTest extends WeldBaseTest {
         mockedCopilotUtils = mockStatic(CopilotUtils.class);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedWeldUtils != null) {
@@ -70,23 +79,31 @@ public class TextFileHookTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test type check valid type.
+     */
     @Test
     public void testTypeCheck_ValidType() {
         assertTrue("Should return true for TXT type", textFileHook.typeCheck("TXT"));
     }
 
+    /**
+     * Test type check invalid type.
+     */
     @Test
     public void testTypeCheck_InvalidType() {
         assertFalse("Should return false for non-TXT type", textFileHook.typeCheck("PDF"));
     }
 
+    /**
+     * Test exec with valid text and filename.
+     */
     @Test
-    public void testExec_WithValidTextAndFilename() throws Exception {
+    public void testExec_WithValidTextAndFilename() {
         // Given
-        String testText = "Test content";
         String testFilename = "test.txt";
         
-        when(mockCopilotFile.getText()).thenReturn(testText);
+        when(mockCopilotFile.getText()).thenReturn(TEST_CONTENT);
         when(mockCopilotFile.getFilename()).thenReturn(testFilename);
         when(mockCopilotFile.getName()).thenReturn("test");
 
@@ -100,13 +117,15 @@ public class TextFileHookTest extends WeldBaseTest {
         mockedCopilotUtils.verify(() -> CopilotUtils.attachFile(any(), any(), any()));
     }
 
+    /**
+     * Test exec without filename.
+     */
     @Test
-    public void testExec_WithoutFilename() throws Exception {
+    public void testExec_WithoutFilename() {
         // Given
-        String testText = "Test content";
         String testName = "test";
         
-        when(mockCopilotFile.getText()).thenReturn(testText);
+        when(mockCopilotFile.getText()).thenReturn(TEST_CONTENT);
         when(mockCopilotFile.getFilename()).thenReturn("");
         when(mockCopilotFile.getName()).thenReturn(testName);
 
@@ -120,6 +139,9 @@ public class TextFileHookTest extends WeldBaseTest {
         mockedCopilotUtils.verify(() -> CopilotUtils.attachFile(any(), any(), any()));
     }
 
+    /**
+     * Test exec with null text.
+     */
     @Test
     public void testExec_WithNullText() {
         // Given
@@ -132,13 +154,15 @@ public class TextFileHookTest extends WeldBaseTest {
         textFileHook.exec(mockCopilotFile);
     }
 
+    /**
+     * Test exec with non txt extension.
+     */
     @Test
-    public void testExec_WithNonTxtExtension() throws Exception {
+    public void testExec_WithNonTxtExtension() {
         // Given
-        String testText = "Test content";
         String testFilename = "test.pdf";
 
-        when(mockCopilotFile.getText()).thenReturn(testText);
+        when(mockCopilotFile.getText()).thenReturn(TEST_CONTENT);
         when(mockCopilotFile.getFilename()).thenReturn(testFilename);
         when(mockCopilotFile.getName()).thenReturn("test");
 
@@ -154,5 +178,4 @@ public class TextFileHookTest extends WeldBaseTest {
         verify(mockCopilotFile, times(2)).getFilename(); // Expected to be called twice
         verify(mockCopilotFile, times(1)).getText();     // Verify text retrieval
     }
-
 }

@@ -1,7 +1,5 @@
 package com.etendoerp.copilot.eventhandler;
 
-import static org.mockito.Mockito.*;
-
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 
@@ -24,8 +22,19 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotApp;
 
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Assistant validations test.
+ */
 public class AssistantValidationsTest extends WeldBaseTest {
 
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -33,7 +42,7 @@ public class AssistantValidationsTest extends WeldBaseTest {
     private MockedStatic<ModelProvider> mockedModelProvider;
     private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
     private AutoCloseable mocks;
-    private Method isValidEventMethod;
+    private final String TEMP_ERROR_MSG = "Temperature must be between 0 and 2 for assistant TestAssistant";
 
     @Mock
     private EntityUpdateEvent updateEvent;
@@ -70,10 +79,15 @@ public class AssistantValidationsTest extends WeldBaseTest {
         when(copilotApp.getName()).thenReturn("TestAssistant");
 
         // Prepare reflection for isValidEvent if needed
-        isValidEventMethod = AssistantValidations.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        Method isValidEventMethod = AssistantValidations.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
         isValidEventMethod.setAccessible(true);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedModelProvider != null) {
@@ -87,6 +101,9 @@ public class AssistantValidationsTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test on update valid temperature.
+     */
     @Test
     public void testOnUpdate_ValidTemperature() {
         // Given
@@ -99,6 +116,9 @@ public class AssistantValidationsTest extends WeldBaseTest {
         verify(copilotApp, times(1)).getTemperature();
     }
 
+    /**
+     * Test on save valid temperature.
+     */
     @Test
     public void testOnSave_ValidTemperature() {
         // Given
@@ -111,6 +131,9 @@ public class AssistantValidationsTest extends WeldBaseTest {
         verify(copilotApp, times(1)).getTemperature();
     }
 
+    /**
+     * Test on update null temperature.
+     */
     @Test
     public void testOnUpdate_NullTemperature() {
         // Given
@@ -123,45 +146,57 @@ public class AssistantValidationsTest extends WeldBaseTest {
         verify(copilotApp, times(1)).getTemperature();
     }
 
+    /**
+     * Test on update temperature too high.
+     */
     @Test
     public void testOnUpdate_TemperatureTooHigh() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(new BigDecimal("2.1"));
         expectedException.expect(OBException.class);
-        expectedException.expectMessage("Temperature must be between 0 and 2 for assistant TestAssistant");
+        expectedException.expectMessage(TEMP_ERROR_MSG);
 
         // When
         validations.onUpdate(updateEvent);
     }
 
+    /**
+     * Test on update temperature too low.
+     */
     @Test
     public void testOnUpdate_TemperatureTooLow() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(new BigDecimal("-0.1"));
         expectedException.expect(OBException.class);
-        expectedException.expectMessage("Temperature must be between 0 and 2 for assistant TestAssistant");
+        expectedException.expectMessage(TEMP_ERROR_MSG);
 
         // When
         validations.onUpdate(updateEvent);
     }
 
+    /**
+     * Test on save temperature too high.
+     */
     @Test
     public void testOnSave_TemperatureTooHigh() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(new BigDecimal("2.1"));
         expectedException.expect(OBException.class);
-        expectedException.expectMessage("Temperature must be between 0 and 2 for assistant TestAssistant");
+        expectedException.expectMessage(TEMP_ERROR_MSG);
 
         // When
         validations.onSave(newEvent);
     }
 
+    /**
+     * Test on save temperature too low.
+     */
     @Test
     public void testOnSave_TemperatureTooLow() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(new BigDecimal("-0.1"));
         expectedException.expect(OBException.class);
-        expectedException.expectMessage("Temperature must be between 0 and 2 for assistant TestAssistant");
+        expectedException.expectMessage(TEMP_ERROR_MSG);
 
         // When
         validations.onSave(newEvent);

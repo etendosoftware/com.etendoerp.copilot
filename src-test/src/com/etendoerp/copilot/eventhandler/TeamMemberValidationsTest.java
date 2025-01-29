@@ -1,9 +1,5 @@
 package com.etendoerp.copilot.eventhandler;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.*;
-
 import com.etendoerp.copilot.data.CopilotApp;
 import org.junit.After;
 import org.junit.Before;
@@ -27,16 +23,23 @@ import java.lang.reflect.Method;
 
 import com.etendoerp.copilot.data.TeamMember;
 
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 /**
  * Test class for TeamMemberValidations
  */
 public class TeamMemberValidationsTest extends WeldBaseTest {
 
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
     private TeamMemberValidations validations;
-    private Method isValidEventMethod;
 
     @Mock
     private EntityUpdateEvent updateEvent;
@@ -66,6 +69,7 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
     private MockedStatic<OBDal> mockedOBDal;
     private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
     private AutoCloseable mocks;
+    private final String ASSISTANT_MEMBER_NAME = "Test copilotAppMember";
 
     @Before
     public void setUp() throws Exception {
@@ -102,10 +106,15 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
                 .thenReturn("Member %s must have a description");
 
         // Prepare reflection for isValidEvent if needed
-        isValidEventMethod = TeamMemberValidations.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        Method isValidEventMethod = TeamMemberValidations.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
         isValidEventMethod.setAccessible(true);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedModelProvider != null) {
@@ -123,12 +132,15 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
     }
 
 
+    /**
+     * Test on update valid team member.
+     */
     @Test
     public void testOnUpdate_ValidTeamMember() {
         // Given
         when(teamMember.getMember()).thenReturn(copilotAppMember);
         when(copilotAppMember.getDescription()).thenReturn("Valid description");
-        when(copilotAppMember.getName()).thenReturn("Test copilotAppMember");
+        when(copilotAppMember.getName()).thenReturn(ASSISTANT_MEMBER_NAME);
 
         // When
         validations.onUpdate(updateEvent);
@@ -138,12 +150,15 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
         verify(copilotAppMember, atLeastOnce()).getDescription();
     }
 
+    /**
+     * Test on save valid team member.
+     */
     @Test
     public void testOnSave_ValidTeamMember() {
         // Given
         when(teamMember.getMember()).thenReturn(copilotAppMember);
         when(copilotAppMember.getDescription()).thenReturn("Valid description");
-        when(copilotAppMember.getName()).thenReturn("Test copilotAppMember");
+        when(copilotAppMember.getName()).thenReturn(ASSISTANT_MEMBER_NAME);
 
         // When
         validations.onSave(newEvent);
@@ -153,6 +168,9 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
         verify(copilotAppMember, atLeastOnce()).getDescription();
     }
 
+    /**
+     * Test on update null member.
+     */
     @Test
     public void testOnUpdate_NullMember() {
         // Given
@@ -165,12 +183,15 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
         validations.onUpdate(updateEvent);
     }
 
+    /**
+     * Test on save empty description.
+     */
     @Test
     public void testOnSave_EmptyDescription() {
         // Given
         when(teamMember.getMember()).thenReturn(copilotAppMember);
         when(copilotAppMember.getDescription()).thenReturn("");
-        when(copilotAppMember.getName()).thenReturn("Test copilotAppMember");
+        when(copilotAppMember.getName()).thenReturn(ASSISTANT_MEMBER_NAME);
 
         expectedException.expect(OBException.class);
         expectedException.expectMessage("Member Test copilotAppMember must have a description");
@@ -179,12 +200,15 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
         validations.onSave(newEvent);
     }
 
+    /**
+     * Test on update null description.
+     */
     @Test
     public void testOnUpdate_NullDescription() {
         // Given
         when(teamMember.getMember()).thenReturn(copilotAppMember);
         when(copilotAppMember.getDescription()).thenReturn(null);
-        when(copilotAppMember.getName()).thenReturn("Test copilotAppMember");
+        when(copilotAppMember.getName()).thenReturn(ASSISTANT_MEMBER_NAME);
 
         expectedException.expect(OBException.class);
         expectedException.expectMessage("Member Test copilotAppMember must have a description");

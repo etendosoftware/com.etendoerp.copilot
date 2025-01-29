@@ -1,8 +1,5 @@
 package com.etendoerp.copilot.eventhandler;
 
-import static org.mockito.Mockito.*;
-
-import com.etendoerp.copilot.data.CopilotAppSource;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -30,8 +27,19 @@ import org.openbravo.model.ad.system.Language;
 
 import java.lang.reflect.Method;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Skill tool view handler test.
+ */
 public class SkillToolViewHandlerTest extends WeldBaseTest {
 
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -40,7 +48,6 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
     private MockedStatic<ModelProvider> mockedModelProvider;
     private MockedStatic<OBContext> mockedOBContext;
     private AutoCloseable mocks;
-    private Method isValidEventMethod;
 
     @Mock
     private EntityUpdateEvent updateEvent;
@@ -95,10 +102,15 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
         when(obContext.getLanguage()).thenReturn(mockLanguage);
 
         // Prepare reflection for isValidEvent if needed
-        isValidEventMethod = SkillToolViewHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        Method isValidEventMethod = SkillToolViewHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
         isValidEventMethod.setAccessible(true);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedOBDal != null) {
@@ -115,6 +127,9 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test on update valid copilot app tool same client.
+     */
     @Test
     public void testOnUpdate_ValidCopilotAppTool_SameClient() {
         // Given
@@ -133,6 +148,9 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
         verify(obDal).get(Client.class, clientId);
     }
 
+    /**
+     * Test on update valid team member same client.
+     */
     @Test
     public void testOnUpdate_ValidTeamMember_SameClient() {
         // Given
@@ -151,6 +169,9 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
         verify(obDal).get(Client.class, clientId);
     }
 
+    /**
+     * Test on update different client throws exception.
+     */
     @Test
     public void testOnUpdate_DifferentClient_ThrowsException() {
         // Given
@@ -171,6 +192,9 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
         handler.onUpdate(updateEvent);
     }
 
+    /**
+     * Test on save valid copilot app tool same client.
+     */
     @Test
     public void testOnSave_ValidCopilotAppTool_SameClient() {
         // Given
@@ -189,6 +213,9 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
         verify(obDal).get(Client.class, clientId);
     }
 
+    /**
+     * Test on delete valid copilot app tool same client.
+     */
     @Test
     public void testOnDelete_ValidCopilotAppTool_SameClient() {
         // Given
@@ -207,6 +234,9 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
         verify(obDal).get(Client.class, clientId);
     }
 
+    /**
+     * Test on delete null client throws exception.
+     */
     @Test
     public void testOnDelete_NullClient_ThrowsException() {
         // Given
