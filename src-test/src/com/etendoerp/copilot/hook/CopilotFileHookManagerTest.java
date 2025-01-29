@@ -1,7 +1,6 @@
 package com.etendoerp.copilot.hook;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,8 +19,20 @@ import org.openbravo.base.weld.test.WeldBaseTest;
 
 import com.etendoerp.copilot.data.CopilotFile;
 
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Copilot file hook manager test.
+ */
 public class CopilotFileHookManagerTest extends WeldBaseTest {
 
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -32,8 +43,8 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
     private CopilotFile mockCopilotFile;
 
     private CopilotFileHookManager hookManager;
-
     private AutoCloseable mocks;
+    private final String TEST_TYPE = "testType";
 
     @Before
     public void setUp() throws Exception {
@@ -46,6 +57,11 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
         hooksField.set(hookManager, mockCopFileHooks);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mocks != null) {
@@ -53,6 +69,9 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test sort hooks by priority multiple hooks.
+     */
     @Test
     public void testSortHooksByPriority_MultipleHooks() {
         // Given
@@ -81,15 +100,20 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
         assertEquals(hook3, sortedHooks.get(2)); // Priority 15
     }
 
+    /**
+     * Test execute hooks successful execution.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_SuccessfulExecution() throws Exception {
         // Given
         CopilotFileHook hook1 = mock(CopilotFileHook.class);
         CopilotFileHook hook2 = mock(CopilotFileHook.class);
 
-        when(mockCopilotFile.getType()).thenReturn("testType");
-        when(hook1.typeCheck("testType")).thenReturn(true);
-        when(hook2.typeCheck("testType")).thenReturn(true);
+        when(mockCopilotFile.getType()).thenReturn(TEST_TYPE);
+        when(hook1.typeCheck(TEST_TYPE)).thenReturn(true);
+        when(hook2.typeCheck(TEST_TYPE)).thenReturn(true);
 
         List<CopilotFileHook> mockHookList = new ArrayList<>();
         mockHookList.add(hook1);
@@ -105,15 +129,20 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
         verify(hook2).exec(mockCopilotFile);
     }
 
+    /**
+     * Test execute hooks filtered by type.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_FilteredByType() throws Exception {
         // Given
         CopilotFileHook hook1 = mock(CopilotFileHook.class);
         CopilotFileHook hook2 = mock(CopilotFileHook.class);
 
-        when(mockCopilotFile.getType()).thenReturn("testType");
-        when(hook1.typeCheck("testType")).thenReturn(true);
-        when(hook2.typeCheck("testType")).thenReturn(false);
+        when(mockCopilotFile.getType()).thenReturn(TEST_TYPE);
+        when(hook1.typeCheck(TEST_TYPE)).thenReturn(true);
+        when(hook2.typeCheck(TEST_TYPE)).thenReturn(false);
 
         List<CopilotFileHook> mockHookList = new ArrayList<>();
         mockHookList.add(hook1);
@@ -129,13 +158,18 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
         verify(hook2, never()).exec(mockCopilotFile);
     }
 
+    /**
+     * Test execute hooks exception handling.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_ExceptionHandling() throws Exception {
         // Given
         CopilotFileHook hook1 = mock(CopilotFileHook.class);
 
-        when(mockCopilotFile.getType()).thenReturn("testType");
-        when(hook1.typeCheck("testType")).thenReturn(true);
+        when(mockCopilotFile.getType()).thenReturn(TEST_TYPE);
+        when(hook1.typeCheck(TEST_TYPE)).thenReturn(true);
         doThrow(new RuntimeException("Test exception")).when(hook1).exec(mockCopilotFile);
 
         List<CopilotFileHook> mockHookList = new ArrayList<>();

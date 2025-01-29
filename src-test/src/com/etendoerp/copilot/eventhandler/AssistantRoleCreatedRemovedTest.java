@@ -1,12 +1,9 @@
 package com.etendoerp.copilot.eventhandler;
 
-import static org.mockito.Mockito.*;
-
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 
-import org.hibernate.criterion.Restrictions;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -24,11 +21,20 @@ import org.openbravo.dal.service.OBDal;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Assistant role created removed test.
+ */
 public class AssistantRoleCreatedRemovedTest extends WeldBaseTest {
     private AssistantRoleCreatedRemoved assistantRoleCreatedRemoved;
     private MockedStatic<OBDal> mockedOBDal;
     private MockedStatic<ModelProvider> mockedModelProvider;
-    private Method isValidEventMethod;
 
     @Mock
     private EntityDeleteEvent mockDeleteEvent;
@@ -62,16 +68,22 @@ public class AssistantRoleCreatedRemovedTest extends WeldBaseTest {
         when(OBDal.getInstance().createCriteria(CopilotRoleApp.class)).thenReturn(mockCriteria);
 
         // Prepare reflection for isValidEvent if needed
-        isValidEventMethod = AssistantRoleCreatedRemoved.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        Method isValidEventMethod = AssistantRoleCreatedRemoved.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
         isValidEventMethod.setAccessible(true);
     }
 
+    /**
+     * Tear down.
+     */
     @After
     public void tearDown() {
         if (mockedOBDal != null) mockedOBDal.close();
         if (mockedModelProvider != null) mockedModelProvider.close();
     }
 
+    /**
+     * Test on delete role app exists removed.
+     */
     @Test
     public void testOnDelete_RoleAppExists_Removed() {
         // Given
@@ -89,6 +101,9 @@ public class AssistantRoleCreatedRemovedTest extends WeldBaseTest {
         verify(OBDal.getInstance()).remove(mockCopilotRoleApp);
     }
 
+    /**
+     * Test on delete no role app no removal.
+     */
     @Test
     public void testOnDelete_NoRoleApp_NoRemoval() {
         // Given

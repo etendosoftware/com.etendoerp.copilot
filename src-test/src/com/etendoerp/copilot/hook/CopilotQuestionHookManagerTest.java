@@ -1,7 +1,6 @@
 package com.etendoerp.copilot.hook;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,8 +20,21 @@ import org.openbravo.base.weld.test.WeldBaseTest;
 
 import com.etendoerp.copilot.data.CopilotApp;
 
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+/**
+ * Copilot question hook manager test.
+ */
 public class CopilotQuestionHookManagerTest extends WeldBaseTest {
 
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -49,6 +61,11 @@ public class CopilotQuestionHookManagerTest extends WeldBaseTest {
         hooksField.set(hookManager, mockQuestionHooks);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mocks != null) {
@@ -56,6 +73,9 @@ public class CopilotQuestionHookManagerTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test sort hooks by priority empty hooks.
+     */
     @Test
     public void testSortHooksByPriority_EmptyHooks() {
         // Given
@@ -68,6 +88,9 @@ public class CopilotQuestionHookManagerTest extends WeldBaseTest {
         assertEquals(0, sortedHooks.size());
     }
 
+    /**
+     * Test sort hooks by priority multiple hooks.
+     */
     @Test
     public void testSortHooksByPriority_MultipleHooks() {
         // Given
@@ -96,6 +119,11 @@ public class CopilotQuestionHookManagerTest extends WeldBaseTest {
         assertEquals(hook1, sortedHooks.get(2)); // Priority 3
     }
 
+    /**
+     * Test execute hooks no hooks.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_NoHooks() throws Exception {
         // Given
@@ -109,6 +137,11 @@ public class CopilotQuestionHookManagerTest extends WeldBaseTest {
         verifyNoInteractions(mockApp, mockJsonRequest);
     }
 
+    /**
+     * Test execute hooks single hook.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_SingleHook() throws Exception {
         // Given
@@ -128,6 +161,11 @@ public class CopilotQuestionHookManagerTest extends WeldBaseTest {
         verify(mockHook).exec(mockApp, mockJsonRequest);
     }
 
+    /**
+     * Test execute hooks multiple hooks.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_MultipleHooks() throws Exception {
         // Given
@@ -153,6 +191,11 @@ public class CopilotQuestionHookManagerTest extends WeldBaseTest {
         verify(mockHook2).exec(mockApp, mockJsonRequest);
     }
 
+    /**
+     * Test execute hooks hook type check fails.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_HookTypeCheckFails() throws Exception {
         // Given
@@ -172,6 +215,11 @@ public class CopilotQuestionHookManagerTest extends WeldBaseTest {
         verify(mockHook, never()).exec(mockApp, mockJsonRequest);
     }
 
+    /**
+     * Test execute hooks exception thrown.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testExecuteHooks_ExceptionThrown() throws Exception {
         // Given

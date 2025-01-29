@@ -1,7 +1,5 @@
 package com.etendoerp.copilot.eventhandler;
 
-import static org.mockito.Mockito.*;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -26,6 +24,16 @@ import com.etendoerp.copilot.util.CopilotUtils;
 
 import java.lang.reflect.Method;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Assistant tool sync status handler test.
+ */
 public class AssistantToolSyncStatusHandlerTest extends WeldBaseTest {
 
     private AssistantToolSyncStatusHandler handler;
@@ -33,7 +41,6 @@ public class AssistantToolSyncStatusHandlerTest extends WeldBaseTest {
     private MockedStatic<OBDal> mockedOBDal;
     private MockedStatic<CopilotUtils> mockedCopilotUtils;
     private AutoCloseable mocks;
-    private Method isValidEventMethod;
 
     @Mock
     private EntityUpdateEvent updateEvent;
@@ -83,10 +90,15 @@ public class AssistantToolSyncStatusHandlerTest extends WeldBaseTest {
         when(copilotAppToolEntity.getProperty(CopilotAppTool.PROPERTY_COPILOTTOOL)).thenReturn(toolProperty);
 
         // Prepare reflection for isValidEvent if needed
-        isValidEventMethod = AssistantToolSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        Method isValidEventMethod = AssistantToolSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
         isValidEventMethod.setAccessible(true);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedModelProvider != null) {
@@ -103,6 +115,9 @@ public class AssistantToolSyncStatusHandlerTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test on update tool changed.
+     */
     @Test
     public void testOnUpdate_ToolChanged() {
         // Given
@@ -119,6 +134,9 @@ public class AssistantToolSyncStatusHandlerTest extends WeldBaseTest {
         mockedCopilotUtils.verify(() -> CopilotUtils.logIfDebug(anyString()));
     }
 
+    /**
+     * Test on update tool unchanged.
+     */
     @Test
     public void testOnUpdate_ToolUnchanged() {
         // Given
@@ -134,6 +152,9 @@ public class AssistantToolSyncStatusHandlerTest extends WeldBaseTest {
         verify(obDal, never()).save(any(CopilotApp.class));
     }
 
+    /**
+     * Test on save.
+     */
     @Test
     public void testOnSave() {
         // Given
@@ -148,6 +169,9 @@ public class AssistantToolSyncStatusHandlerTest extends WeldBaseTest {
         mockedCopilotUtils.verify(() -> CopilotUtils.logIfDebug(anyString()));
     }
 
+    /**
+     * Test on delete.
+     */
     @Test
     public void testOnDelete() {
         // Given

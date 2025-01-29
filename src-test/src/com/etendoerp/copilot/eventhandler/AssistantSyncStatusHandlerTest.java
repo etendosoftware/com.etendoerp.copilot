@@ -1,8 +1,5 @@
 package com.etendoerp.copilot.eventhandler;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -21,10 +18,20 @@ import com.etendoerp.copilot.util.CopilotConstants;
 
 import java.lang.reflect.Method;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Assistant sync status handler test.
+ */
 public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
     private AssistantSyncStatusHandler assistantSyncStatusHandler;
     private MockedStatic<ModelProvider> mockedModelProvider;
-    private Method isValidEventMethod;
 
     @Mock
     private EntityUpdateEvent mockUpdateEvent;
@@ -51,15 +58,21 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
         when(mockAppEntity.getProperty(CopilotApp.PROPERTY_SYNCSTATUS)).thenReturn(mockSyncStatusProp);
 
         // Prepare reflection for isValidEvent if needed
-        isValidEventMethod = AssistantSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        Method isValidEventMethod = AssistantSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
         isValidEventMethod.setAccessible(true);
     }
 
+    /**
+     * Tear down.
+     */
     @After
     public void tearDown() {
         if (mockedModelProvider != null) mockedModelProvider.close();
     }
 
+    /**
+     * Test on update properties changed sync status updated.
+     */
     @Test
     public void testOnUpdate_PropertiesChanged_SyncStatusUpdated() {
         // Test cases for different properties
@@ -97,6 +110,9 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test on update no properties changed no sync status update.
+     */
     @Test
     public void testOnUpdate_NoPropertiesChanged_NoSyncStatusUpdate() {
         // Test cases for different properties

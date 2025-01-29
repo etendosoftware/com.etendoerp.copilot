@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -39,8 +38,14 @@ import com.etendoerp.copilot.util.CopilotUtils;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 import org.openbravo.model.ad.system.Language;
 
+/**
+ * Check hosts button test.
+ */
 public class CheckHostsButtonTest extends WeldBaseTest {
     
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -63,6 +68,11 @@ public class CheckHostsButtonTest extends WeldBaseTest {
 
     private CheckHostsButton checkHostsButton;
     private AutoCloseable mocks;
+    
+    private final String ETENDO_HOST = "ETENDO_HOST";
+    private final String RESPONSE_ACTIONS= "responseActions";
+    private final String SHOW_MSG_IN_PROC_VIEW = "showMsgInProcessView";
+    private final String MSG_TYPE = "msgType";
 
     @Before
     public void setUp() throws Exception {
@@ -100,6 +110,11 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         when(mockContext.getLanguage()).thenReturn(mockLanguage);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedSecureWebServicesUtils != null) {
@@ -119,6 +134,11 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test do execute all hosts successful.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_AllHostsSuccessful() throws Exception {
         // Given
@@ -133,16 +153,21 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         JSONObject result = checkHostsButton.doExecute(params, content);
 
         // Then
-        assertTrue(result.getBoolean("ETENDO_HOST"));
+        assertTrue(result.getBoolean(ETENDO_HOST));
         assertTrue(result.getBoolean("COPILOT_HOST"));
         assertTrue(result.getBoolean("ETENDO_HOST_DOCKER"));
         
-        JSONArray actions = result.getJSONArray("responseActions");
+        JSONArray actions = result.getJSONArray(RESPONSE_ACTIONS);
         JSONObject action = actions.getJSONObject(0);
-        JSONObject showMsgInProcessView = action.getJSONObject("showMsgInProcessView");
-        assertEquals("success", showMsgInProcessView.getString("msgType"));
+        JSONObject showMsgInProcessView = action.getJSONObject(SHOW_MSG_IN_PROC_VIEW);
+        assertEquals("success", showMsgInProcessView.getString(MSG_TYPE));
     }
 
+    /**
+     * Test do execute etendo host failure.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_EtendoHostFailure() throws Exception {
         // Given
@@ -156,14 +181,19 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         JSONObject result = checkHostsButton.doExecute(params, content);
 
         // Then
-        assertFalse(result.getBoolean("ETENDO_HOST"));
+        assertFalse(result.getBoolean(ETENDO_HOST));
         
-        JSONArray actions = result.getJSONArray("responseActions");
+        JSONArray actions = result.getJSONArray(RESPONSE_ACTIONS);
         JSONObject action = actions.getJSONObject(0);
-        JSONObject showMsgInProcessView = action.getJSONObject("showMsgInProcessView");
-        assertEquals("error", showMsgInProcessView.getString("msgType"));
+        JSONObject showMsgInProcessView = action.getJSONObject(SHOW_MSG_IN_PROC_VIEW);
+        assertEquals("error", showMsgInProcessView.getString(MSG_TYPE));
     }
 
+    /**
+     * Test do execute copilot host failure.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_CopilotHostFailure() throws Exception {
         // Given
@@ -178,15 +208,20 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         JSONObject result = checkHostsButton.doExecute(params, content);
 
         // Then
-        assertTrue(result.getBoolean("ETENDO_HOST"));
+        assertTrue(result.getBoolean(ETENDO_HOST));
         assertFalse(result.getBoolean("COPILOT_HOST"));
         
-        JSONArray actions = result.getJSONArray("responseActions");
+        JSONArray actions = result.getJSONArray(RESPONSE_ACTIONS);
         JSONObject action = actions.getJSONObject(0);
-        JSONObject showMsgInProcessView = action.getJSONObject("showMsgInProcessView");
-        assertEquals("error", showMsgInProcessView.getString("msgType"));
+        JSONObject showMsgInProcessView = action.getJSONObject(SHOW_MSG_IN_PROC_VIEW);
+        assertEquals("error", showMsgInProcessView.getString(MSG_TYPE));
     }
 
+    /**
+     * Test do execute null token.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_NullToken() throws Exception {
         // Given
@@ -218,10 +253,20 @@ public class CheckHostsButtonTest extends WeldBaseTest {
             this.mockResponseCode = code;
         }
 
+        /**
+         * Sets second response code.
+         *
+         * @param code the code
+         */
         public void setSecondResponseCode(int code) {
             this.secondResponseCode = code;
         }
 
+        /**
+         * Sets mock response body.
+         *
+         * @param body the body
+         */
         public void setMockResponseBody(String body) {
             this.mockResponseBody = body;
         }

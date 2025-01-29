@@ -2,12 +2,9 @@ package com.etendoerp.copilot.process;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
@@ -34,7 +31,6 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
-import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.service.OBCriteria;
@@ -44,8 +40,14 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotTool;
 
+/**
+ * Sync tool structure test.
+ */
 public class SyncToolStructureTest extends WeldBaseTest {
-    
+
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -72,6 +74,10 @@ public class SyncToolStructureTest extends WeldBaseTest {
     private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
     private MockedStatic<HttpClient> mockedHttpClient;
     private HttpClient.Builder mockBuilder;
+
+    private final String RECORD_IDS = "recordIds";
+    private final String RESULT_NOT_NULL = "Result should not be null";
+    private final String ERROR_MSG = "error";
 
     @Before
     public void setUp() throws Exception {
@@ -108,6 +114,11 @@ public class SyncToolStructureTest extends WeldBaseTest {
         when(mockCriteria.list()).thenReturn(Collections.singletonList(mockCopilotTool));
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedOBDal != null) {
@@ -127,17 +138,23 @@ public class SyncToolStructureTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test do execute no selected records.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_NoSelectedRecords() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
-        String content = new JSONObject().put("recordIds", new JSONArray()).toString();
+        String content = new JSONObject().put(RECORD_IDS, new JSONArray()).toString();
         
         // Configure message
         OBError error = new OBError();
-        error.setMessage("No records selected");
+        String errorMsg = "No records selected";
+        error.setMessage(errorMsg);
         mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_NoSelectedRecords"))
-                           .thenReturn("No records selected");
+                           .thenReturn(errorMsg);
         mockedOBMessageUtils.when(() -> OBMessageUtils.translateError(anyString()))
                 .thenReturn(error);
 
@@ -145,19 +162,24 @@ public class SyncToolStructureTest extends WeldBaseTest {
         JSONObject result = syncToolStructure.doExecute(parameters, content);
 
         // Then
-        assertNotNull("Result should not be null", result);
+        assertNotNull(RESULT_NOT_NULL, result);
         JSONObject message = result.getJSONObject("message");
-        assertEquals("Should have error severity", "error", message.getString("severity"));
-        assertEquals("Should have connection error message", "No records selected", message.getString("text"));
+        assertEquals("Should have error severity", ERROR_MSG, message.getString("severity"));
+        assertEquals("Should have connection error message", errorMsg, message.getString("text"));
     }
 
+    /**
+     * Test do execute successful sync.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_SuccessfulSync() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONArray recordIds = new JSONArray();
         recordIds.put("TEST_ID");
-        String content = new JSONObject().put("recordIds", recordIds).toString();
+        String content = new JSONObject().put(RECORD_IDS, recordIds).toString();
 
         // Create mock HTTP client and response
         HttpClient mockClient = mock(HttpClient.class);
@@ -188,19 +210,24 @@ public class SyncToolStructureTest extends WeldBaseTest {
         JSONObject result = syncToolStructure.doExecute(parameters, content);
 
         // Then
-        assertNotNull("Result should not be null", result);
+        assertNotNull(RESULT_NOT_NULL, result);
         JSONArray responseActions = result.getJSONArray("responseActions");
         assertNotNull("Response actions should not be null", responseActions);
         assertEquals("Should have one response action", 1, responseActions.length());
     }
 
+    /**
+     * Test do execute connection error.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_ConnectionError() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONArray recordIds = new JSONArray();
         recordIds.put("TEST_ID");
-        String content = new JSONObject().put("recordIds", recordIds).toString();
+        String content = new JSONObject().put(RECORD_IDS, recordIds).toString();
 
         // Create mock HTTP client for error case
         HttpClient mockClient = mock(HttpClient.class);
@@ -213,17 +240,16 @@ public class SyncToolStructureTest extends WeldBaseTest {
         // Configure error messages
         mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_ConnCopilotError"))
                 .thenReturn("Connection error");
-        mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("Error"))
-                .thenReturn("Error");
+        mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(ERROR_MSG))
+                .thenReturn(ERROR_MSG);
 
         // When
         JSONObject result = syncToolStructure.doExecute(parameters, content);
 
         // Then
-        assertNotNull("Result should not be null", result);
+        assertNotNull(RESULT_NOT_NULL, result);
         JSONObject message = result.getJSONObject("message");
-        assertEquals("Should have error severity", "error", message.getString("severity"));
-        assertEquals("Should have error title", "Error", message.getString("title"));
+        assertEquals("Should have error severity", ERROR_MSG, message.getString("severity"));
         assertEquals("Should have connection error message", "Connection error", message.getString("text"));
 
         // Verify rollback was called

@@ -4,8 +4,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -45,8 +43,14 @@ import com.etendoerp.copilot.data.ETCOPSchedule;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.etendoerp.copilot.util.OpenAIUtils;
 
+/**
+ * Process schedule apps test.
+ */
 public class ProcessScheduleAppsTest extends WeldBaseTest {
 
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -123,6 +127,11 @@ public class ProcessScheduleAppsTest extends WeldBaseTest {
         when(obDal.get(ProcessRequest.class, "testProcessRequestId")).thenReturn(processRequest);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedOBDal != null) {
@@ -142,6 +151,11 @@ public class ProcessScheduleAppsTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test do execute success.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_Success() throws Exception {
         // Given
@@ -190,6 +204,11 @@ public class ProcessScheduleAppsTest extends WeldBaseTest {
         );
     }
 
+    /**
+     * Test do execute no access.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_NoAccess() throws Exception {
         // Given
@@ -212,6 +231,11 @@ public class ProcessScheduleAppsTest extends WeldBaseTest {
         );
     }
 
+    /**
+     * Test do execute connection error.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void testDoExecute_ConnectionError() throws Exception {
         // Given

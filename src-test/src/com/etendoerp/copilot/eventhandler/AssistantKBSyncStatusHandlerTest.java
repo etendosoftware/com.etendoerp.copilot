@@ -1,7 +1,13 @@
 package com.etendoerp.copilot.eventhandler;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import org.junit.After;
 import org.junit.Before;
@@ -26,6 +32,9 @@ import com.etendoerp.copilot.util.CopilotUtils;
 
 import java.lang.reflect.Method;
 
+/**
+ * Assistant Knowledge Base sync status handler test.
+ */
 public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
 
     private AssistantKBSyncStatusHandler handler;
@@ -33,7 +42,6 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
     private MockedStatic<OBDal> mockedOBDal;
     private MockedStatic<CopilotUtils> mockedCopilotUtils;
     private AutoCloseable mocks;
-    private Method isValidEventMethod;
 
     @Mock
     private EntityUpdateEvent updateEvent;
@@ -79,10 +87,15 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         when(copilotAppSourceEntity.getProperty(CopilotAppSource.PROPERTY_FILE)).thenReturn(fileProperty);
 
         // Prepare reflection for isValidEvent if needed
-        isValidEventMethod = AssistantKBSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        Method isValidEventMethod = AssistantKBSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
         isValidEventMethod.setAccessible(true);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedModelProvider != null) {
@@ -99,6 +112,9 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test on update file changed.
+     */
     @Test
     public void testOnUpdate_FileChanged() {
         // Given
@@ -115,6 +131,9 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         mockedCopilotUtils.verify(() -> CopilotUtils.logIfDebug(anyString()));
     }
 
+    /**
+     * Test on update file unchanged.
+     */
     @Test
     public void testOnUpdate_FileUnchanged() {
         // Given
@@ -130,6 +149,9 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         verify(obDal, never()).save(any(CopilotApp.class));
     }
 
+    /**
+     * Test on save.
+     */
     @Test
     public void testOnSave() {
         // Given
@@ -149,6 +171,9 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         verify(copilotApp, atLeastOnce()).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
     }
 
+    /**
+     * Test on delete.
+     */
     @Test
     public void testOnDelete() {
         // Given

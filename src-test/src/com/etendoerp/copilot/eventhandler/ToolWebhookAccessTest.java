@@ -1,8 +1,5 @@
 package com.etendoerp.copilot.eventhandler;
 
-import static org.mockito.Mockito.*;
-
-import com.etendoerp.copilot.data.CopilotApp;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -28,8 +25,19 @@ import org.openbravo.model.ad.system.Language;
 
 import java.lang.reflect.Method;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Tool webhook access test.
+ */
 public class ToolWebhookAccessTest extends WeldBaseTest {
 
+    /**
+     * The Expected exception.
+     */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
@@ -38,7 +46,6 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
     private MockedStatic<ModelProvider> mockedModelProvider;
     private MockedStatic<OBContext> mockedOBContext;
     private AutoCloseable mocks;
-    private Method isValidEventMethod;
 
     @Mock
     private EntityUpdateEvent updateEvent;
@@ -91,10 +98,15 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         when(obContext.getLanguage()).thenReturn(mockLanguage);
 
         // Prepare reflection for isValidEvent if needed
-        isValidEventMethod = ToolWebhookAccess.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
+        Method isValidEventMethod = ToolWebhookAccess.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
         isValidEventMethod.setAccessible(true);
     }
 
+    /**
+     * Tear down.
+     *
+     * @throws Exception the exception
+     */
     @After
     public void tearDown() throws Exception {
         if (mockedOBDal != null) {
@@ -111,6 +123,9 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         }
     }
 
+    /**
+     * Test on update system admin success.
+     */
     @Test
     public void testOnUpdate_SystemAdmin_Success() {
         // Given
@@ -125,6 +140,9 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         verify(obDal).get(Client.class, "0");
     }
 
+    /**
+     * Test on update non system admin throws exception.
+     */
     @Test
     public void testOnUpdate_NonSystemAdmin_ThrowsException() {
         // Given
@@ -138,6 +156,9 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         handler.onUpdate(updateEvent);
     }
 
+    /**
+     * Test on save system admin success.
+     */
     @Test
     public void testOnSave_SystemAdmin_Success() {
         // Given
@@ -152,6 +173,9 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         verify(obDal).get(Client.class, "0");
     }
 
+    /**
+     * Test on save non system admin throws exception.
+     */
     @Test
     public void testOnSave_NonSystemAdmin_ThrowsException() {
         // Given
@@ -165,6 +189,9 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         handler.onSave(newEvent);
     }
 
+    /**
+     * Test on delete system admin success.
+     */
     @Test
     public void testOnDelete_SystemAdmin_Success() {
         // Given
@@ -179,6 +206,9 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         verify(obDal).get(Client.class, "0");
     }
 
+    /**
+     * Test on delete non system admin throws exception.
+     */
     @Test
     public void testOnDelete_NonSystemAdmin_ThrowsException() {
         // Given
