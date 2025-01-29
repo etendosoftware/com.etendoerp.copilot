@@ -213,7 +213,7 @@ public class CheckHostsButton extends BaseProcessActionHandler {
    * @throws IOException
    *     If an error occurs while creating the connection.
    */
-  private HttpURLConnection createConnection(String urlString, String token) throws IOException {
+  protected HttpURLConnection createConnection(String urlString, String token) throws IOException {
     URL url = new URL(urlString);
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
     connection.setRequestMethod("POST");
