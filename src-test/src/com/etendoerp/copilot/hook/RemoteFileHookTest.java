@@ -53,8 +53,8 @@ public class RemoteFileHookTest extends WeldBaseTest {
     private RemoteFileHook remoteFileHook;
     private AutoCloseable mocks;
     
-    private final String EXAMPLE_FILE_URL = "https://example-files.online-convert.com/document/txt/example.txt";
-    private final String CUSTOM_TXT = "custom.txt";
+    private static final String EXAMPLE_FILE_URL = "https://example-files.online-convert.com/document/txt/example.txt";
+    private static final String CUSTOM_TXT = "custom.txt";
 
     @Before
     public void setUp() throws Exception {

@@ -66,10 +66,6 @@ public class AssistantRoleCreatedRemovedTest extends WeldBaseTest {
         // Configure OBDal
         when(OBDal.getInstance()).thenReturn(mock(OBDal.class));
         when(OBDal.getInstance().createCriteria(CopilotRoleApp.class)).thenReturn(mockCriteria);
-
-        // Prepare reflection for isValidEvent if needed
-        Method isValidEventMethod = AssistantRoleCreatedRemoved.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
-        isValidEventMethod.setAccessible(true);
     }
 
     /**

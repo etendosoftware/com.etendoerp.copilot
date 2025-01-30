@@ -42,7 +42,7 @@ public class AssistantValidationsTest extends WeldBaseTest {
     private MockedStatic<ModelProvider> mockedModelProvider;
     private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
     private AutoCloseable mocks;
-    private final String TEMP_ERROR_MSG = "Temperature must be between 0 and 2 for assistant TestAssistant";
+    private static final String TEMP_ERROR_MSG = "Temperature must be between 0 and 2 for assistant TestAssistant";
 
     @Mock
     private EntityUpdateEvent updateEvent;

@@ -96,10 +96,6 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         when(criteria.list()).thenReturn(Collections.singletonList(appSource));
         when(appSource.getEtcopApp()).thenReturn(copilotApp);
         when(copilotFile.getEntity()).thenReturn(fileEntity);
-
-        // Prepare reflection for isValidEvent if needed
-        Method isValidEventMethod = KBSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
-        isValidEventMethod.setAccessible(true);
     }
 
     /**

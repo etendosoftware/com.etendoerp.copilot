@@ -56,10 +56,6 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
         when(ModelProvider.getInstance()).thenReturn(mock(ModelProvider.class));
         when(ModelProvider.getInstance().getEntity(CopilotApp.ENTITY_NAME)).thenReturn(mockAppEntity);
         when(mockAppEntity.getProperty(CopilotApp.PROPERTY_SYNCSTATUS)).thenReturn(mockSyncStatusProp);
-
-        // Prepare reflection for isValidEvent if needed
-        Method isValidEventMethod = AssistantSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
-        isValidEventMethod.setAccessible(true);
     }
 
     /**

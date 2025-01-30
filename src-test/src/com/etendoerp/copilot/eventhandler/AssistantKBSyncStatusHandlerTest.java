@@ -85,10 +85,6 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         when(copilotAppSource.getEntity()).thenReturn(copilotAppSourceEntity);
         when(copilotAppSource.getEtcopApp()).thenReturn(copilotApp);
         when(copilotAppSourceEntity.getProperty(CopilotAppSource.PROPERTY_FILE)).thenReturn(fileProperty);
-
-        // Prepare reflection for isValidEvent if needed
-        Method isValidEventMethod = AssistantKBSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
-        isValidEventMethod.setAccessible(true);
     }
 
     /**
