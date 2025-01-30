@@ -69,7 +69,7 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
     private MockedStatic<OBDal> mockedOBDal;
     private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
     private AutoCloseable mocks;
-    private final String ASSISTANT_MEMBER_NAME = "Test copilotAppMember";
+    private static final String ASSISTANT_MEMBER_NAME = "Test copilotAppMember";
 
     @Before
     public void setUp() throws Exception {

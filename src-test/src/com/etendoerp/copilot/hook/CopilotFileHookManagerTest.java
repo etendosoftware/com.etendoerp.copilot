@@ -44,7 +44,7 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
 
     private CopilotFileHookManager hookManager;
     private AutoCloseable mocks;
-    private final String TEST_TYPE = "testType";
+    private static final String TEST_TYPE = "testType";
 
     @Before
     public void setUp() throws Exception {

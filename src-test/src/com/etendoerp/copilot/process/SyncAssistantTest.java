@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.etendoerp.copilot.data.CopilotRoleApp;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.Session;
@@ -86,9 +87,9 @@ public class SyncAssistantTest extends WeldBaseTest {
     private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
     private MockedStatic<WeldUtils> mockedWeldUtils;
 
-    private final String TEST_APP_ID = "testAppId";
-    private final String RECORD_IDS = "recordIds";
-    private final String RESULT_NOT_NULL = "Result should not be null";
+    private static final String TEST_APP_ID = "testAppId";
+    private static final String RECORD_IDS = "recordIds";
+    private static final String RESULT_NOT_NULL = "Result should not be null";
 
 
     @Before
@@ -200,8 +201,17 @@ public class SyncAssistantTest extends WeldBaseTest {
         recordIds.put(TEST_APP_ID);
         content.put(RECORD_IDS, recordIds);
 
+        // Mock CopilotRoleApp criteria
+        OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
+        when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
+        when(roleCriteria.add(any())).thenReturn(roleCriteria);
+
+        // Create empty role list
+        List<CopilotRoleApp> roleApps = new ArrayList<>();
+        when(roleCriteria.list()).thenReturn(roleApps);
+
         when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
-        when(criteria.uniqueResult()).thenReturn(null);
+        when(criteria.uniqueResult()).thenReturn(mockApp);
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
@@ -256,8 +266,17 @@ public class SyncAssistantTest extends WeldBaseTest {
         recordIds.put(TEST_APP_ID);
         content.put(RECORD_IDS, recordIds);
 
+        // Mock CopilotRoleApp criteria
+        OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
+        when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
+        when(roleCriteria.add(any())).thenReturn(roleCriteria);
+
+        // Create empty role list
+        List<CopilotRoleApp> roleApps = new ArrayList<>();
+        when(roleCriteria.list()).thenReturn(roleApps);
+
         when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
-        when(criteria.uniqueResult()).thenReturn(null);
+        when(criteria.uniqueResult()).thenReturn(mockApp);
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
@@ -283,9 +302,18 @@ public class SyncAssistantTest extends WeldBaseTest {
         recordIds.put(TEST_APP_ID);
         content.put(RECORD_IDS, recordIds);
 
+        // Mock CopilotRoleApp criteria
+        OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
+        when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
+        when(roleCriteria.add(any())).thenReturn(roleCriteria);
+
+        // Create empty role list
+        List<CopilotRoleApp> roleApps = new ArrayList<>();
+        when(roleCriteria.list()).thenReturn(roleApps);
+
         when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_LANGCHAIN);
         when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
-        when(criteria.uniqueResult()).thenReturn(null);
+        when(criteria.uniqueResult()).thenReturn(mockApp);
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());

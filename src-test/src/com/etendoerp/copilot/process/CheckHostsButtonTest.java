@@ -69,10 +69,10 @@ public class CheckHostsButtonTest extends WeldBaseTest {
     private CheckHostsButton checkHostsButton;
     private AutoCloseable mocks;
     
-    private final String ETENDO_HOST = "ETENDO_HOST";
-    private final String RESPONSE_ACTIONS= "responseActions";
-    private final String SHOW_MSG_IN_PROC_VIEW = "showMsgInProcessView";
-    private final String MSG_TYPE = "msgType";
+    private static final String ETENDO_HOST = "ETENDO_HOST";
+    private static final String RESPONSE_ACTIONS= "responseActions";
+    private static final String SHOW_MSG_IN_PROC_VIEW = "showMsgInProcessView";
+    private static final String MSG_TYPE = "msgType";
 
     @Before
     public void setUp() throws Exception {

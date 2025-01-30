@@ -88,10 +88,6 @@ public class AssistantToolSyncStatusHandlerTest extends WeldBaseTest {
         when(copilotAppTool.getEntity()).thenReturn(copilotAppToolEntity);
         when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
         when(copilotAppToolEntity.getProperty(CopilotAppTool.PROPERTY_COPILOTTOOL)).thenReturn(toolProperty);
-
-        // Prepare reflection for isValidEvent if needed
-        Method isValidEventMethod = AssistantToolSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
-        isValidEventMethod.setAccessible(true);
     }
 
     /**

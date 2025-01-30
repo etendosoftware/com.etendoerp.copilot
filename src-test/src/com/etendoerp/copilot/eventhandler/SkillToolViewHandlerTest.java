@@ -100,10 +100,6 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
         Language mockLanguage = mock(Language.class);
         when(mockLanguage.getId()).thenReturn("en_US");
         when(obContext.getLanguage()).thenReturn(mockLanguage);
-
-        // Prepare reflection for isValidEvent if needed
-        Method isValidEventMethod = SkillToolViewHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
-        isValidEventMethod.setAccessible(true);
     }
 
     /**

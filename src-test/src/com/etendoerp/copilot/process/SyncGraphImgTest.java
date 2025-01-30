@@ -64,9 +64,9 @@ public class SyncGraphImgTest extends WeldBaseTest {
     private MockedStatic<RestServiceUtil> mockedRestServiceUtil;
     private MockedStatic<OBMessageUtils> mockedMessageUtils;
 
-    private final String TEST_MSG = "Test Message";
-    private final String RECORD_1 = "record1";
-    private final String RECORD_IDS = "recordIds";
+    private static final String TEST_MSG = "Test Message";
+    private static final String RECORD_1 = "record1";
+    private static final String RECORD_IDS = "recordIds";
     
     @Before
     public void setUp() throws Exception {

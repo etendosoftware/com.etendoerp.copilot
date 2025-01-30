@@ -75,9 +75,9 @@ public class SyncToolStructureTest extends WeldBaseTest {
     private MockedStatic<HttpClient> mockedHttpClient;
     private HttpClient.Builder mockBuilder;
 
-    private final String RECORD_IDS = "recordIds";
-    private final String RESULT_NOT_NULL = "Result should not be null";
-    private final String ERROR_MSG = "error";
+    private static final String RECORD_IDS = "recordIds";
+    private static final String RESULT_NOT_NULL = "Result should not be null";
+    private static final String ERROR_MSG = "error";
 
     @Before
     public void setUp() throws Exception {

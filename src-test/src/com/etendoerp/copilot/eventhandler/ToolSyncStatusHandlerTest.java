@@ -90,10 +90,6 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
         when(entity.getProperty(anyString())).thenReturn(property);
         when(obDal.createCriteria(CopilotAppTool.class)).thenReturn(criteria);
         when(criteria.add(any(Criterion.class))).thenReturn(criteria);
-
-        // Prepare reflection for isValidEvent if needed
-        Method isValidEventMethod = ToolSyncStatusHandler.class.getSuperclass().getDeclaredMethod("isValidEvent", EntityPersistenceEvent.class);
-        isValidEventMethod.setAccessible(true);
     }
 
     /**

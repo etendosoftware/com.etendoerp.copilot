@@ -46,7 +46,7 @@ public class TextFileHookTest extends WeldBaseTest {
     @Mock
     private AttachImplementationManager mockAttachManager;
     
-    private final String TEST_CONTENT = "";
+    private static final String TEST_CONTENT = "test content";
 
     @Before
     public void setUp() throws Exception {
