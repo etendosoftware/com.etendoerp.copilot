@@ -96,7 +96,7 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
    */
   private Path getOpenAPIFile(OpenApiFlow flow, String fileName) throws OBException {
     try {
-      String openAPISpec = new OpenAPIController().getOpenAPIJson(getEtendoHostDocker(), flow.getName(), null);
+      String openAPISpec = new OpenAPIController().getOpenAPIJson(null, flow.getName(), getEtendoHostDocker());
       openAPISpec = addInfoForCopilot(openAPISpec);
       return Files.writeString(Files.createTempFile(fileName, ".json"), openAPISpec);
     } catch (Exception e) {
