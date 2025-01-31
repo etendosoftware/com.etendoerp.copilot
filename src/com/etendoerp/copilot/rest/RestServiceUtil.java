@@ -68,6 +68,7 @@ import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.data.TeamMember;
 import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.ToolsUtil;
@@ -858,8 +859,8 @@ public class RestServiceUtil {
     }
     jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
     jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
-    jsonRequestForCopilot.put(PROP_PROVIDER, CopilotUtils.getProvider(copilotApp));
-    jsonRequestForCopilot.put(PROP_MODEL, CopilotUtils.getAppModel(copilotApp));
+    jsonRequestForCopilot.put(PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
+    jsonRequestForCopilot.put(PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
     jsonRequestForCopilot.put(PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
     String promptApp = getAssistantPrompt(copilotApp);
     if (StringUtils.isNotEmpty(prompt.toString())) {
