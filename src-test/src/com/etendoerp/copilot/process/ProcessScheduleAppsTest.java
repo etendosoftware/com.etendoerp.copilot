@@ -218,7 +218,7 @@ public class ProcessScheduleAppsTest extends WeldBaseTest {
         when(roleAppCriteria.setMaxResults(1)).thenReturn(roleAppCriteria);
         when(roleAppCriteria.uniqueResult()).thenReturn(null);
         
-        mockedOpenAIUtils.when(() -> OpenAIUtils.getOpenaiApiKey()).thenReturn("test-api-key");
+        mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
 
         // When
         processScheduleApps.doExecute(processBundle);
@@ -250,7 +250,7 @@ public class ProcessScheduleAppsTest extends WeldBaseTest {
         List<CopilotAppSource> sources = new ArrayList<>();
         when(copilotApp.getETCOPAppSourceList()).thenReturn(sources);
         
-        mockedOpenAIUtils.when(() -> OpenAIUtils.getOpenaiApiKey()).thenReturn("test-api-key");
+        mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
         
         mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(
             anyBoolean(), any(), any(), any(), anyString(), anyList()
