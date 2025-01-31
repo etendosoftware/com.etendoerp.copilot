@@ -13,7 +13,7 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.service.db.DbUtility;
 
-import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.CopilotModelUtils;
 
 /**
  * Handles the synchronization of models process.
@@ -41,7 +41,7 @@ public class SyncModelsProcessHandler extends BaseProcessActionHandler {
     JSONObject result = new JSONObject();
     try {
       OBContext.setAdminMode();
-      CopilotUtils.syncModels();
+      CopilotModelUtils.syncModels();
       result = buildMessage();
     } catch (Exception e) {
       log.error("Error in process", e);

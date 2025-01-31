@@ -13,7 +13,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
-import java.util.function.Predicate;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -23,22 +22,17 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
-import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.ad.utility.Attachment;
-import org.openbravo.model.common.enterprise.Organization;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.data.CopilotModel;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 
 import kong.unirest.HttpResponse;
@@ -151,7 +145,7 @@ public class OpenAIUtils {
     if (app.getTemperature() != null) {
       body.put("temperature", app.getTemperature());
     }
-    String model = CopilotUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI);
+    String model = CopilotModelUtils.getAppModel(app, CopilotConstants.PROVIDER_OPENAI);
     logIfDebug("Selected model: " + model);
     body.put("model", model);
     JSONObject response = makeRequestToOpenAI(openaiApiKey, endpoint, body, "POST", null, false);
@@ -907,32 +901,54 @@ public class OpenAIUtils {
   private static List<String> updateVectorDbFiles(CopilotApp app, String openAIVectorDbId) throws JSONException {
     List<String> updatedFiles = new ArrayList<>();
     for (CopilotAppSource copilotAppSource : app.getETCOPAppSourceList()) {
-      if (!copilotAppSource.isExcludeFromRetrieval() && CopilotConstants.isKbBehaviour(copilotAppSource)) {
-        if (copilotAppSource.getFile() == null) {
-          continue;
-        }
-
-        CopilotFile file = copilotAppSource.getFile();
-        String openAIFileId = StringUtils.isNotEmpty(
-            copilotAppSource.getOpenaiIdFile()) ? copilotAppSource.getOpenaiIdFile() : file.getOpenaiIdFile();
-        JSONObject fileSearch = new JSONObject();
-        fileSearch.put("file_id", openAIFileId);
-        var response = makeRequestToOpenAI(getOpenaiApiKey(),
-            ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES, fileSearch, "POST", null, false);
-        if (!response.has(ERROR)) {
-          updatedFiles.add(openAIFileId);
-        } else {
-          if (app.isCodeInterpreter()) {
-            log.warn("Error updating file in vector db: " + response);
-          } else {
-            throw new OBException(
-                String.format(OBMessageUtils.messageBD("ETCOP_Error_Updating_VectorDb"), app.getName(),
-                    response.getJSONObject(ERROR).getString(MESSAGE)));
-          }
-        }
-      }
+      updateVectorDBKBFile(app, openAIVectorDbId, copilotAppSource, updatedFiles);
     }
     return updatedFiles;
+  }
+
+  /**
+   * Updates a specific knowledge base file in the vector database.
+   * <p>
+   * This method checks if the given CopilotAppSource should be included in the retrieval process.
+   * If it should, it updates the vector database with the file associated with the CopilotAppSource.
+   *
+   * @param app
+   *     The CopilotApp instance for which the vector database is being updated.
+   * @param openAIVectorDbId
+   *     The ID of the vector database to update.
+   * @param copilotAppSource
+   *     The CopilotAppSource instance containing the file to update.
+   * @param updatedFiles
+   *     The list of updated file IDs to which the new file ID will be added.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
+  private static void updateVectorDBKBFile(CopilotApp app, String openAIVectorDbId, CopilotAppSource copilotAppSource,
+      List<String> updatedFiles) throws JSONException {
+    if (copilotAppSource.isExcludeFromRetrieval()
+        || !CopilotConstants.isKbBehaviour(copilotAppSource)
+        || copilotAppSource.getFile() == null) {
+      return;
+    }
+
+    CopilotFile file = copilotAppSource.getFile();
+    String openAIFileId = StringUtils.isNotEmpty(
+        copilotAppSource.getOpenaiIdFile()) ? copilotAppSource.getOpenaiIdFile() : file.getOpenaiIdFile();
+    JSONObject fileSearch = new JSONObject();
+    fileSearch.put("file_id", openAIFileId);
+    var response = makeRequestToOpenAI(getOpenaiApiKey(),
+        ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES, fileSearch, "POST", null, false);
+    if (response.has(ERROR)) {
+      if (app.isCodeInterpreter()) {
+        log.warn("Error updating file in vector db: " + response);
+        return;
+      }
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_Error_Updating_VectorDb"), app.getName(),
+              response.getJSONObject(ERROR).getString(MESSAGE)));
+
+    }
+    updatedFiles.add(openAIFileId);
   }
 
   /**

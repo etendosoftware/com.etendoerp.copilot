@@ -33,6 +33,7 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.openapi.data.OpenApiFlowPoint;
@@ -88,7 +89,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
       JSONArray selectedRecords = request.optJSONArray("recordIds");
       List<CopilotApp> appList = getSelectedApps(selectedRecords);
       // Sync models with Copilot remote dataset
-      CopilotUtils.syncModels();
+      CopilotModelUtils.syncModels();
       // update accesses
       for (CopilotApp app : appList) {
         checkWebHookAccess(app);
