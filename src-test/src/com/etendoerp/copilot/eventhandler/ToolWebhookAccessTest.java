@@ -18,6 +18,7 @@ import org.openbravo.client.kernel.event.EntityPersistenceEvent;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.system.Client;
 
 import com.etendoerp.copilot.data.ToolWebhook;
@@ -46,6 +47,7 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
     private MockedStatic<ModelProvider> mockedModelProvider;
     private MockedStatic<OBContext> mockedOBContext;
     private AutoCloseable mocks;
+    private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
 
     @Mock
     private EntityUpdateEvent updateEvent;
@@ -81,6 +83,7 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         mockedOBDal = mockStatic(OBDal.class);
         mockedModelProvider = mockStatic(ModelProvider.class);
         mockedOBContext = mockStatic(OBContext.class);
+        mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
         // Configure static mocks
         mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
@@ -114,6 +117,9 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         if (mockedOBContext != null) {
             mockedOBContext.close();
         }
+        if (mockedOBMessageUtils != null) {
+            mockedOBMessageUtils.close();
+        }
         if (mocks != null) {
             mocks.close();
         }
@@ -145,8 +151,12 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         when(updateEvent.getTargetInstance()).thenReturn(toolWebhook);
         when(obContext.getCurrentClient()).thenReturn(regularClient);
         when(obDal.get(Client.class, "0")).thenReturn(systemClient);
-        
+
+        mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("smfwhe_errorSysAdminRole"))
+                .thenReturn("Only the System Administrator has permission to modify, add, or delete Webhooks.");
+
         expectedException.expect(OBException.class);
+        expectedException.expectMessage("Only the System Administrator has permission to modify, add, or delete Webhooks.");
 
         // When
         handler.onUpdate(updateEvent);
@@ -178,8 +188,12 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         when(newEvent.getTargetInstance()).thenReturn(toolWebhook);
         when(obContext.getCurrentClient()).thenReturn(regularClient);
         when(obDal.get(Client.class, "0")).thenReturn(systemClient);
-        
+
+        mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("smfwhe_errorSysAdminRole"))
+                .thenReturn("Only the System Administrator has permission to modify, add, or delete Webhooks.");
+
         expectedException.expect(OBException.class);
+        expectedException.expectMessage("Only the System Administrator has permission to modify, add, or delete Webhooks.");
 
         // When
         handler.onSave(newEvent);
@@ -211,8 +225,12 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
         when(deleteEvent.getTargetInstance()).thenReturn(toolWebhook);
         when(obContext.getCurrentClient()).thenReturn(regularClient);
         when(obDal.get(Client.class, "0")).thenReturn(systemClient);
+
+        mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("smfwhe_errorSysAdminRole"))
+                .thenReturn("Only the System Administrator has permission to modify, add, or delete Webhooks.");
         
         expectedException.expect(OBException.class);
+        expectedException.expectMessage("Only the System Administrator has permission to modify, add, or delete Webhooks.");
 
         // When
         handler.onDelete(deleteEvent);

@@ -31,6 +31,7 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.access.User;
 
@@ -53,6 +54,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
     private MockedStatic<CopilotUtils> mockedCopilotUtils;
     private MockedStatic<OBContext> mockedOBContext;
     private MockedStatic<OBDal> mockedOBDal;
+    private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
 
     @Mock
     private OBContext mockContext;
@@ -86,6 +88,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         mockedCopilotUtils = mockStatic(CopilotUtils.class);
         mockedOBContext = mockStatic(OBContext.class);
         mockedOBDal = mockStatic(OBDal.class);
+        mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
         // Configure default mock behavior
         mockedOBContext.when(OBContext::getOBContext).thenReturn(mockContext);
@@ -108,6 +111,9 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         Language mockLanguage = mock(Language.class);
         when(mockLanguage.getId()).thenReturn("en_US");
         when(mockContext.getLanguage()).thenReturn(mockLanguage);
+
+        mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_HOST_CHECK"))
+                .thenReturn("Variable %s: %s");
     }
 
     /**
@@ -128,6 +134,9 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         }
         if (mockedOBDal != null) {
             mockedOBDal.close();
+        }
+        if (mockedOBMessageUtils != null) {
+            mockedOBMessageUtils.close();
         }
         if (mocks != null) {
             mocks.close();

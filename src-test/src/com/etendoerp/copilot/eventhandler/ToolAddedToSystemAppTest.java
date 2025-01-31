@@ -17,6 +17,7 @@ import org.openbravo.client.kernel.event.EntityNewEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEvent;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.system.Client;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -46,6 +47,7 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
     private MockedStatic<ModelProvider> mockedModelProvider;
     private MockedStatic<OBContext> mockedOBContext;
     private AutoCloseable mocks;
+    private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
 
     @Mock
     private EntityUpdateEvent updateEvent;
@@ -80,6 +82,7 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
         // Setup static mocks
         mockedModelProvider = mockStatic(ModelProvider.class);
         mockedOBContext = mockStatic(OBContext.class);
+        mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
         // Configure static mocks
         mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
@@ -107,6 +110,9 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
         }
         if (mockedOBContext != null) {
             mockedOBContext.close();
+        }
+        if (mockedOBMessageUtils != null) {
+            mockedOBMessageUtils.close();
         }
         if (mocks != null) {
             mocks.close();
@@ -144,8 +150,12 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
         when(copilotApp.getClient()).thenReturn(client);
         when(client.getId()).thenReturn("100");
         when(contextClient.getId()).thenReturn("200");
+
+        mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_WrongClientApp"))
+                .thenReturn("It is only possible to add a Skill/Tool in the same client that the Assistant was defined.");
         
         expectedException.expect(OBException.class);
+        expectedException.expectMessage("It is only possible to add a Skill/Tool in the same client that the Assistant was defined.");
 
         // When
         handler.onUpdate(updateEvent);
@@ -182,6 +192,12 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
         when(copilotApp.getClient()).thenReturn(client);
         when(client.getId()).thenReturn("100");
         when(contextClient.getId()).thenReturn("200");
+
+        mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_WrongClientApp"))
+                .thenReturn("It is only possible to add a Skill/Tool in the same client that the Assistant was defined.");
+
+        expectedException.expect(OBException.class);
+        expectedException.expectMessage("It is only possible to add a Skill/Tool in the same client that the Assistant was defined.");
         
         expectedException.expect(OBException.class);
 

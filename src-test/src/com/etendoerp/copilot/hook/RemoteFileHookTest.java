@@ -52,6 +52,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
     private MockedStatic<OBContext> mockedOBContext;
     private RemoteFileHook remoteFileHook;
     private AutoCloseable mocks;
+    private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
     
     private static final String EXAMPLE_FILE_URL = "https://example-files.online-convert.com/document/txt/example.txt";
     private static final String CUSTOM_TXT = "custom.txt";
@@ -74,6 +75,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
         mockedWeldUtils = mockStatic(WeldUtils.class);
         mockedWeldUtils.when(() -> WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class))
                 .thenReturn(mockAttachManager);
+        mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
         mockedCopilotUtils = mockStatic(CopilotUtils.class);
     }
@@ -96,6 +98,9 @@ public class RemoteFileHookTest extends WeldBaseTest {
         }
         if (mockedOBContext != null) {
             mockedOBContext.close();
+        }
+        if (mockedOBMessageUtils != null) {
+            mockedOBMessageUtils.close();
         }
     }
 
@@ -195,8 +200,11 @@ public class RemoteFileHookTest extends WeldBaseTest {
         mockedCopilotUtils.when(() -> CopilotUtils.replaceCopilotPromptVariables(invalidUrl))
                 .thenReturn(invalidUrl);
 
+        mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_FileDownErr"))
+                .thenReturn("Error downloading file from URL: " + invalidUrl);
+
         expectedException.expect(OBException.class);
-        expectedException.expectMessage(String.format(OBMessageUtils.messageBD("ETCOP_FileDownErr"), invalidUrl));
+        expectedException.expectMessage("Error downloading file from URL: " + invalidUrl);
 
         // When
         remoteFileHook.exec(mockCopilotFile);
