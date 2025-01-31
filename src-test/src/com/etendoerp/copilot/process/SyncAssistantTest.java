@@ -119,9 +119,6 @@ public class SyncAssistantTest extends WeldBaseTest {
         when(mockAppSource.getFile()).thenReturn(mockFile);
         when(mockFile.getName()).thenReturn("testFile.txt");
 
-        // Set up OpenAI utils mock
-        mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
-
         // Set up admin context
         OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN,
                 TestConstants.Clients.FB_GRP, TestConstants.Orgs.ESP_NORTE);
@@ -154,6 +151,10 @@ public class SyncAssistantTest extends WeldBaseTest {
 
         // Ensure executeHooks does nothing
         doNothing().when(mockHookManager).executeHooks(any(CopilotFile.class));
+
+        // Success msg
+        mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_SuccessSync"))
+                .thenReturn("Successful Sync");
     }
 
     /**
@@ -184,7 +185,6 @@ public class SyncAssistantTest extends WeldBaseTest {
         if (mockedWeldUtils != null) {
             mockedWeldUtils.close();
         }
-        OBContext.restorePreviousMode();
     }
 
     /**
@@ -212,6 +212,9 @@ public class SyncAssistantTest extends WeldBaseTest {
 
         when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
         when(criteria.uniqueResult()).thenReturn(mockApp);
+
+        // Mock getApiKey
+        mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
@@ -249,7 +252,7 @@ public class SyncAssistantTest extends WeldBaseTest {
         assertNotNull(RESULT_NOT_NULL, result);
         JSONObject message = result.getJSONObject("message");
         assertEquals("Should have error severity", "error", message.getString("severity"));
-        assertEquals("Should have connection error message", errorMsg, message.getString("text"));
+        assertEquals("Should have no records error message", errorMsg, message.getString("text"));
     }
 
     /**
@@ -277,6 +280,9 @@ public class SyncAssistantTest extends WeldBaseTest {
 
         when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
         when(criteria.uniqueResult()).thenReturn(mockApp);
+
+        // Mock getApiKey
+        mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
@@ -315,6 +321,9 @@ public class SyncAssistantTest extends WeldBaseTest {
         when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
         when(criteria.uniqueResult()).thenReturn(mockApp);
 
+        // Mock getApiKey
+        mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
+
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
@@ -339,8 +348,18 @@ public class SyncAssistantTest extends WeldBaseTest {
         recordIds.put(TEST_APP_ID);
         content.put(RECORD_IDS, recordIds);
 
-        mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(null);
+        // Mock CopilotRoleApp criteria
+        OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
+        when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
+        when(roleCriteria.add(any())).thenReturn(roleCriteria);
+
+        // Create empty role list
+        List<CopilotRoleApp> roleApps = new ArrayList<>();
+        when(roleCriteria.list()).thenReturn(roleApps);
+
+        when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_LANGCHAIN);
         when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
+        when(criteria.uniqueResult()).thenReturn(mockApp);
 
         OBError error = new OBError();
         String errorMsg = "No ApiKey Found";
@@ -349,6 +368,9 @@ public class SyncAssistantTest extends WeldBaseTest {
                 .thenReturn(errorMsg);
         mockedOBMessageUtils.when(() -> OBMessageUtils.translateError(anyString()))
                 .thenReturn(error);
+
+        // Mock getApiKey
+        mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(null);
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
@@ -374,15 +396,28 @@ public class SyncAssistantTest extends WeldBaseTest {
         recordIds.put(TEST_APP_ID);
         content.put(RECORD_IDS, recordIds);
 
+        // Mock CopilotRoleApp criteria
+        OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
+        when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
+        when(roleCriteria.add(any())).thenReturn(roleCriteria);
+
+        // Create empty role list
+        List<CopilotRoleApp> roleApps = new ArrayList<>();
+        when(roleCriteria.list()).thenReturn(roleApps);
+
         when(mockApp.getAppType()).thenReturn("UNSUPPORTED_TYPE");
         when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
         when(criteria.uniqueResult()).thenReturn(null);
+
+        // Mock getApiKey
+        mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
 
         // When
         JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
         // Then
         assertNotNull(RESULT_NOT_NULL, result);
+
         // Verify that no synchronization methods were called
         mockedOpenAIUtils.verify(() -> OpenAIUtils.syncAppSource(any(), any()), never());
         mockedCopilotUtils.verify(() -> CopilotUtils.syncAppLangchainSource(any()), never());

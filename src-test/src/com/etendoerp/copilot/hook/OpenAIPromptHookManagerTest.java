@@ -214,7 +214,7 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
     public void testExecuteHooks_ExceptionThrown() throws Exception {
         // Given
         OpenAIPromptHook mockHook = mock(OpenAIPromptHook.class);
-        when(mockHook.typeCheck(mockApp)).thenThrow(new RuntimeException("Test Exception"));
+        when(mockHook.typeCheck(mockApp)).thenThrow(new OBException("Test Exception"));
         when(mockPromptHooks.iterator()).thenReturn(List.of(mockHook).iterator());
 
         // Then

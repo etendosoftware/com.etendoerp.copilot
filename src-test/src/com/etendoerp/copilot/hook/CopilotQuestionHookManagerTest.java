@@ -225,7 +225,7 @@ public class CopilotQuestionHookManagerTest extends WeldBaseTest {
         // Given
         CopilotQuestionHook mockHook = mock(CopilotQuestionHook.class);
         when(mockHook.typeCheck(mockApp)).thenReturn(true);
-        doThrow(new RuntimeException("Test exception")).when(mockHook).exec(mockApp, mockJsonRequest);
+        doThrow(new OBException("Test exception")).when(mockHook).exec(mockApp, mockJsonRequest);
 
         List<CopilotQuestionHook> hookList = new ArrayList<>();
         hookList.add(mockHook);

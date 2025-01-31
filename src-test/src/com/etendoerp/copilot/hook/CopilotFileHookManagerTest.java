@@ -170,7 +170,7 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
 
         when(mockCopilotFile.getType()).thenReturn(TEST_TYPE);
         when(hook1.typeCheck(TEST_TYPE)).thenReturn(true);
-        doThrow(new RuntimeException("Test exception")).when(hook1).exec(mockCopilotFile);
+        doThrow(new OBException("Test exception")).when(hook1).exec(mockCopilotFile);
 
         List<CopilotFileHook> mockHookList = new ArrayList<>();
         mockHookList.add(hook1);
