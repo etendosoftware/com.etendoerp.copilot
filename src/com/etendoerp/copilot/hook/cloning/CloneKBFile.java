@@ -9,6 +9,12 @@ import org.openbravo.dal.service.OBDal;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.smf.jobs.hooks.CloneRecordHook;
 
+/**
+ * CloneKBFile class for handling the cloning of CopilotFile records.
+ * <p>
+ * This class extends CloneRecordHook and provides custom implementations for
+ * pre-copy, post-copy, and child record handling during the cloning process.
+ */
 @ApplicationScoped
 @Qualifier(CopilotFile.ENTITY_NAME)
 public class CloneKBFile extends CloneRecordHook {
