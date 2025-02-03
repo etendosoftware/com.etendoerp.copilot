@@ -297,6 +297,9 @@
     adjustMaximizeWindowPosition();
   }
 
+  // NOTE: The console.logs in this block are for development purposes only and will be removed 
+  // before the final release of the epic. They are used to debug and track the flow of data 
+  // during the implementation phase.
   var buttonProps = {
     action: function () {
       console.log("Copilot button clicked");
@@ -313,6 +316,22 @@
 
       console.log("Selected orders:", orders);
 
+      var currentWindowId = this.view.windowId;
+      var currentTabId = this.view.tabId;
+      var currentTabTitle = this.view.tabTitle;
+
+      console.log("Current window:", currentWindowId);
+      console.log("Current tab:", currentTabId);
+      console.log("Current tab title:", currentTabTitle);
+
+      var activeWindowInfo = {
+        windowId: currentWindowId,
+        tabId: currentTabId,
+        title: currentTabTitle
+      };
+
+      console.log("Active window:", activeWindowInfo);
+
       callback = function (rpcResponse, data, rpcRequest) {
         console.log("rpcResponse:", rpcResponse);
         console.log("data:", data);
@@ -321,7 +340,10 @@
 
       OB.RemoteCallManager.call(
         'com.etendoerp.copilot.rest.CopilotContextActionHandler',
-        { orders: orders },
+        {
+          orders: orders,
+          activeWindow: activeWindowInfo
+        },
         {},
         callback
       );
