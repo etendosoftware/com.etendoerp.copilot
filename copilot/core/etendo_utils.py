@@ -100,7 +100,7 @@ def get_etendo_host():
     Returns:
     str: The Etendo host URL.
     """
-    return read_optional_env_var("ETENDO_HOST", "http://host.docker.internal:8080/etendo")
+    return read_optional_env_var("ETENDO_HOST_DOCKER", "http://host.docker.internal:8080/etendo")
 
 
 def login_etendo(server_url, client_admin_user, client_admin_password):
