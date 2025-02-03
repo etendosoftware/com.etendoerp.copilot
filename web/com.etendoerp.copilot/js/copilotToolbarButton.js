@@ -316,9 +316,17 @@
 
       console.log("Selected orders:", orders);
 
-      var currentWindowId = this.view.windowId;
-      var currentTabId = this.view.tabId;
-      var currentTabTitle = this.view.tabTitle;
+      var selectedRecordsContext = selectedRecords.map(function (record) {
+        return {
+          id: record.id,
+        };
+      });
+
+      console.log("Selected records context", selectedRecordsContext);
+
+      var currentWindowId = view.windowId;
+      var currentTabId = view.tabId;
+      var currentTabTitle = view.tabTitle;
 
       console.log("Current window:", currentWindowId);
       console.log("Current tab:", currentTabId);
