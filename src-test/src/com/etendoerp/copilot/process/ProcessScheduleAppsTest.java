@@ -237,7 +237,7 @@ public class ProcessScheduleAppsTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_ConnectionError() throws Exception {
+    public void testDoExecuteConnectionError() throws Exception {
         // Given
         expectedException.expect(OBException.class);
         

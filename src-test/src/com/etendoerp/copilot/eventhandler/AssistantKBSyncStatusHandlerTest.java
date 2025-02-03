@@ -112,7 +112,7 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update file changed.
      */
     @Test
-    public void testOnUpdate_FileChanged() {
+    public void testOnUpdateFileChanged() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotAppSource);
         when(updateEvent.getPreviousState(fileProperty)).thenReturn("oldFile.txt");
@@ -131,7 +131,7 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update file unchanged.
      */
     @Test
-    public void testOnUpdate_FileUnchanged() {
+    public void testOnUpdateFileUnchanged() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotAppSource);
         when(updateEvent.getPreviousState(fileProperty)).thenReturn("same.txt");

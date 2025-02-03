@@ -136,7 +136,7 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
      * Test on update valid team member.
      */
     @Test
-    public void testOnUpdate_ValidTeamMember() {
+    public void testOnUpdateValidTeamMember() {
         // Given
         when(teamMember.getMember()).thenReturn(copilotAppMember);
         when(copilotAppMember.getDescription()).thenReturn("Valid description");
@@ -154,7 +154,7 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
      * Test on save valid team member.
      */
     @Test
-    public void testOnSave_ValidTeamMember() {
+    public void testOnSaveValidTeamMember() {
         // Given
         when(teamMember.getMember()).thenReturn(copilotAppMember);
         when(copilotAppMember.getDescription()).thenReturn("Valid description");
@@ -172,7 +172,7 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
      * Test on update null member.
      */
     @Test
-    public void testOnUpdate_NullMember() {
+    public void testOnUpdateNullMember() {
         // Given
         when(teamMember.getMember()).thenReturn(null);
 
@@ -187,7 +187,7 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
      * Test on save empty description.
      */
     @Test
-    public void testOnSave_EmptyDescription() {
+    public void testOnSaveEmptyDescription() {
         // Given
         when(teamMember.getMember()).thenReturn(copilotAppMember);
         when(copilotAppMember.getDescription()).thenReturn("");
@@ -204,7 +204,7 @@ public class TeamMemberValidationsTest extends WeldBaseTest {
      * Test on update null description.
      */
     @Test
-    public void testOnUpdate_NullDescription() {
+    public void testOnUpdateNullDescription() {
         // Given
         when(teamMember.getMember()).thenReturn(copilotAppMember);
         when(copilotAppMember.getDescription()).thenReturn(null);

@@ -119,7 +119,7 @@ public class SyncGraphImgTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_NoSelectedRecords() throws Exception {
+    public void testDoExecuteNoSelectedRecords() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         String content = "{}";
@@ -143,7 +143,7 @@ public class SyncGraphImgTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_SuccessfulSync() throws Exception {
+    public void testDoExecuteSuccessfulSync() throws Exception {
         // Given
         JSONObject request = new JSONObject();
         JSONArray selectedRecords = new JSONArray();
@@ -176,7 +176,7 @@ public class SyncGraphImgTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_NoImageGenerated() throws Exception {
+    public void testDoExecuteNoImageGenerated() throws Exception {
         // Given
         JSONObject request = new JSONObject();
         JSONArray selectedRecords = new JSONArray();
@@ -207,7 +207,7 @@ public class SyncGraphImgTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_MultipleRecordsSync() throws Exception {
+    public void testDoExecuteMultipleRecordsSync() throws Exception {
         // Given
         JSONObject request = new JSONObject();
         JSONArray selectedRecords = new JSONArray();

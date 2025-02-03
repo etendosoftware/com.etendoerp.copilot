@@ -115,7 +115,7 @@ public class AssistantToolSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update tool changed.
      */
     @Test
-    public void testOnUpdate_ToolChanged() {
+    public void testOnUpdateToolChanged() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotAppTool);
         when(updateEvent.getPreviousState(toolProperty)).thenReturn(previousTool);
@@ -134,7 +134,7 @@ public class AssistantToolSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update tool unchanged.
      */
     @Test
-    public void testOnUpdate_ToolUnchanged() {
+    public void testOnUpdateToolUnchanged() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotAppTool);
         when(updateEvent.getPreviousState(toolProperty)).thenReturn(previousTool);

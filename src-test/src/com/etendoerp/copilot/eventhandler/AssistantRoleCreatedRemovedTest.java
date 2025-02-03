@@ -81,7 +81,7 @@ public class AssistantRoleCreatedRemovedTest extends WeldBaseTest {
      * Test on delete role app exists removed.
      */
     @Test
-    public void testOnDelete_RoleAppExists_Removed() {
+    public void testOnDeleteRoleAppExistsRemoved() {
         // Given
         when(mockDeleteEvent.getTargetInstance()).thenReturn(mockCopilotApp);
         when(mockCriteria.add(any())).thenReturn(mockCriteria);
@@ -101,7 +101,7 @@ public class AssistantRoleCreatedRemovedTest extends WeldBaseTest {
      * Test on delete no role app no removal.
      */
     @Test
-    public void testOnDelete_NoRoleApp_NoRemoval() {
+    public void testOnDeleteNoRoleAppNoRemoval() {
         // Given
         when(mockDeleteEvent.getTargetInstance()).thenReturn(mockCopilotApp);
         when(mockCriteria.add(any())).thenReturn(mockCriteria);

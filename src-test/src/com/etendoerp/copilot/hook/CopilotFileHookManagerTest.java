@@ -73,7 +73,7 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
      * Test sort hooks by priority multiple hooks.
      */
     @Test
-    public void testSortHooksByPriority_MultipleHooks() {
+    public void testSortHooksByPriorityMultipleHooks() {
         // Given
         CopilotFileHook hook1 = mock(CopilotFileHook.class);
         CopilotFileHook hook2 = mock(CopilotFileHook.class);
@@ -106,7 +106,7 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testExecuteHooks_SuccessfulExecution() throws Exception {
+    public void testExecuteHooksSuccessfulExecution() throws Exception {
         // Given
         CopilotFileHook hook1 = mock(CopilotFileHook.class);
         CopilotFileHook hook2 = mock(CopilotFileHook.class);
@@ -135,7 +135,7 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testExecuteHooks_FilteredByType() throws Exception {
+    public void testExecuteHooksFilteredByType() throws Exception {
         // Given
         CopilotFileHook hook1 = mock(CopilotFileHook.class);
         CopilotFileHook hook2 = mock(CopilotFileHook.class);
@@ -164,7 +164,7 @@ public class CopilotFileHookManagerTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testExecuteHooks_ExceptionHandling() throws Exception {
+    public void testExecuteHooksExceptionHandling() throws Exception {
         // Given
         CopilotFileHook hook1 = mock(CopilotFileHook.class);
 

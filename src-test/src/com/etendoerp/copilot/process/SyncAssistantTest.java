@@ -193,7 +193,7 @@ public class SyncAssistantTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_Success() throws Exception {
+    public void testDoExecuteSuccess() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
@@ -231,7 +231,7 @@ public class SyncAssistantTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_NoRecordsSelected() throws Exception {
+    public void testDoExecuteNoRecordsSelected() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
@@ -261,7 +261,7 @@ public class SyncAssistantTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_OpenAISync() throws Exception {
+    public void testDoExecuteOpenAISync() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
@@ -300,7 +300,7 @@ public class SyncAssistantTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_LangChainSync() throws Exception {
+    public void testDoExecuteLangChainSync() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
@@ -340,7 +340,7 @@ public class SyncAssistantTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_NoApiKey() throws Exception {
+    public void testDoExecuteNoApiKey() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();
@@ -388,7 +388,7 @@ public class SyncAssistantTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_UnsupportedAppType() throws Exception {
+    public void testDoExecuteUnsupportedAppType() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONObject content = new JSONObject();

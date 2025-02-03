@@ -70,7 +70,7 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update properties changed sync status updated.
      */
     @Test
-    public void testOnUpdate_PropertiesChanged_SyncStatusUpdated() {
+    public void testOnUpdatePropertiesChangedSyncStatusUpdated() {
         // Test cases for different properties
         String[] properties = {
             CopilotApp.PROPERTY_PROMPT,
@@ -110,7 +110,7 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update no properties changed no sync status update.
      */
     @Test
-    public void testOnUpdate_NoPropertiesChanged_NoSyncStatusUpdate() {
+    public void testOnUpdateNoPropertiesChangedNoSyncStatusUpdate() {
         // Test cases for different properties
         String[] properties = {
             CopilotApp.PROPERTY_PROMPT,

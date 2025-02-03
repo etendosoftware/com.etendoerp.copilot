@@ -129,7 +129,7 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
      * Test on update system admin success.
      */
     @Test
-    public void testOnUpdate_SystemAdmin_Success() {
+    public void testOnUpdateSystemAdminSuccess() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(toolWebhook);
         when(obContext.getCurrentClient()).thenReturn(systemClient);
@@ -146,7 +146,7 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
      * Test on update non system admin throws exception.
      */
     @Test
-    public void testOnUpdate_NonSystemAdmin_ThrowsException() {
+    public void testOnUpdateNonSystemAdminThrowsException() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(toolWebhook);
         when(obContext.getCurrentClient()).thenReturn(regularClient);
@@ -166,7 +166,7 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
      * Test on save system admin success.
      */
     @Test
-    public void testOnSave_SystemAdmin_Success() {
+    public void testOnSaveSystemAdminSuccess() {
         // Given
         when(newEvent.getTargetInstance()).thenReturn(toolWebhook);
         when(obContext.getCurrentClient()).thenReturn(systemClient);
@@ -183,7 +183,7 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
      * Test on save non system admin throws exception.
      */
     @Test
-    public void testOnSave_NonSystemAdmin_ThrowsException() {
+    public void testOnSaveNonSystemAdminThrowsException() {
         // Given
         when(newEvent.getTargetInstance()).thenReturn(toolWebhook);
         when(obContext.getCurrentClient()).thenReturn(regularClient);
@@ -203,7 +203,7 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
      * Test on delete system admin success.
      */
     @Test
-    public void testOnDelete_SystemAdmin_Success() {
+    public void testOnDeleteSystemAdminSuccess() {
         // Given
         when(deleteEvent.getTargetInstance()).thenReturn(toolWebhook);
         when(obContext.getCurrentClient()).thenReturn(systemClient);
@@ -220,7 +220,7 @@ public class ToolWebhookAccessTest extends WeldBaseTest {
      * Test on delete non system admin throws exception.
      */
     @Test
-    public void testOnDelete_NonSystemAdmin_ThrowsException() {
+    public void testOnDeleteNonSystemAdminThrowsException() {
         // Given
         when(deleteEvent.getTargetInstance()).thenReturn(toolWebhook);
         when(obContext.getCurrentClient()).thenReturn(regularClient);
