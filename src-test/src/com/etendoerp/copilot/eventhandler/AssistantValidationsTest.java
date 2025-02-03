@@ -105,7 +105,7 @@ public class AssistantValidationsTest extends WeldBaseTest {
      * Test on update valid temperature.
      */
     @Test
-    public void testOnUpdate_ValidTemperature() {
+    public void testOnUpdateValidTemperature() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(new BigDecimal("1.5"));
 
@@ -120,7 +120,7 @@ public class AssistantValidationsTest extends WeldBaseTest {
      * Test on save valid temperature.
      */
     @Test
-    public void testOnSave_ValidTemperature() {
+    public void testOnSaveValidTemperature() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(new BigDecimal("1.0"));
 
@@ -135,7 +135,7 @@ public class AssistantValidationsTest extends WeldBaseTest {
      * Test on update null temperature.
      */
     @Test
-    public void testOnUpdate_NullTemperature() {
+    public void testOnUpdateNullTemperature() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(null);
 
@@ -150,7 +150,7 @@ public class AssistantValidationsTest extends WeldBaseTest {
      * Test on update temperature too high.
      */
     @Test
-    public void testOnUpdate_TemperatureTooHigh() {
+    public void testOnUpdateTemperatureTooHigh() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(new BigDecimal("2.1"));
         expectedException.expect(OBException.class);
@@ -164,7 +164,7 @@ public class AssistantValidationsTest extends WeldBaseTest {
      * Test on update temperature too low.
      */
     @Test
-    public void testOnUpdate_TemperatureTooLow() {
+    public void testOnUpdateTemperatureTooLow() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(new BigDecimal("-0.1"));
         expectedException.expect(OBException.class);
@@ -178,7 +178,7 @@ public class AssistantValidationsTest extends WeldBaseTest {
      * Test on save temperature too high.
      */
     @Test
-    public void testOnSave_TemperatureTooHigh() {
+    public void testOnSaveTemperatureTooHigh() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(new BigDecimal("2.1"));
         expectedException.expect(OBException.class);
@@ -192,7 +192,7 @@ public class AssistantValidationsTest extends WeldBaseTest {
      * Test on save temperature too low.
      */
     @Test
-    public void testOnSave_TemperatureTooLow() {
+    public void testOnSaveTemperatureTooLow() {
         // Given
         when(copilotApp.getTemperature()).thenReturn(new BigDecimal("-0.1"));
         expectedException.expect(OBException.class);

@@ -73,7 +73,7 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
      * Test sort hooks by priority empty hooks.
      */
     @Test
-    public void testSortHooksByPriority_EmptyHooks() {
+    public void testSortHooksByPriorityEmptyHooks() {
         // Given
         when(mockPromptHooks.iterator()).thenReturn(new ArrayList<OpenAIPromptHook>().iterator());
 
@@ -88,7 +88,7 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
      * Test sort hooks by priority multiple hooks.
      */
     @Test
-    public void testSortHooksByPriority_MultipleHooks() {
+    public void testSortHooksByPriorityMultipleHooks() {
         // Given
         OpenAIPromptHook hook1 = mock(OpenAIPromptHook.class);
         OpenAIPromptHook hook2 = mock(OpenAIPromptHook.class);
@@ -117,7 +117,7 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testExecuteHooks_NoHooks() throws Exception {
+    public void testExecuteHooksNoHooks() throws Exception {
         // Given
         when(mockPromptHooks.iterator()).thenReturn(new ArrayList<OpenAIPromptHook>().iterator());
 
@@ -134,7 +134,7 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testExecuteHooks_SingleHook() throws Exception {
+    public void testExecuteHooksSingleHook() throws Exception {
         // Given
         OpenAIPromptHook mockHook = mock(OpenAIPromptHook.class);
         when(mockHook.typeCheck(mockApp)).thenReturn(true);
@@ -156,7 +156,7 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testExecuteHooks_MultipleHooks() throws Exception {
+    public void testExecuteHooksMultipleHooks() throws Exception {
         // Given
         OpenAIPromptHook hook1 = mock(OpenAIPromptHook.class);
         OpenAIPromptHook hook2 = mock(OpenAIPromptHook.class);
@@ -190,7 +190,7 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testExecuteHooks_HookTypeCheckFails() throws Exception {
+    public void testExecuteHooksHookTypeCheckFails() throws Exception {
         // Given
         OpenAIPromptHook mockHook = mock(OpenAIPromptHook.class);
         when(mockHook.typeCheck(mockApp)).thenReturn(false);
@@ -211,7 +211,7 @@ public class OpenAIPromptHookManagerTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testExecuteHooks_ExceptionThrown() throws Exception {
+    public void testExecuteHooksExceptionThrown() throws Exception {
         // Given
         OpenAIPromptHook mockHook = mock(OpenAIPromptHook.class);
         when(mockHook.typeCheck(mockApp)).thenThrow(new OBException("Test Exception"));

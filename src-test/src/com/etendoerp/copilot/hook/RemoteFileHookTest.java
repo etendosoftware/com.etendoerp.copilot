@@ -109,7 +109,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
      * Test type check valid type.
      */
     @Test
-    public void testTypeCheck_ValidType() {
+    public void testTypeCheckValidType() {
         assertTrue(remoteFileHook.typeCheck("RF"));
     }
 
@@ -117,7 +117,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
      * Test type check invalid type.
      */
     @Test
-    public void testTypeCheck_InvalidType() {
+    public void testTypeCheckInvalidType() {
         assertFalse(remoteFileHook.typeCheck("INVALID"));
     }
 
@@ -127,7 +127,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testGetFinalName_WithCustomName() throws Exception {
+    public void testGetFinalNameWithCustomName() throws Exception {
         URL url = new URL(EXAMPLE_FILE_URL);
         String finalName = RemoteFileHook.getFinalName("custom", url);
         assertEquals(CUSTOM_TXT, finalName);
@@ -139,7 +139,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testGetFinalName_WithoutCustomName() throws Exception {
+    public void testGetFinalNameWithoutCustomName() throws Exception {
         URL url = new URL(EXAMPLE_FILE_URL);
         String finalName = RemoteFileHook.getFinalName("", url);
         assertEquals("example.txt", finalName);
@@ -151,7 +151,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testGetFinalName_CustomNameWithExtension() throws Exception {
+    public void testGetFinalNameCustomNameWithExtension() throws Exception {
         URL url = new URL(EXAMPLE_FILE_URL);
         String finalName = RemoteFileHook.getFinalName(CUSTOM_TXT, url);
         assertEquals(CUSTOM_TXT, finalName);
@@ -163,7 +163,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testExec_SuccessfulDownload() throws Exception {
+    public void testExecSuccessfulDownload() throws Exception {
         // Given
         String testUrl = EXAMPLE_FILE_URL;
         String fileName = "example.txt";
@@ -192,7 +192,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testExec_DownloadError() throws Exception {
+    public void testExecDownloadError() throws Exception {
         // Given
         String invalidUrl = "invalid://url";
         when(mockCopilotFile.getUrl()).thenReturn(invalidUrl);
@@ -216,7 +216,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDownloadFile_InvalidUrl() throws Exception {
+    public void testDownloadFileInvalidUrl() throws Exception {
         expectedException.expect(IOException.class);
         RemoteFileHook.downloadFile("invalid://url", "test.txt");
     }

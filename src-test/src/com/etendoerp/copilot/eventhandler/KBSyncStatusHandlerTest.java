@@ -123,7 +123,7 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update with changed properties.
      */
     @Test
-    public void testOnUpdate_WithChangedProperties() {
+    public void testOnUpdateWithChangedProperties() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
         when(fileEntity.getProperty(CopilotFile.PROPERTY_NAME)).thenReturn(property);
@@ -142,7 +142,7 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update without changed properties.
      */
     @Test
-    public void testOnUpdate_WithoutChangedProperties() {
+    public void testOnUpdateWithoutChangedProperties() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
         when(fileEntity.getProperty(anyString())).thenReturn(property);
@@ -161,7 +161,7 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
      * Test on delete success.
      */
     @Test
-    public void testOnDelete_Success() {
+    public void testOnDeleteSuccess() {
         // Given
         when(deleteEvent.getTargetInstance()).thenReturn(copilotFile);
         
@@ -177,7 +177,7 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
      * Test on save no action.
      */
     @Test
-    public void testOnSave_NoAction() {
+    public void testOnSaveNoAction() {
         // Given
         when(newEvent.getTargetInstance()).thenReturn(copilotFile);
         
@@ -193,7 +193,7 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update multiple properties.
      */
     @Test
-    public void testOnUpdate_MultipleProperties() {
+    public void testOnUpdateMultipleProperties() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
         when(fileEntity.getProperty(anyString())).thenReturn(property);
@@ -220,7 +220,7 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
      * Test on delete multiple app sources.
      */
     @Test
-    public void testOnDelete_MultipleAppSources() {
+    public void testOnDeleteMultipleAppSources() {
         // Given
         when(deleteEvent.getTargetInstance()).thenReturn(copilotFile);
         CopilotAppSource appSource2 = mock(CopilotAppSource.class);

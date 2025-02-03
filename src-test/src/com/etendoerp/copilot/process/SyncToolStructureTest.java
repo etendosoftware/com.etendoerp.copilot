@@ -144,7 +144,7 @@ public class SyncToolStructureTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_NoSelectedRecords() throws Exception {
+    public void testDoExecuteNoSelectedRecords() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         String content = new JSONObject().put(RECORD_IDS, new JSONArray()).toString();
@@ -174,7 +174,7 @@ public class SyncToolStructureTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_SuccessfulSync() throws Exception {
+    public void testDoExecuteSuccessfulSync() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONArray recordIds = new JSONArray();
@@ -222,7 +222,7 @@ public class SyncToolStructureTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_ConnectionError() throws Exception {
+    public void testDoExecuteConnectionError() throws Exception {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         JSONArray recordIds = new JSONArray();

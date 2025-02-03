@@ -123,7 +123,7 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
      * Test on update same client success.
      */
     @Test
-    public void testOnUpdate_SameClient_Success() {
+    public void testOnUpdateSameClientSuccess() {
         // Given
         String clientId = "100";
         when(updateEvent.getTargetInstance()).thenReturn(copilotAppTool);
@@ -143,7 +143,7 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
      * Test on update different client throws exception.
      */
     @Test
-    public void testOnUpdate_DifferentClient_ThrowsException() {
+    public void testOnUpdateDifferentClientThrowsException() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotAppTool);
         when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
@@ -165,7 +165,7 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
      * Test on save same client success.
      */
     @Test
-    public void testOnSave_SameClient_Success() {
+    public void testOnSaveSameClientSuccess() {
         // Given
         String clientId = "100";
         when(newEvent.getTargetInstance()).thenReturn(copilotAppTool);
@@ -185,7 +185,7 @@ public class ToolAddedToSystemAppTest extends WeldBaseTest {
      * Test on save different client throws exception.
      */
     @Test
-    public void testOnSave_DifferentClient_ThrowsException() {
+    public void testOnSaveDifferentClientThrowsException() {
         // Given
         when(newEvent.getTargetInstance()).thenReturn(copilotAppTool);
         when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);

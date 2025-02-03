@@ -149,7 +149,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_AllHostsSuccessful() throws Exception {
+    public void testDoExecuteAllHostsSuccessful() throws Exception {
         // Given
         Map<String, Object> params = new HashMap<>();
         String content = "";
@@ -178,7 +178,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_EtendoHostFailure() throws Exception {
+    public void testDoExecuteEtendoHostFailure() throws Exception {
         // Given
         Map<String, Object> params = new HashMap<>();
         String content = "";
@@ -204,7 +204,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_CopilotHostFailure() throws Exception {
+    public void testDoExecuteCopilotHostFailure() throws Exception {
         // Given
         Map<String, Object> params = new HashMap<>();
         String content = "";
@@ -232,7 +232,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
      * @throws Exception the exception
      */
     @Test
-    public void testDoExecute_NullToken() throws Exception {
+    public void testDoExecuteNullToken() throws Exception {
         // Given
         Map<String, Object> params = new HashMap<>();
         String content = "";

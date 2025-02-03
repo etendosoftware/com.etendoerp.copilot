@@ -83,7 +83,7 @@ public class TextFileHookTest extends WeldBaseTest {
      * Test type check valid type.
      */
     @Test
-    public void testTypeCheck_ValidType() {
+    public void testTypeCheckValidType() {
         assertTrue("Should return true for TXT type", textFileHook.typeCheck("TXT"));
     }
 
@@ -91,7 +91,7 @@ public class TextFileHookTest extends WeldBaseTest {
      * Test type check invalid type.
      */
     @Test
-    public void testTypeCheck_InvalidType() {
+    public void testTypeCheckInvalidType() {
         assertFalse("Should return false for non-TXT type", textFileHook.typeCheck("PDF"));
     }
 
@@ -99,7 +99,7 @@ public class TextFileHookTest extends WeldBaseTest {
      * Test exec with valid text and filename.
      */
     @Test
-    public void testExec_WithValidTextAndFilename() {
+    public void testExecWithValidTextAndFilename() {
         // Given
         String testFilename = "test.txt";
         
@@ -121,7 +121,7 @@ public class TextFileHookTest extends WeldBaseTest {
      * Test exec without filename.
      */
     @Test
-    public void testExec_WithoutFilename() {
+    public void testExecWithoutFilename() {
         // Given
         String testName = "test";
         
@@ -143,7 +143,7 @@ public class TextFileHookTest extends WeldBaseTest {
      * Test exec with null text.
      */
     @Test
-    public void testExec_WithNullText() {
+    public void testExecWithNullText() {
         // Given
         when(mockCopilotFile.getText()).thenReturn(null);
         when(mockCopilotFile.getName()).thenReturn("test");
@@ -158,7 +158,7 @@ public class TextFileHookTest extends WeldBaseTest {
      * Test exec with non txt extension.
      */
     @Test
-    public void testExec_WithNonTxtExtension() {
+    public void testExecWithNonTxtExtension() {
         // Given
         String testFilename = "test.pdf";
 

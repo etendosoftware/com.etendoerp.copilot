@@ -133,7 +133,7 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
      * Test on update valid copilot app tool same client.
      */
     @Test
-    public void testOnUpdate_ValidCopilotAppTool_SameClient() {
+    public void testOnUpdateValidCopilotAppToolSameClient() {
         // Given
         String clientId = "100";
         when(updateEvent.getTargetInstance()).thenReturn(copilotAppTool);
@@ -154,7 +154,7 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
      * Test on update valid team member same client.
      */
     @Test
-    public void testOnUpdate_ValidTeamMember_SameClient() {
+    public void testOnUpdateValidTeamMemberSameClient() {
         // Given
         String clientId = "100";
         when(updateEvent.getTargetInstance()).thenReturn(teamMember);
@@ -175,7 +175,7 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
      * Test on update different client throws exception.
      */
     @Test
-    public void testOnUpdate_DifferentClient_ThrowsException() {
+    public void testOnUpdateDifferentClientThrowsException() {
         // Given
         String currentClientId = "100";
         String differentClientId = "200";
@@ -202,7 +202,7 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
      * Test on save valid copilot app tool same client.
      */
     @Test
-    public void testOnSave_ValidCopilotAppTool_SameClient() {
+    public void testOnSaveValidCopilotAppToolSameClient() {
         // Given
         String clientId = "100";
         when(newEvent.getTargetInstance()).thenReturn(copilotAppTool);
@@ -223,7 +223,7 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
      * Test on delete valid copilot app tool same client.
      */
     @Test
-    public void testOnDelete_ValidCopilotAppTool_SameClient() {
+    public void testOnDeleteValidCopilotAppToolSameClient() {
         // Given
         String clientId = "100";
         when(deleteEvent.getTargetInstance()).thenReturn(copilotAppTool);
@@ -244,7 +244,7 @@ public class SkillToolViewHandlerTest extends WeldBaseTest {
      * Test on delete null client throws exception.
      */
     @Test
-    public void testOnDelete_NullClient_ThrowsException() {
+    public void testOnDeleteNullClientThrowsException() {
         // Given
         String clientId = "100";
         when(deleteEvent.getTargetInstance()).thenReturn(copilotAppTool);

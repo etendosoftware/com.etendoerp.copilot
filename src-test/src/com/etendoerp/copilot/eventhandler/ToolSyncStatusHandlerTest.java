@@ -114,7 +114,7 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update no property changes no status update.
      */
     @Test
-    public void testOnUpdate_NoPropertyChanges_NoStatusUpdate() {
+    public void testOnUpdateNoPropertyChangesNoStatusUpdate() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotTool);
         when(copilotTool.getEntity()).thenReturn(entity);
@@ -132,7 +132,7 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update property changed updates status.
      */
     @Test
-    public void testOnUpdate_PropertyChanged_UpdatesStatus() {
+    public void testOnUpdatePropertyChangedUpdatesStatus() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotTool);
         when(copilotTool.getEntity()).thenReturn(entity);
@@ -155,7 +155,7 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
      * Test on delete updates status.
      */
     @Test
-    public void testOnDelete_UpdatesStatus() {
+    public void testOnDeleteUpdatesStatus() {
         // Given
         when(deleteEvent.getTargetInstance()).thenReturn(copilotTool);
         List<CopilotAppTool> appTools = Arrays.asList(copilotAppTool);
@@ -174,7 +174,7 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update multiple apps updates all status.
      */
     @Test
-    public void testOnUpdate_MultipleApps_UpdatesAllStatus() {
+    public void testOnUpdateMultipleAppsUpdatesAllStatus() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotTool);
         when(copilotTool.getEntity()).thenReturn(entity);

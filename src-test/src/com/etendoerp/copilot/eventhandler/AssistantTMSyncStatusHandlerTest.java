@@ -122,7 +122,7 @@ public class AssistantTMSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update member changed.
      */
     @Test
-    public void testOnUpdate_MemberChanged() {
+    public void testOnUpdateMemberChanged() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(teamMember);
         when(updateEvent.getPreviousState(memberProperty)).thenReturn(previousUser);
@@ -143,7 +143,7 @@ public class AssistantTMSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update app changed.
      */
     @Test
-    public void testOnUpdate_AppChanged() {
+    public void testOnUpdateAppChanged() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(teamMember);
         when(updateEvent.getPreviousState(memberProperty)).thenReturn(previousUser);
@@ -164,7 +164,7 @@ public class AssistantTMSyncStatusHandlerTest extends WeldBaseTest {
      * Test on update no changes.
      */
     @Test
-    public void testOnUpdate_NoChanges() {
+    public void testOnUpdateNoChanges() {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(teamMember);
         when(updateEvent.getPreviousState(memberProperty)).thenReturn(previousUser);
