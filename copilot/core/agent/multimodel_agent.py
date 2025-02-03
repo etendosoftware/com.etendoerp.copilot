@@ -59,6 +59,17 @@ def get_model_config(provider, model):
     return provider_configs.get(model, {})
 
 
+def check_and_start_ollama(provider):
+    """
+    Check if the OLLAMA server is running and start it if it is not.
+
+    Args:
+        provider (str): The provider of the model.
+    """
+    if provider == "ollama":
+        etendo_utils.start_ollama_server()
+
+
 def get_llm(model, provider, temperature):
     """
     Initialize the language model with the given parameters.
@@ -73,6 +84,7 @@ def get_llm(model, provider, temperature):
         ChatModel: An initialized language model instance.
     """
     # Initialize the language model
+    check_and_start_ollama(provider)
     llm = init_chat_model(model_provider=provider, model=model, temperature=temperature, streaming=True)
     # Adjustments for specific models, because some models have different
     # default parameters

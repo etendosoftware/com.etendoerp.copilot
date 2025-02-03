@@ -1,0 +1,11 @@
+services:
+  copilot:
+    image: ollama/ollama
+    ports:
+    env_file: ".env"
+    volumes:
+      - ollama_models:/root/.ollama/models
+    networks:
+      - etendo
+volumes:
+  ollama_models:
