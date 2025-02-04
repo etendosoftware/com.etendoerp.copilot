@@ -314,7 +314,21 @@
         orders.push(selectedRecords[i].id);
       }
 
+      var isFormEditing = !!view.isShowingForm;
+
+      console.log("Is form editing?", isFormEditing);
+
+      var editedRecordContext = {};
+      if (isFormEditing && view.viewForm) {
+        editedRecordContext = view.viewForm.getValues();
+      }
+
       console.log("Selected orders:", orders);
+
+      console.log("Edited record context", editedRecordContext);
+
+      var grid = view.viewGrid,
+          selectedRecords = grid.getSelectedRecords();
 
       var selectedRecordsContext = selectedRecords.map(function (record) {
         return {
@@ -349,7 +363,9 @@
       OB.RemoteCallManager.call(
         'com.etendoerp.copilot.rest.CopilotContextActionHandler',
         {
-          orders: orders,
+          isFormEditing: isFormEditing,
+          editedRecordContext: editedRecordContext,
+          selectedRecordsContext: selectedRecordsContext,
           activeWindow: activeWindowInfo
         },
         {},
