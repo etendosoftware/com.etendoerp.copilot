@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -500,30 +501,48 @@ public class CopilotUtils {
     return replaceCopilotPromptVariables(sb.toString());
   }
 
+  public static String replaceCopilotPromptVariables(String string) {
+    try {
+      return replaceCopilotPromptVariables(string, new JSONObject());
+    } catch (JSONException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   /**
    * This method is used to replace a specific placeholder in a string with the host name of Etendo.
    * The placeholder is "@ETENDO_HOST@" and it is replaced with the value returned by the getEtendoHost() method.
    *
    * @param string
    *     The string in which the placeholder is to be replaced. It is expected to contain "@ETENDO_HOST@".
+   * @param maps
+   *     A JSONObject containing key-value pairs to replace in the string.
    * @return The string with the placeholder "@ETENDO_HOST@" replaced by the host name of Etendo.
    */
-  public static String replaceCopilotPromptVariables(String string) {
+  public static String replaceCopilotPromptVariables(String string, JSONObject maps) throws JSONException {
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
     stringParsed = StringUtils.replace(stringParsed, "@ETENDO_HOST_DOCKER@", getEtendoHostDocker());
+
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     stringParsed = StringUtils.replace(stringParsed, "@source.path@", getSourcesPath(properties));
 
-    //check the If exists something like {SOMETHING} and replace it with {{SOMETHING}}, preserving the content inside
-    Pattern pattern = Pattern.compile("\\{");
-    Matcher matcher = pattern.matcher(stringParsed);
-    stringParsed = matcher.replaceAll("\\{\\{");
-    pattern = Pattern.compile("\\}");
-    matcher = pattern.matcher(stringParsed);
-    stringParsed = matcher.replaceAll("\\}\\}");
-    // check that the result is correctly balanced
+    if (maps != null) {
+      Iterator<String> keys = maps.keys();
+      while (keys.hasNext()) {
+        String key = keys.next();
+        Object value = maps.get(key);
+        if (value instanceof String) {
+          stringParsed = StringUtils.replace(stringParsed, key, (String) value);
+        } else if (value instanceof Boolean) {
+          stringParsed = StringUtils.replace(stringParsed, key, value.toString());
+        }
+      }
+    }
+
+    stringParsed = stringParsed.replace("{", "{{").replace("}", "}}");
+
     if (StringUtils.countMatches(stringParsed, "{{") != StringUtils.countMatches(stringParsed, "}}")) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_BalancedBrackets")));
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_BalancedBrackets"));
     }
 
     return stringParsed;
