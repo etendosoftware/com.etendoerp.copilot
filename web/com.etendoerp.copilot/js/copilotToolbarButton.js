@@ -1,6 +1,6 @@
 (function () {
 
-  function openCopilotWindow(q, assistant_id) {
+  function openCopilotWindow(q, assistant_id, messageData) {
     if (!q) {
       q = '';
     } else {
@@ -13,7 +13,15 @@
       assistant_id = idRegex.test(assistant_id) ? assistant_id : '';
     }
 
-    var URL = `web/com.etendoerp.copilot.dist/?question=${q}&assistant_id=${assistant_id}`;
+    const windowId = messageData["@ACTIVE_WINDOW_ID@"];
+    const tabId = messageData["@ACTIVE_TAB_ID@"];
+    const windowTitle = messageData["@WINDOW_TITLE@"];
+    const isFormEditing = messageData["@IS_FORM_EDITING@"];
+    const selectedRecords = messageData["@SELECTED_RECORDS@"];
+    const message = messageData["message"];
+
+    var URL = `web/com.etendoerp.copilot.dist/?question=${q}&context_title=${windowTitle}&context_value=${message}&assistant_id=${assistant_id}&windowId=${windowId}&tabId=${tabId}&isFormEditing=${isFormEditing}&selectedRecords=${selectedRecords}`;
+
     var LIGHT_GRAY_COLOR = "#F2F5F9";
     var WINDOW_WIDTH = 425;
     var WINDOW_HEIGHT = 650;
@@ -297,14 +305,8 @@
     adjustMaximizeWindowPosition();
   }
 
-  // NOTE: The console.logs in this block are for development purposes only and will be removed 
-  // before the final release of the epic. They are used to debug and track the flow of data 
-  // during the implementation phase.
   var buttonProps = {
     action: function () {
-      console.log("Copilot button clicked");
-      openCopilotWindow(null, null);
-
       var callback, orders = [], i,
         view = this.view,
         grid = view.viewGrid,
@@ -316,19 +318,13 @@
 
       var isFormEditing = !!view.isShowingForm;
 
-      console.log("Is form editing?", isFormEditing);
-
       var editedRecordContext = {};
       if (isFormEditing && view.viewForm) {
         editedRecordContext = view.viewForm.getValues();
       }
 
-      console.log("Selected orders:", orders);
-
-      console.log("Edited record context", editedRecordContext);
-
       var grid = view.viewGrid,
-          selectedRecords = grid.getSelectedRecords();
+        selectedRecords = grid.getSelectedRecords();
 
       var selectedRecordsContext = selectedRecords.map(function (record) {
         return {
@@ -336,15 +332,9 @@
         };
       });
 
-      console.log("Selected records context", selectedRecordsContext);
-
       var currentWindowId = view.windowId;
       var currentTabId = view.tabId;
       var currentTabTitle = view.tabTitle;
-
-      console.log("Current window:", currentWindowId);
-      console.log("Current tab:", currentTabId);
-      console.log("Current tab title:", currentTabTitle);
 
       var activeWindowInfo = {
         windowId: currentWindowId,
@@ -352,12 +342,9 @@
         title: currentTabTitle
       };
 
-      console.log("Active window:", activeWindowInfo);
-
       callback = function (rpcResponse, data, rpcRequest) {
-        console.log("rpcResponse:", rpcResponse);
-        console.log("data:", data);
-        console.log("rpcRequest:", rpcRequest);
+        messageData = data;
+        openCopilotWindow(null, null, messageData);
       };
 
       OB.RemoteCallManager.call(
