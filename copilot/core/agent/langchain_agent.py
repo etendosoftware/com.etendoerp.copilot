@@ -13,6 +13,7 @@ from langchain.agents import (
     create_openai_functions_agent,
 )
 from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
+from langchain.chat_models import init_chat_model
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.runnables import AddableDict
@@ -87,7 +88,9 @@ class LangchainAgent(CopilotAgent):
     def get_openai_agent(
         self, open_ai_model, tools, system_prompt, temperature=1, kb_vectordb_id: Optional[str] = None
     ):
-        _llm = ChatOpenAI(temperature=temperature, streaming=False, model_name=open_ai_model)
+        _llm = init_chat_model(
+            temperature=temperature, model_provider="openai", model=open_ai_model, streaming=False
+        )
         _enabled_tools = self.get_functions(tools)
 
         kb_tool = get_kb_tool(kb_vectordb_id)

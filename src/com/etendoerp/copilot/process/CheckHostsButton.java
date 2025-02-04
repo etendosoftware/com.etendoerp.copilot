@@ -23,6 +23,8 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.access.User;
+import org.openbravo.model.common.enterprise.Organization;
+import org.openbravo.model.common.enterprise.Warehouse;
 
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
@@ -55,7 +57,7 @@ public class CheckHostsButton extends BaseProcessActionHandler {
   protected JSONObject doExecute(Map<String, Object> parameters, String content) {
     JSONObject checks;
     try {
-      String token = getSecurityToken();
+      String token = CopilotUtils.generateEtendoToken();
       if (token == null) {
         log4j.error("Token is null. Unable to proceed with host checks.");
         throw new OBException("Error when generating token.");
@@ -69,20 +71,7 @@ public class CheckHostsButton extends BaseProcessActionHandler {
     return checks;
   }
 
-  /**
-   * Generates a security token based on the current user's role and credentials.
-   *
-   * @return A string representing the generated token.
-   * @throws Exception
-   *     If there is an error generating the token.
-   */
-  private static String getSecurityToken() throws Exception {
-    OBContext context = OBContext.getOBContext();
-    Role role = OBDal.getInstance().get(Role.class, context.getRole().getId());
-    User user = OBDal.getInstance().get(User.class, context.getUser().getId());
 
-    return SecureWebServicesUtils.generateToken(user, role);
-  }
 
   /**
    * Checks the Etendo host connectivity and configuration.
