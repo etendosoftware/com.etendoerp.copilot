@@ -2,6 +2,7 @@ package com.etendoerp.copilot.rest;
 
 import java.util.Map;
 
+import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONObject;
 import org.codehaus.jettison.json.JSONArray;
 import org.openbravo.base.exception.OBException;
@@ -50,9 +51,9 @@ public class CopilotContextActionHandler extends BaseActionHandler {
       JSONArray selectedRecordsContext = requestJson.optJSONArray(JSON_SELECTED_RECORDS_CONTEXT);
 
       // Extract window and tab information
-      String windowId = activeWindow != null ? activeWindow.optString(JSON_WINDOW_ID, "") : "";
-      String tabId = activeWindow != null ? activeWindow.optString(JSON_TAB_ID, "") : "";
-      String windowTitle = activeWindow != null ? activeWindow.optString(JSON_TITLE, "") : "";
+      String windowId = activeWindow != null ? activeWindow.optString(JSON_WINDOW_ID, StringUtils.EMPTY) : StringUtils.EMPTY;
+      String tabId = activeWindow != null ? activeWindow.optString(JSON_TAB_ID, StringUtils.EMPTY) : StringUtils.EMPTY;
+      String windowTitle = activeWindow != null ? activeWindow.optString(JSON_TITLE, StringUtils.EMPTY) : StringUtils.EMPTY;
 
       // Build selected records information
       StringBuilder recordsInfo = new StringBuilder();
@@ -60,7 +61,7 @@ public class CopilotContextActionHandler extends BaseActionHandler {
         for (int i = 0; i < selectedRecordsContext.length(); i++) {
           JSONObject row = selectedRecordsContext.optJSONObject(i);
           if (row != null) {
-            recordsInfo.append("ID: ").append(row.optString(JSON_ID, "")).append(" ");
+            recordsInfo.append("ID: ").append(row.optString(JSON_ID, StringUtils.EMPTY)).append(" ");
           }
         }
       }

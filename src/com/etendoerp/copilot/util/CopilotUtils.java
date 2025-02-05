@@ -28,13 +28,13 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.text.StrSubstitutor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
@@ -527,16 +527,17 @@ public class CopilotUtils {
     stringParsed = StringUtils.replace(stringParsed, "@source.path@", getSourcesPath(properties));
 
     if (maps != null) {
+      Map<String, String> replacements = new HashMap<>();
       Iterator<String> keys = maps.keys();
       while (keys.hasNext()) {
         String key = keys.next();
         Object value = maps.get(key);
-        if (value instanceof String) {
-          stringParsed = StringUtils.replace(stringParsed, key, (String) value);
-        } else if (value instanceof Boolean) {
-          stringParsed = StringUtils.replace(stringParsed, key, value.toString());
+        if (value instanceof String || value instanceof Boolean) {
+          replacements.put(key, value.toString());
         }
       }
+      StrSubstitutor sub = new StrSubstitutor(replacements);
+      stringParsed = sub.replace(stringParsed);
     }
 
     stringParsed = stringParsed.replace("{", "{{").replace("}", "}}");
