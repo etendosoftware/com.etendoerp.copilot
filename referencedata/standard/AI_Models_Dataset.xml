@@ -2,109 +2,169 @@
   <ETCOP_Openai_Model id="1C41DBB5EE41464CAE60FA0A10C58235" identifier="llama3.2:3b">
     <id>1C41DBB5EE41464CAE60FA0A10C58235</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.848Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.852Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>llama3.2:3b</searchkey>
     <name>llama3.2:3b</name>
-    <provider xsi:nil="true"/>
+    <provider/>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="40CCA5DABA8F4798AD4CEDC3D1BAE5E0" identifier="openai - gpt-4-turbo-preview">
     <id>40CCA5DABA8F4798AD4CEDC3D1BAE5E0</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.869Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.869Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>gpt-4-turbo-preview</searchkey>
     <name>gpt-4-turbo-preview</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="50101612148143A4B845E4EA713D245D" identifier="openai - o1-preview">
     <id>50101612148143A4B845E4EA713D245D</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.873Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.873Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>o1-preview</searchkey>
     <name>o1-preview</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="66226A87D9EA4A0F919698FC64758D40" identifier="openai - gpt-4">
     <id>66226A87D9EA4A0F919698FC64758D40</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.878Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.878Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>gpt-4</searchkey>
     <name>gpt-4</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="92BD07A240B848B985594613087463D7" identifier="openai - chatgpt-4o-latest">
     <id>92BD07A240B848B985594613087463D7</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.882Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.882Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>chatgpt-4o-latest</searchkey>
     <name>chatgpt-4o-latest</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="979B24A88E60465EACC04D73F5338CAF" identifier="openai - o1-mini">
     <id>979B24A88E60465EACC04D73F5338CAF</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.885Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.885Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>o1-mini</searchkey>
     <name>o1-mini</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="993AE25103C9424DA545F463AD22BBB8" identifier="openai - gpt-4o">
     <id>993AE25103C9424DA545F463AD22BBB8</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.893Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.894Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>gpt-4o</searchkey>
     <name>gpt-4o</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>true</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="B33E0814E9A54901ADCB2AA6FC79D8AE" identifier="anthropic -  claude-3-5-sonnet-latest">
     <id>B33E0814E9A54901ADCB2AA6FC79D8AE</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.907Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.907Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey> claude-3-5-sonnet-latest</searchkey>
     <name>claude-3-5-sonnet-latest</name>
     <provider>anthropic</provider>
     <maxTokens>8000</maxTokens>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="CDA175DD1D0C42E1BF24BD0BD9E6DB32" identifier="anthropic - claude-3-5-haiku-latest">
     <id>CDA175DD1D0C42E1BF24BD0BD9E6DB32</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.913Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.913Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>claude-3-5-haiku-latest</searchkey>
     <name>claude-3-5-haiku-latest</name>
     <provider>anthropic</provider>
     <maxTokens>8000</maxTokens>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="E38BBB2048404E4F8E84B79DED84E887" identifier="openai - gpt-4o-mini">
     <id>E38BBB2048404E4F8E84B79DED84E887</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.917Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.917Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>gpt-4o-mini</searchkey>
     <name>gpt-4o-mini</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="F7D7509D94CF40F5AEEA48AC0178BC52" identifier="openai - o1">
     <id>F7D7509D94CF40F5AEEA48AC0178BC52</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.920Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.921Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>o1</searchkey>
     <name>o1</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="FDE9756B52FC4A57883CCA5F09C3BAF2" identifier="openai - gpt-4-turbo">
     <id>FDE9756B52FC4A57883CCA5F09C3BAF2</id>
     <active>true</active>
+    <creationDate transient="true">2025-01-29T11:37:44.925Z</creationDate>
+    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
+    <updated transient="true">2025-01-29T11:37:44.925Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>gpt-4-turbo</searchkey>
     <name>gpt-4-turbo</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
+    <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
 </ob:Openbravo>
