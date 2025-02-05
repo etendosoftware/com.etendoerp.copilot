@@ -27,6 +27,20 @@
     <default>false</default>
     <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
+  <ETCOP_Openai_Model id="45BCAC21A2CC45C390501F9345C3A6E2" identifier="openai - gpt-4o-2024-11-20">
+    <id>45BCAC21A2CC45C390501F9345C3A6E2</id>
+    <active>true</active>
+    <creationDate transient="true">2025-02-05T09:38:51.507Z</creationDate>
+    <createdBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
+    <updated transient="true">2025-02-05T09:38:54.938Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
+    <searchkey>gpt-4o-2024-11-20</searchkey>
+    <name>gpt-4o-2024-11-20</name>
+    <provider>openai</provider>
+    <maxTokens xsi:nil="true"/>
+    <default>true</default>
+    <syncmodels>false</syncmodels>
+  </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="50101612148143A4B845E4EA713D245D" identifier="openai - o1-preview">
     <id>50101612148143A4B845E4EA713D245D</id>
     <active>true</active>
@@ -50,20 +64,6 @@
     <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>gpt-4</searchkey>
     <name>gpt-4</name>
-    <provider>openai</provider>
-    <maxTokens xsi:nil="true"/>
-    <default>false</default>
-    <syncmodels>false</syncmodels>
-  </ETCOP_Openai_Model>
-  <ETCOP_Openai_Model id="92BD07A240B848B985594613087463D7" identifier="openai - chatgpt-4o-latest">
-    <id>92BD07A240B848B985594613087463D7</id>
-    <active>true</active>
-    <creationDate transient="true">2025-01-29T11:37:44.882Z</creationDate>
-    <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
-    <updated transient="true">2025-01-29T11:37:44.882Z</updated>
-    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
-    <searchkey>chatgpt-4o-latest</searchkey>
-    <name>chatgpt-4o-latest</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
@@ -94,7 +94,7 @@
     <name>gpt-4o</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
-    <default>true</default>
+    <default>false</default>
     <syncmodels>false</syncmodels>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="B33E0814E9A54901ADCB2AA6FC79D8AE" identifier="anthropic -  claude-3-5-sonnet-latest">
