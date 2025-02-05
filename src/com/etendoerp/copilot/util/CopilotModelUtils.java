@@ -52,41 +52,30 @@ public class CopilotModelUtils {
    *
    * @param provider
    *     The provider to filter the CopilotModel by.
-   * @param onlyOverrided
-   *     A boolean indicating whether to filter by the default override property.
    * @return The default CopilotModel for the given provider.
    */
-  static CopilotModel getDefaultModel(String provider, boolean onlyOverrided) {
-    CopilotModel result = getOverridedDefault(provider);
-    if (result != null) {
-      return result;
-    }
+  static CopilotModel getDefaultModel(String provider) {
+    CopilotModel result = null;
     OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
     if (StringUtils.isNotEmpty(provider)) {
       modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, provider));
     }
-    if (onlyOverrided) {
-      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_DEFAULTOVERRIDE, true));
-    } else {
-      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true));
-    }
+    modelCriteria.add(Restrictions.or(
+        Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true),
+        Restrictions.eq(CopilotModel.PROPERTY_DEFAULTOVERRIDE, true))
+    );
     modelCriteria.addOrderBy(CopilotModel.PROPERTY_CREATIONDATE, true);
-    result = (CopilotModel) modelCriteria.setMaxResults(1).uniqueResult();
+
+    List<CopilotModel> mdList = modelCriteria.list();
+    //search the first with "default override" true
+    result = mdList.stream().filter(CopilotModel::isDefaultOverride).findFirst().orElse(null);
+    if (result == null) {
+      //search the first with "default" true
+      result = mdList.stream().filter(CopilotModel::isDefault).findFirst().orElse(null);
+    }
     return result;
   }
 
-  /**
-   * Retrieves the overridden default CopilotModel based on the provided provider.
-   * <p>
-   * This method calls the getDefaultModel method with the onlyOverrided parameter set to true.
-   *
-   * @param provider
-   *     The provider to filter the CopilotModel by.
-   * @return The overridden default CopilotModel for the given provider.
-   */
-  private static CopilotModel getOverridedDefault(String provider) {
-    return getDefaultModel(provider, true);
-  }
 
   /**
    * Synchronizes the models by downloading the dataset file and updating the models in the database.
@@ -283,7 +272,7 @@ public class CopilotModelUtils {
       if (model != null && model.getSearchkey() != null) {
         return model.getSearchkey();
       }
-      model = getDefaultModel(provider, false);
+      model = getDefaultModel(provider);
       return model.getSearchkey();
     } catch (Exception e) {
       throw new OBException(e.getMessage());
