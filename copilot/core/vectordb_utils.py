@@ -25,9 +25,11 @@ def get_embedding():
 
 
 def get_vector_db_path(vector_db_id):
-    copilot_debug(
-        f"Retrieving vector db path for {vector_db_id}, the current working directory is {os.getcwd()}"
-    )
+    try:
+        cwd = os.getcwd()
+    except Exception:
+        cwd = "unknown"
+    copilot_debug(f"Retrieving vector db path for {vector_db_id}, the current working directory is {cwd}")
     # check if exists /app
     if os.path.exists("/app"):
         vectordb_folder = "/app/vectordbs"

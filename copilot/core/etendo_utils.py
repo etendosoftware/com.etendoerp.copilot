@@ -131,3 +131,19 @@ def login_etendo(server_url, client_admin_user, client_admin_password):
         return response.json().get("token")
     else:
         raise ToolException(f"Error logging in to Etendo: {response.text}")
+
+
+def start_ollama_server():
+    """
+    Starts the OLLAMA server.
+    """
+    import subprocess
+
+    copilot_debug("Checking if OLLAMA server is running...")
+    # Exec ollama serve in cmd to start the server, using & to run in background
+    r = subprocess.Popen(["cmd", "/c", "ollama", "serve", "&"], shell=True)
+    # IF RETURN An error, it means that the server is already running, inform the user
+    if r.returncode != 0:
+        copilot_debug("OLLAMA server is already running.")
+    else:
+        copilot_debug("OLLAMA server started.")

@@ -333,6 +333,10 @@ def isCopilotDockerized() {
     return project.hasProperty("docker_com.etendoerp.copilot") && project.property("docker_com.etendoerp.copilot").toBoolean()
 }
 
+def isOllamaInDocker() {
+    return project.hasProperty("docker_com.etendoerp.copilot.ollama") && project.property("docker_com.etendoerp.copilot.ollama").toBoolean()
+}
+
 static def getDefaultEtendoHost(boolean tomcatEnabled, String strTomcatPort) {
     def tomcatToTomcat = tomcatEnabled ? "tomcat" : "localhost"
     return "http://${tomcatToTomcat}:${strTomcatPort}"
@@ -354,6 +358,14 @@ static def getDefaultCopilotHost(boolean tomcatEnabled, boolean copilotEnabled) 
     return tomcatToCopilot
 }
 
+static def getDefaultOllamaHost(boolean copilotEnabled, boolean ollamaEnabled) {
+    def copilotToOllama = "localhost"
+    if (copilotEnabled) {
+        copilotToOllama = ollamaEnabled ? "ollama" : "host.docker.internal"
+    }
+    return copilotToOllama
+}
+
 
 task 'copilot.env.file' {
     description = 'Generates the .env file for copilot'
@@ -370,6 +382,7 @@ task 'copilot.env.file' {
 
         def tomcatEnabled = isTomcatDockerized()
         def copilotEnabled = isCopilotDockerized()
+        def ollamaEnabled = isOllamaInDocker()
 
         def etendoHost = project.hasProperty("ETENDO_HOST") ? project.property("ETENDO_HOST").toString() : getDefaultEtendoHost(tomcatEnabled, strTomcatPort)
         def etendoHostDocker = project.hasProperty("ETENDO_HOST_DOCKER") ? project.property("ETENDO_HOST_DOCKER").toString() : getDefaultEtendoHostDocker(tomcatEnabled, copilotEnabled, strTomcatPort)
@@ -378,7 +391,8 @@ task 'copilot.env.file' {
         def copilotPortDebug = project.hasProperty("COPILOT_PORT_DEBUG") ? project.property("COPILOT_PORT_DEBUG").toString() : "5100"
         def copilotImageTag = project.hasProperty("COPILOT_IMAGE_TAG") ? project.property("COPILOT_IMAGE_TAG").toString() : "master"
         def copilotPullImage = project.hasProperty("COPILOT_PULL_IMAGE") ? project.property("COPILOT_PULL_IMAGE").toString() : "true"
-
+        def copilotOllamaHost= project.hasProperty("COPILOT_OLLAMA_HOST") ? project.property("COPILOT_OLLAMA_HOST").toString() : getDefaultOllamaHost(copilotEnabled, ollamaEnabled)
+        def copilotOllamaPort= project.hasProperty("COPILOT_OLLAMA_PORT") ? project.property("COPILOT_OLLAMA_PORT").toString() : "11434"
         env.withWriterAppend { writer ->
             writer.write("ETENDO_HOST=${etendoHost}\n")
             println "Writing ETENDO_HOST=${etendoHost}"
@@ -400,6 +414,12 @@ task 'copilot.env.file' {
 
             writer.write("COPILOT_PULL_IMAGE=${copilotPullImage}\n")
             println "Writing COPILOT_PULL_IMAGE=${copilotPullImage}"
+
+            writer.write("COPILOT_OLLAMA_HOST=${copilotOllamaHost}\n")
+            println "Writing COPILOT_OLLAMA_HOST=${copilotOllamaHost}"
+
+            writer.write("COPILOT_OLLAMA_PORT=${copilotOllamaPort}\n")
+            println "Writing COPILOT_OLLAMA_PORT=${copilotOllamaPort}"
 
         }
     }
