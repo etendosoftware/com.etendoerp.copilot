@@ -20,32 +20,43 @@
     const selectedRecords = messageData["@SELECTED_RECORDS@"];
     const message = messageData["message"];
 
-    var URL = `web/com.etendoerp.copilot.dist/?question=${q}&context_title=${windowTitle}&context_value=${message}&assistant_id=${assistant_id}&windowId=${windowId}&tabId=${tabId}&isFormEditing=${isFormEditing}&selectedRecords=${selectedRecords}`;
+    const params = new URLSearchParams({
+      question: q,
+      context_title: windowTitle,
+      context_value: message,
+      assistant_id: assistant_id,
+      windowId: windowId,
+      tabId: tabId,
+      isFormEditing: isFormEditing,
+      selectedRecords: selectedRecords
+    });
 
-    var LIGHT_GRAY_COLOR = "#F2F5F9";
-    var WINDOW_WIDTH = 425;
-    var WINDOW_HEIGHT = 650;
-    var MAXIMIZED_WINDOW_HEIGHT = 650;
-    var MAXIMIZED_WINDOW_WIDTH = 425;
-    var MINIMIZED_WINDOW_HEIGHT = 55;
-    var MINIMIZED_WINDOW_WIDTH = 131;
-    var MARGIN_CONTAINER_HORIZONTAL = 1;
-    var MARGIN_CONTAINER_VERTICAL = 6;
-    var MARGIN_CONTAINER_FULL_SCREEN = 12;
-    var MARGIN_CONTAINER_FULL_SCREEN_HORIZONTAL = 13;
-    var MARGIN_CONTAINER_FULL_SCREEN_VERTICAL = 18;
+    const URL = `web/com.etendoerp.copilot.dist/?${params.toString()}`;
+
+    const LIGHT_GRAY_COLOR = "#F2F5F9";
+    const WINDOW_WIDTH = 425;
+    const WINDOW_HEIGHT = 650;
+    const MAXIMIZED_WINDOW_HEIGHT = 650;
+    const MAXIMIZED_WINDOW_WIDTH = 425;
+    const MINIMIZED_WINDOW_HEIGHT = 55;
+    const MINIMIZED_WINDOW_WIDTH = 131;
+    const MARGIN_CONTAINER_HORIZONTAL = 1;
+    const MARGIN_CONTAINER_VERTICAL = 6;
+    const MARGIN_CONTAINER_FULL_SCREEN = 12;
+    const MARGIN_CONTAINER_FULL_SCREEN_HORIZONTAL = 13;
+    const MARGIN_CONTAINER_FULL_SCREEN_VERTICAL = 18;
 
     function adjustFullScreenWindowPosition() {
-      var header = document.getElementById('chatHeader');
+      const header = document.getElementById('chatHeader');
       if (header) {
         header.style.backgroundColor = '#F2F5F9';
       }
-      var reactIframe = document.getElementById('react-iframe');
-      var reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
+      const reactIframe = document.getElementById('react-iframe');
+      const reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
       if (reactDoc) {
-        var iframeSelector = reactDoc.getElementById('iframe-selector');
-        var iframeContainer = reactDoc.getElementById('iframe-container');
-        var assistantTitle = reactDoc.getElementById('assistant-title');
+        const iframeSelector = reactDoc.getElementById('iframe-selector');
+        const iframeContainer = reactDoc.getElementById('iframe-container');
+        const assistantTitle = reactDoc.getElementById('assistant-title');
         if (assistantTitle) {
           assistantTitle.style.display = 'flex';
         }
@@ -54,7 +65,7 @@
           iframeContainer.classList.add("iframe-container-full-screen");
         }
       }
-      var imgElement = document.getElementById('maximizeIcon');
+      const imgElement = document.getElementById('maximizeIcon');
       if (imgElement) {
         imgElement.src = "web/images/maximize-2.svg";
       }
@@ -65,21 +76,21 @@
     }
 
     function adjustMinimizeWindowPosition() {
-      var widget = document.querySelector('.widgetContainer');
+      const widget = document.querySelector('.widgetContainer');
       if (widget) {
         widget.style.setProperty('border', '0px solid #666', 'important');
       }
-      var body = document.getElementById('chatBody');
+      const body = document.getElementById('chatBody');
       if (body) {
         body.style.display = 'none';
       }
-      var button = document.getElementById('button-minimize');
+      const button = document.getElementById('button-minimize');
       if (button) {
         button.style.display = 'flex';
       }
       window.copilotWindow.setHeight(MINIMIZED_WINDOW_HEIGHT);
-      var newLeft = Math.max(0, isc.Page.getWidth() - MINIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
-      var newTop = Math.max(0, isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
+      const newLeft = Math.max(0, isc.Page.getWidth() - MINIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
+      const newTop = Math.max(0, isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
       window.copilotWindow.setLeft(newLeft);
       window.copilotWindow.setTop(newTop);
       window.copilotWindow.setWidth(MINIMIZED_WINDOW_WIDTH);
@@ -87,22 +98,22 @@
     }
 
     function adjustMaximizeWindowPosition() {
-      var header = document.getElementById('chatHeader');
+      const header = document.getElementById('chatHeader');
       if (header) {
         header.style.backgroundColor = '#FFFFFF';
       }
-      var widget = document.querySelector('.widgetContainer');
+      const widget = document.querySelector('.widgetContainer');
       if (widget) {
         widget.style.setProperty('margin', '0px', 'important');
         widget.style.setProperty('border', '1px solid #666', 'important');
       }
 
-      var reactIframe = document.getElementById('react-iframe');
-      var reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
+      const reactIframe = document.getElementById('react-iframe');
+      const reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
       if (reactDoc) {
-        var iframeSelector = reactDoc.getElementById('iframe-selector');
-        var iframeContainer = reactDoc.getElementById('iframe-container');
-        var assistantTitle = reactDoc.getElementById('assistant-title');
+        const iframeSelector = reactDoc.getElementById('iframe-selector');
+        const iframeContainer = reactDoc.getElementById('iframe-container');
+        const assistantTitle = reactDoc.getElementById('assistant-title');
         if (assistantTitle) {
           assistantTitle.style.display = 'none';
         }
@@ -111,15 +122,15 @@
           iframeContainer.classList.remove("iframe-container-full-screen");
         }
       }
-      var body = document.getElementById('chatBody');
+      const body = document.getElementById('chatBody');
       if (body) {
         body.style.display = 'flex';
       }
-      var imgElement = document.getElementById('maximizeIcon');
+      const imgElement = document.getElementById('maximizeIcon');
       if (imgElement) {
         imgElement.src = "web/images/maximize.svg";
       }
-      var button = document.getElementById('button-minimize');
+      const button = document.getElementById('button-minimize');
       if (button) {
         button.style.display = 'none';
       }
@@ -130,8 +141,8 @@
       window.copilotWindow.setWidth(MAXIMIZED_WINDOW_WIDTH);
       window.copilotWindow.setHeight(MAXIMIZED_WINDOW_HEIGHT);
 
-      var newLeft = Math.max(0, isc.Page.getWidth() - MAXIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
-      var newTop = Math.max(0, isc.Page.getHeight() - MAXIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
+      const newLeft = Math.max(0, isc.Page.getWidth() - MAXIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
+      const newTop = Math.max(0, isc.Page.getHeight() - MAXIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
       window.copilotWindow.setLeft(newLeft);
       window.copilotWindow.setTop(newTop);
     }
@@ -305,9 +316,9 @@
     adjustMaximizeWindowPosition();
   }
 
-  var buttonProps = {
+  const buttonProps = {
     action: function () {
-      var callback, orders = [], i,
+      let callback, orders = [], i,
         view = this.view,
         grid = view.viewGrid,
         selectedRecords = grid.getSelectedRecords();
@@ -316,27 +327,27 @@
         orders.push(selectedRecords[i].id);
       }
 
-      var isFormEditing = !!view.isShowingForm;
+      const isFormEditing = !!view.isShowingForm;
 
-      var editedRecordContext = {};
+      const editedRecordContext = {};
       if (isFormEditing && view.viewForm) {
         editedRecordContext = view.viewForm.getValues();
       }
 
-      var grid = view.viewGrid,
+      grid = view.viewGrid,
         selectedRecords = grid.getSelectedRecords();
 
-      var selectedRecordsContext = selectedRecords.map(function (record) {
+      const selectedRecordsContext = selectedRecords.map(function (record) {
         return {
           id: record.id,
         };
       });
 
-      var currentWindowId = view.windowId;
-      var currentTabId = view.tabId;
-      var currentTabTitle = view.tabTitle;
+      const currentWindowId = view.windowId;
+      const currentTabId = view.tabId;
+      const currentTabTitle = view.tabTitle;
 
-      var activeWindowInfo = {
+      const activeWindowInfo = {
         windowId: currentWindowId,
         tabId: currentTabId,
         title: currentTabTitle

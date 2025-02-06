@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import TextMessage from 'etendo-ui-library/dist-web/components/text-message/TextMessage';
 import FileSearchInput from 'etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput';
 import { useAssistants } from './hooks/useAssistants';
@@ -22,7 +22,7 @@ function App() {
   const search = window.location.search;
 
   // Query parameters
-  const params = new URLSearchParams(search);
+  const params = useMemo(() => new URLSearchParams(search), [search]);
   const contextValue = params.get("context_value");
   const [inputValue, setInputValue] = useState<string>(params.get("question") ?? '');
   const [contextTitle, setContextTitle] = useState<string | null>(params.get("context_title"));

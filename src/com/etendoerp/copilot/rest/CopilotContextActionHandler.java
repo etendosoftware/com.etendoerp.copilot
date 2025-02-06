@@ -25,6 +25,7 @@ public class CopilotContextActionHandler extends BaseActionHandler {
   private static final String JSON_TAB_ID = "tabId";
   private static final String JSON_TITLE = "title";
   private static final String JSON_ID = "id";
+  private static final String RECORD_ID_LABEL = "ID: ";
   private static final String RESPONSE_ACTIVE_WINDOW_ID = "@ACTIVE_WINDOW_ID@";
   private static final String RESPONSE_ACTIVE_TAB_ID = "@ACTIVE_TAB_ID@";
   private static final String RESPONSE_WINDOW_TITLE = "@WINDOW_TITLE@";
@@ -63,7 +64,7 @@ public class CopilotContextActionHandler extends BaseActionHandler {
         for (int i = 0; i < selectedRecordsContext.length(); i++) {
           JSONObject row = selectedRecordsContext.optJSONObject(i);
           if (row != null) {
-            recordsInfo.append("ID: ").append(row.optString(JSON_ID, StringUtils.EMPTY)).append(" ");
+            recordsInfo.append(RECORD_ID_LABEL).append(row.optString(JSON_ID, StringUtils.EMPTY)).append(" ");
           }
         }
       }
