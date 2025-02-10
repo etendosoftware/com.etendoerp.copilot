@@ -9,18 +9,18 @@
     if (!assistant_id) {
       assistant_id = '';
     } else {
-      const idRegex = /^[A-Fa-f0-9]{32}$/;
+      let idRegex = /^[A-Fa-f0-9]{32}$/;
       assistant_id = idRegex.test(assistant_id) ? assistant_id : '';
     }
 
-    const windowId = messageData["@ACTIVE_WINDOW_ID@"];
-    const tabId = messageData["@ACTIVE_TAB_ID@"];
-    const windowTitle = messageData["@WINDOW_TITLE@"];
-    const isFormEditing = messageData["@IS_FORM_EDITING@"];
-    const selectedRecords = messageData["@SELECTED_RECORDS@"];
-    const message = messageData["message"];
+    let windowId = messageData["@ACTIVE_WINDOW_ID@"];
+    let tabId = messageData["@ACTIVE_TAB_ID@"];
+    let windowTitle = messageData["@WINDOW_TITLE@"];
+    let isFormEditing = messageData["@IS_FORM_EDITING@"];
+    let selectedRecords = messageData["@SELECTED_RECORDS@"];
+    let message = messageData["message"];
 
-    const params = new URLSearchParams({
+    let params = new URLSearchParams({
       question: q,
       context_title: windowTitle,
       context_value: message,
@@ -31,32 +31,32 @@
       selectedRecords: selectedRecords
     });
 
-    const URL = `web/com.etendoerp.copilot.dist/?${params.toString()}`;
+    let URL = `web/com.etendoerp.copilot.dist/?${params.toString()}`;
 
-    const LIGHT_GRAY_COLOR = "#F2F5F9";
-    const WINDOW_WIDTH = 425;
-    const WINDOW_HEIGHT = 650;
-    const MAXIMIZED_WINDOW_HEIGHT = 650;
-    const MAXIMIZED_WINDOW_WIDTH = 425;
-    const MINIMIZED_WINDOW_HEIGHT = 55;
-    const MINIMIZED_WINDOW_WIDTH = 131;
-    const MARGIN_CONTAINER_HORIZONTAL = 1;
-    const MARGIN_CONTAINER_VERTICAL = 6;
-    const MARGIN_CONTAINER_FULL_SCREEN = 12;
-    const MARGIN_CONTAINER_FULL_SCREEN_HORIZONTAL = 13;
-    const MARGIN_CONTAINER_FULL_SCREEN_VERTICAL = 18;
+    let LIGHT_GRAY_COLOR = "#F2F5F9";
+    let WINDOW_WIDTH = 425;
+    let WINDOW_HEIGHT = 650;
+    let MAXIMIZED_WINDOW_HEIGHT = 650;
+    let MAXIMIZED_WINDOW_WIDTH = 425;
+    let MINIMIZED_WINDOW_HEIGHT = 55;
+    let MINIMIZED_WINDOW_WIDTH = 131;
+    let MARGIN_CONTAINER_HORIZONTAL = 1;
+    let MARGIN_CONTAINER_VERTICAL = 6;
+    let MARGIN_CONTAINER_FULL_SCREEN = 12;
+    let MARGIN_CONTAINER_FULL_SCREEN_HORIZONTAL = 13;
+    let MARGIN_CONTAINER_FULL_SCREEN_VERTICAL = 18;
 
     function adjustFullScreenWindowPosition() {
-      const header = document.getElementById('chatHeader');
+      let header = document.getElementById('chatHeader');
       if (header) {
         header.style.backgroundColor = '#F2F5F9';
       }
-      const reactIframe = document.getElementById('react-iframe');
-      const reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
+      let reactIframe = document.getElementById('react-iframe');
+      let reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
       if (reactDoc) {
-        const iframeSelector = reactDoc.getElementById('iframe-selector');
-        const iframeContainer = reactDoc.getElementById('iframe-container');
-        const assistantTitle = reactDoc.getElementById('assistant-title');
+        let iframeSelector = reactDoc.getElementById('iframe-selector');
+        let iframeContainer = reactDoc.getElementById('iframe-container');
+        let assistantTitle = reactDoc.getElementById('assistant-title');
         if (assistantTitle) {
           assistantTitle.style.display = 'flex';
         }
@@ -65,7 +65,7 @@
           iframeContainer.classList.add("iframe-container-full-screen");
         }
       }
-      const imgElement = document.getElementById('maximizeIcon');
+      let imgElement = document.getElementById('maximizeIcon');
       if (imgElement) {
         imgElement.src = "web/images/maximize-2.svg";
       }
@@ -76,21 +76,21 @@
     }
 
     function adjustMinimizeWindowPosition() {
-      const widget = document.querySelector('.widgetContainer');
+      let widget = document.querySelector('.widgetContainer');
       if (widget) {
         widget.style.setProperty('border', '0px solid #666', 'important');
       }
-      const body = document.getElementById('chatBody');
+      let body = document.getElementById('chatBody');
       if (body) {
         body.style.display = 'none';
       }
-      const button = document.getElementById('button-minimize');
+      let button = document.getElementById('button-minimize');
       if (button) {
         button.style.display = 'flex';
       }
       window.copilotWindow.setHeight(MINIMIZED_WINDOW_HEIGHT);
-      const newLeft = Math.max(0, isc.Page.getWidth() - MINIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
-      const newTop = Math.max(0, isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
+      let newLeft = Math.max(0, isc.Page.getWidth() - MINIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
+      let newTop = Math.max(0, isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
       window.copilotWindow.setLeft(newLeft);
       window.copilotWindow.setTop(newTop);
       window.copilotWindow.setWidth(MINIMIZED_WINDOW_WIDTH);
@@ -98,22 +98,22 @@
     }
 
     function adjustMaximizeWindowPosition() {
-      const header = document.getElementById('chatHeader');
+      let header = document.getElementById('chatHeader');
       if (header) {
         header.style.backgroundColor = '#FFFFFF';
       }
-      const widget = document.querySelector('.widgetContainer');
+      let widget = document.querySelector('.widgetContainer');
       if (widget) {
         widget.style.setProperty('margin', '0px', 'important');
         widget.style.setProperty('border', '1px solid #666', 'important');
       }
 
-      const reactIframe = document.getElementById('react-iframe');
-      const reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
+      let reactIframe = document.getElementById('react-iframe');
+      let reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
       if (reactDoc) {
-        const iframeSelector = reactDoc.getElementById('iframe-selector');
-        const iframeContainer = reactDoc.getElementById('iframe-container');
-        const assistantTitle = reactDoc.getElementById('assistant-title');
+        let iframeSelector = reactDoc.getElementById('iframe-selector');
+        let iframeContainer = reactDoc.getElementById('iframe-container');
+        let assistantTitle = reactDoc.getElementById('assistant-title');
         if (assistantTitle) {
           assistantTitle.style.display = 'none';
         }
@@ -122,15 +122,15 @@
           iframeContainer.classList.remove("iframe-container-full-screen");
         }
       }
-      const body = document.getElementById('chatBody');
+      let body = document.getElementById('chatBody');
       if (body) {
         body.style.display = 'flex';
       }
-      const imgElement = document.getElementById('maximizeIcon');
+      let imgElement = document.getElementById('maximizeIcon');
       if (imgElement) {
         imgElement.src = "web/images/maximize.svg";
       }
-      const button = document.getElementById('button-minimize');
+      let button = document.getElementById('button-minimize');
       if (button) {
         button.style.display = 'none';
       }
@@ -141,8 +141,8 @@
       window.copilotWindow.setWidth(MAXIMIZED_WINDOW_WIDTH);
       window.copilotWindow.setHeight(MAXIMIZED_WINDOW_HEIGHT);
 
-      const newLeft = Math.max(0, isc.Page.getWidth() - MAXIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
-      const newTop = Math.max(0, isc.Page.getHeight() - MAXIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
+      let newLeft = Math.max(0, isc.Page.getWidth() - MAXIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
+      let newTop = Math.max(0, isc.Page.getHeight() - MAXIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
       window.copilotWindow.setLeft(newLeft);
       window.copilotWindow.setTop(newTop);
     }
@@ -316,7 +316,7 @@
     adjustMaximizeWindowPosition();
   }
 
-  const buttonProps = {
+  let buttonProps = {
     action: function () {
       let callback, orders = [], i,
         view = this.view,
@@ -327,27 +327,27 @@
         orders.push(selectedRecords[i].id);
       }
 
-      const isFormEditing = !!view.isShowingForm;
+      let isFormEditing = !!view.isShowingForm;
 
-      const editedRecordContext = {};
+      let editedRecordContext = {};
       if (isFormEditing && view.viewForm) {
         editedRecordContext = view.viewForm.getValues();
       }
 
-      grid = view.viewGrid,
-        selectedRecords = grid.getSelectedRecords();
+      grid = view.viewGrid;
+      selectedRecords = grid.getSelectedRecords();
 
-      const selectedRecordsContext = selectedRecords.map(function (record) {
+      let selectedRecordsContext = selectedRecords.map(function (record) {
         return {
-          id: record.id,
+          id: record.id
         };
       });
 
-      const currentWindowId = view.windowId;
-      const currentTabId = view.tabId;
-      const currentTabTitle = view.tabTitle;
+      let currentWindowId = view.windowId;
+      let currentTabId = view.tabId;
+      let currentTabTitle = view.tabTitle;
 
-      const activeWindowInfo = {
+      let activeWindowInfo = {
         windowId: currentWindowId,
         tabId: currentTabId,
         title: currentTabTitle
