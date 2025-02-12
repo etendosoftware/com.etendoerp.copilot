@@ -43,14 +43,13 @@ import org.openbravo.model.ad.system.Language;
  * Check hosts button test.
  */
 public class CheckHostsButtonTest extends WeldBaseTest {
-    
+
     /**
      * The Expected exception.
      */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
-    private MockedStatic<SecureWebServicesUtils> mockedSecureWebServicesUtils;
     private MockedStatic<CopilotUtils> mockedCopilotUtils;
     private MockedStatic<OBContext> mockedOBContext;
     private MockedStatic<OBDal> mockedOBDal;
@@ -58,19 +57,19 @@ public class CheckHostsButtonTest extends WeldBaseTest {
 
     @Mock
     private OBContext mockContext;
-    
+
     @Mock
     private OBDal mockOBDal;
-    
+
     @Mock
     private User mockUser;
-    
+
     @Mock
     private Role mockRole;
 
     private CheckHostsButton checkHostsButton;
     private AutoCloseable mocks;
-    
+
     private static final String ETENDO_HOST = "ETENDO_HOST";
     private static final String RESPONSE_ACTIONS= "responseActions";
     private static final String SHOW_MSG_IN_PROC_VIEW = "showMsgInProcessView";
@@ -79,12 +78,11 @@ public class CheckHostsButtonTest extends WeldBaseTest {
     @Before
     public void setUp() throws Exception {
         mocks = MockitoAnnotations.openMocks(this);
-        
+
         // Initialize the test class with a custom createConnection method
         checkHostsButton = new TestCheckHostsButton();
 
         // Setup static mocks
-        mockedSecureWebServicesUtils = mockStatic(SecureWebServicesUtils.class);
         mockedCopilotUtils = mockStatic(CopilotUtils.class);
         mockedOBContext = mockStatic(OBContext.class);
         mockedOBDal = mockStatic(OBDal.class);
@@ -93,19 +91,17 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         // Configure default mock behavior
         mockedOBContext.when(OBContext::getOBContext).thenReturn(mockContext);
         mockedOBDal.when(OBDal::getInstance).thenReturn(mockOBDal);
-        
+
         when(mockContext.getUser()).thenReturn(mockUser);
         when(mockContext.getRole()).thenReturn(mockRole);
         when(mockUser.getId()).thenReturn("testUserId");
         when(mockRole.getId()).thenReturn("testRoleId");
-        
-        mockedSecureWebServicesUtils.when(() -> SecureWebServicesUtils.generateToken(any(), any()))
-            .thenReturn("test-token");
-        
+
         // Configure CopilotUtils default responses
         mockedCopilotUtils.when(CopilotUtils::getEtendoHost).thenReturn("http://localhost:8080");
         mockedCopilotUtils.when(CopilotUtils::getCopilotHost).thenReturn("localhost");
         mockedCopilotUtils.when(CopilotUtils::getCopilotPort).thenReturn("5000");
+        mockedCopilotUtils.when(CopilotUtils::generateEtendoToken).thenReturn("testToken");
 
         // Mock OBContext.getLanguage() to return a valid Language object
         Language mockLanguage = mock(Language.class);
@@ -123,9 +119,6 @@ public class CheckHostsButtonTest extends WeldBaseTest {
      */
     @After
     public void tearDown() throws Exception {
-        if (mockedSecureWebServicesUtils != null) {
-            mockedSecureWebServicesUtils.close();
-        }
         if (mockedCopilotUtils != null) {
             mockedCopilotUtils.close();
         }
@@ -153,7 +146,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         // Given
         Map<String, Object> params = new HashMap<>();
         String content = "";
-        
+
         // Configure mock responses for successful scenario
         ((TestCheckHostsButton) checkHostsButton).setMockResponseCode(HttpServletResponse.SC_OK);
         ((TestCheckHostsButton) checkHostsButton).setMockResponseBody("{\"success\":true}");
@@ -165,7 +158,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         assertTrue(result.getBoolean(ETENDO_HOST));
         assertTrue(result.getBoolean("COPILOT_HOST"));
         assertTrue(result.getBoolean("ETENDO_HOST_DOCKER"));
-        
+
         JSONArray actions = result.getJSONArray(RESPONSE_ACTIONS);
         JSONObject action = actions.getJSONObject(0);
         JSONObject showMsgInProcessView = action.getJSONObject(SHOW_MSG_IN_PROC_VIEW);
@@ -182,7 +175,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         // Given
         Map<String, Object> params = new HashMap<>();
         String content = "";
-        
+
         // Configure mock responses for Etendo host failure
         ((TestCheckHostsButton) checkHostsButton).setMockResponseCode(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 
@@ -191,7 +184,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
 
         // Then
         assertFalse(result.getBoolean(ETENDO_HOST));
-        
+
         JSONArray actions = result.getJSONArray(RESPONSE_ACTIONS);
         JSONObject action = actions.getJSONObject(0);
         JSONObject showMsgInProcessView = action.getJSONObject(SHOW_MSG_IN_PROC_VIEW);
@@ -208,7 +201,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         // Given
         Map<String, Object> params = new HashMap<>();
         String content = "";
-        
+
         // Configure mock responses for Copilot host failure
         ((TestCheckHostsButton) checkHostsButton).setMockResponseCode(HttpServletResponse.SC_OK);
         ((TestCheckHostsButton) checkHostsButton).setSecondResponseCode(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -219,7 +212,7 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         // Then
         assertTrue(result.getBoolean(ETENDO_HOST));
         assertFalse(result.getBoolean("COPILOT_HOST"));
-        
+
         JSONArray actions = result.getJSONArray(RESPONSE_ACTIONS);
         JSONObject action = actions.getJSONObject(0);
         JSONObject showMsgInProcessView = action.getJSONObject(SHOW_MSG_IN_PROC_VIEW);
@@ -236,10 +229,9 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         // Given
         Map<String, Object> params = new HashMap<>();
         String content = "";
-        
+
         // Configure SecureWebServicesUtils to return null token
-        mockedSecureWebServicesUtils.when(() -> SecureWebServicesUtils.generateToken(any(), any()))
-            .thenReturn(null);
+        mockedCopilotUtils.when(CopilotUtils::generateEtendoToken).thenReturn(null);
 
         // Then
         expectedException.expect(OBException.class);
@@ -283,14 +275,14 @@ public class CheckHostsButtonTest extends WeldBaseTest {
         @Override
         protected HttpURLConnection createConnection(String urlString, String token) throws IOException {
             HttpURLConnection mockConnection = mock(HttpURLConnection.class);
-            
+
             int responseCode = isFirstCall ? mockResponseCode : secondResponseCode;
             when(mockConnection.getResponseCode()).thenReturn(responseCode);
-            
+
             // Create an InputStream with the mock response
             InputStream inputStream = new ByteArrayInputStream(mockResponseBody.getBytes());
             when(mockConnection.getInputStream()).thenReturn(inputStream);
-            
+
             isFirstCall = false;
             return mockConnection;
         }
