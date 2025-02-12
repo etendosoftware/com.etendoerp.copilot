@@ -1,156 +1,143 @@
 (function () {
+  /**
+   * Opens the Copilot window with the given query, assistant ID, and contextual data.
+   * @param {string} q - The user query.
+   * @param {string} assistantId - The Copilot assistant ID.
+   * @param {Object} messageData - Additional data (context, title, selected records, etc).
+   */
+  function openCopilotWindow(q, assistantId, messageData) {
+    // Encode the query if present
+    q = q ? encodeURI(q) : '';
 
-  function openCopilotWindow(q, assistant_id, messageData) {
-    if (!q) {
-      q = '';
-    } else {
-      q = encodeURI(q);
+    // Determine the assistant ID
+    if (!assistantId && messageData["assistantId"]) {
+      assistantId = messageData["assistantId"];
     }
-    if (!assistant_id) {
-      assistant_id = '';
+    if (assistantId) {
+      const idRegex = /^[A-Fa-f0-9]{32}$/;
+      assistantId = idRegex.test(assistantId) ? assistantId : '';
     } else {
-      let idRegex = /^[A-Fa-f0-9]{32}$/;
-      assistant_id = idRegex.test(assistant_id) ? assistant_id : '';
+      assistantId = '';
     }
 
-    let windowId = messageData["@ACTIVE_WINDOW_ID@"];
-    let tabId = messageData["@ACTIVE_TAB_ID@"];
-    let windowTitle = messageData["@WINDOW_TITLE@"];
-    let isFormEditing = messageData["@IS_FORM_EDITING@"];
-    let selectedRecords = messageData["@SELECTED_RECORDS@"];
-    let message = messageData["message"];
+    // Prepare the URL for the iframe
+    const tabTitle = messageData["tabTitle"];
+    const message = encodeURIComponent(JSON.stringify(messageData));
+    const iframeURL = `web/com.etendoerp.copilot.dist/?question=${q}&assistant_id=${assistantId}&context_title=${tabTitle}&context_value=${message}`;
 
-    let params = new URLSearchParams({
-      question: q,
-      context_title: windowTitle,
-      context_value: message,
-      assistant_id: assistant_id,
-      windowId: windowId,
-      tabId: tabId,
-      isFormEditing: isFormEditing,
-      selectedRecords: selectedRecords
-    });
+    // Dimensions and styles
+    const LIGHT_GRAY_COLOR = "#F2F5F9";
+    const WINDOW_WIDTH = 425;
+    const WINDOW_HEIGHT = 650;
+    const MAXIMIZED_WINDOW_HEIGHT = 650;
+    const MAXIMIZED_WINDOW_WIDTH = 425;
+    const MINIMIZED_WINDOW_HEIGHT = 55;
+    const MINIMIZED_WINDOW_WIDTH = 131;
+    const MARGIN_CONTAINER_HORIZONTAL = 1;
+    const MARGIN_CONTAINER_VERTICAL = 6;
+    const MARGIN_CONTAINER_FULL_SCREEN = 12;
+    const MARGIN_CONTAINER_FULL_SCREEN_HORIZONTAL = 13;
+    const MARGIN_CONTAINER_FULL_SCREEN_VERTICAL = 18;
 
-    let URL = `web/com.etendoerp.copilot.dist/?${params.toString()}`;
-
-    let LIGHT_GRAY_COLOR = "#F2F5F9";
-    let WINDOW_WIDTH = 425;
-    let WINDOW_HEIGHT = 650;
-    let MAXIMIZED_WINDOW_HEIGHT = 650;
-    let MAXIMIZED_WINDOW_WIDTH = 425;
-    let MINIMIZED_WINDOW_HEIGHT = 55;
-    let MINIMIZED_WINDOW_WIDTH = 131;
-    let MARGIN_CONTAINER_HORIZONTAL = 1;
-    let MARGIN_CONTAINER_VERTICAL = 6;
-    let MARGIN_CONTAINER_FULL_SCREEN = 12;
-    let MARGIN_CONTAINER_FULL_SCREEN_HORIZONTAL = 13;
-    let MARGIN_CONTAINER_FULL_SCREEN_VERTICAL = 18;
-
+    // Adjust window to full screen
     function adjustFullScreenWindowPosition() {
-      let header = document.getElementById('chatHeader');
-      if (header) {
-        header.style.backgroundColor = '#F2F5F9';
-      }
-      let reactIframe = document.getElementById('react-iframe');
-      let reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
+      const header = document.getElementById('chatHeader');
+      if (header) header.style.backgroundColor = LIGHT_GRAY_COLOR;
+
+      const reactIframe = document.getElementById('react-iframe');
+      const reactDoc = reactIframe?.contentDocument || reactIframe?.contentWindow?.document;
       if (reactDoc) {
-        let iframeSelector = reactDoc.getElementById('iframe-selector');
-        let iframeContainer = reactDoc.getElementById('iframe-container');
-        let assistantTitle = reactDoc.getElementById('assistant-title');
-        if (assistantTitle) {
-          assistantTitle.style.display = 'flex';
-        }
-        if (iframeContainer && iframeSelector) {
+        const iframeSelector = reactDoc.getElementById('iframe-selector');
+        const iframeContainer = reactDoc.getElementById('iframe-container');
+        const assistantTitle = reactDoc.getElementById('assistant-title');
+
+        if (assistantTitle) assistantTitle.style.display = 'flex';
+
+        if (iframeSelector && iframeContainer) {
           iframeSelector.classList.add("iframe-selector-full-screen");
           iframeContainer.classList.add("iframe-container-full-screen");
         }
       }
-      let imgElement = document.getElementById('maximizeIcon');
-      if (imgElement) {
-        imgElement.src = "web/images/maximize-2.svg";
-      }
+
+      const imgElement = document.getElementById('maximizeIcon');
+      if (imgElement) imgElement.src = "web/images/maximize-2.svg";
+
       window.copilotWindow.setLeft(MARGIN_CONTAINER_FULL_SCREEN);
       window.copilotWindow.setTop(MARGIN_CONTAINER_FULL_SCREEN);
       window.copilotWindow.setWidth(isc.Page.getWidth() - MARGIN_CONTAINER_FULL_SCREEN_HORIZONTAL);
       window.copilotWindow.setHeight(isc.Page.getHeight() - MARGIN_CONTAINER_FULL_SCREEN_VERTICAL);
     }
 
+    // Adjust window to minimized state
     function adjustMinimizeWindowPosition() {
-      let widget = document.querySelector('.widgetContainer');
-      if (widget) {
-        widget.style.setProperty('border', '0px solid #666', 'important');
-      }
-      let body = document.getElementById('chatBody');
-      if (body) {
-        body.style.display = 'none';
-      }
-      let button = document.getElementById('button-minimize');
-      if (button) {
-        button.style.display = 'flex';
-      }
+      const widget = document.querySelector('.widgetContainer');
+      if (widget) widget.style.setProperty('border', '0px solid #666', 'important');
+
+      const body = document.getElementById('chatBody');
+      if (body) body.style.display = 'none';
+
+      const button = document.getElementById('button-minimize');
+      if (button) button.style.display = 'flex';
+
       window.copilotWindow.setHeight(MINIMIZED_WINDOW_HEIGHT);
-      let newLeft = Math.max(0, isc.Page.getWidth() - MINIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
-      let newTop = Math.max(0, isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
+
+      const newLeft = Math.max(0, isc.Page.getWidth() - MINIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
+      const newTop = Math.max(0, isc.Page.getHeight() - MINIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
+
       window.copilotWindow.setLeft(newLeft);
       window.copilotWindow.setTop(newTop);
       window.copilotWindow.setWidth(MINIMIZED_WINDOW_WIDTH);
       window.copilotWindow.setHeight(MINIMIZED_WINDOW_HEIGHT);
     }
 
+    // Adjust window to a "maximized" (but not full screen) state
     function adjustMaximizeWindowPosition() {
-      let header = document.getElementById('chatHeader');
-      if (header) {
-        header.style.backgroundColor = '#FFFFFF';
-      }
-      let widget = document.querySelector('.widgetContainer');
+      const header = document.getElementById('chatHeader');
+      if (header) header.style.backgroundColor = '#FFFFFF';
+
+      const widget = document.querySelector('.widgetContainer');
       if (widget) {
         widget.style.setProperty('margin', '0px', 'important');
         widget.style.setProperty('border', '1px solid #666', 'important');
       }
 
-      let reactIframe = document.getElementById('react-iframe');
-      let reactDoc = reactIframe.contentDocument || reactIframe.contentWindow.document;
+      const reactIframe = document.getElementById('react-iframe');
+      const reactDoc = reactIframe?.contentDocument || reactIframe?.contentWindow?.document;
       if (reactDoc) {
-        let iframeSelector = reactDoc.getElementById('iframe-selector');
-        let iframeContainer = reactDoc.getElementById('iframe-container');
-        let assistantTitle = reactDoc.getElementById('assistant-title');
-        if (assistantTitle) {
-          assistantTitle.style.display = 'none';
-        }
-        if (iframeContainer && iframeSelector) {
+        const iframeSelector = reactDoc.getElementById('iframe-selector');
+        const iframeContainer = reactDoc.getElementById('iframe-container');
+        const assistantTitle = reactDoc.getElementById('assistant-title');
+
+        if (assistantTitle) assistantTitle.style.display = 'none';
+        if (iframeSelector && iframeContainer) {
           iframeSelector.classList.remove("iframe-selector-full-screen");
           iframeContainer.classList.remove("iframe-container-full-screen");
         }
       }
-      let body = document.getElementById('chatBody');
-      if (body) {
-        body.style.display = 'flex';
-      }
-      let imgElement = document.getElementById('maximizeIcon');
-      if (imgElement) {
-        imgElement.src = "web/images/maximize.svg";
-      }
-      let button = document.getElementById('button-minimize');
-      if (button) {
-        button.style.display = 'none';
-      }
 
-      window.copilotWindow.setWidth(isc.Page.getWidth());
-      window.copilotWindow.setHeight(isc.Page.getHeight());
+      const body = document.getElementById('chatBody');
+      if (body) body.style.display = 'flex';
+
+      const imgElement = document.getElementById('maximizeIcon');
+      if (imgElement) imgElement.src = "web/images/maximize.svg";
+
+      const button = document.getElementById('button-minimize');
+      if (button) button.style.display = 'none';
 
       window.copilotWindow.setWidth(MAXIMIZED_WINDOW_WIDTH);
       window.copilotWindow.setHeight(MAXIMIZED_WINDOW_HEIGHT);
 
-      let newLeft = Math.max(0, isc.Page.getWidth() - MAXIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
-      let newTop = Math.max(0, isc.Page.getHeight() - MAXIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
+      const newLeft = Math.max(0, isc.Page.getWidth() - MAXIMIZED_WINDOW_WIDTH - MARGIN_CONTAINER_HORIZONTAL);
+      const newTop = Math.max(0, isc.Page.getHeight() - MAXIMIZED_WINDOW_HEIGHT - MARGIN_CONTAINER_VERTICAL);
+
       window.copilotWindow.setLeft(newLeft);
       window.copilotWindow.setTop(newTop);
     }
 
+    // Handle window resizing event
     function resizeWindow() {
-      if (!window.copilotWindow) {
-        return;
-      }
+      if (!window.copilotWindow) return;
+
       if (window.copilotWindow.height === MAXIMIZED_WINDOW_HEIGHT) {
         adjustMaximizeWindowPosition();
       } else if (window.copilotWindow.height > MAXIMIZED_WINDOW_HEIGHT) {
@@ -160,12 +147,9 @@
       }
     }
 
-    window.handleMinimize = function () {
-      adjustMinimizeWindowPosition();
-    };
-    window.handleMaximize = function () {
-      adjustMaximizeWindowPosition();
-    };
+    // Expose window actions globally
+    window.handleMinimize = adjustMinimizeWindowPosition;
+    window.handleMaximize = adjustMaximizeWindowPosition;
     window.handleFullScreenWindow = function () {
       if (window.copilotWindow.height === MAXIMIZED_WINDOW_HEIGHT) {
         adjustFullScreenWindowPosition();
@@ -180,15 +164,14 @@
       }
     };
 
+    // Create Copilot window if it doesn't exist
     if (!window.copilotWindow) {
       window.copilotWindow = isc.Window.create({
         width: WINDOW_WIDTH,
         styleName: 'widgetContainer',
         height: WINDOW_HEIGHT,
         canDragReposition: true,
-        headerProperties: {
-          height: "0px"
-        },
+        headerProperties: { height: "0px" },
         backgroundColor: LIGHT_GRAY_COLOR,
         items: [
           isc.HTMLPane.create({
@@ -296,7 +279,7 @@
                   <iframe
                     id="react-iframe"
                     style="display: block; width: 100%; flex:1"
-                    src="${URL}"
+                    src="${iframeURL}"
                     title="Copilot Chat"
                     frameborder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -310,74 +293,42 @@
       });
     }
 
+    // Show the window and handle page resize
     window.copilotWindow.show();
     isc.Page.setEvent("resize", resizeWindow);
 
+    // By default, open as maximized
     adjustMaximizeWindowPosition();
   }
 
-  let buttonProps = {
+  // Button properties to open the Copilot window
+  const buttonProps = {
     action: function () {
-      let callback, orders = [], i,
-        view = this.view,
-        grid = view.viewGrid,
-        selectedRecords = grid.getSelectedRecords();
+      const view = this.view;
+      const grid = view.viewGrid;
+      const selectedRecords = grid.getSelectedRecords();
+      const isFormEditing = !!view.isShowingForm;
 
-      for (i = 0; i < selectedRecords.length; i++) {
-        orders.push(selectedRecords[i].id);
-      }
+      const selectedRecordsContext = selectedRecords.map(record => ({ id: record.id }));
 
-      let isFormEditing = !!view.isShowingForm;
-
-      let editedRecordContext = {};
-      if (isFormEditing && view.viewForm) {
-        editedRecordContext = view.viewForm.getValues();
-      }
-
-      grid = view.viewGrid;
-      selectedRecords = grid.getSelectedRecords();
-
-      let selectedRecordsContext = selectedRecords.map(function (record) {
-        return {
-          id: record.id
-        };
-      });
-
-      let currentWindowId = view.windowId;
-      let currentTabId = view.tabId;
-      let currentTabTitle = view.tabTitle;
-
-      let activeWindowInfo = {
-        windowId: currentWindowId,
-        tabId: currentTabId,
-        title: currentTabTitle
+      const activeWindowInfo = {
+        windowId: view.windowId,
+        tabId: view.tabId,
+        tabTitle: view.tabTitle,
+        selectedRecordsContext: selectedRecordsContext,
+        isFormEditing: isFormEditing
       };
 
-      callback = function (rpcResponse, data, rpcRequest) {
-        messageData = data;
-        openCopilotWindow(null, null, messageData);
-      };
-
-      OB.RemoteCallManager.call(
-        'com.etendoerp.copilot.rest.CopilotContextActionHandler',
-        {
-          isFormEditing: isFormEditing,
-          editedRecordContext: editedRecordContext,
-          selectedRecordsContext: selectedRecordsContext,
-          activeWindow: activeWindowInfo
-        },
-        {},
-        callback
-      );
+      openCopilotWindow(null, null, activeWindowInfo);
     },
-
     buttonType: 'etcop',
     prompt: 'Copilot',
-
     updateState: function () {
+      // No state update required at the moment
     }
   };
 
+  // Register the custom toolbar button
   OB.ToolbarRegistry.registerButton(
     buttonProps.buttonType,
     isc.OBToolbarIconButton,

@@ -48,6 +48,7 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.access.User;
 import org.openbravo.model.ad.datamodel.Table;
@@ -74,6 +75,7 @@ public class CopilotUtils {
   public static final String KB_VECTORDB_ID = "kb_vectordb_id";
   public static final String COPILOT_PORT = "COPILOT_PORT";
   public static final String COPILOT_HOST = "COPILOT_HOST";
+  private static final String DEFAULT_PROMPT_PREFERENCE_KEY = "ETCOP_DefaultContextPrompt";
 
   private static HashMap<String, String> buildProviderCodeMap() {
     HashMap<String, String> map = new HashMap<>();
@@ -498,27 +500,68 @@ public class CopilotUtils {
   }
 
   public static String getAssistantPrompt(CopilotApp app) throws IOException {
-    StringBuilder sb = new StringBuilder();
-    sb.append(app.getPrompt());
-    sb.append("\n");
+    StringBuilder promptBuilder = new StringBuilder();
+    promptBuilder.append(app.getPrompt());
+    promptBuilder.append("\n");
+
     try {
-      sb.append(WeldUtils.getInstanceFromStaticBeanManager(OpenAIPromptHookManager.class).executeHooks(app));
+      promptBuilder.append(
+          WeldUtils.getInstanceFromStaticBeanManager(OpenAIPromptHookManager.class)
+              .executeHooks(app));
     } catch (OBException e) {
       log.error("Error executing hooks", e);
     }
+
+    OBContext context = OBContext.getOBContext();
+    String defaultContextPrompt = null;
+
+    try {
+      if (context.getCurrentClient() != null
+          && context.getCurrentOrganization() != null
+          && context.getUser() != null
+          && context.getRole() != null) {
+
+        defaultContextPrompt = Preferences.getPreferenceValue(
+            DEFAULT_PROMPT_PREFERENCE_KEY,
+            true,
+            context.getCurrentClient().getId(),
+            context.getCurrentOrganization().getId(),
+            context.getUser().getId(),
+            context.getRole().getId(),
+            null);
+      } else {
+        log.warn("OBContext values are incomplete; skipping defaultContextPrompt retrieval.");
+      }
+    } catch (PropertyException e) {
+      log.error("Error retrieving default context prompt", e);
+    }
+
+    if (defaultContextPrompt != null) {
+      promptBuilder.append(defaultContextPrompt).append("\n");
+    } else {
+      log.warn("No default context prompt found.");
+    }
+
     List<CopilotAppSource> appSourcesToAppend = app.getETCOPAppSourceList();
+
     // app sources to replace with an alias
     List<CopilotAppSource> appSourcesWithAlias = appSourcesToAppend.stream()
-        .filter(appSource -> StringUtils.equalsIgnoreCase(appSource.getBehaviour(),
-            CopilotConstants.FILE_BEHAVIOUR_SYSTEM) && StringUtils.isNotEmpty(appSource.getAlias()))
+        .filter(appSource -> StringUtils.equalsIgnoreCase(
+            appSource.getBehaviour(), CopilotConstants.FILE_BEHAVIOUR_SYSTEM)
+            && StringUtils.isNotEmpty(appSource.getAlias()))
         .collect(Collectors.toList());
-    // the app sources to append are the ones that are not with an alias
-    appSourcesToAppend = appSourcesToAppend.stream().filter(
-        appSource -> !appSourcesWithAlias.contains(appSource)).collect(Collectors.toList());
-    sb = replaceAliasInPrompt(sb, appSourcesWithAlias);
-    sb.append(getAppSourceContent(appSourcesToAppend, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
 
-    return replaceCopilotPromptVariables(sb.toString());
+    // the app sources to append are the ones that are not with an alias
+    appSourcesToAppend = appSourcesToAppend.stream()
+        .filter(appSource -> !appSourcesWithAlias.contains(appSource))
+        .collect(Collectors.toList());
+
+    promptBuilder = replaceAliasInPrompt(promptBuilder, appSourcesWithAlias);
+
+    promptBuilder.append(
+        getAppSourceContent(appSourcesToAppend, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
+
+    return replaceCopilotPromptVariables(promptBuilder.toString());
   }
 
   public static String replaceCopilotPromptVariables(String string) {
@@ -545,8 +588,19 @@ public class CopilotUtils {
    *         name of Etendo.
    */
   public static String replaceCopilotPromptVariables(String string, JSONObject maps) throws JSONException {
+    OBContext obContext = OBContext.getOBContext();
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
     stringParsed = StringUtils.replace(stringParsed, "@ETENDO_HOST_DOCKER@", getEtendoHostDocker());
+    stringParsed = StringUtils.replace(stringParsed, "@AD_CLIENT_ID@", obContext.getCurrentClient().getId());
+    stringParsed = StringUtils.replace(stringParsed, "@CLIENT_NAME@", obContext.getCurrentClient().getName());
+    stringParsed = StringUtils.replace(stringParsed, "@AD_ORG_ID@", obContext.getCurrentOrganization().getId());
+    stringParsed = StringUtils.replace(stringParsed, "@ORG_NAME@", obContext.getCurrentOrganization().getName());
+    stringParsed = StringUtils.replace(stringParsed, "@AD_USER_ID@", obContext.getUser().getId());
+    stringParsed = StringUtils.replace(stringParsed, "@USERNAME@", obContext.getUser().getUsername());
+    stringParsed = StringUtils.replace(stringParsed, "@AD_ROLE_ID@", obContext.getRole().getId());
+    stringParsed = StringUtils.replace(stringParsed, "@ROLE_NAME@", obContext.getRole().getName());
+    stringParsed = StringUtils.replace(stringParsed, "@M_WAREHOUSE_ID@", obContext.getWarehouse().getId());
+    stringParsed = StringUtils.replace(stringParsed, "@WAREHOUSE_NAME@", obContext.getWarehouse().getName());
 
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     stringParsed = StringUtils.replace(stringParsed, "@source.path@", getSourcesPath(properties));
