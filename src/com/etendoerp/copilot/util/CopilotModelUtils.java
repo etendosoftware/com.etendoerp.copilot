@@ -146,6 +146,7 @@ public class CopilotModelUtils {
     model.setSearchkey(modelElem.elementText("searchkey"));
     model.setName(modelElem.elementText("name"));
     model.setProvider(modelElem.elementText("provider"));
+    model.setEtendoMaintained(true);
     model.setMaxTokens(StringUtils.isNotEmpty(modelElem.elementText("maxTokens"))
         ? Long.parseLong(modelElem.elementText("maxTokens")) : null);
     model.setDefault(Boolean.parseBoolean(modelElem.elementText("default")));
