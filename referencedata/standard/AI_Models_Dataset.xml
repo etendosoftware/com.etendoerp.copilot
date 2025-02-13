@@ -12,6 +12,7 @@
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="40CCA5DABA8F4798AD4CEDC3D1BAE5E0" identifier="openai - gpt-4-turbo-preview">
     <id>40CCA5DABA8F4798AD4CEDC3D1BAE5E0</id>
@@ -26,6 +27,7 @@
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="45BCAC21A2CC45C390501F9345C3A6E2" identifier="openai - gpt-4o-2024-11-20">
     <id>45BCAC21A2CC45C390501F9345C3A6E2</id>
@@ -40,6 +42,7 @@
     <maxTokens xsi:nil="true"/>
     <default>true</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="50101612148143A4B845E4EA713D245D" identifier="openai - o1-preview">
     <id>50101612148143A4B845E4EA713D245D</id>
@@ -54,6 +57,7 @@
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="66226A87D9EA4A0F919698FC64758D40" identifier="openai - gpt-4">
     <id>66226A87D9EA4A0F919698FC64758D40</id>
@@ -68,6 +72,7 @@
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="979B24A88E60465EACC04D73F5338CAF" identifier="openai - o1-mini">
     <id>979B24A88E60465EACC04D73F5338CAF</id>
@@ -82,6 +87,7 @@
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="993AE25103C9424DA545F463AD22BBB8" identifier="openai - gpt-4o">
     <id>993AE25103C9424DA545F463AD22BBB8</id>
@@ -96,6 +102,7 @@
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="B33E0814E9A54901ADCB2AA6FC79D8AE" identifier="anthropic -  claude-3-5-sonnet-latest">
     <id>B33E0814E9A54901ADCB2AA6FC79D8AE</id>
@@ -110,6 +117,7 @@
     <maxTokens>8000</maxTokens>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="CDA175DD1D0C42E1BF24BD0BD9E6DB32" identifier="anthropic - claude-3-5-haiku-latest">
     <id>CDA175DD1D0C42E1BF24BD0BD9E6DB32</id>
@@ -124,6 +132,7 @@
     <maxTokens>8000</maxTokens>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="E38BBB2048404E4F8E84B79DED84E887" identifier="openai - gpt-4o-mini">
     <id>E38BBB2048404E4F8E84B79DED84E887</id>
@@ -138,6 +147,7 @@
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="F7D7509D94CF40F5AEEA48AC0178BC52" identifier="openai - o1">
     <id>F7D7509D94CF40F5AEEA48AC0178BC52</id>
@@ -152,6 +162,7 @@
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="FDE9756B52FC4A57883CCA5F09C3BAF2" identifier="openai - gpt-4-turbo">
     <id>FDE9756B52FC4A57883CCA5F09C3BAF2</id>
@@ -166,5 +177,6 @@
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
 </ob:Openbravo>

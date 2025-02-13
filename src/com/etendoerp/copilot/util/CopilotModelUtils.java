@@ -60,10 +60,8 @@ public class CopilotModelUtils {
     if (StringUtils.isNotEmpty(provider)) {
       modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, provider));
     }
-    modelCriteria.add(Restrictions.or(
-        Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true),
-        Restrictions.eq(CopilotModel.PROPERTY_DEFAULTOVERRIDE, true))
-    );
+    modelCriteria.add(Restrictions.or(Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true),
+        Restrictions.eq(CopilotModel.PROPERTY_DEFAULTOVERRIDE, true)));
     modelCriteria.addOrderBy(CopilotModel.PROPERTY_CREATIONDATE, true);
 
     List<CopilotModel> mdList = modelCriteria.list();
@@ -88,8 +86,8 @@ public class CopilotModelUtils {
    */
   public static void syncModels() throws OBException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String url = properties.getProperty("COPILOT_MODELS_DATASET_URL", CopilotUtils.DEFAULT_MODELS_DATASET_URL)
-        .replace("<BRANCH>", properties.getProperty("COPILOT_MODELS_DATASET_BRANCH", "master"));
+    String url = properties.getProperty("COPILOT_MODELS_DATASET_URL", CopilotUtils.DEFAULT_MODELS_DATASET_URL).replace(
+        "<BRANCH>", properties.getProperty("COPILOT_MODELS_DATASET_BRANCH", "master"));
     upsertModels(downloadFile(url));
   }
 
@@ -146,8 +144,9 @@ public class CopilotModelUtils {
     model.setSearchkey(modelElem.elementText("searchkey"));
     model.setName(modelElem.elementText("name"));
     model.setProvider(modelElem.elementText("provider"));
-    model.setMaxTokens(StringUtils.isNotEmpty(modelElem.elementText("maxTokens"))
-        ? Long.parseLong(modelElem.elementText("maxTokens")) : null);
+    model.setEtendoMaintained(true);
+    model.setMaxTokens(StringUtils.isNotEmpty(modelElem.elementText("maxTokens")) ? Long.parseLong(
+        modelElem.elementText("maxTokens")) : null);
     model.setDefault(Boolean.parseBoolean(modelElem.elementText("default")));
     OBDal.getInstance().save(model);
     disableReplicated(model.getId(), model.getSearchkey());
@@ -268,12 +267,17 @@ public class CopilotModelUtils {
    */
   public static String getAppModel(CopilotApp app, String provider) {
     try {
+      String resultModel = null;
       CopilotModel model = app.getModel();
       if (model != null && model.getSearchkey() != null) {
-        return model.getSearchkey();
+        resultModel = model.getSearchkey();
+        log.debug("Model selected in app: {}", resultModel);
+        return resultModel;
       }
       model = getDefaultModel(provider);
-      return model.getSearchkey();
+      resultModel = model.getSearchkey();
+      log.debug("Model selected by Default: {}", resultModel);
+      return resultModel;
     } catch (Exception e) {
       throw new OBException(e.getMessage());
     }
