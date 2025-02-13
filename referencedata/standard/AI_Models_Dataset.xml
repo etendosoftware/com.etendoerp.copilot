@@ -12,7 +12,7 @@
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
-<etendoMaintained>true</etendoMaintained>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="40CCA5DABA8F4798AD4CEDC3D1BAE5E0" identifier="openai - gpt-4-turbo-preview">
     <id>40CCA5DABA8F4798AD4CEDC3D1BAE5E0</id>
