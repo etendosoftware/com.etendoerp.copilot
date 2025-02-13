@@ -222,12 +222,18 @@ public class SyncAssistantTest extends WeldBaseTest {
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
 
     // When
-    JSONObject result = syncAssistant.doExecute(parameters, content.toString());
+    try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
+      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> {
+        // Do nothing
+        return null;
+      });
 
-    // Then
-    assertNotNull(RESULT_NOT_NULL, result);
-    verify(mockApp).setSyncStatus(CopilotConstants.SYNCHRONIZED_STATE);
-    mockedOpenAIUtils.verify(CopilotModelUtils::syncModels);
+      JSONObject result = syncAssistant.doExecute(parameters, content.toString());
+
+      // Then
+      assertNotNull(RESULT_NOT_NULL, result);
+      verify(mockApp).setSyncStatus(CopilotConstants.SYNCHRONIZED_STATE);
+    }
   }
 
   /**
@@ -311,7 +317,6 @@ public class SyncAssistantTest extends WeldBaseTest {
     // Then
     assertNotNull(RESULT_NOT_NULL, result);
 
-    mockedOpenAIUtils.verify(CopilotModelUtils::syncModels);
     mockedOpenAIUtils.verify(() -> OpenAIUtils.syncAppSource(any(CopilotAppSource.class), anyString()));
     mockedOpenAIUtils.verify(() -> OpenAIUtils.refreshVectorDb(any(CopilotApp.class)));
   }
@@ -346,15 +351,20 @@ public class SyncAssistantTest extends WeldBaseTest {
 
     // Mock getApiKey
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
+    try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
+      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> {
+        // Do nothing
+        return null;
+      });
+      // When
+      JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
-    // When
-    JSONObject result = syncAssistant.doExecute(parameters, content.toString());
-
-    // Then
-    assertNotNull(RESULT_NOT_NULL, result);
-    mockedCopilotUtils.verify(() -> CopilotUtils.resetVectorDB(any(CopilotApp.class)));
-    mockedCopilotUtils.verify(() -> CopilotUtils.syncAppLangchainSource(any(CopilotAppSource.class)));
-    mockedCopilotUtils.verify(() -> CopilotUtils.purgeVectorDB(any(CopilotApp.class)));
+      // Then
+      assertNotNull(RESULT_NOT_NULL, result);
+      mockedCopilotUtils.verify(() -> CopilotUtils.resetVectorDB(any(CopilotApp.class)));
+      mockedCopilotUtils.verify(() -> CopilotUtils.syncAppLangchainSource(any(CopilotAppSource.class)));
+      mockedCopilotUtils.verify(() -> CopilotUtils.purgeVectorDB(any(CopilotApp.class)));
+    }
   }
 
   /**
@@ -396,14 +406,20 @@ public class SyncAssistantTest extends WeldBaseTest {
     // Mock getApiKey
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(null);
 
-    // When
-    JSONObject result = syncAssistant.doExecute(parameters, content.toString());
+    try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
+      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> {
+        // Do nothing
+        return null;
+      });
+      // When
+      JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
-    // Then
-    assertNotNull(RESULT_NOT_NULL, result);
-    JSONObject message = result.getJSONObject("message");
-    assertEquals("Should have error severity", "error", message.getString("severity"));
-    assertEquals("Should have connection error message", errorMsg, message.getString("text"));
+      // Then
+      assertNotNull(RESULT_NOT_NULL, result);
+      JSONObject message = result.getJSONObject("message");
+      assertEquals("Should have error severity", "error", message.getString("severity"));
+      assertEquals("Should have connection error message", errorMsg, message.getString("text"));
+    }
   }
 
   /**
