@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "copilot"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.12"
 python-dotenv = "^1.0.0"
 pydantic = "^2.2.1"
 fastapi = "^0.115.4"
@@ -50,6 +50,8 @@ langchain-anthropic = "^0.3.0"
 langchain-ollama = "^0.2.0"
 langchain-text-splitters = "^0.3.2"
 requests = "^2.32.3"
+langgraph-supervisor = "^0.0.2"
+langchain-openai-api-bridge = "^0.11.3"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
@@ -63,6 +65,8 @@ pytest-cov = "^5.0.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
 
 
 

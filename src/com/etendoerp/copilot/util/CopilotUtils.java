@@ -555,15 +555,8 @@ public class CopilotUtils {
   }
 
   private static boolean isCopilotRunningInDocker(Properties properties) {
-    boolean inDocker = false;
-    try {
-      var resp = doGetCopilot(properties, "runningCheck");
-      inDocker = StringUtils.contains(resp.body(), "docker");
-    } catch (Exception e) {
-      log.error(OBMessageUtils.messageBD("ETCOP_ErrorRunningCheck"),
-          e);//TODO: message like "Error checking if running in Docker, assuming not"
-    }
-    return inDocker;
+    // TODO Implement the logic to check if the Copilot is running inside a Docker container
+    return false;
   }
 
   /**

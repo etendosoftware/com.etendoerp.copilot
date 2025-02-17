@@ -731,6 +731,7 @@ public class RestServiceUtil {
     //add data for the supervisor
     jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
     jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
+    jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_LANGGRAPH);
   }
 
   /**
