@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
-import ContextTitlePreview from './components/context-name-preview';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import TextMessage from 'etendo-ui-library/dist-web/components/text-message/TextMessage';
 import FileSearchInput from 'etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput';
 import { useAssistants } from './hooks/useAssistants';
@@ -10,6 +9,7 @@ import { ILabels } from './interfaces';
 import { IMessage } from './interfaces/IMessage';
 import { References } from './utils/references';
 import './App.css';
+import ContextTitlePreview from './components/ContextNamePreview';
 import { DropdownInput } from 'etendo-ui-library/dist-web/components';
 import { SparksIcon } from 'etendo-ui-library/dist-web/assets/images/icons';
 import { RestUtils, isDevelopment } from './utils/environment';
@@ -18,9 +18,14 @@ import { ROLE_BOT, ROLE_ERROR, ROLE_NODE, ROLE_TOOL, ROLE_USER, ROLE_WAIT } from
 import { getMessageContainerClasses } from './utils/styles';
 
 function App() {
+  // Search for localization
   const search = window.location.search;
-  const params = new URLSearchParams(search);
+
+  // Query parameters
+  const params = useMemo(() => new URLSearchParams(search), [search]);
   const contextValue = params.get("context_value");
+  const [inputValue, setInputValue] = useState<string>(params.get("question") ?? '');
+  const [contextTitle, setContextTitle] = useState<string | null>(params.get("context_title"));
 
   // States
   const [file, setFile] = useState<any>(null);
@@ -33,8 +38,6 @@ function App() {
   const [files, setFiles] = useState<(string | File)[] | null>(null);
   const [areLabelsLoaded, setAreLabelsLoaded] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [inputValue, setInputValue] = useState<string>(params.get("question") ?? '');
-  const [contextTitle, setContextTitle] = useState<string | null>(params.get("context_title"));
 
   // Hooks
   const { selectedOption, assistants, getAssistants, handleOptionSelected } =
@@ -43,7 +46,7 @@ function App() {
   // Effect to handle the assistant_id parameter
   useEffect(() => {
     const assistant_id = params.get("assistant_id");
-    if (assistant_id && assistants.length > 0) {
+    if (assistant_id && assistants.length) {
       const assistant = assistants.find(assistant => assistant.app_id === assistant_id);
       if (assistant) {
         handleOptionSelected(assistant);
@@ -150,56 +153,64 @@ function App() {
     setFileId(null);
 
     if (!isBotLoading) {
-      const question = inputValue.trim();
+      const originalQuestion = inputValue.trim();
       setInputValue('');
-      if (!question) return;
+      if (!originalQuestion) return;
+
+      let finalQuestion = originalQuestion;
+
+      if (isFirstMessage) {
+        setIsFirstMessage(false);
+        if (contextValue) {
+          finalQuestion = `Context: ${contextValue}\nQuestion: ${originalQuestion}`;
+        }
+      }
 
       // Add user message
       const userMessage: IMessage = {
-        text: question,
+        text: originalQuestion,
         sender: ROLE_USER,
         timestamp: formatTimeNewDate(new Date()),
       };
+
       if (file) {
         userMessage.file = file.name;
       }
+
       await handleNewMessage(ROLE_USER, userMessage);
       setStatusIcon(botIcon);
       setTimeout(() => scrollToBottom(), 100);
 
       // Prepare request body
       const requestBody: any = {
-        question: inputValue,
+        question: finalQuestion,
         app_id: selectedOption?.app_id,
       };
-
-      if (isFirstMessage) {
-        setIsFirstMessage(false);
-        if (contextValue) {
-          requestBody.context_value = contextValue;
-        }
-      }
 
       if (conversationId) {
         requestBody.conversation_id = conversationId;
       }
+
       if (fileId) {
         requestBody.file = fileId;
       }
 
-      if (encodeURIComponent(inputValue).length > 7000) {
+      if (encodeURIComponent(originalQuestion).length > 7000) {
         const cacheQuestionBody = {
-          question: inputValue,
+          question: originalQuestion,
         };
+
         const cacheQuestionRequest = {
           method: References.method.POST,
           body: JSON.stringify(cacheQuestionBody),
           headers: { 'Content-Type': 'application/json' },
         };
+
         const cacheQuestionResponse = await RestUtils.fetch(
           `${References.url.CACHE_QUESTION}`,
           cacheQuestionRequest,
         );
+
         const cacheQuestionData = await cacheQuestionResponse.json();
         if (cacheQuestionData) {
           delete requestBody.question;
@@ -210,25 +221,31 @@ function App() {
         const params = Object.keys(requestBody)
           .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(requestBody[key])}`)
           .join('&');
+
         const eventSourceUrl = isDevelopment()
           ? `${References.DEV}${References.url.SEND_AQUESTION}?${params}`
           : `${References.PROD}${References.url.SEND_AQUESTION}?${params}`;
+
         let headers = {};
         if (isDevelopment()) {
           headers = {
             Authorization: 'Basic ' + btoa('admin:admin'),
           };
         }
+
         const eventSource = new EventSourcePolyfill(eventSourceUrl, {
           headers: headers,
           heartbeatTimeout: 12000000,
         });
+
         eventSource.onmessage = async function (event) {
           const data = JSON.parse(event.data);
           const answer = data?.answer;
+
           if (answer?.conversation_id) {
             setConversationId(answer.conversation_id);
           }
+
           if (answer?.response) {
             if (answer.role === 'debug') {
               // Don't delete
@@ -244,6 +261,7 @@ function App() {
           console.error('EventSource failed:', err);
           eventSource.close();
         };
+
         setStatusIcon(botIcon);
         const intervalTimeOut = setInterval(() => {
           if (eventSource.readyState === EventSourcePolyfill.CLOSED) {
