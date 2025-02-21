@@ -3,10 +3,12 @@ package com.etendoerp.copilot.eventhandler;
 import java.util.Map;
 
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.client.kernel.BaseActionHandler;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
@@ -27,6 +29,14 @@ public class AutoRegistrationAssistantHandler extends BaseActionHandler {
 
       OBContext currentOBContext = OBContext.getOBContext();
       Role currentRole = currentOBContext.getRole();
+
+      OBCriteria<CopilotRoleApp> crit = OBDal.getInstance().createCriteria(CopilotRoleApp.class);
+      crit.add(Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, currentApp));
+      crit.add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, currentRole));
+      crit.setMaxResults(1);
+      if (crit.uniqueResult() != null) {
+        return result;
+      }
 
       CopilotRoleApp newRoleApp = OBProvider.getInstance().get(CopilotRoleApp.class);
       newRoleApp.setCopilotApp(currentApp);

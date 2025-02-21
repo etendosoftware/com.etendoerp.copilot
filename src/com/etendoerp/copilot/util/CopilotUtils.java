@@ -2,10 +2,6 @@ package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.replaceAliasInPrompt;
 import static com.etendoerp.copilot.util.CopilotConstants.KB_FILE_VALID_EXTENSIONS;
-import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI;
-import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_GEMINI_VALUE;
-import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
-import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI_VALUE;
 import static com.etendoerp.copilot.util.CopilotConstants.isHQLQueryFile;
 import static com.etendoerp.copilot.util.OpenAIUtils.deleteFile;
 
@@ -46,7 +42,6 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.model.ad.access.Role;
@@ -67,8 +62,6 @@ import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 public class CopilotUtils {
 
-  public static final HashMap<String, String> PROVIDER_MAP_CODE_NAME = buildProviderCodeMap();
-  public static final HashMap<String, String> PROVIDER_MAP_CODE_DEFAULT_PROP = buildProviderCodeDefaulMap();
 
   private static final Logger log = LogManager.getLogger(CopilotUtils.class);
   private static final String BOUNDARY = UUID.randomUUID().toString();
@@ -76,6 +69,7 @@ public class CopilotUtils {
   public static final String COPILOT_PORT = "COPILOT_PORT";
   public static final String COPILOT_HOST = "COPILOT_HOST";
   private static final String DEFAULT_PROMPT_PREFERENCE_KEY = "ETCOP_DefaultContextPrompt";
+  public static final String DEFAULT_MODELS_DATASET_URL = "https://raw.githubusercontent.com/etendosoftware/com.etendoerp.copilot/refs/heads/<BRANCH>/referencedata/standard/AI_Models_Dataset.xml";
 
   private static HashMap<String, String> buildProviderCodeMap() {
     HashMap<String, String> map = new HashMap<>();
