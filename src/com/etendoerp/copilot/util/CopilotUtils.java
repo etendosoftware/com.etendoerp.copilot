@@ -42,6 +42,7 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.model.ad.access.Role;
@@ -71,143 +72,6 @@ public class CopilotUtils {
   private static final String DEFAULT_PROMPT_PREFERENCE_KEY = "ETCOP_DefaultContextPrompt";
   public static final String DEFAULT_MODELS_DATASET_URL = "https://raw.githubusercontent.com/etendosoftware/com.etendoerp.copilot/refs/heads/<BRANCH>/referencedata/standard/AI_Models_Dataset.xml";
 
-  private static HashMap<String, String> buildProviderCodeMap() {
-    HashMap<String, String> map = new HashMap<>();
-    map.put(PROVIDER_OPENAI_VALUE, PROVIDER_OPENAI);
-    map.put(PROVIDER_GEMINI_VALUE, PROVIDER_GEMINI);
-    return map;
-  }
-
-  private static HashMap<String, String> buildProviderCodeDefaulMap() {
-    HashMap<String, String> map = new HashMap<>();
-    map.put(PROVIDER_OPENAI, "ETCOP_DefaultModelOpenAI");
-    map.put(PROVIDER_GEMINI, "ETCOP_DefaultModelGemini");
-    return map;
-  }
-
-  /**
-   * This method is used to get the provider of a given CopilotApp instance.
-   * It first checks if the CopilotApp instance and its provider are not null. If
-   * they are not null, it returns the provider of the CopilotApp instance.
-   * If the CopilotApp instance or its provider is null, it retrieves the default
-   * provider from the system preferences.
-   * The default provider is retrieved using the preference key
-   * "ETCOP_DefaultProvider".
-   * The method uses the OBContext to get the current client, organization, user,
-   * and role for retrieving the preference value.
-   * The provider code is then retrieved from the PROVIDER_MAP_CODE_NAME map using
-   * the provider code as the key.
-   * If an exception occurs while executing any of the above steps, it throws an
-   * OBException with the message of the exception.
-   *
-   * @param app
-   *            The CopilotApp instance for which the provider is to be retrieved.
-   * @return The provider of the CopilotApp instance, or the default provider if
-   *         the CopilotApp instance or its provider is null.
-   * @throws OBException
-   *                     If an error occurs while retrieving the provider.
-   */
-  public static String getProvider(CopilotApp app) {
-    try {
-      String provCode = null;
-      if (app != null && app.getModel() != null && StringUtils.isNotEmpty(app.getModel().getProvider())) {
-        return app.getModel().getProvider();
-      }
-      if (app != null && StringUtils.isNotEmpty(app.getProvider())) {
-        provCode = app.getProvider();
-      } else {
-        OBContext context = OBContext.getOBContext();
-        provCode = Preferences.getPreferenceValue("ETCOP_DefaultProvider", true, context.getCurrentClient(),
-            context.getCurrentOrganization(), context.getUser(), context.getRole(), null);
-      }
-
-      return PROVIDER_MAP_CODE_NAME.get(provCode);
-    } catch (Exception e) {
-      throw new OBException(e.getMessage());
-    }
-  }
-
-  /**
-   * This method is used to get the model of a given CopilotApp instance.
-   * It calls the overloaded getAppModel method with the CopilotApp instance and
-   * its provider as arguments.
-   * The provider of the CopilotApp instance is retrieved using the getProvider
-   * method.
-   * If an exception occurs while getting the model or the provider, it throws an
-   * OBException with the message of the exception.
-   *
-   * @param app
-   *            The CopilotApp instance for which the model is to be retrieved.
-   * @return The model of the CopilotApp instance.
-   * @throws OBException
-   *                     If an error occurs while retrieving the model or the
-   *                     provider.
-   */
-  public static String getAppModel(CopilotApp app) {
-    try {
-      String model = getAppModel(app, getProvider(app));
-      logIfDebug("Selected model: " + model);
-      return model;
-    } catch (Exception e) {
-      throw new OBException(e.getMessage());
-    }
-  }
-
-  /**
-   * This method is used to get the model of a given CopilotApp instance and a
-   * provider.
-   * It first checks if the model and its search key of the CopilotApp instance
-   * are not null. If they are not null, it returns the search key of the model.
-   * If the model or its search key is null, it retrieves the provider of the
-   * CopilotApp instance if the provider argument is null.
-   * The provider of the CopilotApp instance is retrieved using the getProvider
-   * method.
-   * It then checks if the provider is in the PROVIDER_MAP_CODE_DEFAULT_PROP map,
-   * and sets the preference accordingly.
-   * If the provider is not in the map, it throws an OBException with a formatted
-   * message.
-   * The preference value is then retrieved using the
-   * Preferences.getPreferenceValue method with the preference, the current
-   * client, organization, user, and role.
-   * If an exception occurs while executing any of the above steps, it throws an
-   * OBException with the message of the exception.
-   *
-   * @param app
-   *                 The CopilotApp instance for which the model is to be
-   *                 retrieved.
-   * @param provider
-   *                 The provider for which the model is to be retrieved.
-   * @return The model of the CopilotApp instance, or the preference value if the
-   *         model or its search key is null.
-   * @throws OBException
-   *                     If an error occurs while retrieving the model, the
-   *                     provider, or the preference value.
-   */
-  public static String getAppModel(CopilotApp app, String provider) {
-    try {
-      String current_provider = provider;
-      if (app.getModel() != null && app.getModel().getSearchkey() != null) {
-        return app.getModel().getSearchkey();
-      }
-      // if the provider is not indicated we will read the provider of the app ( or
-      // the default if not set)
-      OBContext context = OBContext.getOBContext();
-      if (current_provider == null) {
-        current_provider = getProvider(app);
-      }
-      String preference;
-      if (!PROVIDER_MAP_CODE_DEFAULT_PROP.containsKey(current_provider)) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingModel"), app.getName()));
-      }
-      preference = PROVIDER_MAP_CODE_DEFAULT_PROP.get(current_provider);
-
-      return Preferences.getPreferenceValue(preference, true, context.getCurrentClient(),
-          context.getCurrentOrganization(), context.getUser(), context.getRole(), null);
-
-    } catch (Exception e) {
-      throw new OBException(e.getMessage());
-    }
-  }
 
   public static void toVectorDB(String content, File fileToSend, String dbName, String format,
       boolean isBinary, boolean skipSplitting) throws JSONException {
@@ -438,7 +302,7 @@ public class CopilotUtils {
    * defined in the KB\_FILE\_VALID\_EXTENSIONS constant.
    *
    * @param extension
-   *                  The file extension to be checked.
+   *     The file extension to be checked.
    * @return true if the extension is valid, false otherwise.
    */
   private static boolean isValidExtension(String extension) {
@@ -469,10 +333,10 @@ public class CopilotUtils {
    * based on whether the file type is attached or not.
    *
    * @param fileToSync
-   *                   The CopilotFile instance for which the attachment is
-   *                   missing.
+   *     The CopilotFile instance for which the attachment is
+   *     missing.
    * @throws OBException
-   *                     Always thrown to indicate the missing attachment.
+   *     Always thrown to indicate the missing attachment.
    */
   public static void throwMissingAttachException(CopilotFile fileToSync) {
     String errMsg;
@@ -573,13 +437,13 @@ public class CopilotUtils {
    * by the getEtendoHost() method.
    *
    * @param string
-   *               The string in which the placeholder is to be replaced. It is
-   *               expected to contain "@ETENDO_HOST@".
+   *     The string in which the placeholder is to be replaced. It is
+   *     expected to contain "@ETENDO_HOST@".
    * @param maps
-   *               A JSONObject containing key-value pairs to replace in the
-   *               string.
+   *     A JSONObject containing key-value pairs to replace in the
+   *     string.
    * @return The string with the placeholder "@ETENDO_HOST@" replaced by the host
-   *         name of Etendo.
+   *     name of Etendo.
    */
   public static String replaceCopilotPromptVariables(String string, JSONObject maps) throws JSONException {
     OBContext obContext = OBContext.getOBContext();
@@ -630,12 +494,12 @@ public class CopilotUtils {
    * "source.path".
    *
    * @param properties
-   *                   The properties object containing configuration values.
+   *     The properties object containing configuration values.
    * @return The source path if not running inside Docker, otherwise an empty
-   *         string.
+   *     string.
    * @throws RuntimeException
-   *                          If an error occurs while checking the running
-   *                          environment.
+   *     If an error occurs while checking the running
+   *     environment.
    */
   private static String getSourcesPath(Properties properties) {
     boolean inDocker;
@@ -738,13 +602,13 @@ public class CopilotUtils {
    * OBException.
    *
    * @param app
-   *            The CopilotApp instance for which the vector database is to be
-   *            purged.
+   *     The CopilotApp instance for which the vector database is to be
+   *     purged.
    * @throws JSONException
-   *                       If there is an error constructing the JSON request.
+   *     If there is an error constructing the JSON request.
    * @throws OBException
-   *                       If the response from the Copilot service indicates a
-   *                       failure.
+   *     If the response from the Copilot service indicates a
+   *     failure.
    */
   public static void purgeVectorDB(CopilotApp app) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
@@ -773,9 +637,9 @@ public class CopilotUtils {
    * allowed for each model.
    *
    * @return A JSONObject representing the configuration of all models, organized
-   *         by provider and model name.
+   *     by provider and model name.
    * @throws JSONException
-   *                       If an error occurs while creating the JSON object.
+   *     If an error occurs while creating the JSON object.
    */
   public static JSONObject getModelsConfigJSON() throws JSONException {
     JSONObject modelsConfig = new JSONObject();
@@ -804,12 +668,12 @@ public class CopilotUtils {
    * the role has web service enabled.
    *
    * @param role
-   *                The role of the user.
+   *     The role of the user.
    * @param context
-   *                The OBContext containing the current session information.
+   *     The OBContext containing the current session information.
    * @return A JSON object containing the authentication token.
    * @throws Exception
-   *                   If an error occurs while generating the token.
+   *     If an error occurs while generating the token.
    */
   public static JSONObject getAuthJson(Role role, OBContext context) throws Exception {
     JSONObject authJson = new JSONObject();
@@ -828,13 +692,13 @@ public class CopilotUtils {
    * and then generates a secure token using these details.
    *
    * @param context
-   *                The OBContext containing the current session information.
+   *     The OBContext containing the current session information.
    * @param role
-   *                The role of the user for which the token is being generated.
-   *                If null, the role is retrieved from the context.
+   *     The role of the user for which the token is being generated.
+   *     If null, the role is retrieved from the context.
    * @return A secure token for Etendo web services.
    * @throws Exception
-   *                   If an error occurs while generating the token.
+   *     If an error occurs while generating the token.
    */
   private static String getEtendoSWSToken(OBContext context, Role role) throws Exception {
     if (role == null) {
@@ -858,10 +722,10 @@ public class CopilotUtils {
    * attachment with the same ID as the target instance.
    *
    * @param targetInstance
-   *                       The CopilotFile instance for which the attachment is to
-   *                       be retrieved.
+   *     The CopilotFile instance for which the attachment is to
+   *     be retrieved.
    * @return The Attachment associated with the given CopilotFile instance, or
-   *         null if no attachment is found.
+   *     null if no attachment is found.
    */
   public static Attachment getAttachment(CopilotFile targetInstance) {
     OBCriteria<Attachment> attchCriteria = OBDal.getInstance().createCriteria(Attachment.class);
@@ -879,13 +743,13 @@ public class CopilotUtils {
    * instance.
    *
    * @param hookObject
-   *                   The CopilotFile instance to which the file is to be
-   *                   attached.
+   *     The CopilotFile instance to which the file is to be
+   *     attached.
    * @param aim
-   *                   The AttachImplementationManager used to handle the file
-   *                   upload.
+   *     The AttachImplementationManager used to handle the file
+   *     upload.
    * @param file
-   *                   The file to be attached.
+   *     The file to be attached.
    */
   public static void attachFile(CopilotFile hookObject, AttachImplementationManager aim, File file) {
     aim.upload(new HashMap<>(), CopilotConstants.COPILOT_FILE_TAB_ID, hookObject.getId(),
@@ -899,10 +763,10 @@ public class CopilotUtils {
    * CopilotFile instance and deletes it.
    *
    * @param aim
-   *                   The AttachImplementationManager used to handle the file
-   *                   deletion.
+   *     The AttachImplementationManager used to handle the file
+   *     deletion.
    * @param hookObject
-   *                   The CopilotFile instance whose attachment is to be removed.
+   *     The CopilotFile instance whose attachment is to be removed.
    */
   public static void removeAttachment(AttachImplementationManager aim, CopilotFile hookObject) {
     Attachment attachment = CopilotUtils.getAttachment(hookObject);

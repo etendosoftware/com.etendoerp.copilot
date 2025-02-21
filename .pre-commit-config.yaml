@@ -43,6 +43,7 @@ repos:
         entry: poetry export -f requirements.txt --output requirements.txt --without-hashes
         language: system
         pass_filenames: false
+
   - repo: local
     hooks:
       - id: check-gitpolice-repo
@@ -53,3 +54,9 @@ repos:
         name: Update GitPolice Repository
         entry: bash -c 'cd "$HOME/.gitpolice" && git pull'
         language: system
+  - repo: local
+    hooks:
+      - id: build-UI
+        language: system
+        name: Build UI
+        entry: bash -c 'cd web/com.etendoerp.copilot.chat/ && yarn install && yarn build'
