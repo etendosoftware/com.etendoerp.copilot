@@ -1,5 +1,25 @@
 package com.etendoerp.copilot.rest;
 
+import static com.etendoerp.copilot.rest.RestServiceUtil.AGRAPH;
+import static com.etendoerp.copilot.rest.RestServiceUtil.APPLICATION_JSON_CHARSET_UTF_8;
+import static com.etendoerp.copilot.rest.RestServiceUtil.AQUESTION;
+import static com.etendoerp.copilot.rest.RestServiceUtil.FILE;
+import static com.etendoerp.copilot.rest.RestServiceUtil.GET_ASSISTANTS;
+import static com.etendoerp.copilot.rest.RestServiceUtil.QUESTION;
+import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TransferQueue;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileItemFactory;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
@@ -14,26 +34,8 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TransferQueue;
-
-import static com.etendoerp.copilot.rest.RestServiceUtil.*;
-import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
-
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.util.CopilotConstants;
-import com.etendoerp.copilot.util.CopilotUtils;
-
-import io.swagger.v3.core.util.Json;
 
 public class RestService {
   private static final Logger log4j = LogManager.getLogger(RestService.class);
@@ -120,18 +122,18 @@ public class RestService {
         } catch (OBException e) {
           throw new OBException("Error handling question: " + e.getMessage());
         }
-        return;
       } else if (StringUtils.equalsIgnoreCase(path, FILE)) {
-        handleFile(request, response);
-        return;
+        handleFile(request, response, "attachFile");
+      } else if (StringUtils.equalsIgnoreCase(path, "/transcription")) {
+        handleFile(request, response, "transcription");
       } else if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
         handleCacheQuestion(request, response);
-        return;
       } else if (StringUtils.equalsIgnoreCase(path, "/configCheck")) {
         checkEtendoHost(response);
-      } else
+      } else {
         //if not a valid path, throw an error status
         response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+      }
     } catch (Exception e) {
       log4j.error(e);
       try {
@@ -259,7 +261,7 @@ public class RestService {
     response.getWriter().write(error.toString());
   }
 
-  private void handleFile(HttpServletRequest request, HttpServletResponse response)
+  private void handleFile(HttpServletRequest request, HttpServletResponse response, String endpoint)
       throws Exception {
     logIfDebug("handleFile");
     // in the request we will receive a form-data with the field file with the file
@@ -270,7 +272,7 @@ public class RestService {
 
     ServletFileUpload upload = new ServletFileUpload(factory);
     List<FileItem> items = upload.parseRequest(request);
-    var responseJson = RestServiceUtil.handleFile(items);
+    var responseJson = RestServiceUtil.handleFile(items, endpoint);
     response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
     response.getWriter().write(responseJson.toString());
   }

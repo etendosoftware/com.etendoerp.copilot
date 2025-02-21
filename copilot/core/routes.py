@@ -4,6 +4,7 @@ This module contains the main routes for the Copilot API.
 The routes are responsible for handling the incoming requests and returning the responses.
 
 """
+
 import asyncio
 import json
 import logging
@@ -427,6 +428,26 @@ def attach_file(file: UploadFile = File(...)):
     with temp_file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     return {"answer": str(temp_file_path)}
+
+
+@core_router.post("/transcription")
+def transcript_file(file: UploadFile = File(...)):
+    # save the file inside /tmp and return the path
+    if not utils.is_docker():
+        prefix = "/tmp"
+    else:
+        prefix = ""
+    temp_file_path = Path(f"{prefix}/copilotTranscripts/{uuid.uuid4()}/{file.filename}")
+    temp_file_path.parent.mkdir(parents=True, exist_ok=True)
+    with temp_file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    from openai import OpenAI
+
+    client = OpenAI()
+    audio_file = open(temp_file_path, "rb")
+    transcription = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
+    print(transcription.text)
+    return {"answer": str(transcription.text)}
 
 
 @core_router.post("/checkCopilotHost")
