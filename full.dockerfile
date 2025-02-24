@@ -8,6 +8,7 @@ FROM python:3.12-rc-slim-bookworm
 RUN apt update && apt install -y libzbar0
 WORKDIR /app
 COPY --from=requirements-stage /tmp/requirements.txt /app/requirements.txt
+RUN apt-get update && apt-get install -y build-essential
 RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 COPY ./copilot /app/copilot
 COPY ./tools /app/tools
