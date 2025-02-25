@@ -24,7 +24,7 @@ def create_agent(dto: CreateAgentDto):
         "Authorization": "Bearer " + os.environ.get("CLASSIC_TOKEN")
     }
 
-    url = "http://127.0.0.1:8080/etendo/sws/copilot/structure?app_id=" + os.environ.get("DEFAULT_ASSISTANT")
+    url = os.environ.get("ETENDO_HOST_DOCKER") + "/sws/copilot/structure?app_id=" + os.environ.get("DEFAULT_ASSISTANT")
 
     payload = {}
 

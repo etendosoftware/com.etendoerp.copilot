@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETCOP_CONVERSATION">
-    <table name="ETCOP_CONVERSATION" primaryKey="ETCOP_CONV_PKEY">
-      <column name="ETCOP_CONVERSATION_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETCOP_SUGGESTION">
+    <table name="ETCOP_SUGGESTION" primaryKey="ETCOP_SUGGESTION_PKEY">
+      <column name="ETCOP_SUGGESTION_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -33,51 +33,49 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="TITLE" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+      <column name="ETCOP_DOCUMENT_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ORIGINAL_TEXT" primaryKey="false" required="true" type="CLOB" size="4000" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="SUGGESTED_TEXT" primaryKey="false" required="true" type="CLOB" size="4000" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="DESCRIPTION" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="IS_RESOLVED" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
       <column name="AD_USER_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="VISIBLE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
-        <default><![CDATA[Y]]></default>
-        <onCreateDefault/>
-      </column>
-      <column name="EXTERNAL_ID" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="LAST_MSG" primaryKey="false" required="false" type="TIMESTAMP" size="7" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="ETCOP_APP_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="VISIBILITY" primaryKey="false" required="true" type="VARCHAR" size="7" autoIncrement="false">
-        <default><![CDATA[private]]></default>
-        <onCreateDefault/>
-      </column>
-      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_CONV_APP_FK" onDelete="setnull">
-        <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
-      </foreign-key>
-      <foreign-key foreignTable="AD_CLIENT" name="ETCOP_CONV_CLIENT">
+      <foreign-key foreignTable="AD_CLIENT" name="ETCOP_SUG_CLIENT_FK">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETCOP_CONV_ORG">
+      <foreign-key foreignTable="AD_USER" name="ETCOP_SUG_CRBY_FK">
+        <reference local="CREATEDBY" foreign="AD_USER_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="ETCOP_DOCUMENT" name="ETCOP_SUG_DOC_FK">
+        <reference local="ETCOP_DOCUMENT_ID" foreign="ETCOP_DOCUMENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_ORG" name="ETCOP_SUG_ORG_FK">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_USER" name="ETCOP_CONV_USR">
+      <foreign-key foreignTable="AD_USER" name="ETCOP_SUG_UPBY_FK">
+        <reference local="UPDATEDBY" foreign="AD_USER_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_USER" name="ETCOP_SUG_USER_FK">
         <reference local="AD_USER_ID" foreign="AD_USER_ID"/>
       </foreign-key>
-      <unique name="ETCOP_CONV_EXTID_UNIQUE">
-        <unique-column name="EXTERNAL_ID"/>
-      </unique>
-      <check name="ETCOP_CHK_VISIBILITY"><![CDATA[VISIBILITY IN ('public', 'private')]]></check>
-      <check name="ETCOP_CONV_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
-      <check name="ETCOP_VISIBLE_CHECK"><![CDATA[VISIBLE IN ('Y', 'N')]]></check>
+      <check name="ETCOP_SUG_ISACT_CK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETCOP_SUG_ISRES_CK"><![CDATA[IS_RESOLVED IN ('Y', 'N')]]></check>
     </table>
   </database>
