@@ -53,6 +53,7 @@ requests = "^2.32.3"
 curlify = "^2.2.1"
 langgraph-supervisor = "^0.0.4"
 langgraph-checkpoint = "^2.0.16"
+pip = "^25.0.1"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
@@ -66,6 +67,7 @@ pytest-cov = "^5.0.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
 
 
 

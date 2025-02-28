@@ -6,9 +6,10 @@ from copilot.core.agent import AssistantAgent, MultimodelAgent
 from copilot.core.langgraph.patterns.graph_member import GraphMember
 from copilot.core.schemas import AssistantSchema
 from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
-from langchain.agents import AgentExecutor, create_react_agent
+from langchain.agents import AgentExecutor
+from langgraph.prebuilt.chat_agent_executor import create_react_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-
+from langchain.chat_models import init_chat_model
 
 def debug_messages(messages):
     try:
