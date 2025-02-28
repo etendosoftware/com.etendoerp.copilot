@@ -9,7 +9,6 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph
 
-
 class BasePattern:
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
 
@@ -48,10 +47,4 @@ class BasePattern:
         raise NotImplementedError
 
 
-class GraphMember:
-    name: str
-    node: object
 
-    def __init__(self, name, node):
-        self.name = name
-        self.node = node

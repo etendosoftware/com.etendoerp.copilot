@@ -5,10 +5,9 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-from ..langgraph.copilot_langgraph import CopilotLangGraph
 from ..langgraph.members_util import MembersUtil
-from ..langgraph.patterns import SupervisorPattern
-from ..langgraph.patterns.base_pattern import GraphMember
+from ..langgraph.patterns.graph_member import GraphMember
+from ..langgraph.patterns.langsupervisor_pattern import LangSupervisorPattern
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import GraphQuestionSchema
 from ..utils import (
@@ -52,8 +51,8 @@ def setup_graph(question, memory):
     """
     thread_id = question.conversation_id
     members: list[GraphMember] = MembersUtil().get_members(question)
-    lang_graph = CopilotLangGraph(
-        members, question.graph, SupervisorPattern(), memory=memory, full_question=question
+    lang_graph = LangSupervisorPattern(
+        members, question.graph, None, memory=memory, full_question=question
     )
     return lang_graph, thread_id
 

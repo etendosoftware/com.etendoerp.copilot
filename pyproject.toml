@@ -13,14 +13,14 @@ python-dotenv = "^1.0.0"
 pydantic = "^2.2.1"
 fastapi = "^0.115.4"
 uvicorn = "^0.34.0"
-langchain = "^0.3.6"
+langchain = "^0.3.19"
 toml = "^0.10.2"
 packaging = "^24.1"
-openai = "^1.61.0"
+openai = "^1.65.1"
 langchain-openai = "^0.3.3"
 langchain-google-genai = "^2.0.9"
-langchain-community = "^0.3.4"
-langgraph = "^0.2.43"
+langchain-community = "^0.3.18"
+langgraph = "0.3.1"
 grandalf = "^0.8"
 aiosqlite = "^0.20.0"
 tox = "^4.23.2"
@@ -35,7 +35,7 @@ langchain-core = "^0.3.33"
 langsmith = "^0.3.3"
 python-multipart = "^0.0.20"
 poetry-core = "^2.0.1"
-langgraph-checkpoint-sqlite = "^2.0.3"
+langgraph-checkpoint-sqlite = "^2.0.5"
 debugpy = "^1.8.7"
 colorama = "^0.4.6"
 langchain-experimental = "^0.3.2"
@@ -46,11 +46,13 @@ pyfiglet = "^1.0.2"
 pre-commit = "^4.0.1"
 tomli = "^2.0.2"
 langchain-chroma = "^0.2.1"
-langchain-anthropic = "^0.3.5"
+langchain-anthropic = "^0.3.8"
 langchain-ollama = "^0.2.3"
 langchain-text-splitters = "^0.3.5"
 requests = "^2.32.3"
 curlify = "^2.2.1"
+langgraph-supervisor = "^0.0.4"
+langgraph-checkpoint = "^2.0.16"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
@@ -64,6 +66,23 @@ pytest-cov = "^5.0.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

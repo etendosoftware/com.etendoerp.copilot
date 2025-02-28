@@ -3,10 +3,10 @@ from typing import List, Sequence
 
 from colorama import Fore, Style
 from copilot.core.agent import AssistantAgent, MultimodelAgent
-from copilot.core.langgraph.patterns.base_pattern import GraphMember
+from copilot.core.langgraph.patterns.graph_member import GraphMember
 from copilot.core.schemas import AssistantSchema
 from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
-from langchain.agents import AgentExecutor
+from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 
@@ -71,21 +71,20 @@ class MembersUtil:
             )
             member = GraphMember(assistant.name, model_node)
         else:
-            agent_build = MultimodelAgent()
-            kb_vectordb_id = assistant.kb_vectordb_id if hasattr(assistant, "kb_vectordb_id") else None
-            _agent = agent_build.get_agent(
-                assistant.provider,
-                assistant.model,
-                assistant.tools,
-                assistant.system_prompt,
-                assistant.temperature,
-                kb_vectordb_id,
+            configured_tools = MultimodelAgent().get_tools()
+            tools = []
+            for tool in assistant.tools:
+                for t in configured_tools:
+                    if t.name == tool.function.name:
+                        tools.append(t)
+                        break
+
+            member = create_react_agent(
+                model=assistant.model,
+                tools=tools,
+                name=assistant.name,
+                prompt=assistant.system_prompt
             )
-            agent_executor = agent_build.get_agent_executor(_agent)
-            model_node = functools.partial(
-                self.model_langchain_invoker(), _agent=agent_executor, _name=assistant.name
-            )
-            member = GraphMember(assistant.name, model_node)
         return member
 
     def get_assistant_agent(self):
