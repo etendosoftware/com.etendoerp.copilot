@@ -1,15 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import TextMessage from 'etendo-ui-library/dist-web/components/text-message/TextMessage';
 import FileSearchInput from 'etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput';
 import { useAssistants } from './hooks/useAssistants';
 import { formatTimeNewDate, getMessageType } from './utils/functions';
-import enterIcon from './assets/enter.svg';
 import botIcon from './assets/bot.svg';
 import responseSent from './assets/response-sent.svg';
 import { ILabels } from './interfaces';
 import { IMessage } from './interfaces/IMessage';
 import { References } from './utils/references';
 import './App.css';
+import ContextTitlePreview from './components/ContextNamePreview';
 import { DropdownInput } from 'etendo-ui-library/dist-web/components';
 import { SparksIcon } from 'etendo-ui-library/dist-web/assets/images/icons';
 import { RestUtils, isDevelopment } from './utils/environment';
@@ -18,28 +18,37 @@ import { ROLE_BOT, ROLE_ERROR, ROLE_NODE, ROLE_TOOL, ROLE_USER, ROLE_WAIT } from
 import { getMessageContainerClasses } from './utils/styles';
 
 function App() {
+  // Search for localization
   const search = window.location.search;
-  const params = new URLSearchParams(search);
+
+  // Query parameters
+  const params = useMemo(() => new URLSearchParams(search), [search]);
+  const contextValue = params.get("context_value");
+  const [inputValue, setInputValue] = useState<string>(params.get("question") ?? '');
+  const [contextTitle, setContextTitle] = useState<string | null>(params.get("context_title"));
 
   // States
   const [file, setFile] = useState<any>(null);
   const [labels, setLabels] = useState<ILabels>({});
-  const [statusIcon, setStatusIcon] = useState(enterIcon);
-  const [files, setFiles] = useState<File[] | null>(null);
+  const [statusIcon, setStatusIcon] = useState(botIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [inputValue, setInputValue] = useState<string>(params.get("question") ?? '');
+  const [isFirstMessage, setIsFirstMessage] = useState(true);
   const [fileId, setFileId] = useState<string[] | null>(null);
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
+  const [files, setFiles] = useState<(string | File)[] | null>(null);
   const [areLabelsLoaded, setAreLabelsLoaded] = useState<boolean>(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+
+  // Hooks
   const { selectedOption, assistants, getAssistants, handleOptionSelected } =
     useAssistants();
 
+  // Effect to handle the assistant_id parameter
   useEffect(() => {
     const assistant_id = params.get("assistant_id");
-    if(assistant_id && assistants.length > 0) {
+    if (assistant_id && assistants.length) {
       const assistant = assistants.find(assistant => assistant.app_id === assistant_id);
-      if(assistant) {
+      if (assistant) {
         handleOptionSelected(assistant);
       }
     }
@@ -65,6 +74,15 @@ function App() {
     }
 
     setMessages((prevMessages: any) => {
+      // Get files or context title
+      let fileNames: { name: string }[] = [];
+      if (files && files.length > 0) {
+        fileNames = files.map((file: any) => ({ name: file.name }));
+      } else if (contextTitle) {
+        fileNames = [{ name: contextTitle }];
+      }
+
+      // Replace the last message if the role is the same
       const lastMessage = prevMessages[prevMessages.length - 1];
       if (
         lastMessage &&
@@ -79,7 +97,7 @@ function App() {
             text: _text,
             sender: role,
             timestamp: formatTimeNewDate(new Date()),
-            files: files,
+            files: fileNames,
           },
         ];
       } else {
@@ -91,11 +109,12 @@ function App() {
             text: _text,
             sender: role,
             timestamp: formatTimeNewDate(new Date()),
-            files: files,
+            files: fileNames,
           },
         ];
       }
     });
+    setContextTitle(null);
     if (role === ROLE_USER) {
       await handleNewMessage(ROLE_WAIT, {
         text: 'Processing...',
@@ -110,9 +129,6 @@ function App() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
-  // Function to update the bot interpretation message
-  const updateInterpretingMessage = () => {};
 
   // Fetch labels data
   const getLabels = async () => {
@@ -135,77 +151,101 @@ function App() {
     setIsBotLoading(true);
     setFile(null);
     setFileId(null);
+
     if (!isBotLoading) {
-      const question = inputValue.trim();
+      const originalQuestion = inputValue.trim();
       setInputValue('');
-      if (!question) return;
+      if (!originalQuestion) return;
+
+      let finalQuestion = originalQuestion;
+
+      if (isFirstMessage) {
+        setIsFirstMessage(false);
+        if (contextValue) {
+          finalQuestion = `Context: ${contextValue}\nQuestion: ${originalQuestion}`;
+        }
+      }
 
       // Add user message
       const userMessage: IMessage = {
-        text: question,
+        text: originalQuestion,
         sender: ROLE_USER,
         timestamp: formatTimeNewDate(new Date()),
       };
+
       if (file) {
         userMessage.file = file.name;
       }
+
       await handleNewMessage(ROLE_USER, userMessage);
       setStatusIcon(botIcon);
       setTimeout(() => scrollToBottom(), 100);
 
       // Prepare request body
       const requestBody: any = {
-        question: inputValue,
+        question: finalQuestion,
         app_id: selectedOption?.app_id,
       };
+
       if (conversationId) {
         requestBody.conversation_id = conversationId;
       }
+
       if (fileId) {
         requestBody.file = fileId;
       }
 
-      if (encodeURIComponent(inputValue).length > 7000) {
+      if (encodeURIComponent(originalQuestion).length > 7000) {
         const cacheQuestionBody = {
-          question: inputValue,
+          question: originalQuestion,
         };
+
         const cacheQuestionRequest = {
           method: References.method.POST,
           body: JSON.stringify(cacheQuestionBody),
           headers: { 'Content-Type': 'application/json' },
         };
+
         const cacheQuestionResponse = await RestUtils.fetch(
           `${References.url.CACHE_QUESTION}`,
           cacheQuestionRequest,
         );
+
         const cacheQuestionData = await cacheQuestionResponse.json();
         if (cacheQuestionData) {
           delete requestBody.question;
         }
       }
+
       try {
         const params = Object.keys(requestBody)
           .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(requestBody[key])}`)
           .join('&');
+
         const eventSourceUrl = isDevelopment()
           ? `${References.DEV}${References.url.SEND_AQUESTION}?${params}`
           : `${References.PROD}${References.url.SEND_AQUESTION}?${params}`;
-        let headers = {}
-        if(isDevelopment()) {
+
+        let headers = {};
+        if (isDevelopment()) {
           headers = {
-            Authorization: 'Basic ' + btoa('admin:admin')
-          }
+            Authorization: 'Basic ' + btoa('admin:admin'),
+          };
         }
+
         const eventSource = new EventSourcePolyfill(eventSourceUrl, {
           headers: headers,
           heartbeatTimeout: 12000000,
         });
+
         eventSource.onmessage = async function (event) {
           const data = JSON.parse(event.data);
           const answer = data?.answer;
+
           if (answer?.conversation_id) {
             setConversationId(answer.conversation_id);
           }
+
           if (answer?.response) {
             if (answer.role === 'debug') {
               // Don't delete
@@ -221,9 +261,10 @@ function App() {
           console.error('EventSource failed:', err);
           eventSource.close();
         };
+
         setStatusIcon(botIcon);
         const intervalTimeOut = setInterval(() => {
-          if(eventSource.readyState === EventSourcePolyfill.CLOSED) {
+          if (eventSource.readyState === EventSourcePolyfill.CLOSED) {
             setIsBotLoading(false);
             eventSource.close();
             setTimeout(() => scrollToBottom(), 100);
@@ -285,7 +326,7 @@ function App() {
 
     if (isBotLoading && statusIcon !== responseSent) {
       const randomDelay = Math.random() * (10000 - 5000) + 5000;
-      intervalId = setTimeout(updateInterpretingMessage, randomDelay);
+      intervalId = setTimeout(() => { }, randomDelay);
     }
 
     return () => {
@@ -473,6 +514,12 @@ function App() {
           className={`mx-[12px]`}
           ref={inputRef}
         >
+          {/* Conditionally render the context name title */}
+          {contextTitle && isFirstMessage && (
+            <ContextTitlePreview contextTitle={contextTitle} />
+          )}
+
+          {/* Input area */}
           <FileSearchInput
             value={inputValue}
             placeholder={labels.ETCOP_Message_Placeholder!}

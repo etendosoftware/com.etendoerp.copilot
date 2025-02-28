@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -20,10 +19,7 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
-
-import org.openbravo.model.ad.utility.Attachment;
 
 /**
  * This class implements the CopilotFileHook interface and provides functionality

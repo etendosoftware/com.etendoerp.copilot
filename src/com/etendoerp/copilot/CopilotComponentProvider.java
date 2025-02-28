@@ -26,6 +26,7 @@ public class CopilotComponentProvider extends BaseComponentProvider {
     final List<ComponentResource> globalResources = new ArrayList<ComponentResource>();
     globalResources.add(createStyleSheetResource("web/styles/style.css", false));
     globalResources.add(createStaticResource("web/com.etendoerp.copilot/js/assistantAutoRegistration.js", false));
+    globalResources.add(createStaticResource("web/com.etendoerp.copilot/js/copilotToolbarButton.js", false));
     return globalResources;
   }
 
