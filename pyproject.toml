@@ -51,6 +51,7 @@ langchain-ollama = "^0.2.3"
 langchain-text-splitters = "^0.3.5"
 requests = "^2.32.3"
 curlify = "^2.2.1"
+langchain-deepseek = "^0.1.1"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
