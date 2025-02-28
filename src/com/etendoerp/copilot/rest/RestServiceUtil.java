@@ -154,9 +154,10 @@ public class RestServiceUtil {
    * for the CopilotApp.
    *
    * @param items
+   * @param endpoint
    * @throws Exception
    */
-  static JSONObject handleFile(List<FileItem> items) throws Exception {
+  static JSONObject handleFile(List<FileItem> items, String endpoint) throws Exception {
     logIfDebug(String.format("items: %d", items.size()));
     JSONObject responseJson = new JSONObject();
     //create a list of files, for delete them later when the process finish
@@ -183,7 +184,7 @@ public class RestServiceUtil {
         }
       }
       checkSizeFile(f);
-      responseJson.put(item.getFieldName(), handleFile(f, originalFileName));
+      responseJson.put(item.getFieldName(), handleFile(f, originalFileName, endpoint));
     }
 
     return responseJson;
@@ -195,11 +196,12 @@ public class RestServiceUtil {
    *
    * @param f
    * @param originalFileName
+   * @param endpoint
    * @throws IOException
    */
-  private static String handleFile(File f, String originalFileName) throws IOException, JSONException {
+  private static String handleFile(File f, String originalFileName, String endpoint) throws IOException, JSONException {
     var prop = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    var response = CopilotUtils.getResponseFromCopilot(prop, "attachFile", new JSONObject(), f);
+    var response = CopilotUtils.getResponseFromCopilot(prop, endpoint, new JSONObject(), f);
     if (response == null) {
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"));
     }
