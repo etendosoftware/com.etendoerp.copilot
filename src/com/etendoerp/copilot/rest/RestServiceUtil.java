@@ -1050,6 +1050,8 @@ public class RestServiceUtil {
     try {
       jsonExtraInfo.put("auth", CopilotUtils.getAuthJson(role, context));
       jsonExtraInfo.put("model_config", CopilotUtils.getModelsConfigJSON());
+      jsonExtraInfo.put("current_agent_id", copilotApp.getId());
+      jsonExtraInfo.put("current_user_id", OBContext.getOBContext().getUser().getId());
       jsonRequest.put("extra_info", jsonExtraInfo);
     } catch (Exception e) {
       log.error("Error adding auth token to extraInfo", e);

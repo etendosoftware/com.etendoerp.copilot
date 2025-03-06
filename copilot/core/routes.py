@@ -114,6 +114,7 @@ def _initialize_agent(question: QuestionSchema):
     copilot_debug("  conversation_id: " + str(question.conversation_id))
     copilot_debug("  file_ids: " + str(question.file_ids))
     ThreadContext.set_data("extra_info", question.extra_info)
+    ThreadContext.set_data("assistant_id",question.assistant_id)
     ThreadContext.set_data("conversation_id", question.conversation_id)
     return agent_type, copilot_agent
 
@@ -200,6 +201,7 @@ def _serve_agraph(question: GraphQuestionSchema):
 
     try:
         ThreadContext.set_data("extra_info", question.extra_info)
+        ThreadContext.set_data("assistant_id", question.extra_info.get("current_agent_id"))
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         queue = asyncio.Queue()
