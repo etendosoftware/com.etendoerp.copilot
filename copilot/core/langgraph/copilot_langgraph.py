@@ -31,6 +31,7 @@ class CopilotLangGraph:
         config = {
             "configurable": {"thread_id": thread_id},
             "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 50),
+            "max_iterations": 100
         }
         if get_image:
             import base64

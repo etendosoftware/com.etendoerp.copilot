@@ -870,7 +870,21 @@ public class RestServiceUtil {
     if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
       jsonRequestForCopilot.put(PROP_DESCRIPTION, copilotApp.getDescription());
     }
-
+    JSONArray appSpecs = new JSONArray();
+    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+      if (StringUtils.equals(appSource.getBehaviour(), CopilotConstants.FILE_BEHAVIOUR_SPECS)) {
+        JSONObject spec = new JSONObject();
+        try {
+          spec.put("name", appSource.getFile().getName());
+          spec.put("type", appSource.getFile().getType());
+          spec.put("spec", CopilotUtils.getAppSourceContent(appSource));
+          appSpecs.put(spec);
+        } catch (JSONException e) {
+          throw new OBException("Error while building the app specs", e);
+        }
+      }
+    }
+    jsonRequestForCopilot.put("specs", appSpecs);
   }
 
   public static StringBuilder replaceAliasInPrompt(StringBuilder prompt,

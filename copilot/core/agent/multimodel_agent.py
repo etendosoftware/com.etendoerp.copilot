@@ -20,6 +20,7 @@ from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import AddableDict, RunnablePassthrough
 
 from .. import etendo_utils, utils
+from ..langgraph.members_util import ApiTool
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import QuestionSchema, ToolSchema
 from ..utils import get_full_question
@@ -154,7 +155,10 @@ class MultimodelAgent(CopilotAgent):
         if tools:
             for tool in tools:
                 for t in self._configured_tools:
-                    if t.name == tool.function.name:
+                    if isinstance(tool, ApiTool):
+                        _enabled_tools.append(t)
+                        break
+                    elif t.name == tool.function.name or tool.function.name == "ApiTool":
                         _enabled_tools.append(t)
                         break
         return _enabled_tools

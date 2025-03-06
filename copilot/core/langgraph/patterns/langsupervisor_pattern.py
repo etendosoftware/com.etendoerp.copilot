@@ -13,14 +13,16 @@ class LangSupervisorPattern(BasePattern):
     def __init__(self, members, assistant_graph, pattern: BasePattern, memory, full_question=None):
         self._pattern = pattern
         self._full_question = full_question
-        model = ChatOpenAI(model="gpt-4o")
+        model = ChatOpenAI(model="gpt-4o", temperature=0.1)
         # Create supervisor workflow
         sv_prompt = get_supervisor_system_prompt(full_question)
 
         workflow = create_supervisor(
             members,
             model=model,
-            prompt=sv_prompt
+            prompt=sv_prompt,
+            output_mode='full_history',
+            add_handoff_back_messages=True
         )
 
         # Compile and run

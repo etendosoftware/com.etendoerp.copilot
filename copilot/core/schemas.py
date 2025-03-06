@@ -25,6 +25,10 @@ class AssistantStage(BaseModel):
 class AssistantGraph(BaseModel):
     stages: list[AssistantStage]
 
+class AssistantSpecs(BaseModel):
+    name: str
+    type: str
+    spec: str
 
 class AssistantSchema(BaseModel):
     name: Optional[str] = None
@@ -39,6 +43,7 @@ class AssistantSchema(BaseModel):
     temperature: Optional[float] = 1
     description: Optional[str] = None
     kb_vectordb_id: Optional[str] = None
+    specs: Optional[list[AssistantSpecs]] = None
 
 
 class QuestionSchema(AssistantSchema):

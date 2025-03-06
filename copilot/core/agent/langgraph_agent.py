@@ -210,6 +210,7 @@ class LanggraphAgent(CopilotAgent):
             config = {
                 "configurable": {},
                 "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 50),
+                "max_iterations": 100,
             }
 
             if thread_id is not None:
