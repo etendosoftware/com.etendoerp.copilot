@@ -1,7 +1,9 @@
 import functools
 import json
-from typing import Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
+import aiohttp
+import requests
 from colorama import Fore, Style
 from langchain_core.runnables import RunnableConfig
 from langgraph.func import entrypoint
@@ -23,6 +25,10 @@ from pydantic import BaseModel, create_model, Field
 from langchain.tools import BaseTool
 import requests
 from langgraph.store.memory import InMemoryStore
+from langchain.tools import BaseTool
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langgraph.prebuilt.chat_agent_executor import create_react_agent
+from pydantic import BaseModel, Field, create_model
 
 
 def debug_messages(messages):
@@ -109,10 +115,7 @@ class MembersUtil:
             llm = get_llm(assistant.model, assistant.provider, assistant.temperature)
 
             member = create_react_agent(
-                model=llm,
-                tools=tools,
-                name=assistant.name,
-                prompt=assistant.system_prompt,
+                model=llm, tools=tools, name=assistant.name, prompt=assistant.system_prompt, debug=True
             )
         return member
 
@@ -155,6 +158,21 @@ def schema_to_pydantic_type(schema: Dict[str, Any]) -> Any:
         return type_map.get(schema_type, str)
 
 
+def summarize(method, url, text):
+    simple_mode = utils.read_optional_env_var("COPILOT_SIMPLE_MODE", "true").lower() == "true"
+    if (method.upper() in ["POST", "PUT"]) and "com.etendoerp.etendorx.datasource" in url and simple_mode:
+        try:
+            # lest resume the json
+            resp_json = json.loads(text)
+            id = resp_json.get("response").get("data")[0].get("id")
+            endpoint_name = url.split("/")[-1]
+
+            return f" {endpoint_name} record has been {'created' if method.upper() == 'POST' else 'updated'} successfully with id: {id}"
+        except Exception as e:
+            copilot_debug(f"Response cannot be summarized: {str(e)}")
+    return text
+
+
 class ApiTool(BaseTool, BaseModel):
     base_url: str
     path: str
@@ -173,17 +191,25 @@ class ApiTool(BaseTool, BaseModel):
         request_body: Optional[Dict[str, Any]] = None,
         **kwargs,  # For BaseTool/BaseModel compatibility
     ):
-        super(BaseTool, self).__init__(name=name, description=description, base_url=base_url, path=path, method=method, parameters=parameters, **kwargs)
+        super(BaseTool, self).__init__(
+            name=name,
+            description=description,
+            base_url=base_url,
+            path=path,
+            method=method,
+            parameters=parameters,
+            **kwargs,
+        )
         BaseModel.__init__(
             self,
             name=name,
             description=description,
-            base_url=base_url.rstrip('/'),
-            path=path.lstrip('/'),
+            base_url=base_url.rstrip("/"),
+            path=path.lstrip("/"),
             method=method.lower(),
             parameters=parameters or [],
             request_body=request_body,
-            **kwargs
+            **kwargs,
         )
 
         fields = {}
@@ -205,11 +231,18 @@ class ApiTool(BaseTool, BaseModel):
 
     def _run(self, **kwargs: Any) -> str:
         path_params = {p["name"]: kwargs[f"path_{p['name']}"] for p in self.parameters if p["in"] == "path"}
-        query_params = {p["name"]: kwargs[f"query_{p['name']}"] for p in self.parameters if
-                        p["in"] == "query" and kwargs.get(f"query_{p['name']}") is not None}
-        headers = {p["name"]: kwargs[f"header_{p['name']}"] for p in self.parameters if
-                   p["in"] == "header" and kwargs.get(f"header_{p['name']}") is not None}
+        query_params = {
+            p["name"]: kwargs[f"query_{p['name']}"]
+            for p in self.parameters
+            if p["in"] == "query" and kwargs.get(f"query_{p['name']}") is not None
+        }
+        headers = {
+            p["name"]: kwargs[f"header_{p['name']}"]
+            for p in self.parameters
+            if p["in"] == "header" and kwargs.get(f"header_{p['name']}") is not None
+        }
         from copilot.core import etendo_utils
+
         token = etendo_utils.get_etendo_token()
         headers["Authorization"] = f"Bearer {token}"
         url = f"{self.base_url}/{self.path}"
@@ -229,17 +262,24 @@ class ApiTool(BaseTool, BaseModel):
                 json=data,
             )
             response.raise_for_status()
-            return response.text
+            return summarize(self.method, url, response.text)
         except Exception as e:
             return f"Error en la llamada a la API: {str(e)}"
 
     async def _arun(self, **kwargs: Any) -> str:
         path_params = {p["name"]: kwargs[f"path_{p['name']}"] for p in self.parameters if p["in"] == "path"}
-        query_params = {p["name"]: kwargs[f"query_{p['name']}"] for p in self.parameters if
-                        p["in"] == "query" and kwargs.get(f"query_{p['name']}") is not None}
-        headers = {p["name"]: kwargs[f"header_{p['name']}"] for p in self.parameters if
-                   p["in"] == "header" and kwargs.get(f"header_{p['name']}") is not None}
+        query_params = {
+            p["name"]: kwargs[f"query_{p['name']}"]
+            for p in self.parameters
+            if p["in"] == "query" and kwargs.get(f"query_{p['name']}") is not None
+        }
+        headers = {
+            p["name"]: kwargs[f"header_{p['name']}"]
+            for p in self.parameters
+            if p["in"] == "header" and kwargs.get(f"header_{p['name']}") is not None
+        }
         from copilot.core import etendo_utils
+
         token = etendo_utils.get_etendo_token()
         headers["Authorization"] = f"Bearer {token}"
 
@@ -267,11 +307,13 @@ class ApiTool(BaseTool, BaseModel):
                     json=data if data else None,
                 ) as response:
                     response.raise_for_status()
-                    return await response.text()
+                    text = await response.text()
+                    return summarize(self.method, url, text)
             except aiohttp.ClientError as e:
                 return f"Error en la llamada a la API (async): {str(e)}"
             except ValueError as e:
                 return f"Error de método HTTP: {str(e)}"
+
 
 def generate_tools_from_openapi(openapi_spec: Dict[str, Any]) -> List[ApiTool]:
     tools = []
@@ -280,7 +322,7 @@ def generate_tools_from_openapi(openapi_spec: Dict[str, Any]) -> List[ApiTool]:
 
     for path, methods in paths.items():
         for method, operation in methods.items():
-            tool_name = f"{method.upper()}_{path.replace('/', '_').replace('.', '_').replace('{','-').replace('}', '-').strip('_')}"
+            tool_name = f"{method.upper()}_{path.replace('/', '_').replace('.', '_').replace('{', '-').replace('}', '-').strip('_')}"
             description = f"\n\n{operation.get('description', '')}"
             if len(description) > 1024:
                 description = description[:1021] + "..."

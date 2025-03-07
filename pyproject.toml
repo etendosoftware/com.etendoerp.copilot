@@ -55,6 +55,7 @@ langgraph-supervisor = "^0.0.8"
 langgraph-checkpoint = "^2.0.16"
 pip = "^25.0.1"
 langmem = "^0.0.15"
+black = "^25.1.0"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
