@@ -88,12 +88,12 @@ class MembersUtil:
                     if t.name == tool.function.name:
                         tools.append(t)
                         break
-            if not assistant.specs is None:
+            if assistant.specs is not None:
                 for spec in assistant.specs:
                     if spec.type == "FLOW":
                         api_spec = json.loads(spec.spec)
                         openapi_tools = generate_tools_from_openapi(api_spec)
-                        tools += openapi_tools
+                        tools.extend(openapi_tools)
 
             from copilot.core.agent.multimodel_agent import get_llm
             llm = get_llm(assistant.model, assistant.provider, assistant.temperature)
@@ -136,10 +136,15 @@ def schema_to_pydantic_type(schema: Dict[str, Any]) -> Any:
         return List[schema_to_pydantic_type(items_schema)]
     elif schema_type == "object":
         properties = schema.get("properties", {})
-        fields = {
-            prop: (schema_to_pydantic_type(prop_schema), ...)
-            for prop, prop_schema in properties.items()
-        }
+        fields = {}
+        for prop, prop_schema in properties.items():
+            prop_type = schema_to_pydantic_type(prop_schema)
+            prop_description = prop_schema.get("description", f"Field {prop} of the object")
+            is_required = prop in schema.get("required", [])
+            fields[prop] = (
+                prop_type,
+                Field(..., description=prop_description) if is_required else Field(default=None, description=prop_description)
+            )
         return create_model("DynamicModel", **fields)
     else:
         return type_map.get(schema_type, str)
