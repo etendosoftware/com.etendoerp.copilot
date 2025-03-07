@@ -2249,14 +2249,14 @@ langchain-core = ">=0.3.34,<1.0.0"
 
 [[package]]
 name = "langgraph"
-version = "0.3.1"
+version = "0.3.5"
 description = "Building stateful, multi-actor applications with LLMs"
 optional = false
 python-versions = "<4.0,>=3.9.0"
 groups = ["main"]
 files = [
-    {file = "langgraph-0.3.1-py3-none-any.whl", hash = "sha256:212e1220d6a2af27048109604c816ccfbceb53a9aa93721be874305d8e28b7f5"},
-    {file = "langgraph-0.3.1.tar.gz", hash = "sha256:81cb89c381b089a20eac9a247f7ebcf3f41c922ac79e06dbcc4fc136c6f73dd5"},
+    {file = "langgraph-0.3.5-py3-none-any.whl", hash = "sha256:be313ec300633c857873ea3e44aece4dd7d0b11f131d385108b359d377a85bf7"},
+    {file = "langgraph-0.3.5.tar.gz", hash = "sha256:7c0d8e61aa02578b41036c9f7a599ccba2562d269f66ef76bacbba47a99a7eca"},
 ]
 
 [package.dependencies]
@@ -2331,19 +2331,18 @@ orjson = ">=3.10.1"
 
 [[package]]
 name = "langgraph-supervisor"
-version = "0.0.4"
+version = "0.0.7"
 description = "An implementation of a supervisor multi-agent architecture using LangGraph"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "langgraph_supervisor-0.0.4-py3-none-any.whl", hash = "sha256:1523b390f222a5854f169b9af6c4f0ce8be4ecf365d49a76b06f22d58af36937"},
-    {file = "langgraph_supervisor-0.0.4.tar.gz", hash = "sha256:89c43d88a4dda0f08773df783201a0228c99d6bbd3e32625e688c32c3f87137a"},
+    {file = "langgraph_supervisor-0.0.7-py3-none-any.whl", hash = "sha256:4755c770f0f048f6ba87ceb2e79f785b15f66234c57f9073b3e40df80f9e8cfd"},
+    {file = "langgraph_supervisor-0.0.7.tar.gz", hash = "sha256:d99784652248d8b4292fd35170d90305f5af080f08e80d84a89a538b796bfc37"},
 ]
 
 [package.dependencies]
-langchain-core = ">=0.1.27"
-langgraph = ">=0.2.71"
+langgraph = ">=0.3.5,<0.4.0"
 
 [[package]]
 name = "langsmith"
@@ -5415,4 +5414,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "5bd93045be33cfebde8393e2094e86784347d0e271687ab98e5cc14f5229e927"
+content-hash = "23bab7686f7bab0b64a0d356790b2e7f434deffafe264c371b9d9fdc76be10a0"
