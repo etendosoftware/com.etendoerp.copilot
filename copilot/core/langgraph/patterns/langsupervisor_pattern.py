@@ -1,27 +1,31 @@
-from typing import Annotated, Sequence
-
-from colorama import Fore
-from langchain_core.messages import BaseMessage
-from langchain_openai import ChatOpenAI
-from langgraph.graph import add_messages
-from langgraph.prebuilt.chat_agent_executor import AgentState
-from langgraph.store.memory import InMemoryStore
-from langgraph_supervisor import create_supervisor
+from typing import Annotated, List
 
 from copilot.core.langgraph.patterns.base_pattern import BasePattern
-from copilot.core.langgraph.special_nodes.supervisor_node import get_supervisor_system_prompt
-from typing import Annotated, List
-import operator
+from copilot.core.langgraph.special_nodes.supervisor_node import (
+    get_supervisor_system_prompt,
+)
+from langchain_core.messages import ToolMessage
+from langchain_core.tools import InjectedToolCallId
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import InjectedState
+from langgraph.prebuilt.chat_agent_executor import AgentState
+from langgraph.store.memory import InMemoryStore
+from langgraph.types import Command
+from langgraph_supervisor import create_supervisor
 
-from copilot.core.utils import copilot_debug_custom
+
+def new_toolmessage(next_tasks, tool_call_id):
+    return [ToolMessage(content=str(next_tasks), tool_call_id=tool_call_id)]
 
 
 class LangSupervisorState(AgentState):
-    tasks_to_process: Annotated[List[str], operator.add]  # Lista de elementos extraídos del CSV
-    messages: Annotated[Sequence[BaseMessage], add_messages]
-    task_to_process: str
+    tasks_to_process: List[str]  # pending
+    current_task: str  # current
+    done_tasks: List[str]  # Already done
+
 
 store = InMemoryStore()
+
 
 class LangSupervisorPattern(BasePattern):
     _first = None
@@ -36,55 +40,110 @@ class LangSupervisorPattern(BasePattern):
         from langchain_core.tools import tool
 
         @tool()
-        def get_next_task(state: LangSupervisorState) :
-            """Tool to get the next task to process."""
-            if not state["tasks_to_process"]:
-                state["messages"].append("No more tasks left! Maybe load a new file?")
-                return {"processing_data": {}, "messages": state["messages"]}
+        def task_management_tool(
+            mode: Annotated[str, "Mode of operation: 'get_next', 'add_tasks', 'status', " "'mark_done'"],
+            state: Annotated[dict, InjectedState],
+            tool_call_id: Annotated[str, InjectedToolCallId],
+            new_tasks: List[str] = None,
+        ):
+            """
+            Unified tool to manage tasks. Modes:
+            - 'get_next': Retrieve and set the next task to process.
+            - 'add_tasks': Add a list of tasks to the queue.
+            - 'status': Retrieve the status of tasks (pending, current, done).
+            - 'mark_done': Mark the current task as done.
+            """
+            if "tasks_to_process" not in state or state["tasks_to_process"] is None:
+                state["tasks_to_process"] = []
+            if "done_tasks" not in state or state["done_tasks"] is None:
+                state["done_tasks"] = []
+            if "current_task" not in state:
+                state["current_task"] = None
 
-            next_task = state["tasks_to_process"].pop(0)
-            state["task_to_process"] = next_task
+            if mode == "get_next":
+                if not state["tasks_to_process"]:
+                    return Command(
+                        update={
+                            "task_to_process": [],
+                            "current_task": state["current_task"],
+                            "done_tasks": state["done_tasks"],
+                            "messages": new_toolmessage("There are no tasks to process.", tool_call_id),
+                        }
+                    )
+                next_task = state["tasks_to_process"].pop(0)
+                state["current_task"] = next_task
+                return Command(
+                    update={
+                        "tasks_to_process": state["tasks_to_process"],
+                        "current_task": next_task,
+                        "done_tasks": state["done_tasks"],
+                        "messages": new_toolmessage(f"New Current Task is '{next_task}'", tool_call_id),
+                    }
+                )
 
-            copilot_debug_custom(f"[State] get_next_task {next_task}", Fore.LIGHTMAGENTA_EX)
-            return {
-                "task_to_process": next_task,
-                "messages": [f"Next task to process: {next_task}"]
-            }
+            elif mode == "add_tasks":
+                if new_tasks:
+                    state["tasks_to_process"].extend(new_tasks)
+                return Command(
+                    update={
+                        "tasks_to_process": state["tasks_to_process"],
+                        "current_task": state["current_task"],
+                        "done_tasks": state["done_tasks"],
+                        "messages": new_toolmessage(
+                            f"Added {len(new_tasks)} tasks." if new_tasks else "No tasks added.", tool_call_id
+                        ),
+                    }
+                )
 
-        @tool()
-        def add_task(state: LangSupervisorState, next_task: str) :
-            """Tool to add an task to the list."""
-            state["tasks_to_process"].append(next_task)
-            copilot_debug_custom(f"[State] add_task {next_task}", Fore.LIGHTMAGENTA_EX)
-            return {"messages": [f"Added task {next_task} to the list."]}
+            elif mode == "status":
+                status_message = f"Tasks to process: {len(state['tasks_to_process'])}. Current task: {state['current_task']}. Done tasks: {len(state['done_tasks'])}"
+                return Command(
+                    update={
+                        "tasks_to_process": state["tasks_to_process"],
+                        "current_task": state["current_task"],
+                        "done_tasks": state["done_tasks"],
+                        "messages": new_toolmessage(status_message, tool_call_id),
+                    }
+                )
 
-        @tool()
-        def add_tasks(state: LangSupervisorState, next_tasks: List[str]) :
-            """Tool to add a list of tasks to the todo list."""
-            state["tasks_to_process"] += next_tasks
-            copilot_debug_custom(f"[State] add_tasks {len(next_tasks)}", Fore.LIGHTMAGENTA_EX)
-            return {"messages": [f"Added {len(next_tasks)} tasks to the list."], "tasks_to_process": next_tasks}
+            elif mode == "mark_done":
+                if state["current_task"]:
+                    state["done_tasks"].append(state["current_task"])
+                    state["current_task"] = None
+                return Command(
+                    update={
+                        "tasks_to_process": state["tasks_to_process"],
+                        "current_task": None,
+                        "done_tasks": state["done_tasks"],
+                        "messages": new_toolmessage(
+                            (
+                                f"Task '{state['done_tasks'][-1]}' marked as done."
+                                if state["done_tasks"]
+                                else "No current task to mark as done."
+                            ),
+                            tool_call_id,
+                        ),
+                    }
+                )
 
-        @tool
-        def tasks_status(state: LangSupervisorState):
-            """Tool to know how many tasks are left to process."""
-            copilot_debug_custom(f"[State] tasks_status {len(state['tasks_to_process'])}", Fore.LIGHTMAGENTA_EX)
-            return {"messages": [f"There are {len(state['tasks_to_process'])} tasks to process."]}
+            else:
+                return Command(
+                    update={
+                        "messages": new_toolmessage("Invalid mode selected.", tool_call_id),
+                    }
+                )
 
         workflow = create_supervisor(
             members,
             model=model,
-            tools=[get_next_task, add_task, add_tasks, tasks_status],
+            tools=[task_management_tool],
             prompt=sv_prompt,
-            output_mode='full_history',
-            state_schema = LangSupervisorState
+            # output_mode="full_history",
+            state_schema=LangSupervisorState,
         )
 
         # Compile and run
-        self._graph = workflow.compile(
-            checkpointer=memory,
-            store=store
-        )
+        self._graph = workflow.compile(checkpointer=memory, store=store)
         self._graph.get_graph().print_ascii()
 
     def get_graph(self):

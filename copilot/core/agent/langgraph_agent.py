@@ -51,9 +51,7 @@ def setup_graph(question, memory):
     """
     thread_id = question.conversation_id
     members: list[GraphMember] = MembersUtil().get_members(question)
-    lang_graph = LangSupervisorPattern(
-        members, question.graph, None, memory=memory, full_question=question
-    )
+    lang_graph = LangSupervisorPattern(members, question.graph, None, memory=memory, full_question=question)
     return lang_graph, thread_id
 
 
@@ -112,12 +110,20 @@ async def _handle_on_chain_start(event, thread_id):
         graph_step = any(tag.startswith("graph:step") and tag != "graph:step:0" for tag in event["tags"])
         if graph_step:
             node = metadata["langgraph_node"]
-            if node.startswith("supervisor-stage"):
-                message = "Thinking what to do next ..."
+            if node.startswith("__start__"):
+                message = "Starting..."
+            elif node.startswith("supervisor"):
+                message = "Supervisor is thinking..."
             elif node == "output":
                 message = "Got it! Writing the answer ..."
             else:
-                message = f"Asking for this to the agent '{node}'"
+                if ":" in metadata["checkpoint_ns"]:
+                    subgraph_name = metadata["checkpoint_ns"]
+                    # remove text afte the fist :
+                    subgraph_name = subgraph_name.split(":")[0]
+                else:
+                    subgraph_name = ""
+                message = f"Asking for this to the agent '{subgraph_name}/{node}'"
             response = AssistantResponse(response=message, conversation_id=thread_id, role="node")
     return response
 
@@ -209,7 +215,7 @@ class LanggraphAgent(CopilotAgent):
             _input = HumanMessage(content=full_question)
             config = {
                 "configurable": {},
-                "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 50),
+                "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 500),
                 "max_iterations": 100,
             }
 

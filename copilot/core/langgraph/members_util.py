@@ -5,26 +5,12 @@ from typing import Any, Dict, List, Optional, Sequence
 import aiohttp
 import requests
 from colorama import Fore, Style
-from langchain_core.runnables import RunnableConfig
-from langgraph.func import entrypoint
-from langgraph.graph import add_messages
-from mpmath.ctx_mp_python import return_mpc
-
 from copilot.core import utils
 from copilot.core.agent import AssistantAgent
 from copilot.core.langgraph.patterns.graph_member import GraphMember
 from copilot.core.schemas import AssistantSchema
-from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled, AWARE_PROMPT
+from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
 from langchain.agents import AgentExecutor
-from langgraph.prebuilt.chat_agent_executor import create_react_agent, AgentState
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-import aiohttp
-
-from typing import Optional, Dict, Any, List, Type
-from pydantic import BaseModel, create_model, Field
-from langchain.tools import BaseTool
-import requests
-from langgraph.store.memory import InMemoryStore
 from langchain.tools import BaseTool
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langgraph.prebuilt.chat_agent_executor import create_react_agent
@@ -46,6 +32,7 @@ def debug_messages(messages):
 
 
 tools_specs = []
+
 
 class MembersUtil:
     def get_members(self, question) -> list[GraphMember]:
@@ -115,7 +102,11 @@ class MembersUtil:
             llm = get_llm(assistant.model, assistant.provider, assistant.temperature)
 
             member = create_react_agent(
-                model=llm, tools=tools, name=assistant.name, prompt=assistant.system_prompt, debug=True
+                model=llm,
+                tools=tools,
+                name=assistant.name,
+                prompt=assistant.system_prompt,
+                # , debug=True
             )
         return member
 
@@ -167,7 +158,12 @@ def summarize(method, url, text):
             id = resp_json.get("response").get("data")[0].get("id")
             endpoint_name = url.split("/")[-1]
 
-            return f" {endpoint_name} record has been {'created' if method.upper() == 'POST' else 'updated'} successfully with id: {id}"
+            msg = f" {endpoint_name} record has been {'created' if method.upper() == 'POST' else 'updated'} successfully with id: {id}"
+            rsp = {
+                "summary": msg,
+                "id": id,
+            }
+            return json.dumps({"response": {"data": [rsp]}})
         except Exception as e:
             copilot_debug(f"Response cannot be summarized: {str(e)}")
     return text
