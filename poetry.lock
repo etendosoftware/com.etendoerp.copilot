@@ -2279,14 +2279,14 @@ langgraph-sdk = ">=0.1.42,<0.2.0"
 
 [[package]]
 name = "langgraph-checkpoint"
-version = "2.0.16"
+version = "2.0.18"
 description = "Library with base interfaces for LangGraph checkpoint savers."
 optional = false
 python-versions = "<4.0.0,>=3.9.0"
 groups = ["main"]
 files = [
-    {file = "langgraph_checkpoint-2.0.16-py3-none-any.whl", hash = "sha256:dfab51076a6eddb5f9e146cfe1b977e3dd6419168b2afa23ff3f4e47973bf06f"},
-    {file = "langgraph_checkpoint-2.0.16.tar.gz", hash = "sha256:49ba8cfa12b2aae845ccc3b1fbd1d7a8d3a6c4a2e387ab3a92fca40dd3d4baa5"},
+    {file = "langgraph_checkpoint-2.0.18-py3-none-any.whl", hash = "sha256:941de442e5a893a6cabb8c3845f03159301b85f63ff4e8f2b308f7dfd96a3f59"},
+    {file = "langgraph_checkpoint-2.0.18.tar.gz", hash = "sha256:2822eedd028b454b7bfebfb7e04347aed1b64db97dedb7eb68ef0fb42641606d"},
 ]
 
 [package.dependencies]
@@ -2343,14 +2343,14 @@ orjson = ">=3.10.1"
 
 [[package]]
 name = "langgraph-supervisor"
-version = "0.0.8"
+version = "0.0.9"
 description = "An implementation of a supervisor multi-agent architecture using LangGraph"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "langgraph_supervisor-0.0.8-py3-none-any.whl", hash = "sha256:147ba95d63268dcf31e89b4265bea6558724d97fb56a1b806ac39b2d3a3b7c4a"},
-    {file = "langgraph_supervisor-0.0.8.tar.gz", hash = "sha256:d3ffaae25b1cef91aab7b7882c9b703bf428a52771abd08901b021dddfff3100"},
+    {file = "langgraph_supervisor-0.0.9-py3-none-any.whl", hash = "sha256:6dd365871a006d3a99accde94f0c349d6db5329cbe6eb9cca188c3bd9d3071b3"},
+    {file = "langgraph_supervisor-0.0.9.tar.gz", hash = "sha256:86c0b6e5bf0bc20ebc53ffa4319014e8f293a32da894e4ef9f10fc737f843bed"},
 ]
 
 [package.dependencies]
@@ -5465,4 +5465,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "029e55513ed857cbfca858a69dd5863695b8da8c1bcfab0ce782728b2d83f32a"
+content-hash = "5bd48e194bfc120571ddb9d590e697bf914fc2dfe32dcbccfb06aa700f57af61"

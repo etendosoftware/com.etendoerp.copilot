@@ -1,28 +1,24 @@
 import functools
 import json
+from typing import Optional, Dict, Any, List
 from typing import Sequence
 
+import aiohttp
+import requests
 from colorama import Fore, Style
-from langchain_core.runnables import RunnableConfig
-from langgraph.func import entrypoint
-from langgraph.graph import add_messages
-from mpmath.ctx_mp_python import return_mpc
+from langchain.agents import AgentExecutor
+from langchain.tools import BaseTool
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langgraph.prebuilt import create_react_agent
+from pydantic import BaseModel, create_model, Field
 
 from copilot.core import utils
 from copilot.core.agent import AssistantAgent
 from copilot.core.langgraph.patterns.graph_member import GraphMember
+from copilot.core.langgraph.patterns.langsupervisor_pattern import LangSupervisorState
+from copilot.core.langgraph.tools.TaskManagementTool import task_management_tool
 from copilot.core.schemas import AssistantSchema
-from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled, AWARE_PROMPT
-from langchain.agents import AgentExecutor
-from langgraph.prebuilt.chat_agent_executor import create_react_agent, AgentState
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-import aiohttp
-
-from typing import Optional, Dict, Any, List, Type
-from pydantic import BaseModel, create_model, Field
-from langchain.tools import BaseTool
-import requests
-from langgraph.store.memory import InMemoryStore
+from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
 
 
 def debug_messages(messages):
@@ -103,17 +99,24 @@ class MembersUtil:
                         api_spec = json.loads(spec.spec)
                         openapi_tools = generate_tools_from_openapi(api_spec)
                         tools_specs.extend(openapi_tools)
-
+            tools.append(task_management_tool)
             from copilot.core.agent.multimodel_agent import get_llm
 
             llm = get_llm(assistant.model, assistant.provider, assistant.temperature)
+            config = {
+                "configurable": {},
+                "recursion_limit": 500,
+                "max_iterations": 1000,
+            }
 
             member = create_react_agent(
                 model=llm,
                 tools=tools,
                 name=assistant.name,
                 prompt=assistant.system_prompt,
+                state_schema=LangSupervisorState
             )
+            member.config = config
         return member
 
     def get_assistant_agent(self):
