@@ -4,6 +4,7 @@ from typing import AsyncGenerator
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.graph.state import CompiledStateGraph
 
 from ..langgraph.members_util import MembersUtil
 from ..langgraph.patterns.graph_member import GraphMember
@@ -160,6 +161,25 @@ async def handle_events(copilot_stream_debug, event, thread_id):
     return response
 
 
+def build_msg_input(full_question):
+    _input = HumanMessage(content=full_question)
+    msg = {"messages": [_input]}
+    return msg
+
+
+def build_config(thread_id):
+    config = {
+        "configurable": {},
+        "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 500),
+        "max_iterations": 100,
+    }
+    if thread_id is not None:
+        config["configurable"]["thread_id"] = thread_id
+    else:
+        config["configurable"]["thread_id"] = str(uuid.uuid4())
+    return config
+
+
 class LanggraphAgent(CopilotAgent):
     _memory: MemoryHandler = None
 
@@ -185,9 +205,21 @@ class LanggraphAgent(CopilotAgent):
             lang_graph, thread_id = setup_graph(question, memory)
             local_file_ids = question.local_file_ids
             full_question = fullfill_question(local_file_ids, question)
+            cgraph: CompiledStateGraph = lang_graph._graph
+            if question.generate_image:
+                import base64
 
-            final_response = lang_graph.invoke(
-                question=full_question, thread_id=thread_id, get_image=question.generate_image
+                return AgentResponse(
+                    input=question.model_dump_json(),
+                    output=AssistantResponse(
+                        response=base64.b64encode(cgraph.get_graph().draw_mermaid_png()).decode(),
+                        conversation_id=thread_id,
+                    ),
+                )
+            cgraph.get_graph().draw_mermaid_png()
+
+            final_response = cgraph.invoke(
+                input=build_msg_input(full_question), config=build_config(thread_id)
             )
 
             return AgentResponse(
@@ -212,19 +244,8 @@ class LanggraphAgent(CopilotAgent):
             lang_graph, thread_id = setup_graph(question, memory)
             local_file_ids = question.local_file_ids
             full_question = fullfill_question(local_file_ids, question)
-            _input = HumanMessage(content=full_question)
-            config = {
-                "configurable": {},
-                "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 500),
-                "max_iterations": 100,
-            }
-
-            if thread_id is not None:
-                config["configurable"]["thread_id"] = thread_id
-            else:
-                config["configurable"]["thread_id"] = str(uuid.uuid4())
             async for event in lang_graph._graph.astream_events(
-                {"messages": [_input]}, version="v2", config=config
+                build_msg_input(full_question), version="v2", config=build_config(thread_id)
             ):
                 response = await handle_events(copilot_stream_debug, event, thread_id)
                 if response is not None:
