@@ -298,7 +298,7 @@ public class RestServiceUtil {
    * @throws JSONException
    * @throws IOException
    */
-  static JSONObject handleQuestion(boolean isAsyncRequest, HttpServletResponse queue,
+  public static JSONObject handleQuestion(boolean isAsyncRequest, HttpServletResponse queue,
       JSONObject jsonRequest) throws JSONException, IOException {
     String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID);
     String appId = jsonRequest.getString(APP_ID);
@@ -731,6 +731,7 @@ public class RestServiceUtil {
     setStages(jsonRequestForCopilot, stagesAssistants);
     //add data for the supervisor
     jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
+    jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
     jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
   }
 
