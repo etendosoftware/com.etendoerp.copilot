@@ -4,6 +4,7 @@ This module contains the main routes for the Copilot API.
 The routes are responsible for handling the incoming requests and returning the responses.
 
 """
+
 import asyncio
 import json
 import logging
@@ -113,9 +114,14 @@ def _initialize_agent(question: QuestionSchema):
     copilot_debug("  assistant_id: " + str(question.assistant_id))
     copilot_debug("  conversation_id: " + str(question.conversation_id))
     copilot_debug("  file_ids: " + str(question.file_ids))
-    ThreadContext.set_data("extra_info", question.extra_info)
-    ThreadContext.set_data("conversation_id", question.conversation_id)
+    load_thread_context(question)
     return agent_type, copilot_agent
+
+
+def load_thread_context(question):
+    ThreadContext.set_data("extra_info", question.extra_info)
+    ThreadContext.set_data("assistant_id", question.assistant_id)
+    ThreadContext.set_data("conversation_id", question.conversation_id)
 
 
 def _execute_agent(copilot_agent, question: QuestionSchema):
@@ -155,7 +161,7 @@ def serve_graph(question: GraphQuestionSchema):
             + " Saving extra info:"
             + str(ThreadContext.identifier_data())
         )
-        ThreadContext.set_data("extra_info", question.extra_info)
+        load_thread_context(question)
         agent_response: AgentResponse = copilot_agent.execute(question)
         response = agent_response.output
         local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
@@ -199,7 +205,7 @@ def _serve_agraph(question: GraphQuestionSchema):
     copilot_debug("  conversation_id: " + str(question.conversation_id))
 
     try:
-        ThreadContext.set_data("extra_info", question.extra_info)
+        load_thread_context(question)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         queue = asyncio.Queue()
