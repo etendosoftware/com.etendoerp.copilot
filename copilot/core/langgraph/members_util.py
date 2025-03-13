@@ -3,26 +3,21 @@ import json
 from typing import Sequence
 
 from colorama import Fore, Style
-from langchain_core.runnables import RunnableConfig
-from langgraph.func import entrypoint
-from langgraph.graph import add_messages
-from mpmath.ctx_mp_python import return_mpc
 
 from copilot.core import utils
 from copilot.core.agent import AssistantAgent
 from copilot.core.langgraph.patterns.graph_member import GraphMember
 from copilot.core.schemas import AssistantSchema
-from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled, AWARE_PROMPT
+from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
 from langchain.agents import AgentExecutor
-from langgraph.prebuilt.chat_agent_executor import create_react_agent, AgentState
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langgraph.prebuilt.chat_agent_executor import create_react_agent
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 import aiohttp
 
-from typing import Optional, Dict, Any, List, Type
+from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, create_model, Field
 from langchain.tools import BaseTool
 import requests
-from langgraph.store.memory import InMemoryStore
 
 
 def debug_messages(messages):
@@ -102,11 +97,16 @@ class MembersUtil:
                     if spec.type == "FLOW":
                         api_spec = json.loads(spec.spec)
                         openapi_tools = generate_tools_from_openapi(api_spec)
-                        tools_specs.extend(openapi_tools)
+                        tools.extend(openapi_tools)
 
             from copilot.core.agent.multimodel_agent import get_llm
 
             llm = get_llm(assistant.model, assistant.provider, assistant.temperature)
+            config = {
+                "configurable": {},
+                "recursion_limit": 500,
+                "max_iterations": 100,
+            }
 
             member = create_react_agent(
                 model=llm,
@@ -114,6 +114,7 @@ class MembersUtil:
                 name=assistant.name,
                 prompt=assistant.system_prompt,
             )
+            member.config = config
         return member
 
     def get_assistant_agent(self):

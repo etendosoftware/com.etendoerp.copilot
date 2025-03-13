@@ -209,7 +209,7 @@ class LanggraphAgent(CopilotAgent):
             _input = HumanMessage(content=full_question)
             config = {
                 "configurable": {},
-                "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 50),
+                "recursion_limit": 500,
                 "max_iterations": 100,
             }
 
