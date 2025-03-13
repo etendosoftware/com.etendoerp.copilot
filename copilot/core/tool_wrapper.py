@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, TypedDict, Union
 
 from copilot.core.utils import copilot_debug, copilot_info
 from langchain.tools import BaseTool
+from langchain_core.messages import ToolCall, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.runnables.config import Callbacks
 from pydantic import BaseModel
@@ -195,3 +196,12 @@ class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
         except Exception as e:
             copilot_debug(f"Error executing tool {self.name}: " + str(e))
             return parse_response(ToolOutputError(error=str(e)))
+
+    def invoke(
+        self,
+        input: Union[str, dict, ToolCall],
+        config: Optional[RunnableConfig] = None,
+        **kwargs: Any,
+    ) -> Any:
+        result = super().invoke(input, config=config, **kwargs)
+        return ToolMessage(content=str(result), tool_call_id=input.get("id"))
