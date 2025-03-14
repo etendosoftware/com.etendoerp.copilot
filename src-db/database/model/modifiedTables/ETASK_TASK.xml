@@ -18,7 +18,7 @@
         <onCreateDefault/>
       </column>
       <column name="EM_ETCOP_EXEC" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
-        <default><![CDATA['N'::"char"]]></default>
+        <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
       <column name="EM_ETCOP_GROUP" primaryKey="false" required="false" type="VARCHAR" size="200" autoIncrement="false">
