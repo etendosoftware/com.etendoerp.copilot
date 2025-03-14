@@ -17,6 +17,9 @@ import com.etendoerp.task.data.Task;
 
 public class BulkTaskExec extends DalBaseProcess {
 
+  public static final String TASK_STATUS_IN_PROGRESS = "IP";
+  public static final String TASK_STATUS_COMPLETED = "CO";
+  public static final String TASK_STATUS_PENDING = "PE";
   private ProcessLogger logger;
   private int BATCH_SIZE = 1;
 
@@ -26,7 +29,7 @@ public class BulkTaskExec extends DalBaseProcess {
     logger = processBundle.getLogger();
     logger.log("BulkTaskExec started\n");
     OBCriteria<Task> crit = OBDal.getInstance().createCriteria(Task.class);
-    crit.add(Restrictions.eq(Task.PROPERTY_STATUS, getStatus("PE")));
+    crit.add(Restrictions.eq(Task.PROPERTY_STATUS, getStatus(TASK_STATUS_PENDING)));
     crit.add(Restrictions.eq(Task.PROPERTY_TASKTYPE, getCopilotTaskType()));
     crit.setMaxResults(BATCH_SIZE);
     List<Task> tasks = crit.list();
@@ -35,12 +38,12 @@ public class BulkTaskExec extends DalBaseProcess {
       try {
         logger.log("Processing task " + task.getId() + "\n");
         execTask(task);
-        task.setStatus(getStatus("CO"));
+        task.setStatus(getStatus(TASK_STATUS_COMPLETED));
         OBDal.getInstance().save(task);
         OBDal.getInstance().flush();
       } catch (Exception e) {
         logger.log("Error processing task " + task.getId() + ": " + e.getMessage() + "\n");
-        task.setStatus(getStatus("IP"));
+        task.setStatus(getStatus(TASK_STATUS_IN_PROGRESS));
         OBDal.getInstance().save(task);
         OBDal.getInstance().flush();
       }

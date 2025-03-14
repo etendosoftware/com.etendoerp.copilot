@@ -57,6 +57,7 @@ pip = "^25.0.1"
 langmem = "^0.0.15"
 black = "^25.1.0"
 langchain-deepseek = "^0.1.1"
+pandas = "^2.2.3"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
