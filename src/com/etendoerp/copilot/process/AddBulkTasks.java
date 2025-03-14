@@ -9,6 +9,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,7 @@ import org.openbravo.client.application.process.BaseProcessActionHandler;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 
+import com.etendoerp.copilot.background.BulkTaskExec;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.task.data.Status;
 import com.etendoerp.task.data.Task;
@@ -34,6 +36,8 @@ import com.etendoerp.task.data.TaskType;
  */
 public class AddBulkTasks extends BaseProcessActionHandler {
 
+
+  public static final String COPILOT = "Copilot";
 
   @Override
   protected JSONObject doExecute(Map<String, Object> parameters, String content) {
@@ -84,7 +88,7 @@ public class AddBulkTasks extends BaseProcessActionHandler {
         tsk.setNewOBObject(true);
         tsk.setETCOPAgent(OBDal.getInstance().get(CopilotApp.class, agentid));
         tsk.setEtcopQuestion(question + ":" + path);
-        tsk.setStatus(getStatus("PE"));
+        tsk.setStatus(getStatus(BulkTaskExec.TASK_STATUS_PENDING));
         tsk.setEtcopGroup(group);
         tsk.setAssignedUser(OBContext.getOBContext().getUser());
         tsk.setTaskType(getCopilotTaskType());
@@ -115,13 +119,13 @@ public class AddBulkTasks extends BaseProcessActionHandler {
   public static TaskType getCopilotTaskType() {
     //get by criteria
     TaskType tasktype = (TaskType) OBDal.getInstance().createCriteria(TaskType.class).add(
-            Restrictions.eq(TaskType.PROPERTY_NAME, "Copilot"))
+            Restrictions.eq(TaskType.PROPERTY_NAME, COPILOT))
         .setMaxResults(1)
         .uniqueResult();
     if (tasktype == null) {
       tasktype = OBProvider.getInstance().get(TaskType.class);
       tasktype.setNewOBObject(true);
-      tasktype.setName("Copilot");
+      tasktype.setName(COPILOT);
       OBDal.getInstance().save(tasktype);
       OBDal.getInstance().flush();
     }
@@ -158,7 +162,7 @@ public class AddBulkTasks extends BaseProcessActionHandler {
   public static String[] unzipFile(File zipFile) throws IOException {
     // Definir el directorio de salida en /tmp con el nombre del ZIP
     String zipFileName = zipFile.getName().replaceFirst("\\.zip$", ""); // Eliminar extensión .zip
-    File outputDir = new File("/tmp/" + zipFileName);
+    File outputDir = Files.createTempDirectory(zipFileName).toFile();
 
     if (!outputDir.exists()) {
       outputDir.mkdirs(); // Crear el directorio si no existe
