@@ -20,10 +20,20 @@
       assistantId = '';
     }
 
+    // Determine context title based on number of selected records
+    let contextTitle = messageData.tabTitle;
+    if (messageData.selectedRecords) {
+      const selectedCount = messageData.selectedRecords.length;
+      if (selectedCount === 1) {
+        contextTitle = `${messageData.tabTitle} - ${messageData.selectedRecords[0]._identifier || messageData.tabTitle}`;
+      } else if (selectedCount >= 2) {
+        contextTitle = `${messageData.tabTitle} - ${selectedCount} selected`;
+      }
+    }
+    messageData.contextTitle = contextTitle;
+    
     // Prepare the URL for the iframe
-    const tabTitle = messageData["tabTitle"];
-    const message = encodeURIComponent(JSON.stringify(messageData));
-    const iframeURL = `web/com.etendoerp.copilot.dist/?question=${q}&assistant_id=${assistantId}&context_title=${tabTitle}&context_value=${message}`;
+    const iframeURL = `web/com.etendoerp.copilot.dist/?question=${q}&assistant_id=${assistantId}&context_title=${encodeURI(contextTitle)}`;
 
     // Dimensions and styles
     const LIGHT_GRAY_COLOR = "#F2F5F9";
@@ -164,7 +174,7 @@
       }
     };
 
-    // Create Copilot window if it doesn't exist
+    // Create or update Copilot window
     if (!window.copilotWindow) {
       window.copilotWindow = isc.Window.create({
         width: WINDOW_WIDTH,
@@ -270,9 +280,9 @@
                       <span class="copilot-title">Copilot</span>
                     </div>
                     <div class="action-buttons-container">
-                        <img class="icon-button" onclick="window.handleMinimize()" src="web/images/minimize.svg" alt="Minimize">
-                        <img id="maximizeIcon" class="icon-button" onclick="window.handleFullScreenWindow()" src="web/images/maximize.svg" alt="Maximize">
-                        <img class="icon-button" onclick="window.closeCopilotWindow()" src="web/images/close.svg" alt="Close">
+                      <img class="icon-button" onclick="window.handleMinimize()" src="web/images/minimize.svg" alt="Minimize">
+                      <img id="maximizeIcon" class="icon-button" onclick="window.handleFullScreenWindow()" src="web/images/maximize.svg" alt="Maximize">
+                      <img class="icon-button" onclick="window.closeCopilotWindow()" src="web/images/close.svg" alt="Close">
                     </div>
                   </div>
 
@@ -291,17 +301,45 @@
           })
         ]
       });
+
+      // Initial setup for new window
+      window.copilotWindow.show();
+      isc.Page.setEvent("resize", resizeWindow);
+      adjustMaximizeWindowPosition();
+
+      // Attach load event listener to iframe for initial context
+      const iframe = document.getElementById('react-iframe');
+      if (iframe) {
+        iframe.addEventListener('load', () => {
+          sendContextMessage();
+        });
+      } else {
+        setTimeout(sendContextMessage, 500);
+      }
+    } else {
+      // If window already exists, just send the new context and ensure it’s visible
+      sendContextMessage();
+      if (!window.copilotWindow.isVisible()) {
+        window.copilotWindow.show();
+        adjustMaximizeWindowPosition();
+      }
     }
 
-    // Show the window and handle page resize
-    window.copilotWindow.show();
-    isc.Page.setEvent("resize", resizeWindow);
-
-    // By default, open as maximized
-    adjustMaximizeWindowPosition();
+    // Send context message to the iframe
+    function sendContextMessage() {
+      const iframe = document.getElementById('react-iframe');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'COPILOT_CONTEXT',
+          data: messageData
+        }, '*');
+      } else {
+        setTimeout(sendContextMessage, 500);
+      }
+    }
   }
 
-  // Button properties to open the Copilot window
+  // Button properties to open/update the Copilot window
   const buttonProps = {
     action: function () {
       const view = this.view;
@@ -309,17 +347,67 @@
       const selectedRecords = grid.getSelectedRecords();
       const isFormEditing = !!view.isShowingForm;
 
-      const selectedRecordsContext = selectedRecords.map(record => ({ id: record.id }));
+      // Filter selectedRecords to include only string, number, or boolean values
+      const filteredSelectedRecords = selectedRecords.map(record => {
+        const filteredRecord = {};
+        Object.keys(record).forEach(key => {
+          const value = record[key];
+          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            filteredRecord[key] = value;
+          }
+        });
+        return filteredRecord;
+      });
 
+      // Prepare contextual data
       const activeWindowInfo = {
         windowId: view.windowId,
         tabId: view.tabId,
         tabTitle: view.tabTitle,
-        selectedRecordsContext: selectedRecordsContext,
-        isFormEditing: isFormEditing
+        selectedRecords: filteredSelectedRecords,
+        isFormEditing: isFormEditing,
       };
 
+      // If in edit mode, include real-time form values
+      if (isFormEditing && view.viewForm && view.viewForm.values) {
+        const formValues = {};
+        Object.keys(view.viewForm.values).sort().forEach(key => {
+          const value = view.viewForm.values[key];
+          if (typeof value === 'string' || typeof value === 'number') {
+            formValues[key] = value;
+          }
+        });
+        activeWindowInfo.formValues = formValues;
+      }
+
+      // Open or update the Copilot window with the initial context
       openCopilotWindow(null, null, activeWindowInfo);
+
+      // Listen for record selection changes
+      grid.addDataUpdatedHandler(function () {
+        const newSelectedRecords = grid.getSelectedRecords();
+        const newFilteredRecords = newSelectedRecords.map(record => {
+          const filteredRecord = {};
+          Object.keys(record).forEach(key => {
+            const value = record[key];
+            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+              filteredRecord[key] = value;
+            }
+          });
+          return filteredRecord;
+        });
+
+        const updatedWindowInfo = {
+          windowId: view.windowId,
+          tabId: view.tabId,
+          tabTitle: view.tabTitle,
+          selectedRecords: newFilteredRecords,
+          isFormEditing: !!view.isShowingForm,
+        };
+
+        // Send updated context without recreating the window
+        openCopilotWindow(null, null, updatedWindowInfo);
+      });
     },
     buttonType: 'etcop',
     prompt: 'Copilot',

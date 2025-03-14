@@ -23,7 +23,7 @@ function App() {
 
   // Query parameters
   const params = useMemo(() => new URLSearchParams(search), [search]);
-  const contextValue = params.get("context_value");
+  const [contextValue, setContextValue] = useState(null);
   const [inputValue, setInputValue] = useState<string>(params.get("question") ?? '');
   const [contextTitle, setContextTitle] = useState<string | null>(params.get("context_title"));
 
@@ -32,7 +32,6 @@ function App() {
   const [labels, setLabels] = useState<ILabels>({});
   const [statusIcon, setStatusIcon] = useState(botIcon);
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [isFirstMessage, setIsFirstMessage] = useState(true);
   const [fileId, setFileId] = useState<string[] | null>(null);
   const [isBotLoading, setIsBotLoading] = useState<boolean>(false);
   const [files, setFiles] = useState<(string | File)[] | null>(null);
@@ -158,12 +157,9 @@ function App() {
       if (!originalQuestion) return;
 
       let finalQuestion = originalQuestion;
-
-      if (isFirstMessage) {
-        setIsFirstMessage(false);
-        if (contextValue) {
-          finalQuestion = `Context: ${contextValue}\nQuestion: ${originalQuestion}`;
-        }
+      if (contextValue) {
+        const contextValueString = JSON.stringify(contextValue, null, 2);
+        finalQuestion = `<Context>${contextValueString}</Context>\n<Question>${originalQuestion}</Question>`;
       }
 
       // Add user message
@@ -195,9 +191,9 @@ function App() {
         requestBody.file = fileId;
       }
 
-      if (encodeURIComponent(originalQuestion).length > 7000) {
+      if (encodeURIComponent(finalQuestion).length > 7000) {
         const cacheQuestionBody = {
-          question: originalQuestion,
+          question: finalQuestion,
         };
 
         const cacheQuestionRequest = {
@@ -334,10 +330,22 @@ function App() {
     };
   }, [isBotLoading, statusIcon]);
 
-  // Effect to retrieve assistants and set focus on the text input when the page first loads
+  // Initial Effect
   useEffect(() => {
     getLabels();
     getAssistants();
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'COPILOT_CONTEXT') {
+        const newContext = event.data.data;
+        setContextValue(newContext);
+        setContextTitle(newContext?.contextTitle);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   // Reset the conversation when a new attendee is selected
@@ -364,7 +372,7 @@ function App() {
   }
   const uploadConfig = {
     file: files,
-    url: url,
+    url,
     method: References.method.POST,
   };
 
@@ -455,11 +463,11 @@ function App() {
               {message.sender !== 'interpreting' && (
                 <p
                   className={`slide-up-fade-in inline-flex flex-col rounded-lg ${message.sender === ROLE_USER
-                    ? 'text-gray-600 rounded-tr-none'
-                    : message.sender === ROLE_ERROR
+                      ? 'text-gray-600 rounded-tr-none'
+                      : message.sender === ROLE_ERROR
                       ? 'rounded-tl-none'
                       : 'text-black rounded-tl-none'
-                    } break-words overflow-hidden max-w-[90%]`}
+                  } break-words overflow-hidden max-w-[90%]`}
                 >
                   {message.sender === ROLE_ERROR ? (
                     <TextMessage
@@ -470,36 +478,36 @@ function App() {
                     />
                   ) : // Normal message with Copilot's response
                     message.sender === ROLE_BOT ? (
-                      <TextMessage
-                        key={index}
+                    <TextMessage
+                      key={index}
                         text={message.text ? message.text : '...'}
-                        time={message.timestamp}
-                        type="left-user"
-                      />
-                    ) : message.sender === ROLE_TOOL || message.sender === ROLE_NODE || message.sender === ROLE_WAIT ? (
-                      <div className={`flex items-center`}>
-                        <img
-                          src={statusIcon}
-                          alt="Status Icon"
+                      time={message.timestamp}
+                      type="left-user"
+                    />
+                  ) : message.sender === ROLE_TOOL || message.sender === ROLE_NODE || message.sender === ROLE_WAIT ? (
+                    <div className={`flex items-center`}>
+                      <img
+                        src={statusIcon}
+                        alt="Status Icon"
                           className={
                             statusIcon === responseSent
                               ? 'w-5 h-5 mr-1'
                               : 'w-8 h-8 slow-bounce'
                           }
-                        />
+                      />
                         <span className={`text-sm ml-1 font-normal`}>
                           {message.text ? message.text : '...'}
                         </span>
-                      </div>
-                    ) : (
-                      <TextMessage
-                        key={index}
-                        text={message.text}
-                        time={message.timestamp}
-                        type="right-user"
-                        files={message.files}
-                      />
-                    )}
+                    </div>
+                  ) : (
+                    <TextMessage
+                      key={index}
+                      text={message.text}
+                      time={message.timestamp}
+                      type="right-user"
+                      files={message.files}
+                    />
+                  )}
                 </p>
               )}
             </div>
@@ -515,7 +523,7 @@ function App() {
           ref={inputRef}
         >
           {/* Conditionally render the context name title */}
-          {contextTitle && isFirstMessage && (
+          {contextTitle && (
             <ContextTitlePreview contextTitle={contextTitle} />
           )}
 
