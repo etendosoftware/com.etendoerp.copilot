@@ -1,32 +1,8 @@
 {
-    "native_tools": {},
-    "third_party_tools": {
-        "HelloWorldTool": true,
-        "BastianFetcher": true,
-        "CustomHelloWorldMultiArgsTool": true,
-        "PdfToImagesTool": true,
-        "DBQueryGenerator": true,
-        "FileCopyTool": true,
-        "OcrTool": true,
-        "CodbarTool": true,
-        "WriteFileTool": true,
-        "UncompressTool": true,
-        "XMLTranslationTool": true,
-        "ReadFileTool": true,
-        "AudioTool": true,
-        "APICallTool": true,
-        "SendEmailTool": true,
-        "ADViewTool": true,
-        "ProcessDefinitionJasperTool": true,
-        "AttachFileTool": true,
-        "XLSTool": true,
-        "OrgInitTool": true,
-        "ClientInitTool": true,
-        "DockerTool": true,
-        "PrintDirectoryTool": true,
-        "TemplateTool": true,
-        "TavilySearchTool": true,
-        "TestRunTool": true,
-        "FileDownloaderTool": true
-    }
+  "native_tools": {},
+  "third_party_tools": {
+    "HelloWorldTool": true,
+    "BastianFetcher": true,
+    "CustomHelloWorldMultiArgsTool": true
+  }
 }
