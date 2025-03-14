@@ -30,14 +30,8 @@ jobs:
       - name: Determine Image Tag
         id: image_tag
         run: |
-          if [[ "${{ github.ref_name }}" == "master" || \
-                "${{ github.ref_name }}" == "develop" || \
-                "${{ github.ref_name }}" == "experimental" ]]; then
-            sanitizedBranchName=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9_-]/_/g')
-            echo "branch_name=${sanitizedBranchName}" >> $GITHUB_ENV
-            sanitized_branch_name=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9_-]/_/g')
-            echo "branch_name=${sanitized_branch_name}" >> $GITHUB_ENV
-          fi
+          sanitizedBranchName=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9_-]/_/g')
+          echo "branch_name=${sanitizedBranchName}" >> $GITHUB_ENV
         shell: bash
 
       - name: Build and push full image

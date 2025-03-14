@@ -74,6 +74,20 @@
     <syncmodels>false</syncmodels>
     <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
+  <ETCOP_Openai_Model id="8EEB5F9577774196B9C3D4808D487F60" identifier="deepseek - deepseek-chat">
+    <id>8EEB5F9577774196B9C3D4808D487F60</id>
+    <active>true</active>
+    <creationDate transient="true">2025-02-06T12:49:36.741Z</creationDate>
+    <createdBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
+    <updated transient="true">2025-02-07T10:37:15.983Z</updated>
+    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
+    <searchkey>deepseek-chat</searchkey>
+    <name>deepseek-chat</name>
+    <provider>deepseek</provider>
+    <maxTokens xsi:nil="true"/>
+    <default>false</default>
+    <syncmodels>false</syncmodels>
+  </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="979B24A88E60465EACC04D73F5338CAF" identifier="openai - o1-mini">
     <id>979B24A88E60465EACC04D73F5338CAF</id>
     <active>true</active>

@@ -18,6 +18,7 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.runnables import AddableDict
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 from .. import utils
 from ..memory.memory_handler import MemoryHandler

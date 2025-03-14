@@ -15,10 +15,16 @@
     rgba(0, 0, 0, 0.05) 0px 4px 6px -2px;
 }
 
- .windowBody {
+.windowBody {
   border: 0px solid #b5b5b5 !important;
- }  
+}
 
- .widgetContainer + div {
+.widgetContainer + div {
   display: none;
+}
+
+.OBToolbarIconButton_icon_etcop {
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-image: url(../../web/images/copilot-toolbar.png) !important;
 }
