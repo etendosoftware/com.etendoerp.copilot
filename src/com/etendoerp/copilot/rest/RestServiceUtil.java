@@ -300,7 +300,7 @@ public class RestServiceUtil {
    * @throws JSONException
    * @throws IOException
    */
-  static JSONObject handleQuestion(boolean isAsyncRequest, HttpServletResponse queue,
+  public static JSONObject handleQuestion(boolean isAsyncRequest, HttpServletResponse queue,
       JSONObject jsonRequest) throws JSONException, IOException {
     String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID);
     String appId = jsonRequest.getString(APP_ID);
@@ -733,6 +733,7 @@ public class RestServiceUtil {
     setStages(jsonRequestForCopilot, stagesAssistants);
     //add data for the supervisor
     jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
+    jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
     jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
   }
 
@@ -872,7 +873,21 @@ public class RestServiceUtil {
     if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
       jsonRequestForCopilot.put(PROP_DESCRIPTION, copilotApp.getDescription());
     }
-
+    JSONArray appSpecs = new JSONArray();
+    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+      if (StringUtils.equals(appSource.getBehaviour(), CopilotConstants.FILE_BEHAVIOUR_SPECS)) {
+        JSONObject spec = new JSONObject();
+        try {
+          spec.put("name", appSource.getFile().getName());
+          spec.put("type", appSource.getFile().getType());
+          spec.put("spec", CopilotUtils.getAppSourceContent(appSource));
+          appSpecs.put(spec);
+        } catch (JSONException e) {
+          throw new OBException("Error while building the app specs", e);
+        }
+      }
+    }
+    jsonRequestForCopilot.put("specs", appSpecs);
   }
 
   public static StringBuilder replaceAliasInPrompt(StringBuilder prompt,

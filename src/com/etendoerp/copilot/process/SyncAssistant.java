@@ -31,6 +31,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
+import com.etendoerp.copilot.data.TeamMember;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
@@ -88,6 +89,20 @@ public class SyncAssistant extends BaseProcessActionHandler {
       JSONObject request = new JSONObject(content);
       JSONArray selectedRecords = request.optJSONArray("recordIds");
       List<CopilotApp> appList = getSelectedApps(selectedRecords);
+      //append team members if there are selected graph agents
+      List<CopilotApp> childs = new ArrayList<>();
+      for (CopilotApp app : appList) {
+        if (app.getAppType().equals(CopilotConstants.APP_TYPE_LANGGRAPH)) {
+          List<TeamMember> teamMembers = app.getETCOPTeamMemberList();
+          for (TeamMember teamMember : teamMembers) {
+            childs.add(teamMember.getMember());
+          }
+        }
+      }
+      appList.addAll(childs);
+      //remove duplicates
+      appList = appList.stream().distinct().collect(Collectors.toList());
+
       // Sync models with Copilot remote dataset
       CopilotModelUtils.syncModels();
       // update accesses
@@ -179,8 +194,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
     for (CopilotAppSource as : appSourcesToRefresh) {
       log.debug("Syncing file {}", as.getFile().getName());
       CopilotFile fileToSync = as.getFile();
-      WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
-          .executeHooks(fileToSync);
+      WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
     }
   }
 
@@ -219,8 +233,8 @@ public class SyncAssistant extends BaseProcessActionHandler {
     [4] Quantity of Record of access to the webhook by the role (if not null, the role has access)
     Basically, we are looking for the roles that don't have access to the webhook, if the quantity of records is 0, the role doesn't have access
    */
-    List<Object[]> results = OBDal.getInstance().getSession().createQuery(hql.toString())
-        .setParameter("appId", app.getId()).list();
+    List<Object[]> results = OBDal.getInstance().getSession().createQuery(hql.toString()).setParameter("appId",
+        app.getId()).list();
     if (log.isDebugEnabled()) {
       log.debug(String.format("Results: %d", results.size()));
     }
@@ -268,9 +282,9 @@ public class SyncAssistant extends BaseProcessActionHandler {
         .collect(Collectors.toSet());
 
     log.debug("Hooks: {}", hooks);
-    Set<Role> roles = OBDal.getInstance().createCriteria(CopilotRoleApp.class)
-        .add(Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, app)).list().stream().map(
-            CopilotRoleApp::getRole).collect(Collectors.toSet());
+    Set<Role> roles = OBDal.getInstance().createCriteria(CopilotRoleApp.class).add(
+        Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, app)).list().stream().map(CopilotRoleApp::getRole).collect(
+        Collectors.toSet());
     for (Role role : roles) {
       for (DefinedWebHook hook : hooks) {
         upsertAccess(hook, role, false);
@@ -343,9 +357,8 @@ public class SyncAssistant extends BaseProcessActionHandler {
     int syncCount = 0;
 
     for (CopilotApp app : appList) {
-      List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream()
-          .filter(CopilotConstants::isKbBehaviour)
-          .collect(Collectors.toList());
+      List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream().filter(
+          CopilotConstants::isKbBehaviour).collect(Collectors.toList());
       switch (app.getAppType()) {
         case CopilotConstants.APP_TYPE_OPENAI:
           syncKBFilesToOpenAI(app, knowledgeBaseFiles, openaiApiKey);

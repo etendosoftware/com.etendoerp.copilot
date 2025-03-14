@@ -15,6 +15,7 @@ public class CopilotConstants {
   public static final String FILE_BEHAVIOUR_QUESTION = "question";
   public static final String FILE_BEHAVIOUR_ATTACH = "attach";
   public static final String FILE_BEHAVIOUR_KB = "kb";
+  public static final String FILE_BEHAVIOUR_SPECS = "spec";
   public static final String FILE_TYPE_RF = "RF";
   public static final String FILE_TYPE_F = "F";
   public static final String MESSAGE_ASSISTANT = "ASSISTANT";

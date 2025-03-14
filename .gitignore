@@ -76,3 +76,4 @@ checkpoints.sqlite-shm
 checkpoints.sqlite-wal
 !**/modulescript/**
 copilotAttachedFiles/*
+out/production/resources/META-INF/beans.xml

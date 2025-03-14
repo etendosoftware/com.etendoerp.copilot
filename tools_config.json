@@ -1,8 +1,8 @@
 {
-    "native_tools": {},
-    "third_party_tools": {
-        "HelloWorldTool": true,
-        "BastianFetcher": true,
-        "CustomHelloWorldMultiArgsTool": true
-    }
+  "native_tools": {},
+  "third_party_tools": {
+    "HelloWorldTool": true,
+    "BastianFetcher": true,
+    "CustomHelloWorldMultiArgsTool": true
+  }
 }
