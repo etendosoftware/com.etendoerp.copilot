@@ -463,11 +463,11 @@ function App() {
               {message.sender !== 'interpreting' && (
                 <p
                   className={`slide-up-fade-in inline-flex flex-col rounded-lg ${message.sender === ROLE_USER
-                      ? 'text-gray-600 rounded-tr-none'
-                      : message.sender === ROLE_ERROR
+                    ? 'text-gray-600 rounded-tr-none'
+                    : message.sender === ROLE_ERROR
                       ? 'rounded-tl-none'
                       : 'text-black rounded-tl-none'
-                  } break-words overflow-hidden max-w-[90%]`}
+                    } break-words overflow-hidden max-w-[90%]`}
                 >
                   {message.sender === ROLE_ERROR ? (
                     <TextMessage
@@ -478,36 +478,36 @@ function App() {
                     />
                   ) : // Normal message with Copilot's response
                     message.sender === ROLE_BOT ? (
-                    <TextMessage
-                      key={index}
+                      <TextMessage
+                        key={index}
                         text={message.text ? message.text : '...'}
-                      time={message.timestamp}
-                      type="left-user"
-                    />
-                  ) : message.sender === ROLE_TOOL || message.sender === ROLE_NODE || message.sender === ROLE_WAIT ? (
-                    <div className={`flex items-center`}>
-                      <img
-                        src={statusIcon}
-                        alt="Status Icon"
+                        time={message.timestamp}
+                        type="left-user"
+                      />
+                    ) : message.sender === ROLE_TOOL || message.sender === ROLE_NODE || message.sender === ROLE_WAIT ? (
+                      <div className={`flex items-center`}>
+                        <img
+                          src={statusIcon}
+                          alt="Status Icon"
                           className={
                             statusIcon === responseSent
                               ? 'w-5 h-5 mr-1'
                               : 'w-8 h-8 slow-bounce'
                           }
-                      />
+                        />
                         <span className={`text-sm ml-1 font-normal`}>
                           {message.text ? message.text : '...'}
                         </span>
-                    </div>
-                  ) : (
-                    <TextMessage
-                      key={index}
-                      text={message.text}
-                      time={message.timestamp}
-                      type="right-user"
-                      files={message.files}
-                    />
-                  )}
+                      </div>
+                    ) : (
+                      <TextMessage
+                        key={index}
+                        text={message.text}
+                        time={message.timestamp}
+                        type="right-user"
+                        files={message.files}
+                      />
+                    )}
                 </p>
               )}
             </div>
@@ -524,7 +524,7 @@ function App() {
         >
           {/* Conditionally render the context name title */}
           {contextTitle && (
-            <ContextTitlePreview contextTitle={contextTitle} />
+            <ContextTitlePreview contextTitle={contextTitle} hasFile={files && files.length > 0} />
           )}
 
           {/* Input area */}
