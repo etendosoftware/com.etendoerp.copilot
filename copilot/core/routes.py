@@ -460,3 +460,182 @@ def check_copilot_host(authorization: str = Header(None)):
 
     except requests.exceptions.RequestException as e:
         copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: {str(e)}")
+
+from fastapi import FastAPI, Response
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+import asyncio
+from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
+import tiktoken
+import json
+import time
+from typing import AsyncGenerator, List, Dict, Any
+
+# Inicializar FastAPI
+app = FastAPI()
+
+# Configurar tiktoken para contar tokens
+tokenizer = tiktoken.get_encoding("cl100k_base")
+
+# Modelo de entrada para el payload completo
+class Message(BaseModel):
+    role: str
+    content: str
+
+class ToolFunctionParameters(BaseModel):
+    type: str
+    properties: Dict[str, Any]
+    required: List[str] = []
+    additionalProperties: bool = False
+    schema_: str = Field(..., alias="$schema")
+
+class ToolFunction(BaseModel):
+    name: str
+    description: str
+    parameters: ToolFunctionParameters
+
+class Tool(BaseModel):
+    type: str
+    function: ToolFunction
+
+class Payload(BaseModel):
+    model: str
+    temperature: float
+    messages: List[Message]
+    tools: List[Tool]
+    tool_choice: str = "auto"
+    stream: bool = False
+
+# Función para calcular tokens de un texto
+def count_tokens(text: str) -> int:
+    return len(tokenizer.encode(text))
+
+# Convertir herramientas del payload a formato LangChain
+def convert_tools_to_langchain(tools: List[Tool]) -> List[Dict[str, Any]]:
+    return [tool.dict() for tool in tools]
+
+# Validar argumentos de tool_calls
+def validate_tool_args(tool_name: str, args: Dict[str, Any]) -> bool:
+    if tool_name == "viewUsage":
+        if "type" not in args or args["type"] not in ["electricity", "water", "gas"]:
+            return False
+    return True
+
+# Generador de chunks en formato SSE
+async def generate_stream(payload: Payload) -> AsyncGenerator[str, None]:
+    # Configurar el modelo con streaming forzado
+    model = ChatOpenAI(
+        model_name=payload.model,
+        temperature=payload.temperature,
+        streaming=True,
+    ).bind_tools(convert_tools_to_langchain(payload.tools), tool_choice=payload.tool_choice)
+
+    # Generar ID y tiempo de creación
+    chat_id = f"chatcmpl-{int(time.time())}"
+    created_time = int(time.time())
+
+    # Preparar mensajes y calcular tokens del prompt
+    messages = [{"role": msg.role, "content": msg.content} for msg in payload.messages]
+    prompt_text = " ".join([msg["content"] for msg in messages])
+    prompt_tokens = count_tokens(prompt_text) + 4 * len(messages)  # 4 tokens por mensaje
+    completion_tokens = 0
+
+    # Variable para rastrear tool_calls en construcción
+    current_tool_call = {"name": "", "arguments": ""}
+
+    # Stream del modelo
+    async for chunk in model.astream(messages):
+        chunk_data = {
+            "id": chat_id,
+            "object": "chat.completion.chunk",
+            "created": created_time,
+            "model": payload.model,
+            "service_tier": "default",
+            "system_fingerprint": "fp_f9f4fb6dbf",
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {},
+                    "logprobs": None,
+                    "finish_reason": None
+                }
+            ],
+            "usage": None
+        }
+
+        # Manejar contenido de texto
+        if hasattr(chunk, "content") and chunk.content:
+            content = chunk.content.lower()  # Respuesta en minúsculas como pide el sistema
+            chunk_tokens = count_tokens(content)
+            completion_tokens += chunk_tokens
+            chunk_data["choices"][0]["delta"] = {"content": content}
+
+        # Manejar tool_calls (construcción incremental)
+        elif hasattr(chunk, "tool_calls") and chunk.tool_calls:
+            tool_call = chunk.tool_calls[0]
+            tool_call_id = f"call_{int(time.time())}"
+            args = tool_call.get("args", {})
+
+            # Validar argumentos
+            if not current_tool_call["name"]:
+                current_tool_call["name"] = tool_call["name"]
+                chunk_data["choices"][0]["delta"] = {
+                    "tool_calls": [
+                        {
+                            "index": 0,
+                            "id": tool_call_id,
+                            "type": "function",
+                            "function": {"name": tool_call["name"], "arguments": ""}
+                        }
+                    ]
+                }
+            else:
+                current_tool_call["arguments"] = json.dumps(args)
+                chunk_data["choices"][0]["delta"] = {
+                    "tool_calls": [
+                        {
+                            "index": 0,
+                            "function": {"arguments": json.dumps(args)}
+                        }
+                    ]
+                }
+            completion_tokens += count_tokens(json.dumps(tool_call))
+
+        # Enviar el chunk con formato SSE
+        yield f"data: {json.dumps(chunk_data)}\n\n"
+
+    # Chunk final con estadísticas de uso
+    final_chunk = {
+        "id": chat_id,
+        "object": "chat.completion.chunk",
+        "created": created_time,
+        "model": payload.model,
+        "service_tier": "default",
+        "system_fingerprint": "fp_f9f4fb6dbf",
+        "choices": [
+            {
+                "index": 0,
+                "delta": {},
+                "logprobs": None,
+                "finish_reason": "tool_calls" if current_tool_call["name"] else "stop"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+            "prompt_tokens_details": {"cached_tokens": 0, "audio_tokens": 0},
+            "completion_tokens_details": {"reasoning_tokens": 0, "audio_tokens": 0, "accepted_prediction_tokens": 0, "rejected_prediction_tokens": 0}
+        }
+    }
+    yield f"data: {json.dumps(final_chunk)}\n\n"
+
+# Endpoint de FastAPI para streaming
+@core_router.post("/openai/v1/chat/completions")
+async def generate(payload: Payload):
+    async def stream_response() -> AsyncGenerator[str, None]:
+        async for chunk in generate_stream(payload):
+            yield chunk
+
+    return StreamingResponse(stream_response(), media_type="text/event-stream")
