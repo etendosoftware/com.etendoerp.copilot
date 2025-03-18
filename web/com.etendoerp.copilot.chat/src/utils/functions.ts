@@ -9,6 +9,7 @@ export const formatTime = (dateString: string): string => {
   return `${hoursStr}:${minutesStr}`;
 };
 
+// Convert time to hours:minutes
 export const formatTimeNewDate = (date: Date): string => {
   let hours = date.getHours();
   let minutes = date.getMinutes();
@@ -27,3 +28,13 @@ export const getMessageType = (sender: string) => {
     return "left-user";
   }
 };
+
+// Replace %s in the label with the provided value
+// Reemplaza %s en el label por el valor proporcionado, solo si es posible
+export const formatLabel = (label: string, count?: number): string | undefined => {
+  if (label.includes('%s') && count !== undefined) {
+    return label.replace('%s', String(count));
+  }
+  return undefined;
+};
+
