@@ -4,23 +4,28 @@ This module contains the main routes for the Copilot API.
 The routes are responsible for handling the incoming requests and returning the responses.
 
 """
-import asyncio
-import json
 import logging
 import os
 import shutil
 import threading
 import uuid
 from pathlib import Path
+from typing import AsyncGenerator
 
 import chromadb
 import requests
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
+from langchain_community.vectorstores import Chroma
+from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage, AIMessage
+from starlette.responses import StreamingResponse
+
 from copilot.core import etendo_utils, utils
 from copilot.core.agent import AgentEnum, AgentResponse, copilot_agents
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
+from copilot.core.genui.genui_types import GenuiPayload
 from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import (
     GraphQuestionSchema,
@@ -37,9 +42,6 @@ from copilot.core.vectordb_utils import (
     handle_zip_file,
     index_file,
 )
-from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
-from langchain_community.vectorstores import Chroma
-from starlette.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
 
@@ -460,3 +462,12 @@ def check_copilot_host(authorization: str = Header(None)):
 
     except requests.exceptions.RequestException as e:
         copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: {str(e)}")
+
+
+@core_router.post("/openai/v1/chat/completions")
+async def generate(payload: GenuiPayload):
+    from copilot.core.genui.genui_route import generate_stream
+    async def stream_response() -> AsyncGenerator[str, None]:
+        async for chunk in generate_stream(payload):
+            yield chunk
+    return StreamingResponse(stream_response(), media_type="text/event-stream")

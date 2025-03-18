@@ -5,7 +5,6 @@ from colorama import Fore, Style
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
-from copilot.core.agent import AssistantAgent, MultimodelAgent
 from copilot.core.langgraph.patterns.base_pattern import GraphMember
 from copilot.core.schemas import AssistantSchema
 from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
@@ -66,6 +65,7 @@ class MembersUtil:
     def get_member(self, assistant: AssistantSchema):
         member = None
         if assistant.type == "openai-assistant":
+            from copilot.core.agent import AssistantAgent
             agent: AssistantAgent = self.get_assistant_agent()
             _agent = agent.get_agent(assistant.assistant_id)
             agent_executor = agent.get_agent_executor(_agent)
@@ -74,6 +74,7 @@ class MembersUtil:
             )
             member = GraphMember(assistant.name, model_node)
         else:
+            from copilot.core.agent import MultimodelAgent
             configured_tools = MultimodelAgent().get_tools()
             tools = []
             for tool in assistant.tools:
@@ -91,6 +92,7 @@ class MembersUtil:
         return member
 
     def get_assistant_agent(self):
+        from copilot.core.agent import AssistantAgent
         return AssistantAgent()
 
     def get_assistant_supervisor_info(self, assistant_name, full_question):
