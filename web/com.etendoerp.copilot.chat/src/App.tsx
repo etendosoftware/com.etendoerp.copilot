@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import TextMessage from 'etendo-ui-library/dist-web/components/text-message/TextMessage';
 import FileSearchInput from 'etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput';
 import { useAssistants } from './hooks/useAssistants';
-import { formatTimeNewDate, getMessageType } from './utils/functions';
+import { formatLabel, formatTimeNewDate, getMessageType } from './utils/functions';
 import botIcon from './assets/bot.svg';
 import responseSent from './assets/response-sent.svg';
 import { ILabels } from './interfaces';
@@ -61,7 +61,9 @@ function App() {
   const inputRef = useRef<any>(null);
 
   const handleNewMessage = async (role: string, message: IMessage) => {
-    let _text = message?.response ?? message.text;
+    const currentContextTitle = contextTitle;
+
+    let _text = message.response ?? message.text;
     if (role === ROLE_WAIT) {
       _text = '⏳ ' + _text + '';
     }
@@ -76,10 +78,19 @@ function App() {
       // Get files or context title
       let fileNames: { name: string }[] = [];
       if (files && files.length > 0) {
-        fileNames = files.map((file: any) => ({ name: file.name }));
+        fileNames = files.map((file) => ({ name: (file as File).name }));
       } else if (contextTitle) {
         fileNames = [{ name: contextTitle }];
       }
+
+      const newMessage = {
+        message_id: message.message_id,
+        text: _text,
+        sender: role,
+        timestamp: formatTimeNewDate(new Date()),
+        files: (files && files.length > 0) ? files.map((file) => ({ name: (file as File).name })) : undefined,
+        context: currentContextTitle ? currentContextTitle : undefined,
+      };
 
       // Replace the last message if the role is the same
       const lastMessage = prevMessages[prevMessages.length - 1];
@@ -89,31 +100,18 @@ function App() {
         (role === lastMessage.sender || role === ROLE_BOT || lastMessage.sender === ROLE_WAIT)
       ) {
         // Replace the last message if the role is the same
-        return [
-          ...prevMessages.slice(0, -1),
-          {
-            message_id: message.message_id,
-            text: _text,
-            sender: role,
-            timestamp: formatTimeNewDate(new Date()),
-            files: fileNames,
-          },
-        ];
+        return [...prevMessages.slice(0, -1), newMessage];
       } else {
         // Add a new message if the role is different
-        return [
-          ...prevMessages,
-          {
-            message_id: message.message_id,
-            text: _text,
-            sender: role,
-            timestamp: formatTimeNewDate(new Date()),
-            files: fileNames,
-          },
-        ];
+        return [...prevMessages, newMessage];
       }
     });
-    setContextTitle(null);
+
+    if (role === ROLE_USER && currentContextTitle) {
+      setContextTitle(null);
+      setContextValue(null);
+    }
+
     if (role === ROLE_USER) {
       await handleNewMessage(ROLE_WAIT, {
         text: 'Processing...',
@@ -274,6 +272,99 @@ function App() {
       }
     }
   };
+
+  // Function to render a message
+  function renderMessage(message: any, index: number) {
+    const containerClass = getMessageContainerClasses(message.sender);
+
+    if (message.sender === ROLE_USER) {
+      return (
+        <div key={index} className={`flex justify-end ${containerClass}`}>
+          <TextMessage
+            text={message.text}
+            time={message.timestamp}
+            type="right-user"
+            context={message.context}
+            files={message.files}
+            multipleFilesText={
+              message.files
+                ? formatLabel(labels.ETCOP_FilesUploaded!!, message.files.length)
+                : undefined
+            }
+          />
+        </div>
+      );
+    }
+
+    switch (message.sender) {
+      case 'interpreting':
+        return (
+          <div key={index} className={containerClass}>
+            <div className="flex items-center">
+              <img
+                src={statusIcon}
+                alt="Status Icon"
+                className={
+                  statusIcon === responseSent ? 'w-5 h-5 mr-1' : 'w-8 h-8 slow-bounce'
+                }
+              />
+              <span className="text-sm ml-1 font-normal text-gray-700">
+                {message.text || '...'}
+              </span>
+            </div>
+          </div>
+        );
+      case ROLE_ERROR:
+        return (
+          <div key={index} className={containerClass}>
+            <TextMessage
+              text={message.text}
+              time={message.timestamp}
+              type={getMessageType(message.sender)}
+            />
+          </div>
+        );
+      case ROLE_BOT:
+        return (
+          <div key={index} className={containerClass}>
+            <TextMessage
+              text={message.text || '...'}
+              time={message.timestamp}
+              type="left-user"
+            />
+          </div>
+        );
+      case ROLE_TOOL:
+      case ROLE_NODE:
+      case ROLE_WAIT:
+        return (
+          <div key={index} className={containerClass}>
+            <div className="flex items-center">
+              <img
+                src={statusIcon}
+                alt="Status Icon"
+                className={
+                  statusIcon === responseSent ? 'w-5 h-5 mr-1' : 'w-8 h-8 slow-bounce'
+                }
+              />
+              <span className="text-sm ml-1 font-normal">
+                {message.text || '...'}
+              </span>
+            </div>
+          </div>
+        );
+      default:
+        return (
+          <div key={index} className={containerClass}>
+            <TextMessage
+              text={message.text}
+              time={message.timestamp}
+              type="right-user"
+            />
+          </div>
+        );
+    }
+  }
 
   // Modify setFile to reset the error state when a new file is selected
   const handleSetFiles = (newFiles: any) => {
@@ -439,79 +530,7 @@ function App() {
           )}
 
           {/* Displaying messages */}
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={getMessageContainerClasses(message.sender)}
-            >
-              {message.sender === 'interpreting' && (
-                <div className={`flex items-center`}>
-                  <img
-                    src={statusIcon}
-                    alt="Status Icon"
-                    className={
-                      statusIcon === responseSent
-                        ? 'w-5 h-5 mr-1'
-                        : 'w-8 h-8 slow-bounce'
-                    }
-                  />
-                  <span className={`text-sm ml-1 font-normal text-gray-700`}>
-                    {message.text}
-                  </span>
-                </div>
-              )}
-              {message.sender !== 'interpreting' && (
-                <p
-                  className={`slide-up-fade-in inline-flex flex-col rounded-lg ${message.sender === ROLE_USER
-                      ? 'text-gray-600 rounded-tr-none'
-                      : message.sender === ROLE_ERROR
-                      ? 'rounded-tl-none'
-                      : 'text-black rounded-tl-none'
-                  } break-words overflow-hidden max-w-[90%]`}
-                >
-                  {message.sender === ROLE_ERROR ? (
-                    <TextMessage
-                      key={index}
-                      text={message.text}
-                      time={message.timestamp}
-                      type={getMessageType(message.sender)}
-                    />
-                  ) : // Normal message with Copilot's response
-                    message.sender === ROLE_BOT ? (
-                    <TextMessage
-                      key={index}
-                        text={message.text ? message.text : '...'}
-                      time={message.timestamp}
-                      type="left-user"
-                    />
-                  ) : message.sender === ROLE_TOOL || message.sender === ROLE_NODE || message.sender === ROLE_WAIT ? (
-                    <div className={`flex items-center`}>
-                      <img
-                        src={statusIcon}
-                        alt="Status Icon"
-                          className={
-                            statusIcon === responseSent
-                              ? 'w-5 h-5 mr-1'
-                              : 'w-8 h-8 slow-bounce'
-                          }
-                      />
-                        <span className={`text-sm ml-1 font-normal`}>
-                          {message.text ? message.text : '...'}
-                        </span>
-                    </div>
-                  ) : (
-                    <TextMessage
-                      key={index}
-                      text={message.text}
-                      time={message.timestamp}
-                      type="right-user"
-                      files={message.files}
-                    />
-                  )}
-                </p>
-              )}
-            </div>
-          ))}
+          {messages.map((message, index) => renderMessage(message, index))}
           <div ref={messagesEndRef} />
         </div>
 
@@ -524,7 +543,14 @@ function App() {
         >
           {/* Conditionally render the context name title */}
           {contextTitle && (
-            <ContextTitlePreview contextTitle={contextTitle} />
+            <ContextTitlePreview
+              contextTitle={contextTitle}
+              hasFile={files && files.length > 0}
+              onClearContext={() => {
+                setContextTitle(null);
+                setContextValue(null);
+              }}
+            />
           )}
 
           {/* Input area */}
@@ -543,6 +569,11 @@ function App() {
             onError={handleOnError}
             multiline
             numberOfLines={7}
+            multipleFilesText={
+              files && files.length > 0
+                ? formatLabel(labels.ETCOP_FilesUploaded!!, files.length)
+                : undefined
+            }
           />
         </div>
       </div>

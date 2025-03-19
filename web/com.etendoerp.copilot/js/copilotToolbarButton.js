@@ -31,7 +31,7 @@
       }
     }
     messageData.contextTitle = contextTitle;
-    
+
     // Prepare the URL for the iframe
     const iframeURL = `web/com.etendoerp.copilot.dist/?question=${q}&assistant_id=${assistantId}&context_title=${encodeURI(contextTitle)}`;
 
@@ -319,7 +319,7 @@
     } else {
       // If window already exists, just send the new context and ensure it’s visible
       sendContextMessage();
-      if (!window.copilotWindow.isVisible()) {
+      if (!window.copilotWindow.isVisible() || window.copilotWindow.height === MINIMIZED_WINDOW_HEIGHT) {
         window.copilotWindow.show();
         adjustMaximizeWindowPosition();
       }
@@ -384,30 +384,32 @@
       openCopilotWindow(null, null, activeWindowInfo);
 
       // Listen for record selection changes
-      grid.addDataUpdatedHandler(function () {
-        const newSelectedRecords = grid.getSelectedRecords();
-        const newFilteredRecords = newSelectedRecords.map(record => {
-          const filteredRecord = {};
-          Object.keys(record).forEach(key => {
-            const value = record[key];
-            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-              filteredRecord[key] = value;
-            }
+      if (typeof grid.addDataUpdatedHandler === 'function') {
+        grid.addDataUpdatedHandler(function () {
+          const newSelectedRecords = grid.getSelectedRecords();
+          const newFilteredRecords = newSelectedRecords.map(record => {
+            const filteredRecord = {};
+            Object.keys(record).forEach(key => {
+              const value = record[key];
+              if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+                filteredRecord[key] = value;
+              }
+            });
+            return filteredRecord;
           });
-          return filteredRecord;
+
+          const updatedWindowInfo = {
+            windowId: view.windowId,
+            tabId: view.tabId,
+            tabTitle: view.tabTitle,
+            selectedRecords: newFilteredRecords,
+            isFormEditing: !!view.isShowingForm,
+          };
+
+          // Send updated context without recreating the window
+          openCopilotWindow(null, null, updatedWindowInfo);
         });
-
-        const updatedWindowInfo = {
-          windowId: view.windowId,
-          tabId: view.tabId,
-          tabTitle: view.tabTitle,
-          selectedRecords: newFilteredRecords,
-          isFormEditing: !!view.isShowingForm,
-        };
-
-        // Send updated context without recreating the window
-        openCopilotWindow(null, null, updatedWindowInfo);
-      });
+      }
     },
     buttonType: 'etcop',
     prompt: 'Copilot',
