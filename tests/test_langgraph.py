@@ -8,7 +8,7 @@ from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.langgraph.copilot_langgraph import CopilotLangGraph
 from copilot.core.langgraph.members_util import MembersUtil
 from copilot.core.langgraph.patterns import SupervisorPattern
-from copilot.core.langgraph.patterns.graph_member import GraphMember
+from copilot.core.schema.graph_member import GraphMember
 from copilot.core.schemas import GraphQuestionSchema
 from fastapi.testclient import TestClient
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -67,8 +67,8 @@ def graph_question_payload():
 class TestCopilotLangGraph(unittest.TestCase):
     @patch("copilot.core.schemas.AssistantGraph")
     @patch("copilot.core.langgraph.patterns.SupervisorPattern")
-    @patch("copilot.core.langgraph.patterns.base_pattern.GraphMember")
-    @patch("copilot.core.langgraph.patterns.base_pattern.GraphMember")
+    @patch("copilot.core.schema.graph_member.GraphMember")
+    @patch("copilot.core.schema.graph_member.GraphMember")
     def test_initialization(self, MockSupervisorPattern, MockAssistantGraph, MockMember1, MockMember2):
         # Mocking the necessary components
         members = [GraphMember("member1", MockMember1), GraphMember("member2", MockMember2)]

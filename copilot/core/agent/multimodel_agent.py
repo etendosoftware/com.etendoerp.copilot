@@ -20,7 +20,7 @@ from langchain_core.runnables import AddableDict
 from langgraph.prebuilt import create_react_agent
 
 from .. import etendo_utils, utils
-from ..langgraph.members_util import ApiTool
+from ..langgraph.tool_utils import ApiTool
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import QuestionSchema, ToolSchema
 from ..utils import get_full_question

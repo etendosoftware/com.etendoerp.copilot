@@ -1,4 +1,6 @@
+from copilot.core.langgraph.members_util import MembersUtil
 from copilot.core.langgraph.patterns.base_pattern import BasePattern
+from copilot.core.langgraph.special_nodes.output_node import OutputNode
 from copilot.core.langgraph.special_nodes.supervisor_node import (
     SupervisorNode,
     get_supervisor_system_prompt,
@@ -17,7 +19,7 @@ class SupervisorPattern(BasePattern):
             for assistant_name in stage.assistants:
                 members_names.append(assistant_name)
 
-                description = None # MembersUtil().get_assistant_supervisor_info(assistant_name, full_question)
+                description = MembersUtil().get_assistant_supervisor_info(assistant_name, full_question)
                 members_description.append(description)
             if len(members_names) > 1:
                 # if stage is not assistant_graph.stages[-1]:
@@ -37,8 +39,8 @@ class SupervisorPattern(BasePattern):
                     temperature=sv_temperature,
                 )
                 workflow.add_node("supervisor-" + stage.name, supervisor_chain)
-        # if len(assistant_graph.stages[-1].assistants) > 1:
-        #    workflow.add_node("output", OutputNode().build(temperature=sv_temperature).node)
+        if len(assistant_graph.stages[-1].assistants) > 1:
+            workflow.add_node("output", OutputNode().build(temperature=sv_temperature).nodes["agent"])
         return workflow
 
     def connect_graph(self, assistant_graph, workflow):

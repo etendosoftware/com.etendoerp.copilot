@@ -1,13 +1,13 @@
 import uuid
 from typing import AsyncGenerator
 
+from copilot.core.schema.graph_member import GraphMember
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
 from ..langgraph.members_util import MembersUtil
-from ..langgraph.patterns.graph_member import GraphMember
 from ..langgraph.patterns.langsupervisor_pattern import LangSupervisorPattern
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import GraphQuestionSchema
