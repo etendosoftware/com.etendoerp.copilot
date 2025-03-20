@@ -7,6 +7,9 @@ import requests
 from colorama import Fore, Style
 from copilot.core import utils
 from copilot.core.agent import AssistantAgent
+from copilot.core.agent.agent import (
+    get_kb_tool,
+)
 from copilot.core.langgraph.patterns.graph_member import GraphMember
 from copilot.core.schemas import AssistantSchema
 from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
@@ -83,13 +86,17 @@ class MembersUtil:
         else:
             from copilot.core.agent import MultimodelAgent
 
-            configured_tools = MultimodelAgent().get_tools()
+            multimodel_agent = MultimodelAgent()
+            configured_tools = multimodel_agent.get_tools()
             tools = []
             for tool in assistant.tools:
                 for t in configured_tools:
                     if t.name == tool.function.name:
                         tools.append(t)
                         break
+            kb_tool = get_kb_tool(assistant.kb_vectordb_id)  # type: ignore
+            if kb_tool is not None:
+                tools.append(kb_tool)
             if assistant.specs is not None:
                 for spec in assistant.specs:
                     if spec.type == "FLOW":

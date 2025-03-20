@@ -17,6 +17,7 @@ repos:
       - id: mixed-line-ending
       - id: debug-statements
       - id: check-added-large-files
+        exclude: 'web/com.etendoerp.copilot.dist/assets/index-.*\.js'
   - repo: https://github.com/pycqa/pydocstyle
     rev: "6.3.0"
     hooks:

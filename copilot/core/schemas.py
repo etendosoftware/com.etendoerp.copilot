@@ -71,6 +71,7 @@ class GraphQuestionSchema(BaseModel):
     temperature: Optional[float] = None
     system_prompt: Optional[str] = None
     assistant_id: Optional[str] = None
+    tools: Optional[list[ToolSchema]] = None
 
 
 class VectorDBInputSchema(BaseModel):

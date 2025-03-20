@@ -111,19 +111,18 @@ async def _handle_on_chain_start(event, thread_id):
         graph_step = any(tag.startswith("graph:step") and tag != "graph:step:0" for tag in event["tags"])
         if graph_step:
             node = metadata["langgraph_node"]
+            subgraph_name = metadata["checkpoint_ns"]
+            # remove text afte the fist :
+            subgraph_name = subgraph_name.split(":")[0]
             if node.startswith("__start__"):
                 message = "Starting..."
-            elif node.startswith("supervisor"):
-                message = "Supervisor is thinking..."
+            elif node.startswith("agent"):
+                message = f"{subgraph_name} is thinking..."
+            elif node.startswith("tool"):
+                message = f"{subgraph_name} is using his tools..."
             elif node == "output":
                 message = "Got it! Writing the answer ..."
             else:
-                if ":" in metadata["checkpoint_ns"]:
-                    subgraph_name = metadata["checkpoint_ns"]
-                    # remove text afte the fist :
-                    subgraph_name = subgraph_name.split(":")[0]
-                else:
-                    subgraph_name = ""
                 message = f"Asking for this to the agent '{subgraph_name}/{node}'"
             response = AssistantResponse(response=message, conversation_id=thread_id, role="node")
     return response

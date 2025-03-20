@@ -735,6 +735,7 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
     jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
     jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
+    jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
   }
 
   /**

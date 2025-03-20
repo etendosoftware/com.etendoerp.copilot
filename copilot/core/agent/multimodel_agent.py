@@ -10,14 +10,14 @@ from copilot.core.agent.agent import (
 from langchain.agents import (
     AgentExecutor,
     AgentOutputParser,
-    create_tool_calling_agent,
 )
-from langchain.agents.output_parsers.tools import ToolsAgentOutputParser
 from langchain.chat_models import init_chat_model
 from langchain.prompts import MessagesPlaceholder
 from langchain_core.agents import AgentAction, AgentFinish
+from langchain_core.messages import AIMessage
 from langchain_core.prompts.chat import ChatPromptTemplate
-from langchain_core.runnables import AddableDict, RunnablePassthrough
+from langchain_core.runnables import AddableDict
+from langgraph.prebuilt import create_react_agent
 
 from .. import etendo_utils, utils
 from ..langgraph.members_util import ApiTool
@@ -125,7 +125,7 @@ class MultimodelAgent(CopilotAgent):
 
         # base_url = "http://127.0.0.1:1234/v1" -> can be used for local LLMs
         _enabled_tools = self.get_functions(tools)
-        kb_tool = get_kb_tool(kb_vectordb_id)
+        kb_tool = get_kb_tool(kb_vectordb_id)  # type: ignore
         if kb_tool is not None:
             _enabled_tools.append(kb_tool)
             self._configured_tools.append(kb_tool)
@@ -136,16 +136,12 @@ class MultimodelAgent(CopilotAgent):
             ("placeholder", "{agent_scratchpad}"),
         ]
 
-        prompt = ChatPromptTemplate.from_messages(prompt_structure)
-        if tools is not None and len(tools) > 0:
-            agent = create_tool_calling_agent(llm=llm, tools=_enabled_tools, prompt=prompt)
-        else:
-            agent = (
-                RunnablePassthrough.assign(agent_scratchpad=lambda x: x["intermediate_steps"])
-                | prompt
-                | llm
-                | ToolsAgentOutputParser()
-            )
+        ChatPromptTemplate.from_messages(prompt_structure)
+        agent = create_react_agent(
+            model=llm,
+            tools=_enabled_tools,
+            prompt=system_prompt,
+        )
         return agent
 
     def get_agent_executor(self, agent) -> AgentExecutor:
@@ -167,10 +163,11 @@ class MultimodelAgent(CopilotAgent):
         if tools:
             for tool in tools:
                 for t in self._configured_tools:
-                    if isinstance(tool, ApiTool):
-                        _enabled_tools.append(t)
-                        break
-                    elif t.name == tool.function.name or tool.function.name == "ApiTool":
+                    if (
+                        isinstance(tool, ApiTool)
+                        or t.name == tool.function.name
+                        or tool.function.name == "ApiTool"
+                    ):
                         _enabled_tools.append(t)
                         break
         return _enabled_tools
@@ -224,14 +221,12 @@ class MultimodelAgent(CopilotAgent):
                 yield AssistantResponse(response=str(event), conversation_id="", role="debug")
             kind = event["event"]
             if kind == "on_tool_start":
-                if len(event["parent_ids"]) == 1:
-                    yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
+                yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
             elif kind == "on_chain_end":
                 if not type(event["data"]["output"]) == AddableDict:
                     output = event["data"]["output"]
-                    if type(output) == AgentFinish:
-                        return_values = output.return_values
-                        output_ = return_values["output"]
+                    if type(output) == AIMessage:
+                        output_ = output.content
                         # check if the output is a list
                         if type(output_) == list:
                             for o in output_:
