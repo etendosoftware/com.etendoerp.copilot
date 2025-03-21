@@ -1,5 +1,6 @@
 import functools
 import json
+import re
 from typing import List, Sequence
 
 from colorama import Fore, Style
@@ -31,6 +32,29 @@ def debug_messages(messages):
 
 
 tools_specs = []
+
+
+def codify_name(name):
+    # need to have the format  '^[a-zA-Z0-9_-]+$'.
+    name_field = name
+    # Replace all non-alphanumeric characters with underscores.
+    # Step 1: Strip any whitespace characters from the beginning and end of the string
+    name_field = name_field.strip()
+
+    # Step 2: Replace white spaces within the string with underscores
+    name_field = re.sub(r"\s+", "", name_field)
+
+    # Step 3: Remove any characters that do not match the [a-zA-Z0-9_-] pattern
+    name_field = re.sub(r"[^a-zA-Z0-9_-]", "", name_field)
+
+    # Step 4: Truncate to 63 characters
+    name_field = name_field[:63]
+
+    # Step 5: Validate against the regex pattern
+    if not re.match(r"^[a-zA-Z0-9_-]{1,63}$", name_field):
+        raise ValueError("Invalid characters in name field")
+
+    return name_field
 
 
 class MembersUtil:
@@ -108,7 +132,7 @@ class MembersUtil:
             member = create_react_agent(
                 model=llm,
                 tools=tools,
-                name=assistant.name,
+                name=codify_name(assistant.name),
                 prompt=assistant.system_prompt,
                 # , debug=True
             )

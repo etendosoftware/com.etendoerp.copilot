@@ -3,6 +3,7 @@ package com.etendoerp.copilot.rest;
 import static com.etendoerp.copilot.util.CopilotConstants.LANGCHAIN_MAX_LENGTH_QUESTION;
 import static com.etendoerp.copilot.util.CopilotUtils.getAppSourceContent;
 import static com.etendoerp.copilot.util.CopilotUtils.getAssistantPrompt;
+import static com.etendoerp.webhookevents.webhook_util.OpenAPISpecUtils.PROP_NAME;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -736,6 +737,7 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
     jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
     jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
+    jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
   }
 
   /**

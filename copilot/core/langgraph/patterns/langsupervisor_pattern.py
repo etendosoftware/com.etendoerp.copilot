@@ -1,5 +1,6 @@
 from typing import Annotated, List
 
+from copilot.core.langgraph.members_util import codify_name
 from copilot.core.langgraph.patterns.base_pattern import BasePattern
 from copilot.core.langgraph.special_nodes.supervisor_node import (
     get_supervisor_system_prompt,
@@ -143,6 +144,9 @@ class LangSupervisorPattern(BasePattern):
             model=model,
             tools=_tool,
             prompt=sv_prompt,
+            supervisor_name=(
+                codify_name(full_question.name) if full_question.name is not None else "Supervisor"
+            ),
             # output_mode="full_history",
             state_schema=LangSupervisorState,
         )
