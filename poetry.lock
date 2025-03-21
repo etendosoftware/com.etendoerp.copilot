@@ -2196,18 +2196,18 @@ ollama = ">=0.4.4,<1"
 
 [[package]]
 name = "langchain-openai"
-version = "0.3.8"
+version = "0.3.9"
 description = "An integration package connecting OpenAI and LangChain"
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "langchain_openai-0.3.8-py3-none-any.whl", hash = "sha256:9004dc8ef853aece0d8f0feca7753dc97f710fa3e53874c8db66466520436dbb"},
-    {file = "langchain_openai-0.3.8.tar.gz", hash = "sha256:4d73727eda8102d1d07a2ca036278fccab0bb5e0abf353cec9c3973eb72550ec"},
+    {file = "langchain_openai-0.3.9-py3-none-any.whl", hash = "sha256:1ad95c09a620910c39a8eb826eb146bd96bfbc55e4fca78b1e28ffd5e4f5b261"},
+    {file = "langchain_openai-0.3.9.tar.gz", hash = "sha256:a2897d15765a435eff3fed7043235c25ec1e192e6c45a81e9e4fae2951335fb3"},
 ]
 
 [package.dependencies]
-langchain-core = ">=0.3.42,<1.0.0"
-openai = ">=1.58.1,<2.0.0"
+langchain-core = ">=0.3.45,<1.0.0"
+openai = ">=1.66.3,<2.0.0"
 tiktoken = ">=0.7,<1"
 
 [[package]]
@@ -5425,4 +5425,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "074a9134058bde9162797d0536eacc89218cfbea3255fd61e8e62f2d397649b5"
+content-hash = "e668f44eaae55742a21f4148af50fe75c86a36a1d238cfefef8360ebb4d15006"

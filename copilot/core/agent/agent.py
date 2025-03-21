@@ -59,9 +59,8 @@ def get_kb_tool(kb_vectordb_id):
             retriever = db.as_retriever()
             kb_tool = create_retriever_tool(
                 retriever,
-                "KnowledgeBaseRetriever",
-                "Receives a query and returns information from the knowledge "
-                "base about it. Use it like a search engine.",
+                "KnowledgeBaseSearch",
+                "Search in the knowledge base for a term or question.",
             )
     return kb_tool
 
