@@ -1,5 +1,7 @@
+import base64
 import os
-from typing import AsyncGenerator, Dict, Final, Optional, Union
+from pathlib import Path
+from typing import AsyncGenerator, Dict, Final, List, Optional, Tuple, Union
 
 from copilot.core.agent.agent import (
     AgentResponse,
@@ -14,7 +16,7 @@ from langchain.agents import (
 from langchain.chat_models import init_chat_model
 from langchain.prompts import MessagesPlaceholder
 from langchain_core.agents import AgentAction, AgentFinish
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import AddableDict
 from langgraph.prebuilt import create_react_agent
@@ -95,6 +97,54 @@ def get_llm(model, provider, temperature):
     if "max_tokens" in model_config:
         llm.max_tokens = int(model_config["max_tokens"])
     return llm
+
+
+def process_local_files(local_file_ids: Union[str, List[str]]) -> Tuple[List[Dict], List[str]]:
+    """Process local file IDs, returning image payloads and a list of other file paths."""
+    image_payloads = []
+    other_file_paths = []
+
+    if local_file_ids:
+        # Split paths into a list
+        if isinstance(local_file_ids, str):
+            file_paths = local_file_ids.split(",")
+        elif isinstance(local_file_ids, list) and len(local_file_ids) == 1 and "," in local_file_ids[0]:
+            file_paths = local_file_ids[0].split(",")
+        else:
+            file_paths = local_file_ids
+
+        # Define supported image formats
+        supported_image_formats = {
+            "JPEG": "image/jpeg",
+            "JPG": "image/jpeg",
+            "PNG": "image/png",
+            "WEBP": "image/webp",
+            "GIF": "image/gif",
+        }
+
+        for file_path in [path.strip() for path in file_paths]:
+            if Path(file_path).is_file():
+                mime = None
+                for ext, mime_type in supported_image_formats.items():
+                    if file_path.lower().endswith(ext.lower()):
+                        mime = mime_type
+                        break
+
+                if mime:  # Image format
+                    with open(file_path, "rb") as image_file:
+                        img_b64 = base64.b64encode(image_file.read()).decode("utf-8")
+                        image_payloads.append(
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:{mime};base64,{img_b64}", "detail": "high"},
+                            }
+                        )
+                else:  # Non-image format (PDF, TXT, etc.)
+                    other_file_paths.append(file_path)
+            else:
+                print(f"Skipping: {file_path} does not exist or is not a file")
+
+    return image_payloads, other_file_paths
 
 
 class MultimodelAgent(CopilotAgent):
@@ -183,7 +233,21 @@ class MultimodelAgent(CopilotAgent):
             question.kb_vectordb_id,
         )
         executor: Final[AgentExecutor] = self.get_agent_executor(agent)
+
+        # Process local files
+        image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+
+        # Construct messages
         messages = self._memory.get_memory(question.history, full_question)
+        if image_payloads or other_file_paths:
+            content = [{"type": "text", "text": full_question}]
+            if image_payloads:
+                content.extend(image_payloads)
+            if other_file_paths:
+                # Attach non-image files as a text block with file paths
+                content.append({"type": "text", "text": "Attached files:\n" + "\n".join(other_file_paths)})
+            messages.append(HumanMessage(content=content))
+
         langchain_respose: Dict = executor.invoke(
             {"system_prompt": question.system_prompt, "messages": messages}
         )
@@ -210,9 +274,22 @@ class MultimodelAgent(CopilotAgent):
         )
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         full_question = question.question
-        if question.local_file_ids is not None and len(question.local_file_ids) > 0:
-            full_question += "\n\n" + "LOCAL FILES: " + "\n".join(question.local_file_ids)
+
+        # Process local files
+        image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+
+        # Construct messages
         messages = self._memory.get_memory(question.history, full_question)
+        if image_payloads or other_file_paths:
+            content = [{"type": "text", "text": full_question}]
+            if image_payloads:
+                content.extend(image_payloads)
+            if other_file_paths:
+                # Attach non-image files as a text block with file paths
+                content.append({"type": "text", "text": "Attached files:\n" + "\n".join(other_file_paths)})
+            new_human_message = HumanMessage(content=content)
+            messages.append(new_human_message)
+
         _input = {"content": full_question, "messages": messages, "system_prompt": question.system_prompt}
         if question.conversation_id is not None:
             _input["thread_id"] = question.conversation_id

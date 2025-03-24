@@ -125,7 +125,7 @@
     <createdBy transient="true" id="0" entity-name="ADUser" identifier="System"/>
     <updated transient="true">2025-01-29T11:37:44.907Z</updated>
     <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
-    <searchkey> claude-3-5-sonnet-latest</searchkey>
+    <searchkey>claude-3-5-sonnet-latest</searchkey>
     <name>claude-3-5-sonnet-latest</name>
     <provider>anthropic</provider>
     <maxTokens>8000</maxTokens>
