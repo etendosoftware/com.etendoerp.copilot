@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 from pathlib import Path
 from typing import AsyncGenerator, Dict, Final, List, Optional, Tuple, Union
@@ -22,9 +23,9 @@ from langchain_core.runnables import AddableDict
 from langgraph.prebuilt import create_react_agent
 
 from .. import etendo_utils, utils
-from ..langgraph.tool_utils import ApiTool
+from ..langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from ..memory.memory_handler import MemoryHandler
-from ..schemas import QuestionSchema, ToolSchema
+from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..utils import get_full_question
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
@@ -159,6 +160,7 @@ class MultimodelAgent(CopilotAgent):
         self,
         provider: str,
         model: str,
+        agent_configuration: AssistantSchema,
         tools: list[ToolSchema] = None,
         system_prompt: str = None,
         temperature: float = 1,
@@ -179,7 +181,13 @@ class MultimodelAgent(CopilotAgent):
         if kb_tool is not None:
             _enabled_tools.append(kb_tool)
             self._configured_tools.append(kb_tool)
-
+        if agent_configuration.specs is not None:
+            for spec in agent_configuration.specs:
+                if spec.type == "FLOW":
+                    api_spec = json.loads(spec.spec)
+                    openapi_tools = generate_tools_from_openapi(api_spec)
+                    _enabled_tools.extend(openapi_tools)
+                    self._configured_tools.extend(openapi_tools)
         prompt_structure = [
             ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
             MessagesPlaceholder(variable_name="messages"),
@@ -213,11 +221,7 @@ class MultimodelAgent(CopilotAgent):
         if tools:
             for tool in tools:
                 for t in self._configured_tools:
-                    if (
-                        isinstance(tool, ApiTool)
-                        or t.name == tool.function.name
-                        or tool.function.name == "ApiTool"
-                    ):
+                    if t.name == tool.function.name:
                         _enabled_tools.append(t)
                         break
         return _enabled_tools
@@ -225,12 +229,13 @@ class MultimodelAgent(CopilotAgent):
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
         agent = self.get_agent(
-            question.provider,
-            question.model,
-            question.tools,
-            question.system_prompt,
-            question.temperature,
-            question.kb_vectordb_id,
+            provider=question.provider,
+            model=question.model,
+            agent_configuration=question,
+            tools=question.tools,
+            system_prompt=question.system_prompt,
+            temperature=question.temperature,
+            kb_vectordb_id=question.kb_vectordb_id,
         )
         executor: Final[AgentExecutor] = self.get_agent_executor(agent)
 
@@ -265,12 +270,13 @@ class MultimodelAgent(CopilotAgent):
     async def aexecute(self, question: QuestionSchema) -> AsyncGenerator[AgentResponse, None]:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
         agent = self.get_agent(
-            question.provider,
-            question.model,
-            question.tools,
-            question.system_prompt,
-            question.temperature,
-            question.kb_vectordb_id,
+            provider=question.provider,
+            model=question.model,
+            agent_configuration=question,
+            tools=question.tools,
+            system_prompt=question.system_prompt,
+            temperature=question.temperature,
+            kb_vectordb_id=question.kb_vectordb_id,
         )
         agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         full_question = question.question
