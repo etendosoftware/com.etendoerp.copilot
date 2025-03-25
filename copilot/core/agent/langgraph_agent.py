@@ -218,15 +218,19 @@ class LanggraphAgent(CopilotAgent):
             cgraph: CompiledStateGraph = lang_graph._graph
             if question.generate_image:
                 import base64
+                import time
 
+                start_time = time.time()
+                png = cgraph.get_graph().draw_mermaid_png()
+                end_time = time.time()
+                print(f"Time taken to draw PNG: {end_time - start_time} seconds")
                 return AgentResponse(
                     input=question.model_dump_json(),
                     output=AssistantResponse(
-                        response=base64.b64encode(cgraph.get_graph().draw_mermaid_png()).decode(),
+                        response=base64.b64encode(png).decode(),
                         conversation_id=thread_id,
                     ),
                 )
-            cgraph.get_graph().draw_mermaid_png()
 
             final_response = cgraph.invoke(
                 input=build_msg_input(full_question, image_payloads, other_file_paths),
