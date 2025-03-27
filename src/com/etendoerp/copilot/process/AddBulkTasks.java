@@ -27,6 +27,7 @@ import org.openbravo.dal.service.OBDal;
 
 import com.etendoerp.copilot.background.BulkTaskExec;
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.etendoerp.task.data.Status;
 import com.etendoerp.task.data.Task;
 import com.etendoerp.task.data.TaskType;
@@ -168,7 +169,7 @@ public class AddBulkTasks extends BaseProcessActionHandler {
       outputDir.mkdirs(); // Crear el directorio si no existe
     }
 
-    List<String> extractedFilePaths = new ArrayList<>();
+    List<String> resultPathsArray = new ArrayList<>();
 
     try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
       ZipEntry entry;
@@ -189,11 +190,16 @@ public class AddBulkTasks extends BaseProcessActionHandler {
               fos.write(buffer, 0, len);
             }
           }
-          extractedFilePaths.add(extractedFile.getAbsolutePath());
+          try {
+            String path = RestServiceUtil.handleFile(extractedFile, "attachFile");
+            resultPathsArray.add(path);
+          } catch (Exception e) {
+            resultPathsArray.add("Error: " + e.getMessage());
+          }
         }
         zis.closeEntry();
       }
     }
-    return extractedFilePaths.toArray(new String[0]);
+    return resultPathsArray.toArray(new String[0]);
   }
 }

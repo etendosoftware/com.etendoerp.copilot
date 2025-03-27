@@ -128,7 +128,7 @@ public class CopilotUtils {
     }
   }
 
-  private static HttpResponse<String> doGetCopilot(Properties properties, String endpoint) {
+  static HttpResponse<String> doGetCopilot(Properties properties, String endpoint) {
     try {
       HttpClient client = HttpClient.newBuilder().build();
       String copilotPort = properties.getProperty(COPILOT_PORT, "5005");
@@ -148,7 +148,7 @@ public class CopilotUtils {
     }
   }
 
-  private static HttpRequest.BodyPublisher createMultipartBody(JSONObject jsonBody, File file) throws Exception {
+  static HttpRequest.BodyPublisher createMultipartBody(JSONObject jsonBody, File file) throws Exception {
     var byteArrays = new ByteArrayOutputStream();
     var writer = new PrintWriter(new OutputStreamWriter(byteArrays, StandardCharsets.UTF_8), true);
 
@@ -310,7 +310,7 @@ public class CopilotUtils {
         .anyMatch(validExt -> StringUtils.equalsIgnoreCase(validExt, extension));
   }
 
-  private static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName,
+  static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName,
       String extension, boolean skipSplitting) throws JSONException {
     toVectorDB(null, fileFromCopilotFile, dbName, extension, true, skipSplitting);
   }
@@ -449,17 +449,30 @@ public class CopilotUtils {
     OBContext obContext = OBContext.getOBContext();
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
     stringParsed = StringUtils.replace(stringParsed, "@ETENDO_HOST_DOCKER@", getEtendoHostDocker());
-    stringParsed = StringUtils.replace(stringParsed, "@AD_CLIENT_ID@", obContext.getCurrentClient().getId());
-    stringParsed = StringUtils.replace(stringParsed, "@CLIENT_NAME@", obContext.getCurrentClient().getName());
-    stringParsed = StringUtils.replace(stringParsed, "@AD_ORG_ID@", obContext.getCurrentOrganization().getId());
-    stringParsed = StringUtils.replace(stringParsed, "@ORG_NAME@", obContext.getCurrentOrganization().getName());
-    stringParsed = StringUtils.replace(stringParsed, "@AD_USER_ID@", obContext.getUser().getId());
-    stringParsed = StringUtils.replace(stringParsed, "@USERNAME@", obContext.getUser().getUsername());
-    stringParsed = StringUtils.replace(stringParsed, "@AD_ROLE_ID@", obContext.getRole().getId());
-    stringParsed = StringUtils.replace(stringParsed, "@ROLE_NAME@", obContext.getRole().getName());
-    stringParsed = StringUtils.replace(stringParsed, "@M_WAREHOUSE_ID@", obContext.getWarehouse().getId());
-    stringParsed = StringUtils.replace(stringParsed, "@WAREHOUSE_NAME@", obContext.getWarehouse().getName());
-
+    if (obContext.getCurrentClient() != null) {
+      stringParsed = StringUtils.replace(stringParsed, "@AD_CLIENT_ID@", obContext.getCurrentClient().getId());
+    }
+    if (obContext.getCurrentClient() != null) {
+      stringParsed = StringUtils.replace(stringParsed, "@CLIENT_NAME@", obContext.getCurrentClient().getName());
+    }
+    if (obContext.getCurrentOrganization() != null) {
+      stringParsed = StringUtils.replace(stringParsed, "@AD_ORG_ID@", obContext.getCurrentOrganization().getId());
+    }
+    if (obContext.getCurrentOrganization() != null) {
+      stringParsed = StringUtils.replace(stringParsed, "@ORG_NAME@", obContext.getCurrentOrganization().getName());
+    }
+    if (obContext.getUser() != null) {
+      stringParsed = StringUtils.replace(stringParsed, "@AD_USER_ID@", obContext.getUser().getId());
+      stringParsed = StringUtils.replace(stringParsed, "@USERNAME@", obContext.getUser().getUsername());
+    }
+    if (obContext.getRole() != null) {
+      stringParsed = StringUtils.replace(stringParsed, "@AD_ROLE_ID@", obContext.getRole().getId());
+      stringParsed = StringUtils.replace(stringParsed, "@ROLE_NAME@", obContext.getRole().getName());
+    }
+    if (obContext.getWarehouse() != null) {
+      stringParsed = StringUtils.replace(stringParsed, "@M_WAREHOUSE_ID@", obContext.getWarehouse().getId());
+      stringParsed = StringUtils.replace(stringParsed, "@WAREHOUSE_NAME@", obContext.getWarehouse().getName());
+    }
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     stringParsed = StringUtils.replace(stringParsed, "@source.path@", getSourcesPath(properties));
 
@@ -501,7 +514,7 @@ public class CopilotUtils {
    *     If an error occurs while checking the running
    *     environment.
    */
-  private static String getSourcesPath(Properties properties) {
+  static String getSourcesPath(Properties properties) {
     boolean inDocker;
     try {
       inDocker = isCopilotRunningInDocker(properties);
@@ -514,7 +527,7 @@ public class CopilotUtils {
     }
   }
 
-  private static boolean isCopilotRunningInDocker(Properties properties) {
+  static boolean isCopilotRunningInDocker(Properties properties) {
     boolean inDocker = false;
     try {
       var resp = doGetCopilot(properties, "runningCheck");
@@ -700,7 +713,7 @@ public class CopilotUtils {
    * @throws Exception
    *     If an error occurs while generating the token.
    */
-  private static String getEtendoSWSToken(OBContext context, Role role) throws Exception {
+  static String getEtendoSWSToken(OBContext context, Role role) throws Exception {
     if (role == null) {
       role = OBDal.getInstance().get(Role.class, context.getRole().getId());
     }

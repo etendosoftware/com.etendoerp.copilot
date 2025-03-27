@@ -3,6 +3,7 @@ package com.etendoerp.copilot.rest;
 import static com.etendoerp.copilot.util.CopilotConstants.LANGCHAIN_MAX_LENGTH_QUESTION;
 import static com.etendoerp.copilot.util.CopilotUtils.getAppSourceContent;
 import static com.etendoerp.copilot.util.CopilotUtils.getAssistantPrompt;
+import static com.etendoerp.webhookevents.webhook_util.OpenAPISpecUtils.PROP_NAME;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -199,7 +200,20 @@ public class RestServiceUtil {
    * @param endpoint
    * @throws IOException
    */
-  private static String handleFile(File f, String originalFileName, String endpoint) throws IOException, JSONException {
+
+  public static String handleFile(File f, String originalFileName, String endpoint) throws IOException, JSONException {
+    return handleFile(f, endpoint);
+  }
+
+  /**
+   * This method is used to save a file in the temp folder of the server. The file is saved with a
+   * UUID as name.
+   *
+   * @param f
+   * @param endpoint
+   * @throws IOException
+   */
+  public static String handleFile(File f, String endpoint) throws IOException, JSONException {
     var prop = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     var response = CopilotUtils.getResponseFromCopilot(prop, endpoint, new JSONObject(), f);
     if (response == null) {
@@ -735,6 +749,8 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
     jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
     jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
+    jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
+    jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
   }
 
   /**

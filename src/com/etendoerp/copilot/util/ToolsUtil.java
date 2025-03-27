@@ -1,8 +1,8 @@
 package com.etendoerp.copilot.util;
 
-import com.etendoerp.copilot.data.CopilotApp;
-import com.etendoerp.copilot.data.CopilotAppTool;
-import com.etendoerp.copilot.data.CopilotTool;
+import java.util.List;
+
+import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -11,8 +11,13 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 
-import java.util.List;
+import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.CopilotAppTool;
+import com.etendoerp.copilot.data.CopilotTool;
 
+/*
+ * This class is used to get the tools for the app.
+ */
 public class ToolsUtil {
 
   private ToolsUtil() {
@@ -21,8 +26,8 @@ public class ToolsUtil {
 
   /**
    * Get the tools for the app
+   *
    * @param app
-   * @return
    * @throws OBException
    * @throws JSONException
    */
@@ -40,8 +45,15 @@ public class ToolsUtil {
     for (CopilotAppTool appTool : appToolsList) {
       CopilotTool erpTool = appTool.getCopilotTool();
       String toolInfo = erpTool.getJsonStructure();
-      if (toolInfo != null) {
+      if (toolInfo != null && !StringUtils.equals("{}", toolInfo)) {
         result.put(new JSONObject(toolInfo));
+      } else {
+        JSONObject jsonTool = new JSONObject();
+        jsonTool.put("type", "function");
+        JSONObject jsonFunc = new JSONObject();
+        jsonFunc.put("name", erpTool.getValue());
+        jsonTool.put("function", jsonFunc);
+        result.put(jsonTool);
       }
     }
     return result;

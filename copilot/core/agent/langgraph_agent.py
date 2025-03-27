@@ -1,13 +1,13 @@
 import uuid
 from typing import AsyncGenerator
 
+from copilot.core.schema.graph_member import GraphMember
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
 from ..langgraph.members_util import MembersUtil
-from ..langgraph.patterns.graph_member import GraphMember
 from ..langgraph.patterns.langsupervisor_pattern import LangSupervisorPattern
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import GraphQuestionSchema
@@ -18,6 +18,7 @@ from ..utils import (
     read_optional_env_var_int,
 )
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
+from .multimodel_agent import process_local_files
 
 SQLLITE_NAME = "checkpoints.sqlite"
 
@@ -111,19 +112,18 @@ async def _handle_on_chain_start(event, thread_id):
         graph_step = any(tag.startswith("graph:step") and tag != "graph:step:0" for tag in event["tags"])
         if graph_step:
             node = metadata["langgraph_node"]
+            subgraph_name = metadata["checkpoint_ns"]
+            # remove text afte the fist :
+            subgraph_name = subgraph_name.split(":")[0]
             if node.startswith("__start__"):
                 message = "Starting..."
-            elif node.startswith("supervisor"):
-                message = "Supervisor is thinking..."
+            elif node.startswith("agent"):
+                message = f"{subgraph_name} is thinking..."
+            elif node.startswith("tool"):
+                message = f"{subgraph_name} is using his tools..."
             elif node == "output":
                 message = "Got it! Writing the answer ..."
             else:
-                if ":" in metadata["checkpoint_ns"]:
-                    subgraph_name = metadata["checkpoint_ns"]
-                    # remove text afte the fist :
-                    subgraph_name = subgraph_name.split(":")[0]
-                else:
-                    subgraph_name = ""
                 message = f"Asking for this to the agent '{subgraph_name}/{node}'"
             response = AssistantResponse(response=message, conversation_id=thread_id, role="node")
     return response
@@ -161,10 +161,17 @@ async def handle_events(copilot_stream_debug, event, thread_id):
     return response
 
 
-def build_msg_input(full_question):
-    _input = HumanMessage(content=full_question)
-    msg = {"messages": [_input]}
-    return msg
+def build_msg_input(full_question, image_payloads=None, other_file_paths=None):
+    if image_payloads or other_file_paths:
+        content = [{"type": "text", "text": full_question}]
+        if image_payloads:
+            content.extend(image_payloads)
+        if other_file_paths:
+            # Attach non-image files as a text block with file paths
+            content.append({"type": "text", "text": "Attached files:\n" + "\n".join(other_file_paths)})
+        new_human_message = HumanMessage(content=content)
+        return {"messages": [new_human_message]}
+    return {"messages": [HumanMessage(content=full_question)]}
 
 
 def build_config(thread_id):
@@ -204,22 +211,30 @@ class LanggraphAgent(CopilotAgent):
         with SqliteSaver.from_conn_string(SQLLITE_NAME) as memory:
             lang_graph, thread_id = setup_graph(question, memory)
             local_file_ids = question.local_file_ids
+            # Process local files
+            image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+
             full_question = fullfill_question(local_file_ids, question)
             cgraph: CompiledStateGraph = lang_graph._graph
             if question.generate_image:
                 import base64
+                import time
 
+                start_time = time.time()
+                png = cgraph.get_graph().draw_mermaid_png()
+                end_time = time.time()
+                print(f"Time taken to draw PNG: {end_time - start_time} seconds")
                 return AgentResponse(
                     input=question.model_dump_json(),
                     output=AssistantResponse(
-                        response=base64.b64encode(cgraph.get_graph().draw_mermaid_png()).decode(),
+                        response=base64.b64encode(png).decode(),
                         conversation_id=thread_id,
                     ),
                 )
-            cgraph.get_graph().draw_mermaid_png()
 
             final_response = cgraph.invoke(
-                input=build_msg_input(full_question), config=build_config(thread_id)
+                input=build_msg_input(full_question, image_payloads, other_file_paths),
+                config=build_config(thread_id),
             )
 
             return AgentResponse(
@@ -244,8 +259,12 @@ class LanggraphAgent(CopilotAgent):
             lang_graph, thread_id = setup_graph(question, memory)
             local_file_ids = question.local_file_ids
             full_question = fullfill_question(local_file_ids, question)
+            # Process local files
+            image_payloads, other_file_paths = process_local_files(question.local_file_ids)
             async for event in lang_graph._graph.astream_events(
-                build_msg_input(full_question), version="v2", config=build_config(thread_id)
+                build_msg_input(full_question, image_payloads, other_file_paths),
+                version="v2",
+                config=build_config(thread_id),
             ):
                 response = await handle_events(copilot_stream_debug, event, thread_id)
                 if response is not None:

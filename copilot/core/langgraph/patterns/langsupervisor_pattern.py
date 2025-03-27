@@ -1,5 +1,6 @@
 from typing import Annotated, List
 
+from copilot.core.langgraph.members_util import codify_name
 from copilot.core.langgraph.patterns.base_pattern import BasePattern
 from copilot.core.langgraph.special_nodes.supervisor_node import (
     get_supervisor_system_prompt,
@@ -41,7 +42,7 @@ class LangSupervisorPattern(BasePattern):
 
         @tool()
         def task_management_tool(
-            mode: Annotated[str, "Mode of operation: 'get_next', 'add_tasks', 'status', " "'mark_done'"],
+            mode: Annotated[str, "Mode of operation: 'get_next', 'add_tasks', 'status', 'mark_done'"],
             state: Annotated[dict, InjectedState],
             tool_call_id: Annotated[str, InjectedToolCallId],
             new_tasks: List[str] = None,
@@ -133,11 +134,19 @@ class LangSupervisorPattern(BasePattern):
                     }
                 )
 
+        _tool = []
+        if full_question is not None and (full_question.tools is not None) and len(full_question.tools) > 0:
+            for tl in full_question.tools:
+                if tl.function.name == "TaskManagementTool":
+                    _tool.append(task_management_tool)
         workflow = create_supervisor(
             members,
             model=model,
-            tools=[task_management_tool],
+            tools=_tool,
             prompt=sv_prompt,
+            supervisor_name=(
+                codify_name(full_question.name) if full_question.name is not None else "Supervisor"
+            ),
             # output_mode="full_history",
             state_schema=LangSupervisorState,
         )

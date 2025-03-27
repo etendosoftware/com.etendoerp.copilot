@@ -8,6 +8,8 @@ from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph
+from langgraph.graph.state import CompiledStateGraph
+
 
 class BasePattern:
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
@@ -23,7 +25,10 @@ class BasePattern:
 
         workflow = StateGraph(AgentState)
         for member in members:
-            workflow.add_node(member.name, member.node)
+            if isinstance(member, CompiledStateGraph):
+                workflow.add_node(member.name, member.nodes["agent"])
+            else:
+                workflow.add_node(member.name, member.node)
         return workflow
 
     def create_agent(self, llm: ChatOpenAI, tools: list, system_prompt: str):
@@ -45,6 +50,3 @@ class BasePattern:
     @abstractmethod
     def connect_graph(self, assistant_graph, workflow):
         raise NotImplementedError
-
-
-
