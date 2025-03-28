@@ -237,7 +237,6 @@ class MultimodelAgent(CopilotAgent):
             temperature=question.temperature,
             kb_vectordb_id=question.kb_vectordb_id,
         )
-        executor: Final[AgentExecutor] = self.get_agent_executor(agent)
 
         # Process local files
         image_payloads, other_file_paths = process_local_files(question.local_file_ids)
@@ -253,14 +252,13 @@ class MultimodelAgent(CopilotAgent):
                 content.append({"type": "text", "text": "Attached files:\n" + "\n".join(other_file_paths)})
             messages.append(HumanMessage(content=content))
 
-        langchain_respose: Dict = executor.invoke(
-            {"system_prompt": question.system_prompt, "messages": messages}
-        )
-        output_answer = {"response": langchain_respose["output"]}
+        agent_response = agent.invoke({"system_prompt": question.system_prompt, "messages": messages})
+        new_ai_message = agent_response.get("messages")[-1]
+
         return AgentResponse(
             input=full_question,
             output=AssistantResponse(
-                response=output_answer["response"], conversation_id=question.conversation_id
+                response=new_ai_message.content, conversation_id=question.conversation_id
             ),
         )
 
