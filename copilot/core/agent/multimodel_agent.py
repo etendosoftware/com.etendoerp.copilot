@@ -276,7 +276,6 @@ class MultimodelAgent(CopilotAgent):
             temperature=question.temperature,
             kb_vectordb_id=question.kb_vectordb_id,
         )
-        agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         full_question = question.question
 
         # Process local files
@@ -297,7 +296,7 @@ class MultimodelAgent(CopilotAgent):
         _input = {"content": full_question, "messages": messages, "system_prompt": question.system_prompt}
         if question.conversation_id is not None:
             _input["thread_id"] = question.conversation_id
-        async for event in agent_executor.astream_events(_input, version="v2"):
+        async for event in agent.astream_events(_input, version="v2"):
             if copilot_stream_debug:
                 yield AssistantResponse(response=str(event), conversation_id="", role="debug")
             kind = event["event"]
