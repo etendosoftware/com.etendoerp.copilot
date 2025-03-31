@@ -1,3 +1,4 @@
+import json
 import os
 from abc import abstractmethod
 from dataclasses import dataclass
@@ -56,7 +57,20 @@ def get_kb_tool(kb_vectordb_id):
         # check if the db is empty
         res = db.get(limit=1)
         if len(res["ids"]) > 0:
-            retriever = db.as_retriever()
+            # Load retriever config from env variable
+            retriever_config = os.getenv("COPILOT_RETRIEVER_CONFIG", "").strip()
+
+            if retriever_config:
+                try:
+                    config = json.loads(retriever_config)
+                    retriever = db.as_retriever(**config)
+                except json.JSONDecodeError:
+                    print("Invalid RETRIEVER_CONFIG format. Using default retriever.")
+                    retriever = db.as_retriever()
+            else:
+                retriever = db.as_retriever()
+
+
             kb_tool = create_retriever_tool(
                 retriever,
                 "KnowledgeBaseSearch",

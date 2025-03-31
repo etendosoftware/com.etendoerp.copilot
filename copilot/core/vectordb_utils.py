@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import shutil
 import tempfile
@@ -119,6 +120,15 @@ def get_text_splitter(ext):
     if ext in ["md", "markdown"]:
         return MarkdownTextSplitter()
     elif ext in ["txt", "pdf", "xml"]:
+        splitter_config = os.getenv("COPILOT_TEXT_SPLITTER_CONFIG", "").strip()
+
+        if splitter_config:
+            try:
+                config = json.loads(splitter_config)
+                return CharacterTextSplitter(**config)
+            except json.JSONDecodeError:
+                print("Invalid TEXT_SPLITTER_CONFIG format. Using default splitter.")
+
         return CharacterTextSplitter()
     elif ext in ["json"]:
         return CopilotRecursiveJsonSplitter(max_chunk_size=300)
