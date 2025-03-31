@@ -232,14 +232,15 @@ class LanggraphAgent(CopilotAgent):
                     ),
                 )
 
-            final_response = cgraph.invoke(
+            agent_response = cgraph.invoke(
                 input=build_msg_input(full_question, image_payloads, other_file_paths),
                 config=build_config(thread_id),
             )
+            new_ai_message = agent_response.get("messages")[-1]
 
             return AgentResponse(
                 input=question.model_dump_json(),
-                output=AssistantResponse(response=final_response, conversation_id=thread_id),
+                output=AssistantResponse(response=new_ai_message.content, conversation_id=thread_id),
             )
 
     async def aexecute(self, question: GraphQuestionSchema) -> AsyncGenerator[AgentResponse, None]:

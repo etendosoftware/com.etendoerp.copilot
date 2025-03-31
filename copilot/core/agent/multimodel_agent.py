@@ -237,7 +237,6 @@ class MultimodelAgent(CopilotAgent):
             temperature=question.temperature,
             kb_vectordb_id=question.kb_vectordb_id,
         )
-        executor: Final[AgentExecutor] = self.get_agent_executor(agent)
 
         # Process local files
         image_payloads, other_file_paths = process_local_files(question.local_file_ids)
@@ -253,14 +252,13 @@ class MultimodelAgent(CopilotAgent):
                 content.append({"type": "text", "text": "Attached files:\n" + "\n".join(other_file_paths)})
             messages.append(HumanMessage(content=content))
 
-        langchain_respose: Dict = executor.invoke(
-            {"system_prompt": question.system_prompt, "messages": messages}
-        )
-        output_answer = {"response": langchain_respose["output"]}
+        agent_response = agent.invoke({"system_prompt": question.system_prompt, "messages": messages})
+        new_ai_message = agent_response.get("messages")[-1]
+
         return AgentResponse(
             input=full_question,
             output=AssistantResponse(
-                response=output_answer["response"], conversation_id=question.conversation_id
+                response=new_ai_message.content, conversation_id=question.conversation_id
             ),
         )
 
@@ -278,7 +276,6 @@ class MultimodelAgent(CopilotAgent):
             temperature=question.temperature,
             kb_vectordb_id=question.kb_vectordb_id,
         )
-        agent_executor: Final[AgentExecutor] = self.get_agent_executor(agent)
         full_question = question.question
 
         # Process local files
@@ -299,7 +296,7 @@ class MultimodelAgent(CopilotAgent):
         _input = {"content": full_question, "messages": messages, "system_prompt": question.system_prompt}
         if question.conversation_id is not None:
             _input["thread_id"] = question.conversation_id
-        async for event in agent_executor.astream_events(_input, version="v2"):
+        async for event in agent.astream_events(_input, version="v2"):
             if copilot_stream_debug:
                 yield AssistantResponse(response=str(event), conversation_id="", role="debug")
             kind = event["event"]
