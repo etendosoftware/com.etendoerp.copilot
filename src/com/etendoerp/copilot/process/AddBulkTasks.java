@@ -4,6 +4,7 @@ package com.etendoerp.copilot.process;
 import static io.swagger.v3.core.util.Constants.COMMA;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -20,10 +21,13 @@ import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
+import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
+import org.openbravo.client.application.process.ResponseActionsBuilder;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.background.BulkTaskExec;
 import com.etendoerp.copilot.data.CopilotApp;
@@ -51,11 +55,14 @@ public class AddBulkTasks extends BaseProcessActionHandler {
       String question = params.getString("question");
       String group = params.getString("group");
       String separator = params.optString("separator", COMMA);
+      if (StringUtils.equalsIgnoreCase(separator, "null")) {
+        separator = COMMA;
+      }
       String fileName = (String) ((Map) parameters.get("file")).get("fileName");
       if (StringUtils.isEmpty(fileName)) {
         group = fileName;
       }
-      var fileInputStream = ((Map) parameters.get("file")).get("content");
+      ByteArrayInputStream fileInputStream = getInputStream(parameters);
 
       //dump the file content into a temp file
       String extension = fileName.substring(fileName.lastIndexOf("."));
@@ -65,15 +72,15 @@ public class AddBulkTasks extends BaseProcessActionHandler {
       try (FileOutputStream fos = new FileOutputStream(tempFile)) {
         byte[] buffer = new byte[1024];
         int len;
-        while ((len = ((FileInputStream) fileInputStream).read(buffer)) > 0) {
+        while ((len = fileInputStream.read(buffer)) > 0) {
           fos.write(buffer, 0, len);
         }
       }
-      String[] strings;
-      if (extension.equalsIgnoreCase(".zip")) {
-        strings = unzipFile(tempFile);
 
-      } else if (extension.equalsIgnoreCase(".csv")) {
+      String[] strings;
+      if (StringUtils.equalsIgnoreCase(extension, ".zip")) {
+        strings = unzipFile(tempFile);
+      } else if (StringUtils.equalsIgnoreCase(extension, ".csv")) {
         strings = readCsvFile(tempFile, separator);
       } else {
         throw new RuntimeException("Unsupported file type");
@@ -99,7 +106,9 @@ public class AddBulkTasks extends BaseProcessActionHandler {
       OBDal.getInstance().flush();
 
 
-      result.put("severity", "success");
+      return getResponseBuilder().showMsgInProcessView(ResponseActionsBuilder.MessageType.SUCCESS,
+          OBMessageUtils.messageBD("Success"),
+          String.format(OBMessageUtils.messageBD("ETCOP_AddBulkTasks_Success"), strings.length), false).build();
     } catch (Exception e) {
       try {
         result.put("message", "Error during process execution: " + e.getMessage());
@@ -111,18 +120,41 @@ public class AddBulkTasks extends BaseProcessActionHandler {
     return result;
   }
 
+  /**
+   * Retrieves the input stream from the parameters map.
+   *
+   * @param parameters
+   *     The parameters map containing the file information.
+   * @return The input stream of the file.
+   * @throws OBException
+   *     if the file is not found or cannot be cast to ByteArrayInputStream.
+   */
+  @SuppressWarnings("unchecked")
+  private ByteArrayInputStream getInputStream(Map<String, Object> parameters) {
+    try {
+      Map<String, Object> fileMap = (Map<String, Object>) parameters.get("file");
+      if (fileMap == null) {
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_NoFile"));
+      }
+      ByteArrayInputStream fileInputStream = (ByteArrayInputStream) fileMap.get("content");
+      if (fileInputStream == null) {
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_NoFile"));
+      }
+      return fileInputStream;
+    } catch (Exception e) {
+      throw new OBException(e.getMessage());
+    }
+  }
+
   public static Status getStatus(String identifier) {
     return (Status) OBDal.getInstance().createCriteria(Status.class).add(
-            Restrictions.eq(Status.PROPERTY_IDENTIFIER, identifier))
-        .setMaxResults(1).uniqueResult();
+        Restrictions.eq(Status.PROPERTY_IDENTIFIER, identifier)).setMaxResults(1).uniqueResult();
   }
 
   public static TaskType getCopilotTaskType() {
     //get by criteria
     TaskType tasktype = (TaskType) OBDal.getInstance().createCriteria(TaskType.class).add(
-            Restrictions.eq(TaskType.PROPERTY_NAME, COPILOT))
-        .setMaxResults(1)
-        .uniqueResult();
+        Restrictions.eq(TaskType.PROPERTY_NAME, COPILOT)).setMaxResults(1).uniqueResult();
     if (tasktype == null) {
       tasktype = OBProvider.getInstance().get(TaskType.class);
       tasktype.setNewOBObject(true);
