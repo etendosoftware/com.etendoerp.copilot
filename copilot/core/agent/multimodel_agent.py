@@ -1,9 +1,8 @@
-import base64
 import json
 import os
-from pathlib import Path
-from typing import AsyncGenerator, Dict, Final, List, Optional, Tuple, Union
+from typing import AsyncGenerator, Final, Optional, Union
 
+import langgraph_codeact
 from copilot.core.agent.agent import (
     AgentResponse,
     AssistantResponse,
@@ -21,12 +20,16 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import AddableDict
 from langgraph.prebuilt import create_react_agent
+from langgraph_codeact import create_default_prompt
 
 from .. import etendo_utils, utils
 from ..langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..utils import get_full_question
+from .agent_utils import process_local_files
+from .eval.default_eval import default_eval
+from .langgraph_agent import handle_events
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 
@@ -100,52 +103,8 @@ def get_llm(model, provider, temperature):
     return llm
 
 
-def process_local_files(local_file_ids: Union[str, List[str]]) -> Tuple[List[Dict], List[str]]:
-    """Process local file IDs, returning image payloads and a list of other file paths."""
-    image_payloads = []
-    other_file_paths = []
-
-    if local_file_ids:
-        # Split paths into a list
-        if isinstance(local_file_ids, str):
-            file_paths = local_file_ids.split(",")
-        elif isinstance(local_file_ids, list) and len(local_file_ids) == 1 and "," in local_file_ids[0]:
-            file_paths = local_file_ids[0].split(",")
-        else:
-            file_paths = local_file_ids
-
-        # Define supported image formats
-        supported_image_formats = {
-            "JPEG": "image/jpeg",
-            "JPG": "image/jpeg",
-            "PNG": "image/png",
-            "WEBP": "image/webp",
-            "GIF": "image/gif",
-        }
-
-        for file_path in [path.strip() for path in file_paths]:
-            if Path(file_path).is_file():
-                mime = None
-                for ext, mime_type in supported_image_formats.items():
-                    if file_path.lower().endswith(ext.lower()):
-                        mime = mime_type
-                        break
-
-                if mime:  # Image format
-                    with open(file_path, "rb") as image_file:
-                        img_b64 = base64.b64encode(image_file.read()).decode("utf-8")
-                        image_payloads.append(
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"data:{mime};base64,{img_b64}", "detail": "high"},
-                            }
-                        )
-                else:  # Non-image format (PDF, TXT, etc.)
-                    other_file_paths.append(file_path)
-            else:
-                print(f"Skipping: {file_path} does not exist or is not a file")
-
-    return image_payloads, other_file_paths
+def is_code_act_enabled():
+    return utils.read_optional_env_var("COPILOT_CODEACT", "true").lower() == "true"
 
 
 class MultimodelAgent(CopilotAgent):
@@ -195,11 +154,25 @@ class MultimodelAgent(CopilotAgent):
         ]
 
         ChatPromptTemplate.from_messages(prompt_structure)
-        agent = create_react_agent(
-            model=llm,
-            tools=_enabled_tools,
-            prompt=system_prompt,
-        )
+
+        if is_code_act_enabled():
+            agent = langgraph_codeact.create_codeact(
+                model=llm,
+                tools=_enabled_tools,
+                eval_fn=default_eval,
+                prompt=create_default_prompt(
+                    tools=tools,
+                    base_prompt=system_prompt.replace(
+                        "@ETENDO_TOKEN@", f"'{etendo_utils.get_etendo_token()}'"
+                    ),
+                ),
+            )
+        else:
+            agent = create_react_agent(
+                model=llm,
+                tools=_enabled_tools,
+                prompt=system_prompt,
+            )
         return agent
 
     def get_agent_executor(self, agent) -> AgentExecutor:
@@ -296,24 +269,32 @@ class MultimodelAgent(CopilotAgent):
         _input = {"content": full_question, "messages": messages, "system_prompt": question.system_prompt}
         if question.conversation_id is not None:
             _input["thread_id"] = question.conversation_id
-        async for event in agent.astream_events(_input, version="v2"):
-            if copilot_stream_debug:
-                yield AssistantResponse(response=str(event), conversation_id="", role="debug")
-            kind = event["event"]
-            if kind == "on_tool_start":
-                yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
-            elif kind == "on_chain_end":
-                if not type(event["data"]["output"]) == AddableDict:
-                    output = event["data"]["output"]
-                    if type(output) == AIMessage:
-                        output_ = output.content
-                        # check if the output is a list
-                        if type(output_) == list:
-                            for o in output_:
+        if is_code_act_enabled():
+            agent = agent.compile()  # (checkpointer=InMemorySaver())
+            agent.get_graph().print_ascii()
+            async for event in agent.astream_events(_input, version="v2"):
+                response = await handle_events(copilot_stream_debug, event, question.conversation_id)
+                if response is not None:
+                    yield response
+        else:
+            async for event in agent.astream_events(_input, version="v2"):
+                if copilot_stream_debug:
+                    yield AssistantResponse(response=str(event), conversation_id="", role="debug")
+                kind = event["event"]
+                if kind == "on_tool_start":
+                    yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
+                elif kind == "on_chain_end":
+                    if not type(event["data"]["output"]) == AddableDict:
+                        output = event["data"]["output"]
+                        if type(output) == AIMessage:
+                            output_ = output.content
+                            # check if the output is a list
+                            if type(output_) == list:
+                                for o in output_:
+                                    yield AssistantResponse(
+                                        response=str(o["text"]), conversation_id=question.conversation_id
+                                    )
+                            else:
                                 yield AssistantResponse(
-                                    response=str(o["text"]), conversation_id=question.conversation_id
+                                    response=str(output_), conversation_id=question.conversation_id
                                 )
-                        else:
-                            yield AssistantResponse(
-                                response=str(output_), conversation_id=question.conversation_id
-                            )
