@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 
 import aiohttp
 import requests
-from copilot.core import utils
+from copilot.core import etendo_utils, utils
 from copilot.core.utils import copilot_debug
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field, create_model
@@ -201,7 +201,7 @@ class ApiTool(BaseTool, BaseModel):
 def generate_tools_from_openapi(openapi_spec: Dict[str, Any]) -> List[ApiTool]:
     tools = []
     paths = openapi_spec.get("paths", {})
-    base_url = utils.read_optional_env_var("ETENDO_HOST", "http://host.docker.internal:8080/etendo")
+    base_url = etendo_utils.get_etendo_host()
 
     for path, methods in paths.items():
         for method, operation in methods.items():
