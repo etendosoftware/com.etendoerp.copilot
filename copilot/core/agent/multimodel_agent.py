@@ -2,6 +2,7 @@ import json
 import os
 from typing import AsyncGenerator, Final, Optional, Union
 
+import langchain_core.tools
 import langgraph_codeact
 from copilot.core.agent.agent import (
     AgentResponse,
@@ -19,6 +20,7 @@ from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import AddableDict
+from langchain_core.tools import StructuredTool
 from langgraph.prebuilt import create_react_agent
 from langgraph_codeact import create_default_prompt
 
@@ -28,7 +30,7 @@ from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..utils import get_full_question
 from .agent_utils import process_local_files
-from .eval.default_eval import default_eval
+from .eval.default_eval import CodeExecutor
 from .langgraph_agent import handle_events
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
@@ -156,12 +158,17 @@ class MultimodelAgent(CopilotAgent):
         ChatPromptTemplate.from_messages(prompt_structure)
 
         if is_code_act_enabled():
+            conv_tools = [
+                t if isinstance(t, StructuredTool) else langchain_core.tools.convert_runnable_to_tool(t)
+                for t in _enabled_tools
+            ]
+            code_executor = CodeExecutor("original")
             agent = langgraph_codeact.create_codeact(
                 model=llm,
-                tools=_enabled_tools,
-                eval_fn=default_eval,
+                tools=conv_tools,
+                eval_fn=code_executor.execute,
                 prompt=create_default_prompt(
-                    tools=tools,
+                    tools=conv_tools,
                     base_prompt=system_prompt.replace(
                         "@ETENDO_TOKEN@", f"'{etendo_utils.get_etendo_token()}'"
                     ),
