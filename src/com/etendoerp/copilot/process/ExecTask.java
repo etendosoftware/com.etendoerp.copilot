@@ -13,19 +13,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
+import org.openbravo.client.application.process.ResponseActionsBuilder;
 import org.openbravo.dal.core.SessionHandler;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.scheduling.ProcessLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.etendoerp.copilot.rest.RestServiceUtil;
-import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.task.data.Task;
 
 /**
@@ -46,9 +46,8 @@ public class ExecTask extends BaseProcessActionHandler {
       for (int i = 0; i < recordIdsJson.length(); i++) {
         recordIds.add(recordIdsJson.getString(i));
       }
-      List<Task> selectedTasks = recordIds.stream().map(
-              id -> OBDal.getInstance().get(Task.class, id))
-          .collect(Collectors.toList());
+      List<Task> selectedTasks = recordIds.stream().map(id -> OBDal.getInstance().get(Task.class, id)).collect(
+          Collectors.toList());
       for (Task task : selectedTasks) {
         task.setStatus(getStatus(TASK_STATUS_IN_PROGRESS));
         OBDal.getInstance().save(task);
@@ -59,8 +58,9 @@ public class ExecTask extends BaseProcessActionHandler {
         OBDal.getInstance().refresh(task);
         processTask(task, null);
       }
-      result.put("message", "Process executed successfully");
-      result.put("severity", "success");
+      return getResponseBuilder().showMsgInProcessView(ResponseActionsBuilder.MessageType.SUCCESS,
+          OBMessageUtils.messageBD("Success"),
+          String.format(OBMessageUtils.messageBD("ETCOP_ExecTask_Success"), selectedTasks.size()), false).build();
     } catch (Exception e) {
       try {
         result.put("message", "Error during process execution: " + e.getMessage());
@@ -99,13 +99,8 @@ public class ExecTask extends BaseProcessActionHandler {
     body.put(APP_ID, agent.getId());
     body.put(PROP_QUESTION, question);
     var responseQuest = RestServiceUtil.handleQuestion(false, null, body);
-    if (StringUtils.equalsIgnoreCase(agent.getAppType(), CopilotConstants.APP_TYPE_LANGGRAPH)) {
-      JSONArray msgs = responseQuest.getJSONObject("response").getJSONArray("messages");
-      //the last message is from the graph
-      task.setEtcopResponse(msgs.getJSONObject(msgs.length() - 1).getString("content"));
-    } else {
-      task.setEtcopResponse(responseQuest.toString());
-    }
+    task.setEtcopResponse(responseQuest.toString());
+
     OBDal.getInstance().save(task);
     OBDal.getInstance().flush();
   }
