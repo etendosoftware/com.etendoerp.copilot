@@ -37,7 +37,7 @@ def schema_to_pydantic_type(schema: Dict[str, Any]) -> Any:
 
 
 def summarize(method, url, text):
-    simple_mode = utils.read_optional_env_var("COPILOT_SIMPLE_MODE", "true").lower() == "true"
+    simple_mode = utils.read_optional_env_var("COPILOT_SIMPLE_MODE", "false").lower() == "true"
     if (method.upper() in ["POST", "PUT"]) and "com.etendoerp.etendorx.datasource" in url and simple_mode:
         try:
             # lest resume the json
