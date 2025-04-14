@@ -46,6 +46,7 @@ class AssistantSchema(BaseModel):
     description: Optional[str] = None
     kb_vectordb_id: Optional[str] = None
     specs: Optional[list[AssistantSpecs]] = None
+    code_execution: Optional[bool] = False
 
 
 class QuestionSchema(AssistantSchema):

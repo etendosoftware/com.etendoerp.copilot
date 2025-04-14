@@ -123,11 +123,11 @@ def get_text_splitter(ext):
     elif ext in ["json"]:
         return CopilotRecursiveJsonSplitter(max_chunk_size=300)
     elif ext in ["java"]:
-        return RecursiveCharacterTextSplitter.from_language(language=Language.JAVA, max_chunk_size=10000)
+        return RecursiveCharacterTextSplitter.from_language(language=Language.JAVA)
     elif ext in ["js"]:
-        return RecursiveCharacterTextSplitter.from_language(language=Language.JS, max_chunk_size=10000)
+        return RecursiveCharacterTextSplitter.from_language(language=Language.JS)
     elif ext in ["py"]:
-        return RecursiveCharacterTextSplitter.from_language(language=Language.PYTHON, max_chunk_size=10000)
+        return RecursiveCharacterTextSplitter.from_language(language=Language.PYTHON)
     else:
         raise ValueError(f"Unsupported file extension: {ext}")
 

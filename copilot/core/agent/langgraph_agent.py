@@ -18,7 +18,7 @@ from ..utils import (
     read_optional_env_var_int,
 )
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
-from .multimodel_agent import process_local_files
+from .agent_utils import process_local_files
 
 SQLLITE_NAME = "checkpoints.sqlite"
 
