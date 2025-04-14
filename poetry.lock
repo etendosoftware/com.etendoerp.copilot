@@ -2714,14 +2714,14 @@ langgraph-checkpoint = ">=2.0.15,<3.0.0"
 
 [[package]]
 name = "langgraph-codeact"
-version = "0.1.1"
+version = "0.1.2"
 description = "LangGraph implementation of CodeAct agent that generates and executes code instead of tool calling."
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
 files = [
-    {file = "langgraph_codeact-0.1.1-py3-none-any.whl", hash = "sha256:06b7d398f5ac04d21c6304a386a3edc84f3cc3ef16cf4173294b56f26d5f28b0"},
-    {file = "langgraph_codeact-0.1.1.tar.gz", hash = "sha256:ab4e819136daaf0e9cc9e03c91a38321c866eebdd6fddf18f242f3af3aec654e"},
+    {file = "langgraph_codeact-0.1.2-py3-none-any.whl", hash = "sha256:60f7f3ab75d07783b2d350daec00ffb7c946643549cc88e64e1121c1ba46358b"},
+    {file = "langgraph_codeact-0.1.2.tar.gz", hash = "sha256:16f65572c5d43dc70f5d7de94648ea5b139582db34e9d6f02d7e71b3ed5a5765"},
 ]
 
 [package.dependencies]
@@ -5101,6 +5101,23 @@ files = [
 requests = ">=2.0.1,<3.0.0"
 
 [[package]]
+name = "restrictedpython"
+version = "8.0"
+description = "RestrictedPython is a defined subset of the Python language which allows to provide a program input into a trusted environment."
+optional = false
+python-versions = "<3.14,>=3.9"
+groups = ["main"]
+markers = "python_version < \"3.14\""
+files = [
+    {file = "RestrictedPython-8.0-py3-none-any.whl", hash = "sha256:ed3d894efd7d6cac0a5f13f75583b8458378d400d7dd4c083b59233eba85fe69"},
+    {file = "restrictedpython-8.0.tar.gz", hash = "sha256:3af2312bc67e5fced887fb85b006c89861da72488128b155beea81eb6a0a9b24"},
+]
+
+[package.extras]
+docs = ["Sphinx", "furo"]
+test = ["pytest", "pytest-mock"]
+
+[[package]]
 name = "rich"
 version = "14.0.0"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
@@ -5119,6 +5136,26 @@ typing-extensions = {version = ">=4.0.0,<5.0", markers = "python_version < \"3.1
 
 [package.extras]
 jupyter = ["ipywidgets (>=7.5.1,<9)"]
+
+[[package]]
+name = "rizaio"
+version = "0.10.0"
+description = "The official Python library for the riza API"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "rizaio-0.10.0-py3-none-any.whl", hash = "sha256:619f488179018477bd0a5ab0fad73e31b270f1dd3ab1bc4b6ca02922d5a8106d"},
+    {file = "rizaio-0.10.0.tar.gz", hash = "sha256:48c09cf34722e3788ba7510940c22e89ab2fec73c5ddc882c7e31c98db036da2"},
+]
+
+[package.dependencies]
+anyio = ">=3.5.0,<5"
+distro = ">=1.7.0,<2"
+httpx = ">=0.23.0,<1"
+pydantic = ">=1.9.0,<3"
+sniffio = "*"
+typing-extensions = ">=4.10,<5"
 
 [[package]]
 name = "rsa"
@@ -6553,4 +6590,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "d50661a3c900f52aed797060e86a0d5e36c174e8c09fe05a1231504617183461"
+content-hash = "e6dc12417b54192475ad91fc77faf8149072a6ddfac7be5eac1be5436576d614"

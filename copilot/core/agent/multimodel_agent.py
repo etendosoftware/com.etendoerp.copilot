@@ -2,6 +2,7 @@ import json
 import os
 from typing import AsyncGenerator, Final, Optional, Union
 
+import langchain_core.tools
 import langgraph_codeact
 from copilot.core.agent.agent import (
     AgentResponse,
@@ -19,6 +20,7 @@ from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import AddableDict
+from langchain_core.tools import StructuredTool
 from langgraph.prebuilt import create_react_agent
 from langgraph_codeact import create_default_prompt
 
@@ -28,7 +30,7 @@ from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..utils import get_full_question
 from .agent_utils import process_local_files
-from .eval.default_eval import default_eval
+from .eval.code_evaluators import CodeExecutor
 from .langgraph_agent import handle_events
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
@@ -103,8 +105,19 @@ def get_llm(model, provider, temperature):
     return llm
 
 
-def is_code_act_enabled():
-    return utils.read_optional_env_var("COPILOT_CODEACT", "true").lower() == "true"
+def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
+    """
+    Determines if the CodeAct feature is enabled for the given agent configuration.
+
+    Args:
+        agent_configuration (AssistantSchema): The configuration object for the agent,
+            which includes various settings and features.
+
+    Returns:
+        bool: True if the `code_execution` attribute exists in the `agent_configuration`
+        and is set to True, otherwise False.
+    """
+    return agent_configuration.code_execution
 
 
 class MultimodelAgent(CopilotAgent):
@@ -155,17 +168,18 @@ class MultimodelAgent(CopilotAgent):
 
         ChatPromptTemplate.from_messages(prompt_structure)
 
-        if is_code_act_enabled():
+        if is_code_act_enabled(agent_configuration):
+            conv_tools = [
+                t if isinstance(t, StructuredTool) else langchain_core.tools.convert_runnable_to_tool(t)
+                for t in _enabled_tools
+            ]
+            code_executor = CodeExecutor("original")
+
             agent = langgraph_codeact.create_codeact(
                 model=llm,
-                tools=_enabled_tools,
-                eval_fn=default_eval,
-                prompt=create_default_prompt(
-                    tools=tools,
-                    base_prompt=system_prompt.replace(
-                        "@ETENDO_TOKEN@", f"'{etendo_utils.get_etendo_token()}'"
-                    ),
-                ),
+                tools=conv_tools,
+                eval_fn=code_executor.execute,
+                prompt=create_default_prompt(tools=conv_tools, base_prompt=system_prompt),
             )
         else:
             agent = create_react_agent(
@@ -269,8 +283,8 @@ class MultimodelAgent(CopilotAgent):
         _input = {"content": full_question, "messages": messages, "system_prompt": question.system_prompt}
         if question.conversation_id is not None:
             _input["thread_id"] = question.conversation_id
-        if is_code_act_enabled():
-            agent = agent.compile()  # (checkpointer=InMemorySaver())
+        if is_code_act_enabled(agent_configuration=question):
+            agent = agent.compile()
             agent.get_graph().print_ascii()
             async for event in agent.astream_events(_input, version="v2"):
                 response = await handle_events(copilot_stream_debug, event, question.conversation_id)
