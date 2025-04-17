@@ -104,6 +104,7 @@ public class RestServiceUtil {
   public static final String PROP_SYSTEM_PROMPT = "system_prompt";
   private static final String PROP_TOOLS = "tools";
   private static final String PROP_KB_VECTORDB_ID = "kb_vectordb_id";
+  public static final String PROP_KB_SEARCH_K = "kb_search_k";
 
   /**
    * This method is used to add extra context to the request for Copilot, based on the hooks defined
@@ -881,6 +882,7 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
     jsonRequestForCopilot.put(PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
     jsonRequestForCopilot.put(PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
+    jsonRequestForCopilot.put(PROP_KB_SEARCH_K, copilotApp.getSearchK().intValue());
     String promptApp = getAssistantPrompt(copilotApp);
     if (StringUtils.isNotEmpty(prompt.toString())) {
       CopilotUtils.checkPromptLength(prompt);

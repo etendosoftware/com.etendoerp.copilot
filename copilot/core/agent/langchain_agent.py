@@ -18,7 +18,6 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.runnables import AddableDict
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
 
 from .. import utils
 from ..memory.memory_handler import MemoryHandler
@@ -93,7 +92,7 @@ class LangchainAgent(CopilotAgent):
         )
         _enabled_tools = self.get_functions(tools)
 
-        kb_tool = get_kb_tool(kb_vectordb_id)
+        kb_tool = get_kb_tool()
         if kb_tool is not None:
             _enabled_tools.append(kb_tool)
             self._configured_tools.append(kb_tool)

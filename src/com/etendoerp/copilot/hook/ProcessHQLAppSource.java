@@ -170,7 +170,7 @@ public class ProcessHQLAppSource {
 
       results.add(String.join(isCsv ? ", " : "\n", listColumnValues));
     }
-    return String.join(isCsv ? "\n" : "\n----------------------------------------------------\n", results);
+    return String.join(isCsv ? "\n" : "\n\n", results);
   }
 
 

@@ -45,6 +45,7 @@ class AssistantSchema(BaseModel):
     temperature: Optional[float] = 1
     description: Optional[str] = None
     kb_vectordb_id: Optional[str] = None
+    kb_search_k: Optional[int] = 4
     specs: Optional[list[AssistantSpecs]] = None
 
 
@@ -83,3 +84,9 @@ class TextToVectorDBSchema(VectorDBInputSchema):
     text: Union[str, bytes]
     overwrite: bool = False
     extension: str
+
+
+class SplitterConfig(BaseModel):
+    skip_splitting: Optional[bool] = False
+    max_chunk_size: Optional[int] = None
+    chunk_overlap: Optional[int] = None

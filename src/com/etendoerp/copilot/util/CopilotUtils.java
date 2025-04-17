@@ -61,8 +61,16 @@ import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
+/**
+ * CopilotUtils is a utility class that provides various methods for interacting with
+ * the Copilot application, including sending requests to the Copilot service, handling
+ * file uploads, and managing vector databases.
+ */
 public class CopilotUtils {
 
+  private CopilotUtils() {
+    // Private constructor to prevent instantiation
+  }
 
   private static final Logger log = LogManager.getLogger(CopilotUtils.class);
   private static final String BOUNDARY = UUID.randomUUID().toString();
@@ -73,8 +81,33 @@ public class CopilotUtils {
   public static final String DEFAULT_MODELS_DATASET_URL = "https://raw.githubusercontent.com/etendosoftware/com.etendoerp.copilot/refs/heads/<BRANCH>/referencedata/standard/AI_Models_Dataset.xml";
 
 
-  public static void toVectorDB(String content, File fileToSend, String dbName, String format,
-      boolean isBinary, boolean skipSplitting) throws JSONException {
+  /**
+   * Uploads a file to the vector database with specified parameters.
+   * <p>
+   * This method sends a file to the vector database using the Copilot service.
+   * It constructs a JSON request with the file details, database name, format,
+   * and additional parameters such as chunk size and overlap. If the response
+   * from the Copilot service indicates a failure, an {@link OBException} is thrown.
+   *
+   * @param fileToSend
+   *     The {@link File} to be uploaded to the vector database.
+   * @param dbName
+   *     The name of the vector database to which the file will be uploaded.
+   * @param format
+   *     The file format (e.g., "csv", "json").
+   * @param skipSplitting
+   *     A boolean indicating whether to skip splitting the file into chunks.
+   * @param maxChunkSize
+   *     The maximum size of each chunk (in bytes), or null if not specified.
+   * @param chunkOverlap
+   *     The overlap size between chunks (in bytes), or null if not specified.
+   * @throws JSONException
+   *     If an error occurs while constructing the JSON request.
+   * @throws OBException
+   *     If the response from the Copilot service indicates a failure.
+   */
+  public static void toVectorDB(File fileToSend, String dbName, String format, boolean skipSplitting, Long maxChunkSize,
+      Long chunkOverlap) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String endpoint = "addToVectorDB";
     HttpResponse<String> responseFromCopilot;
@@ -84,17 +117,42 @@ public class CopilotUtils {
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
     jsonRequestForCopilot.put("skip_splitting", skipSplitting);
+    if (maxChunkSize != null) {
+      jsonRequestForCopilot.put("max_chunk_size", maxChunkSize);
+    }
+    if (chunkOverlap != null) {
+      jsonRequestForCopilot.put("chunk_overlap", chunkOverlap);
+    }
 
     responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot, fileToSend);
 
-    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200
-        || responseFromCopilot.statusCode() >= 300) {
+    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")));
     }
   }
 
-  public static HttpResponse<String> getResponseFromCopilot(Properties properties, String endpoint,
-      JSONObject jsonBody, File fileToSend) {
+  /**
+   * Sends an HTTP POST request to the Copilot service and retrieves the response.
+   * <p>
+   * This method constructs an HTTP request based on the provided parameters, including
+   * the endpoint, JSON body, and optional file to send. If a file is provided, the request
+   * is sent as a multipart form-data; otherwise, it is sent as a JSON payload. The method
+   * handles exceptions and wraps them in an {@link OBException}.
+   *
+   * @param properties
+   *     The {@link Properties} object containing configuration values, such as the Copilot host and port.
+   * @param endpoint
+   *     The endpoint of the Copilot service to which the request will be sent.
+   * @param jsonBody
+   *     The {@link JSONObject} containing the JSON payload to include in the request.
+   * @param fileToSend
+   *     An optional {@link File} to include in the request as a multipart form-data. If null, the request is sent as JSON.
+   * @return An {@link HttpResponse} object containing the response from the Copilot service.
+   * @throws OBException
+   *     If an error occurs during the request or response handling.
+   */
+  public static HttpResponse<String> getResponseFromCopilot(Properties properties, String endpoint, JSONObject jsonBody,
+      File fileToSend) {
 
     try {
       HttpClient client = HttpClient.newBuilder().build();
@@ -112,12 +170,9 @@ public class CopilotUtils {
         contentType = "application/json;charset=UTF-8";
       }
 
-      HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint)))
-          .header("Content-Type", contentType)
-          .version(HttpClient.Version.HTTP_1_1)
-          .POST(requestBodyPublisher)
-          .build();
+      HttpRequest copilotRequest = HttpRequest.newBuilder().uri(
+          new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint))).header("Content-Type",
+          contentType).version(HttpClient.Version.HTTP_1_1).POST(requestBodyPublisher).build();
 
       return client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
     } catch (InterruptedException e) {
@@ -134,10 +189,8 @@ public class CopilotUtils {
       String copilotPort = properties.getProperty(COPILOT_PORT, "5005");
       String copilotHost = properties.getProperty(COPILOT_HOST, "localhost");
 
-      HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint)))
-          .GET()
-          .build();
+      HttpRequest copilotRequest = HttpRequest.newBuilder().uri(
+          new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint))).GET().build();
 
       return client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
     } catch (InterruptedException e) {
@@ -148,7 +201,8 @@ public class CopilotUtils {
     }
   }
 
-  static HttpRequest.BodyPublisher createMultipartBody(JSONObject jsonBody, File file) throws Exception {
+  static HttpRequest.BodyPublisher createMultipartBody(JSONObject jsonBody,
+      File file) throws IOException, JSONException {
     var byteArrays = new ByteArrayOutputStream();
     var writer = new PrintWriter(new OutputStreamWriter(byteArrays, StandardCharsets.UTF_8), true);
 
@@ -182,6 +236,16 @@ public class CopilotUtils {
       writer.append("Content-Disposition: form-data; name=\"skip_splitting\"\r\n\r\n");
       writer.append(String.valueOf(skipSplitting)).append("\r\n");
     }
+    if (jsonBody.has("max_chunk_size")) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"max_chunk_size\"\r\n\r\n");
+      writer.append(String.valueOf(jsonBody.getLong("max_chunk_size"))).append("\r\n");
+    }
+    if (jsonBody.has("chunk_overlap")) {
+      writer.append("--").append(BOUNDARY).append("\r\n");
+      writer.append("Content-Disposition: form-data; name=\"chunk_overlap\"\r\n\r\n");
+      writer.append(String.valueOf(jsonBody.getLong("chunk_overlap"))).append("\r\n");
+    }
     // File part
     if (file != null) {
       writer.append("--").append(BOUNDARY).append("\r\n");
@@ -200,6 +264,20 @@ public class CopilotUtils {
     return HttpRequest.BodyPublishers.ofByteArray(byteArrays.toByteArray());
   }
 
+  /**
+   * Resets the vector database for the specified {@link CopilotApp} instance.
+   * <p>
+   * This method sends a request to the Copilot service to reset the vector database
+   * associated with the given application. If the response status code is not in the
+   * range of 200-299, an {@link OBException} is thrown with an appropriate error message.
+   *
+   * @param app
+   *     The {@link CopilotApp} instance for which the vector database is to be reset.
+   * @throws JSONException
+   *     If an error occurs while constructing the JSON request.
+   * @throws OBException
+   *     If the response from the Copilot service indicates a failure.
+   */
   public static void resetVectorDB(CopilotApp app) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String dbName = "KB_" + app.getId();
@@ -209,20 +287,45 @@ public class CopilotUtils {
     String endpoint = "ResetVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
         null);
-    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200
-        || responseFromCopilot.statusCode() >= 300) {
+    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
           responseFromCopilot != null ? responseFromCopilot.body() : ""));
     }
 
   }
 
+  /**
+   * Logs a debug message if debug logging is enabled.
+   * <p>
+   * This method checks if the debug level is enabled for the logger.
+   * If it is, the provided message is logged at the debug level.
+   *
+   * @param text
+   *     The message to be logged if debug logging is enabled.
+   */
   public static void logIfDebug(String text) {
     if (log.isDebugEnabled()) {
       log.debug(text);
     }
   }
 
+  /**
+   * Retrieves a file associated with the given {@link CopilotFile} instance.
+   * <p>
+   * This method fetches the attachment corresponding to the provided {@link CopilotFile},
+   * downloads its content, and creates a temporary file with the same name and extension.
+   * If the attachment is missing or the file lacks an extension, appropriate exceptions
+   * are thrown. The temporary file is marked for deletion upon JVM exit.
+   *
+   * @param fileToSync
+   *     The {@link CopilotFile} instance for which the associated file is to be retrieved.
+   * @return A {@link File} object representing the temporary file created from the attachment.
+   * @throws IOException
+   *     If an I/O error occurs during file creation or writing.
+   * @throws OBException
+   *     If the attachment is missing, the file lacks an extension, or the temporary file
+   *     cannot be made writable.
+   */
   public static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
     OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
@@ -252,17 +355,37 @@ public class CopilotUtils {
     return tempFile;
   }
 
+  /**
+   * Synchronizes a LangChain source file for a given {@link CopilotAppSource}.
+   * <p>
+   * This method handles the synchronization of a LangChain source file by determining
+   * the file type, processing it accordingly, and uploading it to the vector database.
+   * If the file is an HQL query file, it generates the file and deletes any existing
+   * OpenAI file associated with it. For other file types, it retrieves the file from
+   * the CopilotFile instance. The method also validates the file extension and ensures
+   * it is supported before uploading.
+   *
+   * @param appSource
+   *     The {@link CopilotAppSource} instance containing the file to be synchronized.
+   * @throws IOException
+   *     If an I/O error occurs during file processing.
+   * @throws JSONException
+   *     If an error occurs while handling JSON data.
+   */
   public static void syncAppLangchainSource(CopilotAppSource appSource) throws IOException, JSONException {
 
+    // Retrieve the file to be synchronized
     CopilotFile fileToSync = appSource.getFile();
     WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
     logIfDebug("Uploading file " + fileToSync.getName());
 
+    // Extract the file name and determine its extension
     String filename = fileToSync.getFilename();
-
     String extension = StringUtils.isNotEmpty(filename) ? filename.substring(filename.lastIndexOf(".") + 1) : null;
 
     File fileFromCopilotFile = null;
+
+    // Handle HQL query files
     if (isHQLQueryFile(fileToSync)) {
       String openaiFileId = appSource.getOpenaiIdFile();
       if (StringUtils.isNotEmpty(openaiFileId)) {
@@ -273,22 +396,31 @@ public class CopilotUtils {
       fileFromCopilotFile = generateHQLFile(appSource);
 
     } else {
+      // Retrieve the file for non-HQL query files
       fileFromCopilotFile = getFileFromCopilotFile(fileToSync);
     }
 
+    // Prepare database and synchronization parameters
     String dbName = "KB_" + appSource.getEtcopApp().getId();
     boolean skipSplitting = appSource.getFile().isSkipSplitting();
+    Long maxChunkSize = appSource.getFile().getMaxChunkSize();
+    Long chunkOverlap = appSource.getFile().getChunkOverlap();
 
+    // Validate and determine the file extension
     if (StringUtils.isEmpty(extension)) {
       extension = fileFromCopilotFile.getName().substring(fileFromCopilotFile.getName().lastIndexOf(".") + 1);
     }
 
+    // Check if the file extension is valid
     if (isValidExtension(extension)) {
-      binaryFileToVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting);
+      // Upload the file to the vector database
+      binaryFileToVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap);
     } else {
+      // Throw an exception for invalid file formats
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
     }
 
+    // Update synchronization metadata
     fileToSync.setLastSync(new Date());
     fileToSync.setUpdated(new Date());
     OBDal.getInstance().save(fileToSync);
@@ -306,13 +438,13 @@ public class CopilotUtils {
    * @return true if the extension is valid, false otherwise.
    */
   private static boolean isValidExtension(String extension) {
-    return Arrays.stream(KB_FILE_VALID_EXTENSIONS)
-        .anyMatch(validExt -> StringUtils.equalsIgnoreCase(validExt, extension));
+    return Arrays.stream(KB_FILE_VALID_EXTENSIONS).anyMatch(
+        validExt -> StringUtils.equalsIgnoreCase(validExt, extension));
   }
 
-  static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName,
-      String extension, boolean skipSplitting) throws JSONException {
-    toVectorDB(null, fileFromCopilotFile, dbName, extension, true, skipSplitting);
+  static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName, String extension, boolean skipSplitting,
+      Long maxChunkSize, Long chunkOverlap) throws JSONException {
+    toVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap);
   }
 
   static File generateHQLFile(CopilotAppSource appSource) {
@@ -342,30 +474,52 @@ public class CopilotUtils {
     String errMsg;
     String type = fileToSync.getType();
     if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
-      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"),
-          fileToSync.getName());
+      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"), fileToSync.getName());
     } else {
-      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"),
-          fileToSync.getName());
+      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"), fileToSync.getName());
     }
     throw new OBException(errMsg);
   }
 
+  /**
+   * Validates the length of the provided prompt.
+   * <p>
+   * This method checks if the length of the given prompt exceeds the maximum allowed
+   * length defined by {@link CopilotConstants#LANGCHAIN_MAX_LENGTH_PROMPT}. If the length
+   * exceeds the limit, an {@link OBException} is thrown with an appropriate error message.
+   *
+   * @param prompt
+   *     The {@link StringBuilder} containing the prompt to be validated.
+   * @throws OBException
+   *     If the prompt length exceeds the maximum allowed limit.
+   */
   public static void checkPromptLength(StringBuilder prompt) {
     if (prompt.length() > CopilotConstants.LANGCHAIN_MAX_LENGTH_PROMPT) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MaxLengthPrompt")));
     }
   }
 
+  /**
+   * Generates the assistant prompt for a given Copilot application.
+   * <p>
+   * This method constructs a prompt by appending the application's base prompt,
+   * executing hooks, and including additional context such as default preferences
+   * and application source content. It also handles alias replacement for specific
+   * application sources.
+   *
+   * @param app
+   *     The {@link CopilotApp} instance for which the assistant prompt is generated.
+   * @return A {@link String} representing the generated assistant prompt.
+   * @throws IOException
+   *     If an I/O error occurs while retrieving application source content.
+   */
   public static String getAssistantPrompt(CopilotApp app) throws IOException {
     StringBuilder promptBuilder = new StringBuilder();
     promptBuilder.append(app.getPrompt());
     promptBuilder.append("\n");
 
     try {
-      promptBuilder.append(
-          WeldUtils.getInstanceFromStaticBeanManager(OpenAIPromptHookManager.class)
-              .executeHooks(app));
+      promptBuilder.append(WeldUtils.getInstanceFromStaticBeanManager(OpenAIPromptHookManager.class).executeHooks(app));
     } catch (OBException e) {
       log.error("Error executing hooks", e);
     }
@@ -374,19 +528,11 @@ public class CopilotUtils {
     String defaultContextPrompt = null;
 
     try {
-      if (context.getCurrentClient() != null
-          && context.getCurrentOrganization() != null
-          && context.getUser() != null
-          && context.getRole() != null) {
+      if (context.getCurrentClient() != null && context.getCurrentOrganization() != null && context.getUser() != null && context.getRole() != null) {
 
-        defaultContextPrompt = Preferences.getPreferenceValue(
-            DEFAULT_PROMPT_PREFERENCE_KEY,
-            true,
-            context.getCurrentClient().getId(),
-            context.getCurrentOrganization().getId(),
-            context.getUser().getId(),
-            context.getRole().getId(),
-            null);
+        defaultContextPrompt = Preferences.getPreferenceValue(DEFAULT_PROMPT_PREFERENCE_KEY, true,
+            context.getCurrentClient().getId(), context.getCurrentOrganization().getId(), context.getUser().getId(),
+            context.getRole().getId(), null);
       } else {
         log.warn("OBContext values are incomplete; skipping defaultContextPrompt retrieval.");
       }
@@ -403,30 +549,40 @@ public class CopilotUtils {
     List<CopilotAppSource> appSourcesToAppend = app.getETCOPAppSourceList();
 
     // app sources to replace with an alias
-    List<CopilotAppSource> appSourcesWithAlias = appSourcesToAppend.stream()
-        .filter(appSource -> StringUtils.equalsIgnoreCase(
-            appSource.getBehaviour(), CopilotConstants.FILE_BEHAVIOUR_SYSTEM)
-            && StringUtils.isNotEmpty(appSource.getAlias()))
-        .collect(Collectors.toList());
+    List<CopilotAppSource> appSourcesWithAlias = appSourcesToAppend.stream().filter(
+        appSource -> StringUtils.equalsIgnoreCase(appSource.getBehaviour(),
+            CopilotConstants.FILE_BEHAVIOUR_SYSTEM) && StringUtils.isNotEmpty(appSource.getAlias())).collect(
+        Collectors.toList());
 
     // the app sources to append are the ones that are not with an alias
-    appSourcesToAppend = appSourcesToAppend.stream()
-        .filter(appSource -> !appSourcesWithAlias.contains(appSource))
-        .collect(Collectors.toList());
+    appSourcesToAppend = appSourcesToAppend.stream().filter(
+        appSource -> !appSourcesWithAlias.contains(appSource)).collect(Collectors.toList());
 
     promptBuilder = replaceAliasInPrompt(promptBuilder, appSourcesWithAlias);
 
-    promptBuilder.append(
-        getAppSourceContent(appSourcesToAppend, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
+    promptBuilder.append(getAppSourceContent(appSourcesToAppend, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
 
     return replaceCopilotPromptVariables(promptBuilder.toString());
   }
 
+  /**
+   * Replaces Copilot prompt variables in the given string.
+   * <p>
+   * This method replaces placeholders in the provided string with their corresponding
+   * values. It uses a default empty {@link JSONObject} for variable mappings.
+   * If an error occurs during the replacement process, a {@link RuntimeException} is thrown.
+   *
+   * @param string
+   *     The input string containing placeholders to be replaced.
+   * @return A {@link String} with the placeholders replaced by their corresponding values.
+   * @throws RuntimeException
+   *     If a {@link JSONException} occurs during the replacement process.
+   */
   public static String replaceCopilotPromptVariables(String string) {
     try {
       return replaceCopilotPromptVariables(string, new JSONObject());
     } catch (JSONException e) {
-      throw new RuntimeException(e);
+      throw new OBException(e);
     }
   }
 
@@ -444,6 +600,8 @@ public class CopilotUtils {
    *     string.
    * @return The string with the placeholder "@ETENDO_HOST@" replaced by the host
    *     name of Etendo.
+   * @throws JSONException
+   *     If an error occurs while parsing the JSON object.
    */
   public static String replaceCopilotPromptVariables(String string, JSONObject maps) throws JSONException {
     OBContext obContext = OBContext.getOBContext();
@@ -533,8 +691,7 @@ public class CopilotUtils {
       var resp = doGetCopilot(properties, "runningCheck");
       inDocker = StringUtils.contains(resp.body(), "docker");
     } catch (Exception e) {
-      log.error(OBMessageUtils.messageBD("ETCOP_ErrorRunningCheck"),
-          e);// TODO: message like "Error checking if running in Docker, assuming not"
+      log.error(OBMessageUtils.messageBD("ETCOP_ErrorRunningCheck"), e);
     }
     return inDocker;
   }
@@ -571,6 +728,22 @@ public class CopilotUtils {
     return properties.getProperty(COPILOT_PORT, "5005");
   }
 
+  /**
+   * Retrieves the content of application source files based on their type.
+   * <p>
+   * This method iterates through a list of {@link CopilotAppSource} instances,
+   * checks if their behavior matches the specified type, and retrieves their content.
+   * The content of each file is appended to a string, separated by delimiters.
+   * If an error occurs while reading a file, an appropriate exception is thrown.
+   *
+   * @param appSourceList
+   *     A list of {@link CopilotAppSource} instances to process.
+   * @param type
+   *     The type of behavior to filter the application sources.
+   * @return A {@link String} containing the concatenated content of the application source files.
+   * @throws OBException
+   *     If a file has malformed content or an I/O error occurs.
+   */
   public static String getAppSourceContent(List<CopilotAppSource> appSourceList, String type) {
     StringBuilder content = new StringBuilder();
     for (CopilotAppSource appSource : appSourceList) {
@@ -593,6 +766,20 @@ public class CopilotUtils {
     return content.toString();
   }
 
+  /**
+   * Retrieves the content of an application source file.
+   * <p>
+   * This method determines whether the file associated with the given {@link CopilotAppSource}
+   * is an HQL query file. If it is, the file is generated using {@link ProcessHQLAppSource}.
+   * Otherwise, the file is retrieved using the {@link #getFileFromCopilotFile(CopilotFile)} method.
+   * The content of the file is then read and returned as a string.
+   *
+   * @param appSource
+   *     The {@link CopilotAppSource} instance containing the file to be processed.
+   * @return A {@link String} representing the content of the application source file.
+   * @throws IOException
+   *     If an I/O error occurs while reading the file.
+   */
   public static String getAppSourceContent(CopilotAppSource appSource) throws IOException {
     File tempFile;
     if (isHQLQueryFile(appSource.getFile())) {
@@ -603,6 +790,16 @@ public class CopilotUtils {
     return Files.readString(tempFile.toPath());
   }
 
+  /**
+   * Generates a secure token for Etendo web services.
+   * <p>
+   * This method generates a secure token for Etendo web services by calling
+   * {@link #getEtendoSWSToken(OBContext, Role)} with the current {@link OBContext}.
+   *
+   * @return A {@link String} representing the generated secure token.
+   * @throws Exception
+   *     If an error occurs while generating the token.
+   */
   public static String generateEtendoToken() throws Exception {
     return getEtendoSWSToken(OBContext.getOBContext(), null);
   }
@@ -632,8 +829,7 @@ public class CopilotUtils {
     String endpoint = "purgeVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
         null);
-    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200
-        || responseFromCopilot.statusCode() >= 300) {
+    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
           responseFromCopilot != null ? responseFromCopilot.body() : ""));
     }
@@ -660,7 +856,7 @@ public class CopilotUtils {
     for (CopilotModel model : models) {
       String provider = model.getProvider() != null ? model.getProvider() : "null";
       String modelName = model.getSearchkey();
-      Integer max_tokens = model.getMaxTokens() != null ? Math.toIntExact(model.getMaxTokens()) : null;
+      Integer maxTokens = model.getMaxTokens() != null ? Math.toIntExact(model.getMaxTokens()) : null;
       if (!modelsConfig.has(provider)) {
         modelsConfig.put(provider, new JSONObject());
       }
@@ -669,7 +865,7 @@ public class CopilotUtils {
         providerConfig.put(modelName, new JSONObject());
       }
       var modelConfig = providerConfig.getJSONObject(modelName);
-      modelConfig.put("max_tokens", max_tokens);
+      modelConfig.put("max_tokens", maxTokens);
     }
     return modelsConfig;
   }
