@@ -4960,7 +4960,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--A84C393A3007431797CEAD64235E3167-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--A84C393A3007431797CEAD64235E3167-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--A84C393A3007431797CEAD64235E3167-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--A84C393A3007431797CEAD64235E3167-->  <NAME><![CDATA[Search_K]]></NAME>
+<!--A84C393A3007431797CEAD64235E3167-->  <NAME><![CDATA[Search Result Qty]]></NAME>
 <!--A84C393A3007431797CEAD64235E3167-->  <DESCRIPTION><![CDATA[Quantity of results brought up by the search in Knowledge Base.]]></DESCRIPTION>
 <!--A84C393A3007431797CEAD64235E3167-->  <HELP><![CDATA[Number of results brought by the search in Knowledge Base, this only applies when you have files indexed in the knowledge base. Being by default 4 results. This number should be increased with caution taking into account the model context window and the type and length used in the document splitting. For example, if the documents are split in chunks of few tokens, the number of results can be increased without exceeding the model context window.]]></HELP>
 <!--A84C393A3007431797CEAD64235E3167-->  <COLUMNNAME><![CDATA[Search_K]]></COLUMNNAME>

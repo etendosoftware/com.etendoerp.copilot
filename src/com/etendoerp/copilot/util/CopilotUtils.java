@@ -68,6 +68,9 @@ import com.smf.securewebservices.utils.SecureWebServicesUtils;
  */
 public class CopilotUtils {
 
+  public static final String MAX_CHUNK_SIZE = "max_chunk_size";
+  public static final String CHUNK_OVERLAP = "chunk_overlap";
+
   private CopilotUtils() {
     // Private constructor to prevent instantiation
   }
@@ -118,10 +121,10 @@ public class CopilotUtils {
     jsonRequestForCopilot.put("overwrite", false);
     jsonRequestForCopilot.put("skip_splitting", skipSplitting);
     if (maxChunkSize != null) {
-      jsonRequestForCopilot.put("max_chunk_size", maxChunkSize);
+      jsonRequestForCopilot.put(MAX_CHUNK_SIZE, maxChunkSize);
     }
     if (chunkOverlap != null) {
-      jsonRequestForCopilot.put("chunk_overlap", chunkOverlap);
+      jsonRequestForCopilot.put(CHUNK_OVERLAP, chunkOverlap);
     }
 
     responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot, fileToSend);
@@ -236,15 +239,15 @@ public class CopilotUtils {
       writer.append("Content-Disposition: form-data; name=\"skip_splitting\"\r\n\r\n");
       writer.append(String.valueOf(skipSplitting)).append("\r\n");
     }
-    if (jsonBody.has("max_chunk_size")) {
+    if (jsonBody.has(MAX_CHUNK_SIZE)) {
       writer.append("--").append(BOUNDARY).append("\r\n");
       writer.append("Content-Disposition: form-data; name=\"max_chunk_size\"\r\n\r\n");
-      writer.append(String.valueOf(jsonBody.getLong("max_chunk_size"))).append("\r\n");
+      writer.append(String.valueOf(jsonBody.getLong(MAX_CHUNK_SIZE))).append("\r\n");
     }
-    if (jsonBody.has("chunk_overlap")) {
+    if (jsonBody.has(CHUNK_OVERLAP)) {
       writer.append("--").append(BOUNDARY).append("\r\n");
       writer.append("Content-Disposition: form-data; name=\"chunk_overlap\"\r\n\r\n");
-      writer.append(String.valueOf(jsonBody.getLong("chunk_overlap"))).append("\r\n");
+      writer.append(String.valueOf(jsonBody.getLong(CHUNK_OVERLAP))).append("\r\n");
     }
     // File part
     if (file != null) {

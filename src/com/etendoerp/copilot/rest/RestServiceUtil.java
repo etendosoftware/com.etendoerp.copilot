@@ -882,7 +882,7 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
     jsonRequestForCopilot.put(PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
     jsonRequestForCopilot.put(PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
-    jsonRequestForCopilot.put(PROP_KB_SEARCH_K, copilotApp.getSearchK().intValue());
+    jsonRequestForCopilot.put(PROP_KB_SEARCH_K, copilotApp.getSearchResultQty().intValue());
     String promptApp = getAssistantPrompt(copilotApp);
     if (StringUtils.isNotEmpty(prompt.toString())) {
       CopilotUtils.checkPromptLength(prompt);
