@@ -13,7 +13,7 @@ from ..exceptions import (
     SystemPromptNotFound,
     ToolDependencyMismatch,
 )
-from ..schemas import QuestionSchema
+from ..schemas import AssistantSchema, QuestionSchema
 from ..tool_dependencies import Dependency
 from ..tool_loader import LangChainTools, ToolLoader
 from ..vectordb_utils import get_chroma_settings, get_embedding, get_vector_db_path
@@ -40,8 +40,10 @@ class AgentResponse:
     output: AssistantResponse
 
 
-def get_kb_tool(kb_vectordb_id):
+def get_kb_tool(agent_config: AssistantSchema = None):
     kb_tool = None
+    kb_search_k = agent_config.kb_search_k if agent_config else 4
+    kb_vectordb_id = agent_config.kb_vectordb_id if agent_config else None
     if (
         kb_vectordb_id is not None
         and os.path.exists(get_vector_db_path(kb_vectordb_id))
@@ -56,7 +58,9 @@ def get_kb_tool(kb_vectordb_id):
         # check if the db is empty
         res = db.get(limit=1)
         if len(res["ids"]) > 0:
-            retriever = db.as_retriever()
+            retriever = db.as_retriever(
+                search_kwargs={"k": kb_search_k},
+            )
             kb_tool = create_retriever_tool(
                 retriever,
                 "KnowledgeBaseSearch",
