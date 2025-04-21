@@ -14,7 +14,7 @@ EXECUTOR_TYPES = {
 
 
 class OriginalExecutor:
-    """Tu implementación original"""
+    """Your original implementation"""
 
     def execute(self, code: str, _locals: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
         original_keys = set(_locals.keys())
