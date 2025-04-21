@@ -31,7 +31,7 @@ def debug_messages(messages):
         copilot_debug(f"Error when trying to debug messages {e}")
 
 
-tools_specs = []
+agent_tools = []
 
 
 def codify_name(name):
@@ -123,8 +123,9 @@ class MembersUtil:
                     if spec.type == "FLOW":
                         api_spec = json.loads(spec.spec)
                         openapi_tools = generate_tools_from_openapi(api_spec)
-                        tools_specs.extend(openapi_tools)
+                        tools.extend(openapi_tools)
 
+            agent_tools.extend(tools)
             from copilot.core.agent.multimodel_agent import get_llm
 
             llm = get_llm(assistant.model, assistant.provider, assistant.temperature)
