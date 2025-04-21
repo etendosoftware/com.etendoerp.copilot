@@ -2885,7 +2885,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--612A8EA7E258469D8E81103D94CD0452-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--612A8EA7E258469D8E81103D94CD0452-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--612A8EA7E258469D8E81103D94CD0452-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--612A8EA7E258469D8E81103D94CD0452-->  <NAME><![CDATA[Code_Interpreter]]></NAME>
+<!--612A8EA7E258469D8E81103D94CD0452-->  <NAME><![CDATA[Code Interpreter]]></NAME>
 <!--612A8EA7E258469D8E81103D94CD0452-->  <DESCRIPTION><![CDATA[Enables the assistant to write and run code.]]></DESCRIPTION>
 <!--612A8EA7E258469D8E81103D94CD0452-->  <HELP><![CDATA[This check enables the experimental feature of code execution in “Multi-model type” agents. For the case of “OpenAI type” agents, it activates the “Code Interpreter” functionality of the OpenAI API.]]></HELP>
 <!--612A8EA7E258469D8E81103D94CD0452-->  <COLUMNNAME><![CDATA[Code_Interpreter]]></COLUMNNAME>
