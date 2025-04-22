@@ -310,7 +310,8 @@ class MultimodelAgent(CopilotAgent):
                         output_ = output.content
                         # check if the output is a list
                         if type(output_) == list:
-                            for o in output_:
+                            o = output_[-1]
+                            if "text" in o:
                                 yield AssistantResponse(
                                     response=str(o["text"]), conversation_id=question.conversation_id
                                 )
