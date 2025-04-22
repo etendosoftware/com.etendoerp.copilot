@@ -152,17 +152,27 @@ public class RestServiceUtil {
   }
 
   /**
-   * This method is used to add extra context to the request for Copilot, based on the hooks defined
-   * for the CopilotApp.
+   * Processes a list of file items and handles each file by creating a temporary file
+   * and performing necessary operations based on its storage location.
+   * <p>
+   * This method iterates through the provided list of `FileItem` objects, checks whether
+   * each item is a form field or a file, and processes the file accordingly. If the file
+   * is in memory, it writes the content to a temporary file. If the file is on disk, it
+   * attempts to rename it to a temporary file. The method also validates the file size
+   * and adds the processed file's information to a JSON response object.
    *
    * @param items
+   *     A {@link List} of {@link FileItem} objects representing the files to be processed.
    * @param endpoint
+   *     A {@link String} representing the endpoint to which the file will be sent.
+   * @return A {@link JSONObject} containing the processed file information.
    * @throws Exception
+   *     If an error occurs during file processing or temporary file creation.
    */
-  static JSONObject handleFile(List<FileItem> items, String endpoint) throws Exception {
+  public static JSONObject handleFile(List<FileItem> items, String endpoint) throws Exception {
     logIfDebug(String.format("items: %d", items.size()));
     JSONObject responseJson = new JSONObject();
-    //create a list of files, for delete them later when the process finish
+    // Create a list of files to delete them later when the process finishes
     for (FileItem item : items) {
       if (item.isFormField()) {
         continue;
@@ -171,18 +181,17 @@ public class RestServiceUtil {
       String originalFileName = item.getName();
       String extension = originalFileName.substring(originalFileName.lastIndexOf("."));
       String filenameWithoutExt = originalFileName.substring(0, originalFileName.lastIndexOf("."));
-      //check if the file is in memory or in disk and create a temp file,
+      // Check if the file is in memory or on disk and create a temp file
       File f = File.createTempFile(filenameWithoutExt + "_", extension);
       f.deleteOnExit();
       if (itemDisk.isInMemory()) {
-        //if the file is in memory, write it to the temp file
+        // If the file is in memory, write it to the temp file
         itemDisk.write(f);
       } else {
-        //if the file is in disk, copy it to the temp file
+        // If the file is on disk, copy it to the temp file
         boolean successRename = itemDisk.getStoreLocation().renameTo(f);
         if (!successRename) {
-          throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"), item.getName()));
+          throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"), item.getName()));
         }
       }
       checkSizeFile(f);
