@@ -21,10 +21,13 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -32,10 +35,12 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrSubstitutor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
@@ -56,9 +61,14 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotModel;
+import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
+import com.etendoerp.openapi.data.OpenApiFlowPoint;
+import com.etendoerp.webhookevents.data.DefinedWebHook;
+import com.etendoerp.webhookevents.data.DefinedwebhookRole;
+import com.etendoerp.webhookevents.data.OpenAPIWebhook;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 /**
@@ -987,4 +997,314 @@ public class CopilotUtils {
     }
   }
 
+  /**
+   * This method checks the access of each role to the webhooks associated with the given application.
+   * It queries the database for each role and associated webhook, and if a role does not have access to a webhook,
+   * it calls the upsertAccess method to create a new access record.
+   *
+   * @param app
+   *     The CopilotApp object representing the application for which to check webhook access.
+   */
+  public static void checkWebHookAccess(CopilotApp app) {
+    StringBuilder hql = new StringBuilder();
+    hql.append("select ");
+    hql.append("roapp.role.name, ");
+    hql.append("roapp.role.id, ");
+    hql.append("toolweb.webHook.name, ");
+    hql.append("toolweb.webHook.id, ");
+    hql.append("(  ");
+    hql.append("    select count(id) ");
+    hql.append("    from smfwhe_definedwebhook_role hkrole ");
+    hql.append("    where hkrole.role = roapp.role ");
+    hql.append("        and hkrole.smfwheDefinedwebhook = toolweb.webHook ");
+    hql.append(") ");
+    hql.append("from ETCOP_Role_App roapp ");
+    hql.append("    left join ETCOP_App_Tool apptool on apptool.copilotApp = roapp.copilotApp ");
+    hql.append("    left join etcop_tool_wbhk toolweb on apptool.copilotTool = toolweb.copilotTool ");
+    hql.append("where 1 = 1 ");
+    hql.append("and roapp.copilotApp.id = :appId ");
+  /*
+    Returns a list of arrays with the following structure:
+    [0] Role Id
+    [1] Role Name
+    [2] Webhook Id
+    [3] Webhook Name
+    [4] Quantity of Record of access to the webhook by the role (if not null, the role has access)
+    Basically, we are looking for the roles that don't have access to the webhook, if the quantity of records is 0, the role doesn't have access
+   */
+    List<Object[]> results = OBDal.getInstance().getSession().createQuery(hql.toString()).setParameter("appId",
+        app.getId()).list();
+    if (log.isDebugEnabled()) {
+      log.debug(String.format("Results: %d", results.size()));
+    }
+    for (Object[] result : results) {
+      String roleId = (String) result[1];
+      String roleName = (String) result[0];
+      String webhookId = (String) result[3];
+      String webhookName = (String) result[2];
+      Long accessCount = (Long) result[4];
+      if (accessCount == null || accessCount == 0) {
+        if (log.isDebugEnabled()) {
+          log.debug(String.format("Role %s does not have access to webhook %s", roleName, webhookName));
+        }
+        Role role = OBDal.getInstance().get(Role.class, roleId);
+        DefinedWebHook hook = OBDal.getInstance().get(DefinedWebHook.class, webhookId);
+        if (role != null && hook != null) { // Null check
+          upsertAccess(hook, role, false);
+        }
+      }
+    }
+
+    /// Create a set of hooks used by the assistant
+    Set<DefinedWebHook> hooks = app.getETCOPAppSourceList().stream()
+        // Get the file associated with each source
+        .map(CopilotAppSource::getFile)
+        // Filter files of type "FLOW"
+        .filter(f -> StringUtils.equalsIgnoreCase(f.getType(), "FLOW"))
+        // Map to the corresponding OpenAPI flow objects
+        .map(CopilotFile::getEtapiOpenapiFlow)
+        // Safeguard against null values
+        .filter(Objects::nonNull)
+        // Extract and process flow points to retrieve defined webhooks
+        .flatMap(flow -> flow.getETAPIOpenApiFlowPointList().stream())
+        // Get the request from each flow point
+        .map(OpenApiFlowPoint::getEtapiOpenapiReq)
+        // Safeguard against null requests
+        .filter(Objects::nonNull)
+        // Extract the list of webhooks from the requests
+        .flatMap(req -> req.getSmfwheOpenapiWebhkList().stream())
+        // Get the defined webhook from each webhook object
+        .map(OpenAPIWebhook::getWebHook)
+        // Safeguard against null webhooks
+        .filter(Objects::nonNull)
+        // Collect all defined webhooks into a Set
+        .collect(Collectors.toSet());
+
+    log.debug("Hooks: {}", hooks);
+    Set<Role> roles = OBDal.getInstance().createCriteria(CopilotRoleApp.class).add(
+        Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, app)).list().stream().map(CopilotRoleApp::getRole).collect(
+        Collectors.toSet());
+    for (Role role : roles) {
+      for (DefinedWebHook hook : hooks) {
+        upsertAccess(hook, role, false);
+      }
+    }
+  }
+
+  /**
+   * This method is used to insert or update access to a defined webhook for a specific role.
+   * If the role already has access to the webhook and skipIfExist is false, the method will return without making any changes.
+   * If the role does not have access to the webhook or skipIfExist is true, a new access record will be created.
+   *
+   * @param hook
+   *     The DefinedWebHook object representing the webhook to which access is being granted.
+   * @param role
+   *     The Role object representing the role to which access is being granted.
+   * @param skipIfExist
+   *     A boolean value that determines whether to skip the operation if the role already has access to the webhook.
+   */
+  private static void upsertAccess(DefinedWebHook hook, Role role, boolean skipIfExist) {
+    // If skipIfExist is false, check if the role already has access to the webhook
+    if (!skipIfExist) {
+      OBCriteria<DefinedwebhookRole> critWebHookRole = OBDal.getInstance().createCriteria(DefinedwebhookRole.class);
+      critWebHookRole.add(Restrictions.eq(DefinedwebhookRole.PROPERTY_SMFWHEDEFINEDWEBHOOK, hook));
+      critWebHookRole.add(Restrictions.eq(DefinedwebhookRole.PROPERTY_ROLE, role));
+      critWebHookRole.setMaxResults(1);
+      DefinedwebhookRole wbhkRole = (DefinedwebhookRole) (critWebHookRole.uniqueResult());
+      // If the role already has access, return without making any changes
+      if (wbhkRole != null) {
+        return;
+      }
+    }
+    // If the role does not have access or skipIfExist is true, create a new access record
+    DefinedwebhookRole newRole = OBProvider.getInstance().get(DefinedwebhookRole.class);
+    newRole.setNewOBObject(true);
+    newRole.setRole(role);
+    newRole.setClient(role.getClient());
+    newRole.setOrganization(role.getOrganization());
+    newRole.setSmfwheDefinedwebhook(hook);
+    OBDal.getInstance().save(newRole);
+  }
+
+  /**
+   * This method generates file attachments for a list of {@link CopilotApp} instances.
+   * It processes each application in the given list, verifying webhook access and retrieving
+   * the associated {@link CopilotAppSource} objects to be refreshed.
+   * The method updates the synchronization status of each {@link CopilotApp} to "synchronized"
+   * and collects all the related {@link CopilotAppSource} instances. It then processes each
+   * source by logging the file name and executing the relevant hooks using the
+   * {@link CopilotFileHookManager}.
+   *
+   * @param appList
+   *     A list of {@link CopilotApp} instances for which file attachments are being generated.
+   */
+  public static void generateFilesAttachment(List<CopilotApp> appList) {
+    Set<CopilotAppSource> appSourcesToRefresh = new HashSet<>();
+    for (CopilotApp app : appList) {
+      List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
+      app.setSyncStatus(CopilotConstants.SYNCHRONIZED_STATE);
+      appSourcesToRefresh.addAll(appSources);
+    }
+
+    for (CopilotAppSource as : appSourcesToRefresh) {
+      log.debug("Syncing file {}", as.getFile().getName());
+      CopilotFile fileToSync = as.getFile();
+      WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
+    }
+  }
+
+  /**
+   * Synchronizes knowledge base files for a list of {@link CopilotApp} instances.
+   * <p>
+   * This method processes a list of applications, filtering their associated {@link CopilotAppSource}
+   * objects to include only those that represent knowledge base files. The synchronization behavior
+   * depends on the application type, with specific handling for OpenAI, LangChain, and other types.
+   * Unsupported application types are logged as warnings.
+   *
+   * <p>Supported application types:
+   * <ul>
+   *   <li>{@link CopilotConstants#APP_TYPE_OPENAI}: Synchronizes files with the OpenAI API.</li>
+   *   <li>{@link CopilotConstants#APP_TYPE_LANGCHAIN}: Synchronizes files with the LangChain API.</li>
+   *   <li>{@link CopilotConstants#APP_TYPE_MULTIMODEL}: Synchronizes files with the LangChain API.</li>
+   *   <li>{@link CopilotConstants#APP_TYPE_LANGGRAPH}: No synchronization is performed.</li>
+   *   <li>Other types: Logged as unsupported.</li>
+   * </ul>
+   *
+   * @param appList
+   *     A list of {@link CopilotApp} instances for which knowledge base files are being synchronized.
+   * @param openaiApiKey
+   *     The API key used for authentication with the OpenAI API.
+   * @return A {@link JSONObject} containing a message indicating the number of successfully
+   *     synchronized applications and the total number of applications processed.
+   * @throws JSONException
+   *     If an error occurs while building the result message.
+   * @throws IOException
+   *     If an input/output error occurs during synchronization.
+   */
+  public static JSONObject syncKnowledgeFiles(List<CopilotApp> appList,
+      String openaiApiKey) throws JSONException, IOException {
+    int syncCount = 0;
+
+    for (CopilotApp app : appList) {
+      // Filter the application's sources to include only knowledge base files
+      List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream().filter(
+          CopilotConstants::isKbBehaviour).collect(Collectors.toList());
+      // Handle synchronization based on the application type
+      switch (app.getAppType()) {
+        case CopilotConstants.APP_TYPE_OPENAI:
+          syncKBFilesToOpenAI(app, knowledgeBaseFiles, openaiApiKey);
+          break;
+        case CopilotConstants.APP_TYPE_LANGCHAIN:
+        case CopilotConstants.APP_TYPE_MULTIMODEL:
+          syncKBFilesToLangChain(app, knowledgeBaseFiles);
+          break;
+        case CopilotConstants.APP_TYPE_LANGGRAPH:
+          log.debug("Sync not needed for LangGraph");
+          break;
+        default:
+          log.warn("Unsupported application type encountered: {}", app.getAppType());
+      }
+      syncCount++;
+    }
+
+    // Build and return a message summarizing the synchronization results
+    return buildMessage(syncCount, appList.size());
+  }
+
+  /**
+   * This method synchronizes knowledge base files with the OpenAI API for a given {@link CopilotApp}.
+   * It processes the list of provided {@link CopilotAppSource} instances, sending each one to
+   * the OpenAI API for synchronization. The method also performs additional steps to refresh
+   * the application's state and synchronize the assistant configuration.
+   *
+   * <p>If the application is configured for OpenAI but the knowledge base files are present,
+   * and it is neither a code interpreter nor retrieval-enabled, an {@link OBException} is thrown
+   * to indicate that the knowledge base files are ignored for the given app configuration.
+   *
+   * <p>After synchronizing each knowledge base file, the application's state is refreshed from
+   * the database, the vector database is updated, and the assistant configuration is synchronized
+   * with the OpenAI API.
+   *
+   * @param app
+   *     The {@link CopilotApp} instance for which knowledge base files are being synchronized.
+   * @param knowledgeBaseFiles
+   *     A list of {@link CopilotAppSource} objects representing the knowledge base files to be synchronized.
+   * @param openaiApiKey
+   *     The API key used for authentication with the OpenAI API.
+   * @throws JSONException
+   *     If an error occurs while processing JSON data.
+   * @throws IOException
+   *     If an input/output error occurs during the synchronization process.
+   * @throws OBException
+   *     If the application's configuration does not allow for knowledge base synchronization.
+   */
+  private static void syncKBFilesToOpenAI(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles,
+      String openaiApiKey) throws JSONException, IOException {
+    OpenAIUtils.checkIfAppCanUseAttachedFiles(app, knowledgeBaseFiles);
+    for (CopilotAppSource appSource : knowledgeBaseFiles) {
+      OpenAIUtils.syncAppSource(appSource, openaiApiKey);
+    }
+    OBDal.getInstance().refresh(app);
+    OpenAIUtils.refreshVectorDb(app);
+    OBDal.getInstance().refresh(app);
+    OpenAIUtils.syncAssistant(openaiApiKey, app);
+  }
+
+  /**
+   * This method synchronizes knowledge base files with the LangChain API for a given {@link CopilotApp}.
+   * It performs several steps to ensure that the application's vector database is properly updated
+   * and the knowledge base files are synchronized.
+   *
+   * <p>The synchronization process involves resetting the vector database, processing each
+   * {@link CopilotAppSource} in the list to synchronize it with the LangChain API, and then
+   * purging the vector database to remove any outdated information.
+   *
+   * @param app
+   *     The {@link CopilotApp} instance for which knowledge base files are being synchronized.
+   * @param knowledgeBaseFiles
+   *     A list of {@link CopilotAppSource} objects representing the knowledge base files to be synchronized.
+   * @throws JSONException
+   *     If an error occurs while processing JSON data.
+   * @throws IOException
+   *     If an input/output error occurs during the synchronization process.
+   */
+  private static void syncKBFilesToLangChain(CopilotApp app,
+      List<CopilotAppSource> knowledgeBaseFiles) throws JSONException, IOException {
+    CopilotUtils.resetVectorDB(app);
+    for (CopilotAppSource appSource : knowledgeBaseFiles) {
+      CopilotUtils.syncAppLangchainSource(appSource);
+    }
+    CopilotUtils.purgeVectorDB(app);
+  }
+
+  /**
+   * Builds a JSON message object to be displayed in the process view.
+   * <p>
+   * This method constructs a JSON object containing a success message with the given synchronization count and total records.
+   * The message is formatted and added to the response actions to be shown in the process view.
+   *
+   * @param syncCount
+   *     The number of successfully synchronized applications.
+   * @param totalRecords
+   *     The total number of applications processed.
+   * @return A JSONObject containing the response actions with the success message.
+   * @throws JSONException
+   *     If an error occurs while creating the JSON object.
+   */
+  private static JSONObject buildMessage(int syncCount, int totalRecords) throws JSONException {
+    JSONObject result = new JSONObject();
+    // Message in tab from where the process is executed
+    JSONArray actions = new JSONArray();
+    JSONObject showMsgInProcessView = new JSONObject();
+    showMsgInProcessView.put("msgType", "success");
+    showMsgInProcessView.put("msgTitle", OBMessageUtils.messageBD("Success"));
+    showMsgInProcessView.put("msgText",
+        String.format(String.format(OBMessageUtils.messageBD("ETCOP_SuccessSync"), syncCount, totalRecords)));
+    showMsgInProcessView.put("wait", true);
+    JSONObject showMsgInProcessViewAction = new JSONObject();
+    showMsgInProcessViewAction.put("showMsgInProcessView", showMsgInProcessView);
+    actions.put(showMsgInProcessViewAction);
+    result.put("responseActions", actions);
+    return result;
+  }
 }
