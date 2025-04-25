@@ -34,6 +34,7 @@ from .eval.code_evaluators import CodeExecutor
 from .langgraph_agent import handle_events
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
+tools_loaded = {}
 
 
 class CustomOutputParser(AgentOutputParser):
@@ -147,9 +148,8 @@ class MultimodelAgent(CopilotAgent):
         self._assert_system_prompt_is_set()
         llm = get_llm(model, provider, temperature)
 
-        # base_url = "http://127.0.0.1:1234/v1" -> can be used for local LLMs
         _enabled_tools = self.get_functions(tools)
-        kb_tool = get_kb_tool(kb_vectordb_id)  # type: ignore
+        kb_tool = get_kb_tool(agent_configuration)  # type: ignore
         if kb_tool is not None:
             _enabled_tools.append(kb_tool)
             self._configured_tools.append(kb_tool)
@@ -160,6 +160,7 @@ class MultimodelAgent(CopilotAgent):
                     openapi_tools = generate_tools_from_openapi(api_spec)
                     _enabled_tools.extend(openapi_tools)
                     self._configured_tools.extend(openapi_tools)
+        tools_loaded[agent_configuration.assistant_id] = _enabled_tools
         prompt_structure = [
             ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
             MessagesPlaceholder(variable_name="messages"),
@@ -304,7 +305,8 @@ class MultimodelAgent(CopilotAgent):
                             output_ = output.content
                             # check if the output is a list
                             if type(output_) == list:
-                                for o in output_:
+                                o = output_[-1]
+                                if "text" in o:
                                     yield AssistantResponse(
                                         response=str(o["text"]), conversation_id=question.conversation_id
                                     )

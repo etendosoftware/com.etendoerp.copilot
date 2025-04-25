@@ -330,21 +330,26 @@ public class SyncAssistant extends BaseProcessActionHandler {
   }
 
   /**
-   * This method synchronizes knowledge base files for a list of {@link CopilotApp} instances.
-   * It iterates over the provided list of applications, filtering the associated
-   * {@link CopilotAppSource} objects to include only those that represent knowledge base files.
-   * The synchronization is handled differently based on the application type.
+   * Synchronizes knowledge base files for a list of {@link CopilotApp} instances.
+   * <p>
+   * This method processes a list of applications, filtering their associated {@link CopilotAppSource}
+   * objects to include only those that represent knowledge base files. The synchronization behavior
+   * depends on the application type, with specific handling for OpenAI, LangChain, and other types.
+   * Unsupported application types are logged as warnings.
+   *
    * <p>Supported application types:
    * <ul>
    *   <li>{@link CopilotConstants#APP_TYPE_OPENAI}: Synchronizes files with the OpenAI API.</li>
    *   <li>{@link CopilotConstants#APP_TYPE_LANGCHAIN}: Synchronizes files with the LangChain API.</li>
+   *   <li>{@link CopilotConstants#APP_TYPE_MULTIMODEL}: Synchronizes files with the LangChain API.</li>
    *   <li>{@link CopilotConstants#APP_TYPE_LANGGRAPH}: No synchronization is performed.</li>
-   *   <li>For other application types, an error is logged.</li>
+   *   <li>Other types: Logged as unsupported.</li>
    * </ul>
    *
    * @param appList
    *     A list of {@link CopilotApp} instances for which knowledge base files are being synchronized.
-   * @param openaiApiKey1
+   * @param openaiApiKey
+   *     The API key used for authentication with the OpenAI API.
    * @return A {@link JSONObject} containing a message indicating the number of successfully
    *     synchronized applications and the total number of applications processed.
    * @throws JSONException
@@ -357,15 +362,15 @@ public class SyncAssistant extends BaseProcessActionHandler {
     int syncCount = 0;
 
     for (CopilotApp app : appList) {
+      // Filter the application's sources to include only knowledge base files
       List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream().filter(
           CopilotConstants::isKbBehaviour).collect(Collectors.toList());
+      // Handle synchronization based on the application type
       switch (app.getAppType()) {
         case CopilotConstants.APP_TYPE_OPENAI:
           syncKBFilesToOpenAI(app, knowledgeBaseFiles, openaiApiKey);
           break;
         case CopilotConstants.APP_TYPE_LANGCHAIN:
-          syncKBFilesToLangChain(app, knowledgeBaseFiles);
-          break;
         case CopilotConstants.APP_TYPE_MULTIMODEL:
           syncKBFilesToLangChain(app, knowledgeBaseFiles);
           break;
@@ -377,6 +382,8 @@ public class SyncAssistant extends BaseProcessActionHandler {
       }
       syncCount++;
     }
+
+    // Build and return a message summarizing the synchronization results
     return buildMessage(syncCount, appList.size());
   }
 
