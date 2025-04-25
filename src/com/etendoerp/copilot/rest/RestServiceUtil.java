@@ -96,6 +96,7 @@ public class RestServiceUtil {
   public static final String PROP_QUESTION = "question";
   public static final String PROP_TYPE = "type";
   public static final String PROP_HISTORY = "history";
+  public static final String PROP_CODE_EXECUTION = "code_execution";
   public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
   public static final String APPLICATION_JSON_CHARSET_UTF_8 = "application/json;charset=UTF-8";
   public static final String FILE = "/file";
@@ -880,6 +881,7 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
     jsonRequestForCopilot.put(PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
     jsonRequestForCopilot.put(PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
+jsonRequestForCopilot.put(PROP_CODE_EXECUTION, copilotApp.isCodeInterpreter());
     jsonRequestForCopilot.put(PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
     String promptApp = getAssistantPrompt(copilotApp);
     if (StringUtils.isNotEmpty(prompt.toString())) {
