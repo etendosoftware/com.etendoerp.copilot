@@ -63,34 +63,30 @@ def _get_headers(access_token):
     return headers
 
 
-def call_webhook(access_token, body_params, url, webhook_name):
-    """
-    Calls a webhook with the provided parameters.
-
-    Parameters:
-    access_token (str): The access token for authorization.
-    body_params (dict): The body parameters for the webhook.
-    url (str): The base URL for the webhook.
-    webhook_name (str): The name of the webhook.
-
-    Returns:
-    dict: The response from the webhook call. If the call fails, returns an error message.
-    """
+def call_etendo(method: str, url: str, endpoint: str, body_params, access_token: str):
     import requests
 
     headers = _get_headers(access_token)
-    endpoint = "/webhooks/?name=" + webhook_name
     import json
 
     json_data = json.dumps(body_params)
     full_url = url + endpoint
     copilot_debug(f"Calling Webhook(POST): {full_url}")
-    post_result = requests.post(url=full_url, data=json_data, headers=headers)
-    if post_result.ok:
-        return json.loads(post_result.text)
+    if method.upper() == "GET":
+        result = requests.get(url=full_url, headers=headers)
+    elif method.upper() == "POST":
+        result = requests.post(url=full_url, data=json_data, headers=headers)
+    elif method.upper() == "PUT":
+        result = requests.put(url=full_url, data=json_data, headers=headers)
+    elif method.upper() == "DELETE":
+        result = requests.delete(url=full_url, data=json_data, headers=headers)
     else:
-        copilot_debug(post_result.text)
-        return {"error": post_result.text}
+        raise ToolException(f"Unsupported HTTP method: {method}")
+    if result.ok:
+        return json.loads(result.text)
+    else:
+        copilot_debug(result.text)
+        return {"error": result.text}
 
 
 def get_etendo_host():
@@ -131,3 +127,33 @@ def login_etendo(server_url, client_admin_user, client_admin_password):
         return response.json().get("token")
     else:
         raise ToolException(f"Error logging in to Etendo: {response.text}")
+
+
+def call_webhook(access_token, body_params, url, webhook_name):
+    """
+    Calls a webhook with the provided parameters.
+
+    Parameters:
+    access_token (str): The access token for authorization.
+    body_params (dict): The body parameters for the webhook.
+    url (str): The base URL for the webhook.
+    webhook_name (str): The name of the webhook.
+
+    Returns:
+    dict: The response from the webhook call. If the call fails, returns an error message.
+    """
+    import requests
+
+    headers = _get_headers(access_token)
+    endpoint = "/webhooks/?name=" + webhook_name
+    import json
+
+    json_data = json.dumps(body_params)
+    full_url = url + endpoint
+    copilot_debug(f"Calling Webhook(POST): {full_url}")
+    post_result = requests.post(url=full_url, data=json_data, headers=headers)
+    if post_result.ok:
+        return json.loads(post_result.text)
+    else:
+        copilot_debug(post_result.text)
+        return {"error": post_result.text}

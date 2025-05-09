@@ -99,7 +99,7 @@ public class CopilotModelUtils {
   public static void syncModels() throws OBException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String url = properties.getProperty("COPILOT_MODELS_DATASET_URL", CopilotUtils.DEFAULT_MODELS_DATASET_URL).replace(
-        "<BRANCH>", "feature/ETP-1481");
+        "<BRANCH>", properties.getProperty("COPILOT_MODELS_DATASET_BRANCH", "master"));
     upsertModels(downloadFile(url));
   }
 
