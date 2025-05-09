@@ -7,7 +7,7 @@
  */
 
 group          = "com.etendoerp"
-version        = "1.13.2"
+version        = "1.14.0"
 description    = "Etendo Copilot Platform"
 ext.artifact   = "copilot"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
@@ -52,9 +52,11 @@ repositories {
  * Ex: implementation "com.sun.mail:javax.mail:1.6.2"
  */
 dependencies {
-    implementation group: 'com.konghq', name: 'unirest-java', version: '3.14.5'
-    implementation('com.etendoerp:webhookevents:1.14.0')
-    implementation('com.etendoerp:docker:1.6.1')
-    implementation('com.etendoerp:openapi:1.2.0')
-    implementation('com.etendoerp:task:1.1.0')
+    implementation('com.konghq:unirest-java:3.14.5')
+    implementation('com.etendoerp:webhookevents:1.15.0')
+    implementation('com.etendoerp:docker:1.7.0')
+    implementation('com.etendoerp:openapi:1.3.0')
+    implementation('com.etendoerp:task:1.2.0')
+
+    implementation('com.etendoerp.platform:etendo-core:[23.4.0,25.1.0)')
 }
