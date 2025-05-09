@@ -42,13 +42,13 @@ def summarize(method, url, text):
         try:
             # lest resume the json
             resp_json = json.loads(text)
-            id = resp_json.get("response").get("data")[0].get("id")
+            res_id = resp_json.get("response").get("data")[0].get("id")
             endpoint_name = url.split("/")[-1]
 
             msg = f" {endpoint_name} record has been {'created' if method.upper() == 'POST' else 'updated'} successfully with id: {id}"
             rsp = {
                 "summary": msg,
-                "id": id,
+                "id": res_id,
             }
             return json.dumps({"response": {"data": [rsp]}})
         except Exception as e:
@@ -213,6 +213,16 @@ def generate_tools_from_openapi(openapi_spec: Dict[str, Any]) -> List[ApiTool]:
                 tool_name = tool_name[:60] + "_" + str(len(tools) + 1)
 
             parameters = operation.get("parameters", [])
+            if path.endswith("/{id}"):
+                parameters.append(
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": True,
+                        "description": "ID of the resource",
+                        "schema": {"type": "string"},
+                    }
+                )
             request_body = operation.get("requestBody", None)
 
             tool = ApiTool(
