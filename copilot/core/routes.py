@@ -381,10 +381,24 @@ def process_text_to_vector_db(
                 # Remove the temporary file after use
 
             copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
+            max_length = 0
+            for i, _text in enumerate(texts):
+                copilot_debug(f"Document {i}: {len(texts[i].page_content)}")
+                if len(texts[0].page_content) > max_length:
+                    max_length = len(texts[0].page_content)
             if len(texts) > 0:
-                Chroma.from_documents(
-                    texts, get_embedding(), persist_directory=db_path, client_settings=get_chroma_settings()
-                )
+                total_texts = len(texts)
+                # Add texts in batches                of 100
+                for i in range(0, total_texts, 20):
+                    batch_texts = texts[i : i + 20]
+                    # Add the batch of texts to the vector store
+                    Chroma.from_documents(
+                        batch_texts,
+                        get_embedding(),
+                        persist_directory=db_path,
+                        client_settings=get_chroma_settings(),
+                        client=chroma_client,
+                    )
             success = True
             message = f"Database {kb_vectordb_id} created and loaded successfully."
             copilot_debug(message)

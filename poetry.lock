@@ -3426,6 +3426,27 @@ realtime = ["websockets (>=13,<16)"]
 voice-helpers = ["numpy (>=2.0.2)", "sounddevice (>=0.5.1)"]
 
 [[package]]
+name = "openevals"
+version = "0.0.20"
+description = "Open-source evaluators for LLM applications"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "openevals-0.0.20-py3-none-any.whl", hash = "sha256:1f85539fdc03d01eed6242c1fcb9060da160abf977b607019bb21a41d5dac38d"},
+    {file = "openevals-0.0.20.tar.gz", hash = "sha256:276e28cb8c7b1374442f1433afa55acab293710a562ff946ee6761e4396879a5"},
+]
+
+[package.dependencies]
+langchain = ">=0.3.18"
+langchain-openai = ">=0.3.6"
+langsmith = ">=0.3.32"
+rich = ">=13.9.4"
+
+[package.extras]
+e2b-code-interpreter = ["e2b-code-interpreter (>=1.1.1)"]
+
+[[package]]
 name = "opentelemetry-api"
 version = "1.32.1"
 description = "OpenTelemetry Python API"
@@ -5110,7 +5131,7 @@ description = "RestrictedPython is a defined subset of the Python language which
 optional = false
 python-versions = "<3.14,>=3.9"
 groups = ["main"]
-markers = "python_version < \"3.14\""
+markers = "python_version <= \"3.13\""
 files = [
     {file = "RestrictedPython-8.0-py3-none-any.whl", hash = "sha256:ed3d894efd7d6cac0a5f13f75583b8458378d400d7dd4c083b59233eba85fe69"},
     {file = "restrictedpython-8.0.tar.gz", hash = "sha256:3af2312bc67e5fced887fb85b006c89861da72488128b155beea81eb6a0a9b24"},
@@ -6609,4 +6630,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "e6dc12417b54192475ad91fc77faf8149072a6ddfac7be5eac1be5436576d614"
+content-hash = "88475240ec1161ac42e97022649db0602ab78abad7da9218ace3a7a9a4af0aed"
