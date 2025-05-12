@@ -28,9 +28,10 @@ from .. import etendo_utils, utils
 from ..langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
+from ..threadcontext import ThreadContext
 from ..utils import get_full_question
 from .agent_utils import process_local_files
-from .eval.code_evaluators import CodeExecutor
+from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
 from .langgraph_agent import handle_events
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
@@ -174,12 +175,16 @@ class MultimodelAgent(CopilotAgent):
                 t if isinstance(t, StructuredTool) else langchain_core.tools.convert_runnable_to_tool(t)
                 for t in _enabled_tools
             ]
-            code_executor = CodeExecutor("original")
+            use_pydoide = utils.read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
+            if use_pydoide:
+                eval_fn = create_pyodide_eval_fn("./sessions", ThreadContext.get_data("conversation_id"))
+            else:
+                eval_fn = CodeExecutor("original").execute
 
             agent = langgraph_codeact.create_codeact(
                 model=llm,
                 tools=conv_tools,
-                eval_fn=code_executor.execute,
+                eval_fn=eval_fn,
                 prompt=create_default_prompt(tools=conv_tools, base_prompt=system_prompt),
             )
         else:
