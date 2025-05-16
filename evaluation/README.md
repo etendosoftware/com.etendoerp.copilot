@@ -1,9 +1,10 @@
 # Instructions
 
 ## Environment Preparation
-*	Compilation and environment setup.
-*	Copilot running in Docker.
-*	Ensure the module with the datasets is located in the modules folder.
+* Compilation and environment setup.
+* Copilot built: In other words, run the gradle task copilot.build. Check that the tools are collected.
+* Ensure the module with the datasets is located in the modules folder.
+* Sync successfully each assistant to run the tests.
 
 ## Running Examples
 *	Navigate to the build/copilot directory, which should contain all the Copilot files and the “collected” tools in the tools folder.
