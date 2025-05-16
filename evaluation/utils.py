@@ -324,7 +324,10 @@ def save_conversation_from_run(
             continue  # Exclude the system prompt
         filtered_messages.append(ls_msg_2_openai_msg(msg))
 
-    expected_response = ls_msg_2_openai_msg(outputs.get("generations")[0].get("message"))
+    generations_ = outputs.get("generations")[0]
+    if isinstance(generations_, list) and len(generations_) > 0:
+        generations_ = generations_[0]
+    expected_response = ls_msg_2_openai_msg(generations_.get("message"))
     if not expected_response:
         print(f"No expected response found in run {run_id}.")
         sys.exit(1)

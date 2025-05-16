@@ -35,5 +35,6 @@ class Conversation(BaseModel):
     run_id: Optional[str] = None  # ID of the LangSmith run
     messages: List[Message]
     expected_response: Message
+    considerations: Optional[str] = None  # Consideration for the evaluator.
     # Creation date of the conversation YYYY-MM-DD-HH:MM:SS
     creation_date: Optional[str] = time.strftime("%Y-%m-%d-%H:%M:%S")
