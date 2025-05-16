@@ -377,10 +377,20 @@ def process_text_to_vector_db(
                 # Remove the temporary file after use
 
             copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
+            # TODO: Check if langchain fix this issue and automatically handle the batches by token limits
             if len(texts) > 0:
-                Chroma.from_documents(
-                    texts, get_embedding(), persist_directory=db_path, client_settings=get_chroma_settings()
-                )
+                total_texts = len(texts)
+                # Add texts in batches of 20
+                for i in range(0, total_texts, 20):
+                    batch_texts = texts[i : i + 20]
+                    # Add the batch of texts to the vector store
+                    Chroma.from_documents(
+                        batch_texts,
+                        get_embedding(),
+                        persist_directory=db_path,
+                        client_settings=get_chroma_settings(),
+                        client=chroma_client,
+                    )
             success = True
             message = f"Database {kb_vectordb_id} created and loaded successfully."
             copilot_debug(message)
