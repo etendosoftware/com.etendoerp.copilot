@@ -16,6 +16,9 @@ ENV_NAME=".venv_execution"; [ ! -d "$ENV_NAME" ] && python3 -m venv "$ENV_NAME";
 ```bash
 pip install -r requirements.txt
 ```
+
+# Execute evaluations
+
 *	Run the following command to execute the Copilot agent:
 ```bash
 PYTHONPATH=$(pwd) python3 evaluation/execute.py  --user=admin --password=admin --etendohost=http://localhost:8080/etendo --envfile=../../gradle.properties --dataset=../../modules/com.etendoerp.copilot.agents/dataset --agent_id=49D1735ACAFE48E99A4A5CCFBBE6946C --k=1
@@ -52,7 +55,7 @@ Parameters for saving the example:
 	*	--dataset: path to the dataset to use. This is relative to the build/copilot folder.
 	*	--agent_id: ID of the agent to which the example will be saved.
 
-# Generating the Dataset
+## Generating the Dataset
 
 This section describes how to generate variants for a dataset for the Copilot agent.
 
@@ -151,3 +154,22 @@ You should modify the dataset.json file to include the generated variants. The m
 The variants field contains the generated variants for the input adding "id" on the input message to replace it with the
 generated. The `@{prod-requests.txt}` placeholder will be replaced with the actual generated variants when the dataset is
 executed. Note that the variants field is an array, so you can add multiple variants for each input. 
+
+# Run bulk task eval
+
+* To run the bulk task evaluation, you can use the following command:
+
+``` bash
+	python3 ${COPILOT_PATH}/bulk_tasks_eval.py --envfile ../../../../gradle.properties --etendo_url http://localhost:8080/etendo --csv 1000-products.csv --template prod-bulk-templates.txt --table m_product
+```
+
+| *Parameter*  | *Description*                                                                                       | *Example*                     |
+|--------------|-----------------------------------------------------------------------------------------------------|-------------------------------|
+| --envfile    | Path to the gradle.properties file with environment variables. If omitted, default values are used. | ../../../../gradle.properties |
+| --etendo_url | Etendo host where the script is running. Required if running outside Docker.                        | http://localhost:8080/etendo  |
+| --csv        | Path to the CSV file containing the dataset to be used for generating the variants.                 | 1000-products.csv             |
+| --template   | Path to the template file containing the dataset to be used for generating the variants.            | prod-bulk-templates.txt       |
+| --table      | Name of the table to be used for generating the variants.                                           | m_product                     |
+
+
+
