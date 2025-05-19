@@ -5,6 +5,7 @@ import os
 import sys
 import time
 
+import html
 import pandas as pd
 from copilot.core.agent import MultimodelAgent
 from copilot.core.agent.agent import get_kb_tool
@@ -324,10 +325,15 @@ def save_conversation_from_run(
             continue  # Exclude the system prompt
         filtered_messages.append(ls_msg_2_openai_msg(msg))
 
-    generations_ = outputs.get("generations")[0]
-    if isinstance(generations_, list) and len(generations_) > 0:
-        generations_ = generations_[0]
-    expected_response = ls_msg_2_openai_msg(generations_.get("message"))
+    generations = outputs.get("generations")
+    if not isinstance(generations, list) or len(generations) == 0:
+        print(f"No valid generations found in run {run_id}.")
+        sys.exit(1)
+    response_element = generations[0]
+    # if response_element is a list, take the first element
+    if isinstance(response_element, list) and len(response_element) > 0:
+        response_element = response_element[0]
+    expected_response = ls_msg_2_openai_msg(response_element.get("message"))
     if not expected_response:
         print(f"No expected response found in run {run_id}.")
         sys.exit(1)
@@ -418,12 +424,128 @@ def create_accordion(df):
         )
     return "\n".join(html_items)
 
+def generate_html_table_results(results_obj):
+    """Generates an HTML table from evaluation results."""
+    # Validate input structure
+    if not (results_obj and hasattr(results_obj, '_results') and
+            isinstance(results_obj._results, list) and results_obj._results):
+        return "<p>Error: Invalid or empty 'results_obj' structure.</p>"
 
-def generate_html_report(args, errores, link, res_pand):
+    table_items = []
+
+    # Process results
+    for result_item in results_obj._results:
+        try:
+            evaluation_data = result_item['evaluation_results']['results']
+            child_runs_data = result_item['run'].child_runs
+
+            if len(evaluation_data) != len(child_runs_data):
+                return "<p>Error: Discrepancy between evaluation results and child_runs count.</p>"
+
+            # Process each evaluation result
+            for i, eval_result in enumerate(evaluation_data):
+                try:
+                    # Extract data
+                    score = eval_result.score
+
+                    # Get input data
+                    inputs = child_runs_data[i].inputs
+                    if isinstance(inputs, dict) and 'messages' in inputs:
+                        input_comment_data = inputs['messages'][1]
+                    else:
+                        input_comment_data = json.dumps(inputs['messages'])
+
+                    # Get output data
+                    outputs = result_item['run'].outputs
+                    output_data = (json.dumps(outputs) if isinstance(outputs, dict) and 'answer' in outputs
+                                  else json.dumps(result_item['run']))
+
+                    # Store data
+                    table_items.append({
+                        'comment': input_comment_data['content'],
+                        'score': score,
+                        'output': output_data,
+                        'eval_comment': eval_result.comment
+                    })
+                except (KeyError, IndexError, AttributeError) as e:
+                    table_items.append({
+                        'comment': f"Error getting data for index {i}: {html.escape(str(e))}",
+                        'score': -1
+                    })
+        except (KeyError, AttributeError, IndexError) as e:
+            return f"<p>Error accessing necessary data: {html.escape(str(e))}</p>"
+
+    # Sort results by score
+    table_items.sort(key=lambda x: x['score'])
+
+    # Calculate average score
+    valid_scores = [item['score'] for item in table_items if item['score'] != -1]
+    avg_score_html = ""
+
+    if valid_scores:
+        avg_score = sum(valid_scores) / len(valid_scores)
+
+        # Determine score class
+        if avg_score < 0.5:
+            avg_score_class = "score-0"
+        elif avg_score < 1:
+            avg_score_class = "score-0_5"
+        else:
+            avg_score_class = "score-1"
+
+        avg_score_html = f"""
+        <div style="text-align: center; margin: 20px; font-size: 2em;">
+            <strong>Average Score:</strong>
+            <span class="{avg_score_class}">{avg_score:.2f}</span>
+        </div>
+        """
+
+    # Build table HTML
+    html_string = avg_score_html + """  <table>
+    <thead>
+      <tr>
+        <th>Input</th>
+        <th>Output</th>
+        <th>Score</th>
+        <th>Eval Comment</th>
+      </tr>
+    </thead>
+    <tbody>
+    """
+
+    # Add table rows
+    for item in table_items:
+        score = item['score']
+
+        # Set score class
+        if score == 0:
+            score_class = "score-0"
+        elif score == 0.5:
+            score_class = "score-0_5"
+        elif score == 1:
+            score_class = "score-1"
+        else:
+            score_class = "score-error"
+
+        # Add row
+        html_string += f"""      <tr>
+        <td>{html.escape(str(item['comment']))}</td>
+        <td>{html.escape(str(item['output']))}</td>
+        <td class="{score_class}">{score if score != -1 else 'Error'}</td>
+        <td>{html.escape(str(item['eval_comment']))}</td>
+      </tr>
+"""
+
+    html_string += "    </tbody>\n  </table>"
+    return html_string
+
+
+def generate_html_report(args, link, results):
+    """Generates an HTML report file with evaluation results."""
     html_file = f"evaluation_output/results_{args.agent_id}_{int(time.time())}.html"
+
     with open(html_file, "w", encoding="utf-8") as f:
-        f.write(
-            f"""
+        f.write(f"""
     <!DOCTYPE html>
     <html lang="es">
     <head>
@@ -433,34 +555,22 @@ def generate_html_report(args, errores, link, res_pand):
         <style>
             body {{ padding: 20px; }}
             .tab-content {{ margin-top: 20px; }}
+            table {{ border-collapse: collapse; width: 80%; margin: 20px auto; font-family: Arial, sans-serif; }}
+            th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
+            th {{ background-color: #f2f2f2; }}
+            .score-0 {{ background-color: #FFCDD2; color: #B71C1C; }}
+            .score-0_5 {{ background-color: #FFF9C4; color: #F57F17; }}
+            .score-1 {{ background-color: #C8E6C9; color: #1B5E20; }}
+            .score-error {{ background-color: #FFEBEE; color: #D32F2F; font-style: italic; }}
         </style>
     </head>
     <body>
         <h1>Agent Results Report</h1>
         <h3>Experiment: {link}</h3>
-        <ul class="nav nav-tabs" id="resultTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="todos-tab" data-bs-toggle="tab" data-bs-target="#todos" type="button" role="tab">Todos</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="errores-tab" data-bs-toggle="tab" data-bs-target="#errores" type="button" role="tab">Errores</button>
-            </li>
-        </ul>
-        <div class="tab-content">
-            <div class="tab-pane fade show active" id="todos" role="tabpanel">
-                <div class="accordion" id="accordionTodos">
-                    {create_accordion(res_pand)}
-                </div>
-            </div>
-            <div class="tab-pane fade" id="errores" role="tabpanel">
-                <div class="accordion" id="accordionErrores">
-                    {create_accordion(errores)}
-                </div>
-            </div>
-        </div>
+        {generate_html_table_results(results_obj=results)}
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     </body>
     </html>
-    """
-        )
+    """)
+
     print(f"HTML report generated: {os.getcwd()}/{html_file}")
