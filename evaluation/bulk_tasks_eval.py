@@ -657,6 +657,12 @@ def main():
     print(f"Total script time: {total_script_run_time:.2f} seconds")
     print(f"Script finished. [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
+    # if delta_records is diferent from tasks created, system exit 1
+    if delta_records != num_tasks_created:
+        print("Error: Number of records created/modified does not match the number of tasks created.")
+        exit(1)
+
+
 
 if __name__ == "__main__":
     main()
