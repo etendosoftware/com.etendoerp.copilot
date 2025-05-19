@@ -3,7 +3,8 @@ import json
 import os
 import sys
 import time
-from typing import List
+from copy import deepcopy
+from typing import List, Dict, Any
 
 from copilot.core.etendo_utils import get_etendo_host
 from copilot.core.schemas import AssistantSchema
@@ -11,7 +12,6 @@ from dotenv import load_dotenv
 from langsmith import Client, wrappers
 from openai import OpenAI
 from pydantic import ValidationError
-from schemas import Conversation, Message
 from utils import (
     calc_md5,
     generate_html_report,
@@ -21,6 +21,9 @@ from utils import (
     tool_to_openai_function,
     validate_dataset_folder,
 )
+
+from schemas import Conversation, Message
+from utils import validate_dataset_folder
 
 DEFAULT_EXECUTIONS = 5
 
@@ -77,58 +80,194 @@ def exec_agent(args):
     return evaluate_agent(agent_id, config_agent, repetitions, base_path, skip_evaluators)
 
 
-# Read conversations from a JSON file
 def load_conversations(agent_id: str, base_path: str, prompt: str = None) -> List[Conversation]:
     """
-    Loads conversations from JSON files in a specified dataset folder.
-
-    This function reads all JSON files in the folder corresponding to the given `agent_id`,
-    validates their content, and converts them into `Conversation` objects. If a `prompt` is provided,
-    it is added as a system message to each conversation.
+    Loads conversations from JSON files in a specified dataset folder,
+    processing variants and file references.
 
     Args:
-        agent_id (str): The unique identifier of the agent whose conversations are being loaded.
-        base_path (str, optional): The base directory where the dataset folders are located. Defaults to "dataset".
-        prompt (str, optional): A system prompt to prepend to each conversation. Defaults to None.
+        agent_id (str): The unique identifier of the agent.
+        base_path (str): The base directory for dataset folders.
+        prompt (str, optional): A system prompt to prepend to each conversation.
 
     Returns:
-        List[Conversation]: A list of `Conversation` objects loaded from the dataset.
-
-    Side Effects:
-        - Prints messages for skipped non-JSON files or errors encountered during file reading or validation.
-
-    Raises:
-        ValidationError: If a conversation entry in a JSON file does not match the `Conversation` schema.
-        json.JSONDecodeError: If a JSON file cannot be parsed.
-
-    Notes:
-        - The function ensures the dataset folder exists by calling `validate_dataset_folder`.
-        - Non-JSON files in the folder are ignored.
+        List[Conversation]: A list of Conversation objects.
     """
     agent_path = os.path.join(base_path, agent_id)
-    validate_dataset_folder(agent_path)
+    validate_dataset_folder(agent_path)  # Ensures the folder exists
 
-    conversations = []
+    final_conversations: List[Conversation] = []
+
     for filename in os.listdir(agent_path):
         if not filename.endswith(".json"):
             print(f"Skipping non-JSON file: {filename}")
             continue
+
         filepath = os.path.join(agent_path, filename)
-        with open(filepath, "r", encoding="utf-8") as f:
-            try:
-                raw_data = json.load(f)
-                for entry in raw_data:
-                    try:
-                        conversation = Conversation(**entry)
-                        # If a prompt is provided, add it as a system message
-                        if prompt:
-                            conversation.messages.insert(0, Message(role="system", content=prompt))
-                        conversations.append(conversation)
-                    except ValidationError as e:
-                        print(f"Invalid conversation in {filename}: {e}")
-            except json.JSONDecodeError as e:
-                print(f"Error while reading {filename}: {e}")
-    return conversations
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                # Each JSON file is expected to contain a list of base conversation entries
+                raw_data_list: List[Dict[str, Any]] = json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON from file {filename}: {e}")
+            continue
+        except Exception as e:
+            print(f"Error reading file {filename}: {e}")
+            continue
+
+        for base_entry_dict in raw_data_list:
+            # This list will hold all dictionary versions of conversations
+            # derived from the current base_entry_dict
+            potential_conversation_dicts: List[Dict[str, Any]] = []
+
+            if "variants" in base_entry_dict and base_entry_dict["variants"]:
+                for variant_patch_dict in base_entry_dict["variants"]:
+                    # 1. Create a patched entry from the base entry and the variant patch
+                    # Start with a deep copy of the base entry
+                    current_patched_dict = deepcopy(base_entry_dict)
+
+                    # Remove 'variants' key from the working copy as it's a processing instruction,
+                    # not part of the Conversation model itself.
+                    if "variants" in current_patched_dict:
+                        del current_patched_dict["variants"]
+
+                    # Apply general patch items (e.g., 'considerations', 'expected_response')
+                    # These will overwrite values from the base_entry_dict.
+                    for key, value in variant_patch_dict.items():
+                        if key != "messages":  # 'messages' are handled specially
+                            current_patched_dict[key] = deepcopy(value)
+
+                    # Apply message patching if 'messages' are specified in the variant
+                    if "messages" in variant_patch_dict:
+                        # Get messages from the current state of current_patched_dict (could be from base or prior patches if logic was nested)
+                        base_messages = current_patched_dict.get("messages", [])
+                        # Create a working list of messages, initially from the base/current state
+                        processed_message_list = [deepcopy(m) for m in base_messages]
+
+                        # Iterate through messages provided in the variant patch
+                        for msg_data_from_patch in variant_patch_dict["messages"]:
+                            found_and_replaced = False
+                            # If the patch message has an ID, try to find and replace an existing message
+                            if msg_data_from_patch.get("id"):
+                                for i, existing_msg_data in enumerate(processed_message_list):
+                                    if existing_msg_data.get("id") == msg_data_from_patch["id"]:
+                                        processed_message_list[i] = deepcopy(msg_data_from_patch)
+                                        found_and_replaced = True
+                                        break
+                            # If not replaced (no ID in patch message, or ID didn't match), append it
+                            if not found_and_replaced:
+                                processed_message_list.append(deepcopy(msg_data_from_patch))
+                        current_patched_dict["messages"] = processed_message_list
+
+                    # 2. Check messages in current_patched_dict for file references like "@{filename.txt}"
+                    # This list will hold dictionaries that are fully resolved (file content inserted).
+                    # One variant patch can expand into multiple conversation dicts if a file ref yields multiple instances.
+                    resolved_dicts_for_this_variant: List[Dict[str, Any]] = []
+                    variant_had_file_expansion = False
+
+                    # Iterate through a copy of messages to check for file references
+                    # We'll assume for now that if multiple messages have file refs, only the first one encountered is expanded.
+                    # For more complex scenarios (e.g., Cartesian product of multiple file refs), this logic would need extension.
+                    messages_to_scan = current_patched_dict.get("messages", [])
+                    for msg_idx, msg_data in enumerate(messages_to_scan):
+                        msg_content = msg_data.get("content")
+                        if isinstance(msg_content, str) and \
+                                msg_content.startswith("@{") and \
+                                msg_content.endswith("}"):
+
+                            file_ref_name = msg_content[2:-1]  # Extract filename
+                            # Assume the referenced file is located within the agent's specific folder
+                            actual_file_path = os.path.join(agent_path, file_ref_name)
+
+                            try:
+                                with open(actual_file_path, "r", encoding="utf-8") as frf:
+                                    file_content_full = frf.read()
+
+                                # Split file content by the specified delimiter
+                                instances_text = file_content_full.split("<END_OF_INSTANCE>")
+
+                                if not file_content_full.strip() or \
+                                        (len(instances_text) == 1 and not instances_text[0].strip()):
+                                    # Handle empty or effectively empty files
+                                    print(
+                                        f"Warning: Referenced file '{file_ref_name}' in {filename} (path: {actual_file_path}) is empty or contains no instances. The original reference or an error message will be used.")
+                                    # Create one entry with an error/note in the content
+                                    error_dict = deepcopy(current_patched_dict)
+                                    error_dict["messages"][msg_idx][
+                                        "content"] = f"Error: Referenced file '{file_ref_name}' was empty or had no instances."
+                                    resolved_dicts_for_this_variant.append(error_dict)
+                                else:
+                                    for instance_str in instances_text:
+                                        cleaned_instance_str = instance_str.strip()
+                                        if not cleaned_instance_str:  # Skip empty instances resulting from split
+                                            continue
+
+                                        # Create a new conversation dict for this specific instance
+                                        instance_specific_dict = deepcopy(current_patched_dict)
+                                        # Update the content of the message that had the file reference
+                                        instance_specific_dict["messages"][msg_idx]["content"] = cleaned_instance_str
+                                        resolved_dicts_for_this_variant.append(instance_specific_dict)
+
+                                variant_had_file_expansion = True
+                                # Processed the first file reference found in this variant's messages.
+                                # If multiple file refs per variant message list need independent expansion, this break should be removed
+                                # and logic adjusted (e.g. recursive expansion or iterative processing).
+                                break
+
+                            except FileNotFoundError:
+                                print(
+                                    f"Error: File reference '{file_ref_name}' not found at {actual_file_path} (referenced in {filename}).")
+                                error_dict = deepcopy(current_patched_dict)
+                                error_dict["messages"][msg_idx][
+                                    "content"] = f"Error: Referenced file '{file_ref_name}' not found."
+                                resolved_dicts_for_this_variant.append(error_dict)
+                                variant_had_file_expansion = True  # Mark as "handled" to avoid falling through
+                                break
+                            except Exception as e:
+                                print(f"Error processing file reference {actual_file_path}: {e}")
+                                error_dict = deepcopy(current_patched_dict)
+                                error_dict["messages"][msg_idx][
+                                    "content"] = f"Error processing referenced file '{file_ref_name}': {e}"
+                                resolved_dicts_for_this_variant.append(error_dict)
+                                variant_had_file_expansion = True  # Mark as "handled"
+                                break
+
+                    if not variant_had_file_expansion:
+                        # If no file reference was found or expanded in this variant,
+                        # the current_patched_dict (with modifications from the patch) forms a single conversation.
+                        resolved_dicts_for_this_variant.append(current_patched_dict)
+
+                    potential_conversation_dicts.extend(resolved_dicts_for_this_variant)
+
+            else:  # No 'variants' key in base_entry_dict, so process it directly as one conversation
+                # Ensure 'variants' key is not accidentally passed to Conversation model if it exists but is empty
+                base_copy = deepcopy(base_entry_dict)
+                if "variants" in base_copy:
+                    del base_copy["variants"]
+                potential_conversation_dicts.append(base_copy)
+
+            # Convert all collected dictionaries (fully resolved) to Conversation objects
+            for conv_dict in potential_conversation_dicts:
+                try:
+                    # Ensure 'messages' key exists for Pydantic model, even if empty
+                    if 'messages' not in conv_dict:
+                        conv_dict['messages'] = []
+
+                    conversation_obj = Conversation(**conv_dict)
+                    if prompt:  # If a system prompt is provided, add it to the beginning of messages
+                        # Ensure messages list exists on the Pydantic object
+                        if conversation_obj.messages is None:  # Should be initialized by Pydantic if type is List[Message]
+                            conversation_obj.messages = []
+                        conversation_obj.messages.insert(0, Message(role="system", content=prompt))
+                    final_conversations.append(conversation_obj)
+                except ValidationError as e:
+                    print(
+                        f"Pydantic Validation Error for conversation in {filename} (derived from base or variant): {e}. Data: {conv_dict}")
+                except Exception as e:
+                    print(
+                        f"Unexpected error creating Conversation object from dict in {filename}: {e}. Data: {conv_dict}")
+
+    return final_conversations
 
 
 def target(inputs: dict) -> dict:
@@ -364,9 +503,8 @@ def main():
         | (res_pand["outputs.answer"].isnull())
     ]
 
-    generate_html_report(args, errores, link, res_pand)
+    generate_html_report(args, link, results)
 
-    # Salir con error si hay errores
     if not errores.empty:
         print(f"{len(errores)} resultados erróneos detectados.")
         sys.exit(1)
