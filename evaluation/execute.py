@@ -175,7 +175,12 @@ def convert_conversations_to_examples(conversations, model, tools):
     examples = []
     for conversation in conversations:
         example = {
-            "inputs": {"model": model, "messages": conversation.messages, "tools": tools},
+            "inputs": {
+                "model": model,
+                "messages": conversation.messages,
+                "tools": tools,
+                "considerations": conversation.considerations,
+            },
             "outputs": {
                 "answer": conversation.expected_response,
             },
@@ -192,14 +197,26 @@ def get_evaluators():
         CORRECTNESS_PROMPT
         + """
     Ensure that the output is of the same type as the reference output. i.e. if the reference output its a message, the output should be a message too. If the reference output its a tool/function call, the output should be a tool/function call too.
+    If you consider that the output has sense, you can mark as true.
+    Feedback possible:
+    0: The output is wrong.
+    0.5: The output is partially correct or has sense.
+    1: The output is correct.
     """
     )
 
     def correctness_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
+        considerations = inputs["considerations"]
         evaluator = create_llm_as_judge(
-            prompt=evaluator_prompt,
+            prompt=(
+                evaluator_prompt
+                if considerations is None
+                else f"{evaluator_prompt}\n\n Considerations:\n{considerations}"
+            ),
             model="openai:gpt-4.1",
             feedback_key="correctness",
+            continuous=True,
+            choices=[0, 0.5, 1],
         )
         eval_result = evaluator(inputs=inputs, outputs=outputs, reference_outputs=reference_outputs)
         return eval_result
