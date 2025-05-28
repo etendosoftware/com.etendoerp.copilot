@@ -25,6 +25,15 @@ import psycopg2
 import requests
 from dotenv import load_dotenv
 from psycopg2 import sql
+from utils import (
+    calc_md5,
+    generate_html_report,
+    get_agent_config,
+    get_tools_for_agent,
+    save_conversation_from_run,
+    tool_to_openai_function,
+    validate_dataset_folder,
+)
 
 
 # Default database connection configuration
@@ -53,8 +62,8 @@ DEFAULT_ORG_ID = '0'
 DEFAULT_IS_ACTIVE = 'Y'
 DEFAULT_USER_ID = '100'
 DEFAULT_STATUS = 'D0FCC72902F84486A890B70C1EB10C9C'
-DEFAULT_TASK_TYPE_ID = 'D693563C21374AEEA47CDEBD23C8A0F0'
-DEFAULT_AGENT_ID = '767849A7D3B442EB923A46CCDA41223C'
+DEFAULT_TASK_TYPE_ID = '6F0F3D5470B44A73822EA2CF3175690C'
+DEFAULT_AGENT_ID = '25AEC648805544A9B7A644667C9E7D41'
 
 # HTTP headers for API requests
 HEADERS = {
@@ -329,6 +338,10 @@ def parse_arguments():
     parser.add_argument("--etendo_url", help="Etendo base URL", default=ETENDO_BASE_URL)
     parser.add_argument("--dataset", help="Dataset file with task requests to create", default=None)
     parser.add_argument("--table", help="Database table to monitor record count", default=DEFAULT_TABLE)
+    parser.add_argument("--user", help="The username for authentication", default=None)
+    parser.add_argument("--password", help="The password for authentication", default=None)
+    parser.add_argument("--save", help="The run ID to extract and save the conversation", default=None)
+    parser.add_argument("--agent_id", help="The unique identifier of the agent whose conversations are being saved", default=None)
 
     # Database connection parameters (optional)
     parser.add_argument("--dbname", help="Database name", default=None)
@@ -405,6 +418,18 @@ def main():
 
     # Parse arguments and load configuration
     args = parse_arguments()
+
+    # If a save_run_id is provided, extract and save the conversation
+    if args.save:
+        print("Save ID detected.")
+        config_agent = get_agent_config(args.agent_id, args.etendo_url, None, args.user, args.password)
+
+        save_conversation_from_run(
+            args.agent_id, args.save, config_agent.get("system_prompt"), base_path=args.dataset
+        )
+        print("Conversation.json saved.")
+        return None, None
+
     db_config, etendo_url = load_config(args)
 
     # Get the table to monitor
