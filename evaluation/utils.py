@@ -513,6 +513,7 @@ def generate_html_table_results(results_obj):
     <tbody>
     """
 
+    score = 0
     # Add table rows
     for item in table_items:
         score = item['score']
@@ -574,3 +575,4 @@ def generate_html_report(args, link, results):
     """)
 
     print(f"HTML report generated: {os.getcwd()}/{html_file}")
+

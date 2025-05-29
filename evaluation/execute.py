@@ -1,30 +1,17 @@
-"""
-Etendo Task Execution Script
-
-This script automates the execution of Etendo tasks retrieved from a PostgreSQL database.
-It processes each task by calling an Etendo API endpoint, tracks task execution status,
-monitors record creation in any specified table, and generates an HTML report with execution results.
-
-Dependencies:
-    - psycopg2: PostgreSQL database adapter
-    - requests: HTTP library for API calls
-    - dotenv: For environment variable loading
-
-Usage:
-    Run the script directly with optional arguments:
-    python bulk_tasks_eval.py [--envfile ENV_FILE] [--etendo_url ETENDO_URL] [--dataset DATASET_FILE] [--table TABLE_NAME]
-"""
-
 import argparse
+import json
 import os
+import sys
 import time
-import uuid
-from datetime import datetime
+from copy import deepcopy
+from typing import List, Dict, Any
 
-import psycopg2
-import requests
+from copilot.core.etendo_utils import get_etendo_host
+from copilot.core.schemas import AssistantSchema
 from dotenv import load_dotenv
-from psycopg2 import sql
+from langsmith import Client, wrappers
+from openai import OpenAI
+from pydantic import ValidationError
 from utils import (
     calc_md5,
     generate_html_report,
@@ -32,498 +19,501 @@ from utils import (
     get_tools_for_agent,
     save_conversation_from_run,
     tool_to_openai_function,
-    validate_dataset_folder,
 )
 
+from schemas import Conversation, Message
+from utils import validate_dataset_folder
 
-# Default database connection configuration
-DB_CONFIG = {
-    'dbname': 'copilot_test',
-    'user': 'postgres',
-    'password': 'syspass',
-    'host': 'localhost',
-    'port': '5432'
-}
-
-# Default Etendo API configuration
-ETENDO_BASE_URL = 'http://localhost:8080/etendo'
-ETENDO_API_PATH = '/org.openbravo.client.kernel'
-PROCESS_ID = '7260F458FA2E43A7968E25E4B5242E60'
-WINDOW_ID = '172C8727CDB74C948A207A1405CE445B'
-ACTION = 'com.etendoerp.copilot.process.ExecTask'
-AUTH_TOKEN = 'YWRtaW46YWRtaW4='
-
-# Default table to monitor
-DEFAULT_TABLE = 'm_product'
-
-# Default task configuration
-DEFAULT_CLIENT_ID = '23C59575B9CF467C9620760EB255B389'
-DEFAULT_ORG_ID = '0'
-DEFAULT_IS_ACTIVE = 'Y'
-DEFAULT_USER_ID = '100'
-DEFAULT_STATUS = 'D0FCC72902F84486A890B70C1EB10C9C'
-DEFAULT_TASK_TYPE_ID = '6F0F3D5470B44A73822EA2CF3175690C'
-DEFAULT_AGENT_ID = '25AEC648805544A9B7A644667C9E7D41'
-
-# HTTP headers for API requests
-HEADERS = {
-    'Content-Type': 'application/json;charset=UTF-8',
-    'Authorization': 'Basic ' + AUTH_TOKEN
-}
+DEFAULT_EXECUTIONS = 5
 
 
-def get_db_connection(config):
+def exec_agent(args):
     """
-    Establishes a connection to the PostgreSQL database.
+    Executes an agent with the specified parameters.
+
+    This function retrieves the agent's configuration, evaluates the agent, or saves a conversation
+    from a specific run ID if provided.
 
     Args:
-        config (dict): Database connection parameters
+        args (argparse.Namespace): The parsed command-line arguments containing the following attributes:
+            - user (str): The username for authentication.
+            - password (str): The password for authentication.
+            - token (str): The authentication token.
+            - agent_id (str): The unique identifier of the agent to execute.
+            - k (int): The number of repetitions for the evaluation.
+            - save (str, optional): The run ID to extract and save the conversation. Defaults to None.
+            - skip_evaluators (bool, optional): Whether to skip custom evaluators. Defaults to False.
 
-    Returns:
-        psycopg2.connection: Database connection object or None if connection fails
+    Side Effects:
+        - Prints the execution details to the console.
+        - Calls `save_conversation_from_run` if `save_run_id` is provided.
+        - Calls `evaluate_agent` to evaluate the agent if `save_run_id` is not provided.
     """
-    try:
-        return psycopg2.connect(**config)
-    except Exception as e:
-        print(f"Database connection error: {e}")
-        return None
+    user = args.user
+    password = args.password
+    token = args.token
+    agent_id = args.agent_id
+    repetitions = int(args.k)
+    save_run_id = args.save
+    skip_evaluators = args.skip_evaluators
+    base_path = args.dataset
 
+    print("Executing agent with:")
+    print(f"User: {user}")
+    print(f"Password: {password}")
+    print(f"Token: {token}")
+    print(f"Agent ID: {agent_id}")
+    print(f"Base Path: {base_path}")
+    print(f"Repetitions: {repetitions}")
+    host = get_etendo_host()
+    if args.etendohost:
+        host = args.etendohost
+    config_agent = get_agent_config(agent_id, host, token, user, password)
 
-def get_task_ids_from_db(conn):
-    """
-    Retrieves task IDs from the 'etask_task' table.
-
-    Args:
-        conn: Database connection object
-
-    Returns:
-        list: List of task IDs or empty list if retrieval fails
-    """
-    ids = []
-    if not conn:
-        return ids
-    try:
-        cur = conn.cursor()
-        query = sql.SQL("SELECT {} FROM {}").format(
-            sql.Identifier("etask_task_id"),
-            sql.Identifier("etask_task")
+    # If a save_run_id is provided, extract and save the conversation
+    if save_run_id:
+        save_conversation_from_run(
+            agent_id, save_run_id, config_agent.get("system_prompt"), base_path=base_path
         )
-        cur.execute(query)
-        ids = [row[0] for row in cur.fetchall()]
-        cur.close()
-        print(f"{len(ids)} tasks found.")
-    except Exception as e:
-        print(f"Error querying task IDs: {e}")
-    return ids
+        return None, None
+    return evaluate_agent(agent_id, config_agent, repetitions, base_path, skip_evaluators)
 
 
-def count_db_records(conn, table_name):
+def load_conversations(agent_id: str, base_path: str, prompt: str = None) -> List[Conversation]:
     """
-    Counts the number of records in a specified database table.
+    Loads conversations from JSON files in a specified dataset folder,
+    processing variants and file references.
 
     Args:
-        conn: Database connection object
-        table_name (str): Name of the table to count records in
+        agent_id (str): The unique identifier of the agent.
+        base_path (str): The base directory for dataset folders.
+        prompt (str, optional): A system prompt to prepend to each conversation.
 
     Returns:
-        int: Number of records or -1 if counting fails
+        List[Conversation]: A list of Conversation objects.
     """
-    if not conn:
-        return -1
-    try:
-        cur = conn.cursor()
-        query = sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table_name))
-        cur.execute(query)
-        count = cur.fetchone()[0]
-        cur.close()
-        return count
-    except Exception as e:
-        print(f"Error counting records in {table_name}: {e}")
-        return -1
+    agent_path = os.path.join(base_path, agent_id)
+    validate_dataset_folder(agent_path)  # Ensures the folder exists
+
+    final_conversations: List[Conversation] = []
+
+    for filename in os.listdir(agent_path):
+        if not filename.endswith(".json"):
+            print(f"Skipping non-JSON file: {filename}")
+            continue
+
+        filepath = os.path.join(agent_path, filename)
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                # Each JSON file is expected to contain a list of base conversation entries
+                raw_data_list: List[Dict[str, Any]] = json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON from file {filename}: {e}")
+            continue
+        except Exception as e:
+            print(f"Error reading file {filename}: {e}")
+            continue
+
+        for base_entry_dict in raw_data_list:
+            # This list will hold all dictionary versions of conversations
+            # derived from the current base_entry_dict
+            potential_conversation_dicts: List[Dict[str, Any]] = []
+
+            if "variants" in base_entry_dict and base_entry_dict["variants"]:
+                for variant_patch_dict in base_entry_dict["variants"]:
+                    # 1. Create a patched entry from the base entry and the variant patch
+                    # Start with a deep copy of the base entry
+                    current_patched_dict = deepcopy(base_entry_dict)
+
+                    # Remove 'variants' key from the working copy as it's a processing instruction,
+                    # not part of the Conversation model itself.
+                    if "variants" in current_patched_dict:
+                        del current_patched_dict["variants"]
+
+                    # Apply general patch items (e.g., 'considerations', 'expected_response')
+                    # These will overwrite values from the base_entry_dict.
+                    for key, value in variant_patch_dict.items():
+                        if key != "messages":  # 'messages' are handled specially
+                            current_patched_dict[key] = deepcopy(value)
+
+                    # Apply message patching if 'messages' are specified in the variant
+                    if "messages" in variant_patch_dict:
+                        # Get messages from the current state of current_patched_dict (could be from base or prior patches if logic was nested)
+                        base_messages = current_patched_dict.get("messages", [])
+                        # Create a working list of messages, initially from the base/current state
+                        processed_message_list = [deepcopy(m) for m in base_messages]
+
+                        # Iterate through messages provided in the variant patch
+                        for msg_data_from_patch in variant_patch_dict["messages"]:
+                            found_and_replaced = False
+                            # If the patch message has an ID, try to find and replace an existing message
+                            if msg_data_from_patch.get("id"):
+                                for i, existing_msg_data in enumerate(processed_message_list):
+                                    if existing_msg_data.get("id") == msg_data_from_patch["id"]:
+                                        processed_message_list[i] = deepcopy(msg_data_from_patch)
+                                        found_and_replaced = True
+                                        break
+                            # If not replaced (no ID in patch message, or ID didn't match), append it
+                            if not found_and_replaced:
+                                processed_message_list.append(deepcopy(msg_data_from_patch))
+                        current_patched_dict["messages"] = processed_message_list
+
+                    # 2. Check messages in current_patched_dict for file references like "@{filename.txt}"
+                    # This list will hold dictionaries that are fully resolved (file content inserted).
+                    # One variant patch can expand into multiple conversation dicts if a file ref yields multiple instances.
+                    resolved_dicts_for_this_variant: List[Dict[str, Any]] = []
+                    variant_had_file_expansion = False
+
+                    # Iterate through a copy of messages to check for file references
+                    # We'll assume for now that if multiple messages have file refs, only the first one encountered is expanded.
+                    # For more complex scenarios (e.g., Cartesian product of multiple file refs), this logic would need extension.
+                    messages_to_scan = current_patched_dict.get("messages", [])
+                    for msg_idx, msg_data in enumerate(messages_to_scan):
+                        msg_content = msg_data.get("content")
+                        if isinstance(msg_content, str) and \
+                                msg_content.startswith("@{") and \
+                                msg_content.endswith("}"):
+
+                            file_ref_name = msg_content[2:-1]  # Extract filename
+                            # Assume the referenced file is located within the agent's specific folder
+                            actual_file_path = os.path.join(agent_path, file_ref_name)
+
+                            try:
+                                with open(actual_file_path, "r", encoding="utf-8") as frf:
+                                    file_content_full = frf.read()
+
+                                # Split file content by the specified delimiter
+                                instances_text = file_content_full.split("<END_OF_INSTANCE>")
+
+                                if not file_content_full.strip() or \
+                                        (len(instances_text) == 1 and not instances_text[0].strip()):
+                                    # Handle empty or effectively empty files
+                                    print(
+                                        f"Warning: Referenced file '{file_ref_name}' in {filename} (path: {actual_file_path}) is empty or contains no instances. The original reference or an error message will be used.")
+                                    # Create one entry with an error/note in the content
+                                    error_dict = deepcopy(current_patched_dict)
+                                    error_dict["messages"][msg_idx][
+                                        "content"] = f"Error: Referenced file '{file_ref_name}' was empty or had no instances."
+                                    resolved_dicts_for_this_variant.append(error_dict)
+                                else:
+                                    for instance_str in instances_text:
+                                        cleaned_instance_str = instance_str.strip()
+                                        if not cleaned_instance_str:  # Skip empty instances resulting from split
+                                            continue
+
+                                        # Create a new conversation dict for this specific instance
+                                        instance_specific_dict = deepcopy(current_patched_dict)
+                                        # Update the content of the message that had the file reference
+                                        instance_specific_dict["messages"][msg_idx]["content"] = cleaned_instance_str
+                                        resolved_dicts_for_this_variant.append(instance_specific_dict)
+
+                                variant_had_file_expansion = True
+                                # Processed the first file reference found in this variant's messages.
+                                # If multiple file refs per variant message list need independent expansion, this break should be removed
+                                # and logic adjusted (e.g. recursive expansion or iterative processing).
+                                break
+
+                            except FileNotFoundError:
+                                print(
+                                    f"Error: File reference '{file_ref_name}' not found at {actual_file_path} (referenced in {filename}).")
+                                error_dict = deepcopy(current_patched_dict)
+                                error_dict["messages"][msg_idx][
+                                    "content"] = f"Error: Referenced file '{file_ref_name}' not found."
+                                resolved_dicts_for_this_variant.append(error_dict)
+                                variant_had_file_expansion = True  # Mark as "handled" to avoid falling through
+                                break
+                            except Exception as e:
+                                print(f"Error processing file reference {actual_file_path}: {e}")
+                                error_dict = deepcopy(current_patched_dict)
+                                error_dict["messages"][msg_idx][
+                                    "content"] = f"Error processing referenced file '{file_ref_name}': {e}"
+                                resolved_dicts_for_this_variant.append(error_dict)
+                                variant_had_file_expansion = True  # Mark as "handled"
+                                break
+
+                    if not variant_had_file_expansion:
+                        # If no file reference was found or expanded in this variant,
+                        # the current_patched_dict (with modifications from the patch) forms a single conversation.
+                        resolved_dicts_for_this_variant.append(current_patched_dict)
+
+                    potential_conversation_dicts.extend(resolved_dicts_for_this_variant)
+
+            else:  # No 'variants' key in base_entry_dict, so process it directly as one conversation
+                # Ensure 'variants' key is not accidentally passed to Conversation model if it exists but is empty
+                base_copy = deepcopy(base_entry_dict)
+                if "variants" in base_copy:
+                    del base_copy["variants"]
+                potential_conversation_dicts.append(base_copy)
+
+            # Convert all collected dictionaries (fully resolved) to Conversation objects
+            for conv_dict in potential_conversation_dicts:
+                try:
+                    # Ensure 'messages' key exists for Pydantic model, even if empty
+                    if 'messages' not in conv_dict:
+                        conv_dict['messages'] = []
+
+                    conversation_obj = Conversation(**conv_dict)
+                    if prompt:  # If a system prompt is provided, add it to the beginning of messages
+                        # Ensure messages list exists on the Pydantic object
+                        if conversation_obj.messages is None:  # Should be initialized by Pydantic if type is List[Message]
+                            conversation_obj.messages = []
+                        conversation_obj.messages.insert(0, Message(role="system", content=prompt))
+                    final_conversations.append(conversation_obj)
+                except ValidationError as e:
+                    print(
+                        f"Pydantic Validation Error for conversation in {filename} (derived from base or variant): {e}. Data: {conv_dict}")
+                except Exception as e:
+                    print(
+                        f"Unexpected error creating Conversation object from dict in {filename}: {e}. Data: {conv_dict}")
+
+    return final_conversations
 
 
-def create_tasks_from_dataset(conn, dataset_file):
+def target(inputs: dict) -> dict:
     """
-    Creates tasks in the database from a dataset file.
+    Sends a chat completion request to the OpenAI client and retrieves the response.
 
     Args:
-        conn: Database connection object
-        dataset_file (str): Path to the dataset file containing task requests
+        inputs (dict): A dictionary containing the following keys:
+            - "model" (str): The name of the model to use for the chat completion.
+            - "messages" (list): A list of message dictionaries, where each message
+            contains the role (e.g., "user", "assistant") and the content of the message.
 
     Returns:
-        int: Number of tasks created or -1 if creation fails
+        dict: A dictionary containing the response with the key:
+            - "answer" (str): The content of the response message from the OpenAI client.
     """
-    if not conn:
-        return -1
-
-    # Check if file exists
-    if not os.path.exists(dataset_file):
-        print(f"Dataset file not found: {dataset_file}")
-        return -1
-
-    # Read the dataset file
-    try:
-        with open(dataset_file, 'r', encoding='utf-8') as f:
-            requests_data = f.readlines()
-    except Exception as e:
-        print(f"Error reading dataset file: {e}")
-        return -1
-
-    # Filter out empty lines
-    requests_data = [req.strip() for req in requests_data if req.strip()]
-
-    # Generate a group ID for this batch
-    group_id = str(uuid.uuid4())
-
-    # Insert tasks into the database
-    tasks_created = 0
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-
-    try:
-        cur = conn.cursor()
-        for request in requests_data:
-            task_id = str(uuid.uuid4()).replace('-', '').upper()
-
-            insert_query = """
-            INSERT INTO etask_task (
-                etask_task_id, ad_client_id, ad_org_id, isactive, created, createdby, 
-                updated, updatedby, status, assigned_user, etask_task_type_id, 
-                em_etcop_question, em_etcop_response, em_etcop_agentid, 
-                em_etcop_bulkadd, em_etcop_exec, em_etcop_group
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """
-
-            cur.execute(insert_query, (
-                task_id, DEFAULT_CLIENT_ID, DEFAULT_ORG_ID, DEFAULT_IS_ACTIVE,
-                now, DEFAULT_USER_ID, now, DEFAULT_USER_ID,
-                DEFAULT_STATUS, None, DEFAULT_TASK_TYPE_ID,
-                request, None, DEFAULT_AGENT_ID,
-                'Y', 'N', group_id
-            ))
-
-            tasks_created += 1
-
-        conn.commit()
-        cur.close()
-        print(f"{tasks_created} tasks created with group ID: {group_id}")
-        return tasks_created
-    except Exception as e:
-        conn.rollback()
-        print(f"Error creating tasks: {e}")
-        return -1
+    openai_client = wrappers.wrap_openai(OpenAI())
+    response = openai_client.chat.completions.create(
+        model=inputs["model"],
+        messages=inputs["messages"],
+        tools=inputs["tools"],
+    )
+    # Extract the content and tool calls from the response
+    answer = response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
+    return {"answer": answer}
 
 
-def execute_etendo_task(task_id, etendo_url):
+def convert_conversations_to_examples(conversations, model, tools):
     """
-    Executes a task in Etendo by making an API call.
+    Converts a list of conversations into a list of examples for evaluation.
+
+    This function processes each conversation, extracting the messages and expected response,
+    and formats them into a structure suitable for evaluation.
 
     Args:
-        task_id (str): ID of the task to execute
-        etendo_url (str): Base URL for Etendo API
+        conversations (list): A list of Conversation objects, each containing messages and an expected response.
+        model (str): The name of the model to be used in the evaluation.
 
     Returns:
-        tuple: (success_flag, execution_time, error_message)
-            - success_flag (bool): True if execution was successful
-            - execution_time (float): Time taken in seconds
-            - error_message (str): Error message if execution failed, None otherwise
+        list: A list of examples, where each example is a dictionary containing:
+            - 'inputs': A dictionary with the model name and a list of messages.
+            - 'outputs': A dictionary with the expected response.
     """
-    start_time = time.time()
-    full_url = f"{etendo_url}{ETENDO_API_PATH}?processId={PROCESS_ID}&reportId=null&windowId={WINDOW_ID}&_action={ACTION}"
-    payload = {
-        "recordIds": [task_id],
-        "_buttonValue": "DONE",
-        "_params": {},
-        "_entityName": "ETASK_Task"
-    }
-
-    try:
-        print(f"  Executing task for ID: {task_id}...")
-        response = requests.post(full_url, headers=HEADERS, json=payload, timeout=60)
-        response.raise_for_status()
-        print(f"  Response: {response.status_code}")
-        return True, round(time.time() - start_time, 2), None
-    except Exception as e:
-        error_msg = f"Error: {str(e)}"
-        print(f"  {error_msg}")
-        return False, round(time.time() - start_time, 2), error_msg
+    examples = []
+    for conversation in conversations:
+        example = {
+            "inputs": {
+                "model": model,
+                "messages": conversation.messages,
+                "tools": tools,
+                "considerations": conversation.considerations,
+            },
+            "outputs": {
+                "answer": conversation.expected_response,
+            },
+        }
+        examples.append(example)
+    return examples
 
 
-def generate_html_report(data):
+def get_evaluators():
+    from openevals.llm import create_llm_as_judge
+    from openevals.prompts import CORRECTNESS_PROMPT
+
+    evaluator_prompt = (
+        CORRECTNESS_PROMPT
+        + """
+    Ensure that the output is of the same type as the reference output. i.e. if the reference output its a message, the output should be a message too. If the reference output its a tool/function call, the output should be a tool/function call too.
+    If you consider that the output has sense, you can mark as true.
+    Feedback possible:
+    0: The output is wrong.
+    0.5: The output is partially correct or has sense.
+    1: The output is correct.
     """
-    Generates an HTML report with task execution results.
+    )
+
+    def correctness_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
+        considerations = inputs["considerations"]
+        evaluator = create_llm_as_judge(
+            prompt=(
+                evaluator_prompt
+                if considerations is None
+                else f"{evaluator_prompt}\n\n Considerations:\n{considerations}"
+            ),
+            model="openai:gpt-4.1",
+            feedback_key="correctness",
+            continuous=True,
+            choices=[0, 0.5, 1],
+        )
+        eval_result = evaluator(inputs=inputs, outputs=outputs, reference_outputs=reference_outputs)
+        return eval_result
+
+    return [correctness_evaluator]
+
+
+def evaluate_agent(agent_id, agent_config, k, base_path, skip_evaluators=False):
+    """
+    Evaluates an agent's performance using a dataset of conversations.
+
+    This function retrieves the agent's configuration, loads conversations, converts
+    them into examples, and evaluates the agent using the LangSmith client.
 
     Args:
-        data (dict): Dictionary containing report data with the following keys:
-            - total_tasks_found: Number of tasks found
-            - successful_tasks: Number of tasks executed successfully
-            - failed_tasks: Number of tasks that failed
-            - total_script_duration: Total script execution time
-            - table_name: Name of the monitored table
-            - records_before: Record count before execution
-            - records_after: Record count after execution
-            - records_created: Number of records created
-            - task_details: List of dictionaries with task execution details
+        skip_evaluators: Whether to skip custom evaluators. Defaults to False.
+        agent_id (str): The unique identifier of the agent to evaluate.
+        agent_config (dict): Configuration of the agent, including the system prompt
+            and model.
+        k (int): Number of repetitions for the evaluation.
+        evaluators (bool, optional): Whether to use custom evaluators. Defaults to False.
+
+    Notes:
+        - The function creates or updates a dataset for the agent's evaluation.
+        - If no dataset exists, it creates one and populates it with examples.
+        - The evaluation is performed using the LangSmith client.
+
+    Raises:
+        Exception: If there is an error reading or creating the dataset.
     """
-    now = datetime.now()
-    filename = f"etendo_task_report_{now.strftime('%Y%m%d_%H%M%S')}.html"
-
-    html = f"""<!DOCTYPE html>
-    <html>
-    <head>
-        <title>Etendo Task Execution Report</title>
-        <style>
-            body {{ font-family: Arial; margin: 20px; background-color: #f4f4f4; }}
-            .container {{ background-color: #fff; padding: 20px; border-radius: 8px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-            th {{ background-color: #007bff; color: white; }}
-            .success {{ color: green; }}
-            .failure {{ color: red; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Etendo Task Execution Report</h1>
-            <p><strong>Date:</strong> {now.strftime("%Y-%m-%d %H:%M:%S")}</p>
-
-            <h2>Summary</h2>
-            <p>Tasks found: {data['total_tasks_found']}</p>
-            <p>Successful tasks: <span class="success">{data['successful_tasks']}</span></p>
-            <p>Failed tasks: <span class="failure">{data['failed_tasks']}</span></p>
-            <p>Total time: {data['total_script_duration']:.2f} seconds</p>
-
-            <h2>Records in table: {data['table_name']}</h2>
-            <p>Initial count: {data['records_before']}</p>
-            <p>Final count: {data['records_after']}</p>
-            <p>Records created: <strong>{data['records_created']}</strong></p>
-
-            <h2>Details</h2>
-            <table>
-                <tr><th>Task ID</th><th>Status</th><th>Duration (s)</th><th>Error</th></tr>
-    """
-
-    for task in data['task_details']:
-        status_class = "success" if task['status'] == "Success" else "failure"
-        error_msg = task['error'] if task['error'] else "N/A"
-        html += f"""<tr>
-            <td>{task['id']}</td>
-            <td class="{status_class}">{task['status']}</td>
-            <td>{task['duration']:.2f}</td>
-            <td>{error_msg}</td>
-        </tr>"""
-
-    html += """
-            </table>
-        </div>
-    </body>
-    </html>"""
-
+    prompt = agent_config.get("system_prompt")  # Retrieve the system prompt from
+    # the agent config
+    model = agent_config.get("model")  # Retrieve the model from the agent config
+    agent_config_assch = AssistantSchema(**agent_config)
+    available_tools = get_tools_for_agent(agent_config_assch)  # Get the tools for the
+    # agent
+    conversations = load_conversations(agent_id, base_path=base_path, prompt=prompt)
+    available_tools = [
+        tool_to_openai_function(tool) for tool in available_tools
+    ]  # Convert tools to OpenAI format
+    examples = convert_conversations_to_examples(
+        conversations, model, tools=available_tools
+    )  # Convert conversations to examples?
+    ls_client = Client()  # Initialize the LangSmith client
+    examples_md5 = calc_md5(examples)  # Calculate the MD5 hash of the examples
+    dat_name = f"Dataset for evaluation {agent_id} MD5:{examples_md5}"  # Generate a unique dataset name
     try:
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(html)
-        print(f"\nHTML report generated: {filename}")
+        dataset = ls_client.read_dataset(dataset_name=dat_name)  # Attempt to read the dataset
     except Exception as e:
-        print(f"Error generating HTML report: {e}")
+        print(f"Error reading dataset: {e}")  # Log any errors
+        dataset = None
+    if dataset is None or dataset.id is None:
+        # Create a new dataset if it doesn't exist
+        dataset = ls_client.create_dataset(dataset_name=dat_name)
+        ls_client.create_examples(
+            dataset_id=dataset.id,
+            examples=examples,
+        )
 
+    print("\n" * 20)  # Print spacing for readability
+    results = ls_client.evaluate(
+        target,  # Target function for evaluation
+        data=dataset.name,  # Dataset name
+        evaluators=get_evaluators() if not skip_evaluators else None,
+        # Use evaluators if specified
+        experiment_prefix=agent_id,  # Prefix for the evaluation experiment
+        description="Testing agent",  # Description of the evaluation
+        max_concurrency=4,  # Maximum concurrency for evaluation
+        num_repetitions=k,  # Number of repetitions
+    )
 
-def parse_arguments():
-    """
-    Parse command line arguments for the script.
-
-    Returns:
-        argparse.Namespace: Parsed arguments
-    """
-    parser = argparse.ArgumentParser(description="Process Etendo tasks from database.")
-    parser.add_argument("--envfile", help="Environment file", default=None)
-    parser.add_argument("--etendo_url", help="Etendo base URL", default=ETENDO_BASE_URL)
-    parser.add_argument("--dataset", help="Dataset file with task requests to create", default=None)
-    parser.add_argument("--table", help="Database table to monitor record count", default=DEFAULT_TABLE)
-    parser.add_argument("--user", help="The username for authentication", default=None)
-    parser.add_argument("--password", help="The password for authentication", default=None)
-    parser.add_argument("--save", help="The run ID to extract and save the conversation", default=None)
-    parser.add_argument("--agent_id", help="The unique identifier of the agent whose conversations are being saved", default=None)
-
-    # Database connection parameters (optional)
-    parser.add_argument("--dbname", help="Database name", default=None)
-    parser.add_argument("--dbuser", help="Database user", default=None)
-    parser.add_argument("--dbpassword", help="Database password", default=None)
-    parser.add_argument("--dbhost", help="Database host", default=None)
-    parser.add_argument("--dbport", help="Database port", default=None)
-
-    return parser.parse_args()
-
-
-def load_config(args):
-    """
-    Load configuration from environment file and command line arguments.
-
-    Args:
-        args (argparse.Namespace): Command line arguments
-
-    Returns:
-        tuple: (db_config, etendo_url)
-    """
-    db_config = DB_CONFIG.copy()
-    etendo_url = args.etendo_url
-
-    # Load from environment file if provided
-    if args.envfile:
-        print(f"Loading environment variables from {args.envfile}")
-        load_dotenv(args.envfile, verbose=True)
-
-        # Update from environment variables using the correct property names
-        if os.getenv('bbdd.sid'):
-            db_config['dbname'] = os.getenv('bbdd.sid')
-        if os.getenv('bbdd.user'):
-            db_config['user'] = os.getenv('bbdd.user')
-        if os.getenv('bbdd.password'):
-            db_config['password'] = os.getenv('bbdd.password')
-        if os.getenv('bbdd.host'):
-            db_config['host'] = os.getenv('bbdd.host')
-        if os.getenv('ETENDO_BASE_URL'):
-            etendo_url = os.getenv('ETENDO_BASE_URL')
-
-    # Command line arguments override env file
-    if args.dbname:
-        db_config['dbname'] = args.dbname
-    if args.dbuser:
-        db_config['user'] = args.dbuser
-    if args.dbpassword:
-        db_config['password'] = args.dbpassword
-    if args.dbhost:
-        db_config['host'] = args.dbhost
-    if args.dbport:
-        db_config['port'] = args.dbport
-    if args.etendo_url:
-        etendo_url = args.etendo_url
-
-    return db_config, etendo_url
+    return results, results.experiment_name  # Return the evaluation results
 
 
 def main():
     """
-    Main function that orchestrates the entire task execution process:
-    1. Parses command line arguments
-    2. Loads configuration from environment file and arguments
-    3. Connects to the database
-    4. Creates tasks from dataset if provided
-    5. Counts records in specified table before execution
-    6. Retrieves and processes tasks
-    7. Counts records in specified table after execution
-    8. Generates an HTML report
-    9. Outputs execution summary
+    Main function to process user parameters and execute the agent.
+
+    This function parses command-line arguments, validates the provided inputs,
+    and calls the `exec_agent` function to execute the agent with the specified parameters.
+
+    Command-line Arguments:
+        --user (str, optional): Username for authentication.
+        --password (str, optional): Password for authentication.
+        --token (str, optional): Authentication token. Either this or `--user` and `--password` must be provided.
+        --agent_id (str, required): ID of the agent to execute.
+        --k (int, optional): Number of executions per conversation. Defaults to `DEFAULT_EXECUTIONS`.
+        --save (str, optional): Run ID of LangSmith to extract and save the conversation.
+
+    Raises:
+        SystemExit: If required arguments are missing or invalid combinations of arguments are provided.
+
+    Notes:
+        - Either `--token` or both `--user` and `--password` must be provided for authentication.
+        - If the `--save` flag is used, the `--agent_id` argument is also required.
     """
-    start_time = time.time()
-    print(f"Starting script... [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+    parser = argparse.ArgumentParser(description="Process user parameters.")
+    parser.add_argument("--user", help="Username")
+    parser.add_argument("--envfile", help="Environment file", default=None)
+    parser.add_argument("--etendohost", help="Etendo host.", default=None)
 
-    # Parse arguments and load configuration
-    args = parse_arguments()
+    parser.add_argument("--password", help="User password")
+    parser.add_argument("--token", help="Authentication token")
+    parser.add_argument(
+        "--dataset",
+        help="Base path where the dataset will be read/writed",
+        default="../com.etendoerp.copilot/dataset",
+    )
+    parser.add_argument("--agent_id", required=True, help="Agent ID")
+    parser.add_argument("--k", help="Executions per 'conversation'", default=DEFAULT_EXECUTIONS)
+    parser.add_argument("--save", help="LangSmith Run ID to extract and save the conversation")
+    parser.add_argument("--skip_evaluators", help="Use custom evaluators", action="store_true")
 
-    # If a save_run_id is provided, extract and save the conversation
-    if args.save:
-        print("Save ID detected.")
-        config_agent = get_agent_config(args.agent_id, args.etendo_url, None, args.user, args.password)
-
-        save_conversation_from_run(
-            args.agent_id, args.save, config_agent.get("system_prompt"), base_path=args.dataset
+    args = parser.parse_args()
+    if args.envfile:
+        print(
+            f"Loading environment variables from {args.envfile}. Make sure to set the variables in the file."
         )
-        print("Conversation.json saved.")
-        return None, None
+        load_dotenv(args.envfile, verbose=True)
 
-    db_config, etendo_url = load_config(args)
+    if not args.token and not (args.user and args.password):
+        print("Error: You must provide a token or a username and password.")
+        sys.exit(1)
 
-    # Get the table to monitor
-    table_to_monitor = args.table
+    if args.save and not args.agent_id:
+        print("Error: You must provide an agent_id when using the --save flag.")
+        sys.exit(1)
 
-    print(f"Using database: {db_config['host']}:{db_config['port']}/{db_config['dbname']}")
-    print(f"Using Etendo URL: {etendo_url}")
-    print(f"Monitoring table: {table_to_monitor}")
-
-    # Connect to database
-    conn = get_db_connection(db_config)
-    if not conn:
-        print("Could not connect to the database. Exiting.")
+    # Create folder if it doesn't exist
+    if not os.path.exists("./evaluation_output"):
+        os.makedirs("evaluation_output")
+    results, link = exec_agent(args)
+    if args.save is not None:
+        print("Conversation saved.")
         return
+    # Extract the url of the results
+    res_pand = results.to_pandas()
+    # Save the results to a CSV file
+    output_file = f"evaluation_output/results_{args.agent_id}_{int(time.time())}.csv"
+    res_pand.to_csv(output_file, index=False)
+    # Detectar errores
+    errores = res_pand[
+        (res_pand["feedback.correctness"] is False)
+        | (res_pand["error"].notnull())
+        | (res_pand["outputs.answer"].isnull())
+    ]
 
-    # Create tasks from dataset if provided
-    if args.dataset:
-        print(f"Creating tasks from dataset: {args.dataset}")
-        tasks_created = create_tasks_from_dataset(conn, args.dataset)
-        if tasks_created <= 0:
-            print("No tasks were created from the dataset. Exiting.")
-            conn.close()
-            return
-        print(f"Successfully created {tasks_created} tasks from the dataset.")
+    generate_html_report(args, link, results)
 
-    # Count initial records in the specified table
-    records_before = count_db_records(conn, table_to_monitor)
-    print(f"Records in {table_to_monitor} before: {records_before if records_before != -1 else 'Error'}")
 
-    # Get tasks and process them
-    tasks = get_task_ids_from_db(conn)
-    details = []
-    successes = 0
-    failures = 0
-
-    for i, task_id in enumerate(tasks):
-        print(f"\nProcessing task {i + 1}/{len(tasks)}:")
-        success, duration, error = execute_etendo_task(str(task_id), etendo_url)
-
-        status = "Success" if success else "Failure"
-        details.append({
-            'id': task_id,
-            'status': status,
-            'duration': duration,
-            'error': error
-        })
-
-        if success:
-            successes += 1
-        else:
-            failures += 1
-        print(f"  Result: {status}, Duration: {duration:.2f}s")
-
-    # Count final records in the specified table
-    records_after = count_db_records(conn, table_to_monitor)
-    print(f"Records in {table_to_monitor} after: {records_after if records_after != -1 else 'Error'}")
-
-    records_created = -1
-    if records_before != -1 and records_after != -1:
-        records_created = records_after - records_before
-
-    # Close connection
-    conn.close()
-
-    total_duration = time.time() - start_time
-
-    # Prepare report data
-    report_data = {
-        'total_tasks_found': len(tasks),
-        'successful_tasks': successes,
-        'failed_tasks': failures,
-        'total_script_duration': total_duration,
-        'table_name': table_to_monitor,
-        'records_before': records_before,
-        'records_after': records_after,
-        'records_created': records_created,
-        'task_details': details
-    }
-
-    # Generate HTML report
-    generate_html_report(report_data)
-
-    # Final summary
-    print("\n--- FINAL SUMMARY ---")
-    print(f"Tasks found: {len(tasks)}")
-    print(f"Successful tasks: {successes}")
-    print(f"Failed tasks: {failures}")
-    print(f"Table monitored: {table_to_monitor}")
-    print(f"Records before: {records_before}")
-    print(f"Records after: {records_after}")
-    print(f"Records created: {records_created}")
-    print(f"Total time: {total_duration:.2f} seconds")
-    print(f"Script finished. [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+    if not errores.empty:
+        print(f"{len(errores)} resultados erróneos detectados.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
+    """
+    Entry point of the script.
+
+    Calls the `main` function to process command-line arguments and execute the agent.
+    """
     main()
