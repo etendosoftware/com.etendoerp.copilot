@@ -706,7 +706,7 @@ def main():
     # Calculate score (e.g., success rate)
     score = 0.0
     if num_tasks_created > 0 and not args.skip_exec: # Only calculate score if tasks were executed
-        score = successful_task_count / num_tasks_created
+        score = delta_records / num_tasks_created
     elif args.skip_exec:
         score = 0.0 # Or some other indicator for skipped execution, e.g. -1, or don't send score
 
