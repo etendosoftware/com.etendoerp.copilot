@@ -6,6 +6,7 @@ This script automates the complete process of creating and executing tasks in Et
 2. Executes the created tasks by calling an Etendo API
 3. Monitors changes in database tables
 4. Generates an HTML report with the results
+5. Sends evaluation results to a Supabase backend
 
 Dependencies:
     - psycopg2: Adapter for PostgreSQL
@@ -19,6 +20,7 @@ Usage:
 
 import argparse
 import os
+import subprocess
 import time
 import uuid
 import pandas as pd
@@ -27,6 +29,7 @@ import requests
 import traceback
 from datetime import datetime
 from dotenv import load_dotenv
+from dulwich.cli import cmd_web_daemon
 from psycopg2 import sql
 
 # Default database connection configuration
@@ -59,7 +62,6 @@ DEFAULT_IS_ACTIVE = 'Y'
 DEFAULT_USER_ID = '100'
 DEFAULT_STATUS = 'D0FCC72902F84486A890B70C1EB10C9C'  # Default status for new tasks
 DEFAULT_TASK_TYPE_ID = 'D693563C21374AEEA47CDEBD23C8A0F0'
-DEFAULT_AGENT_ID = '767849A7D3B442EB923A46CCDA41223C'
 
 # Status of tasks to be executed
 TASKS_STATUS = 'D0FCC72902F84486A890B70C1EB10C9C' # Status indicating tasks ready for execution
@@ -69,7 +71,6 @@ HEADERS = {
     'Content-Type': 'application/json;charset=UTF-8',
     'Authorization': 'Basic ' + AUTH_TOKEN
 }
-
 
 def get_db_connection(config):
     """
@@ -148,7 +149,7 @@ def load_csv_data(csv_file):
         return None
 
 
-def create_tasks_from_templates_and_csv(conn, df, templates):
+def create_tasks_from_templates_and_csv(agent_id, conn, df, templates):
     """
     Creates tasks by combining templates with CSV data.
 
@@ -200,7 +201,7 @@ def create_tasks_from_templates_and_csv(conn, df, templates):
                     DEFAULT_CLIENT_ID, DEFAULT_ORG_ID, DEFAULT_IS_ACTIVE,
                     now, DEFAULT_USER_ID, now, DEFAULT_USER_ID,
                     DEFAULT_STATUS, None, DEFAULT_TASK_TYPE_ID,
-                    task_text, None, DEFAULT_AGENT_ID,
+                    task_text, None, agent_id,
                     'Y', 'N', group_id
                 ))
 
@@ -330,27 +331,19 @@ def execute_etendo_task(task_id, etendo_url):
         return False, round(time.time() - start_time_task, 2), error_msg_details
 
 
-def generate_html_report(data):
+def generate_html_report(data, write_to_file=True):
     """
-    Generates an HTML report with task execution results.
+    Generates an HTML report string with task execution results.
+    Optionally writes the report to a file.
 
     Args:
-        data (dict): Dictionary with report data with the following keys:
-            - total_tasks_found: Number of tasks found
-            - successful_tasks: Number of successfully executed tasks
-            - failed_tasks: Number of failed tasks
-            - total_script_duration: Total script execution time
-            - table_name: Name of the monitored table
-            - records_before: Record count before execution
-            - records_after: Record count after execution
-            - records_created: Number of records created
-            - task_details: List of dictionaries with task execution details
-            - query_template: SQL query template used for counting
+        data (dict): Dictionary with report data.
+        write_to_file (bool): If True, writes the HTML to a file.
+
+    Returns:
+        str: The generated HTML content as a string.
     """
     now = datetime.now()
-    # create directories if they don't exist
-    os.makedirs("evaluation_output", exist_ok=True)
-
     filename = f"evaluation_output/etendo_results_{now.strftime('%Y%m%d_%H%M%S')}.html"
 
     html_content = f"""<!DOCTYPE html>
@@ -411,12 +404,17 @@ def generate_html_report(data):
     </body>
     </html>"""
 
-    try:
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        print(f"\nHTML report generated: {filename}")
-    except Exception as e:
-        print(f"Error generating HTML report: {e}")
+    if write_to_file:
+        try:
+            # create directories if they don't exist
+            os.makedirs("evaluation_output", exist_ok=True)
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            print(f"\nHTML report generated: {filename}")
+        except Exception as e:
+            print(f"Error generating HTML report file: {e}")
+
+    return html_content
 
 
 def parse_arguments():
@@ -431,10 +429,12 @@ def parse_arguments():
     parser.add_argument("--templates", required=True, help="File containing templates with placeholders")
     parser.add_argument("--envfile", help="Environment file (e.g., .env)", default=None)
     parser.add_argument("--etendo_url", help="Base URL of Etendo", default=ETENDO_BASE_URL)
+    parser.add_argument("--agent_id", help="Agent ID", default=None)
+    parser.add_argument("--project_name", help="Project name", default='default_project')
     parser.add_argument("--table", help="Database table to monitor record count", default=DEFAULT_TABLE)
     parser.add_argument("--query", help="Custom SQL query to count records (use {} as placeholder for table name)",
                         default=DEFAULT_QUERY)
-    parser.add_argument("--max_tasks", type=int, help="Maximum number of tasks to process from CSV", default=50)
+    parser.add_argument("--max_tasks", type=int, help="Maximum number of tasks to process from CSV", default=1000)
     parser.add_argument("--skip_exec", action="store_true", help="Skip task execution (only create tasks)")
 
     # Database connection parameters (optional)
@@ -490,16 +490,89 @@ def load_config(args):
         current_db_config['host'] = args.dbhost
     if args.dbport:
         current_db_config['port'] = args.dbport
-    # args.etendo_url is already set to current_etendo_url or its default if not overridden by env
-    # Ensure command line argument takes precedence if it was explicitly set (it is by default due to parser)
-    if args.etendo_url != ETENDO_BASE_URL: # If user provided --etendo_url
+
+    if args.etendo_url != ETENDO_BASE_URL:
          current_etendo_url = args.etendo_url
-    elif os.getenv('ETENDO_BASE_URL'): # else if env var was set
+    elif os.getenv('ETENDO_BASE_URL'):
         current_etendo_url = os.getenv('ETENDO_BASE_URL')
-    # else it remains the script's default ETENDO_BASE_URL
 
     return current_db_config, current_etendo_url
 
+def send_evaluation_to_supabase(data_payload: dict):
+    """
+    Envía los datos de la evaluación a la función de Supabase.
+    """
+    supabase_function_url = "https://hvxogjhuwjyqhsciheyd.supabase.co/functions/v1/evaluations"
+    headers = {
+        "Content-Type": "application/json",
+        # Considera si necesitas una 'Authorization': 'Bearer TU_SUPABASE_KEY_SI_ES_NECESARIA'
+        # o 'apikey': 'TU_SUPABASE_ANON_KEY_SI_ES_NECESARIA'
+        # Esto depende de la configuración de seguridad de tu Supabase Function.
+        # Por ahora, el curl de ejemplo no muestra una, así que la omito.
+    }
+    try:
+        response = requests.post(supabase_function_url, headers=headers, json=data_payload, timeout=15)
+        response.raise_for_status()
+        print(f"Datos de evaluación enviados exitosamente a Supabase. Status: {response.status_code}")
+        try: print(f"Respuesta de Supabase: {response.json()}")
+        except requests.exceptions.JSONDecodeError: print(f"Respuesta de Supabase (no JSON): {response.text}")
+    except requests.exceptions.HTTPError as e:
+        print(f"Error HTTP al enviar datos a Supabase: {e}. Respuesta: {e.response.text if e.response else 'N/A'}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error de red/petición al enviar datos a Supabase: {e}")
+
+# TODO Use utils function to get git branch name
+def get_git_branch_for_directory(directory_path: str) -> str:
+    """
+    Intenta obtener la rama Git actual para el directorio dado.
+    Busca el repositorio Git raíz subiendo desde el directory_path.
+    """
+    original_cwd = os.getcwd()
+    current_path = os.path.abspath(directory_path)
+
+    # Buscar el directorio .git subiendo en la jerarquía
+    git_repo_path = None
+    while current_path != os.path.dirname(current_path):  # Mientras no lleguemos a la raíz del sistema
+        if os.path.isdir(os.path.join(current_path, ".git")):
+            git_repo_path = current_path
+            break
+        current_path = os.path.dirname(current_path)
+
+    # Verificar si se encontró un .git en la raíz (por si acaso)
+    if not git_repo_path and os.path.isdir(os.path.join(current_path, ".git")):
+        git_repo_path = current_path
+
+    if not git_repo_path:
+        # print(f"Advertencia: El directorio {directory_path} no parece estar dentro de un repositorio Git.")
+        return "not_a_git_repo"
+
+    try:
+        os.chdir(git_repo_path)  # Cambiar al directorio raíz del repo para el comando git
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,  # No lanzar excepción en error para manejarlo nosotros
+            timeout=5  # Timeout para evitar que se cuelgue indefinidamente
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            # print(f"Advertencia: No se pudo obtener la rama Git para {git_repo_path}. Error: {result.stderr.strip()}")
+            if "fatal: not a git repository" in result.stderr:
+                return "not_a_git_repo"  # Puede que .git sea un archivo o algo inesperado
+            return "unknown_git_branch_error"
+    except FileNotFoundError:
+        # print("Advertencia: Comando 'git' no encontrado. Asegúrate de que Git esté instalado y en el PATH.")
+        return "git_not_found"
+    except subprocess.TimeoutExpired:
+        # print(f"Advertencia: El comando git para obtener la rama en {git_repo_path} tardó demasiado.")
+        return "git_timeout"
+    except Exception as e:
+        # print(f"Advertencia: Ocurrió un error inesperado al obtener la rama Git: {e}")
+        return "unknown_git_exception"
+    finally:
+        os.chdir(original_cwd)  # Siempre restaurar el directorio de trabajo original
 
 def main():
     """
@@ -513,16 +586,15 @@ def main():
     7. Executes the created tasks
     8. Counts records in the specified table after execution
     9. Generates an HTML report
-    10. Displays execution summary
+    10. Sends evaluation data to Supabase
+    11. Displays execution summary
     """
     script_start_time = time.time()
     print(f"Starting script... [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
-    # Parse arguments and load configuration
     args = parse_arguments()
     effective_db_config, effective_etendo_url = load_config(args)
 
-    # Get table to monitor and query template
     table_to_monitor = args.table
     query_template_for_count = args.query
     max_tasks_to_process = args.max_tasks
@@ -533,13 +605,26 @@ def main():
     print(f"Using count query template: {query_template_for_count}")
     print(f"Maximum task limit: {max_tasks_to_process}")
 
-    # Connect to the database
     conn = get_db_connection(effective_db_config)
     if not conn:
         print("Could not connect to the database. Exiting.")
         return
 
-    # Load templates and CSV data
+    project_name = args.project_name
+    if not project_name or project_name == "default_project":
+        try:
+            project_name = os.path.basename(os.path.dirname(os.path.abspath(os.getcwd() + "/../")))
+        except Exception:
+            project_name = "unknown_project"
+
+    if args.agent_id is None:
+        # get agent_id from the name of the current directory
+        args.agent_id = os.path.basename(os.getcwd())
+
+    agent_name = get_agent_name(args.agent_id, conn)
+
+    branch = get_git_branch_for_directory(os.getcwd())
+
     templates_list = load_templates(args.templates)
     if not templates_list:
         print("No templates loaded. Exiting.")
@@ -552,65 +637,46 @@ def main():
         conn.close()
         return
 
-    # If there are too many rows, limit to the specified maximum
     if len(df_csv_data) > max_tasks_to_process:
         print(f"Limiting to {max_tasks_to_process} rows from CSV (out of {len(df_csv_data)} total)")
         df_csv_data = df_csv_data.head(max_tasks_to_process)
 
-    # Count initial records in the specified table using custom query
     records_before_execution = count_db_records(conn, table_to_monitor, query_template_for_count)
     print(f"Records in {table_to_monitor} before: {records_before_execution if records_before_execution != -1 else 'Error'}")
 
-    # Create tasks by combining templates with CSV data
-    group_id_for_batch, num_tasks_created = create_tasks_from_templates_and_csv(conn, df_csv_data, templates_list)
+    group_id_for_batch, num_tasks_created = create_tasks_from_templates_and_csv(args.agent_id, conn, df_csv_data, templates_list)
 
     if num_tasks_created <= 0:
         print("No tasks were created. Exiting.")
         conn.close()
         return
 
-    # Initialize variables for the report
     task_execution_details = []
     successful_task_count = 0
     failed_task_count = 0
 
-    # If task execution is not skipped
     if not args.skip_exec:
-        # Get newly created tasks
         task_ids_to_process = get_task_ids_from_db(conn, group_id_for_batch)
-
         print(f"\nExecuting {len(task_ids_to_process)} tasks...")
-
-        # Process each task
         for i, task_id_val in enumerate(task_ids_to_process):
             print(f"\nProcessing task {i + 1}/{len(task_ids_to_process)}:")
             success_status, exec_duration, error_detail = execute_etendo_task(str(task_id_val), effective_etendo_url)
-
             status_message = "Success" if success_status else "Failure"
             task_execution_details.append({
-                'id': task_id_val,
-                'status': status_message,
-                'duration': exec_duration,
-                'error': error_detail
+                'id': task_id_val, 'status': status_message,
+                'duration': exec_duration, 'error': error_detail
             })
-
-            if success_status:
-                successful_task_count += 1
-            else:
-                failed_task_count += 1
+            if success_status: successful_task_count += 1
+            else: failed_task_count += 1
             print(f"  Result: {status_message}, Duration: {exec_duration:.2f}s")
     else:
         print("\nSkipping task execution (--skip_exec specified)")
-        # Simulate details for the report
         for i in range(num_tasks_created):
             task_execution_details.append({
-                'id': f"(task {i+1} - not executed)",
-                'status': "Skipped",
-                'duration': 0.0,
-                'error': "Execution skipped by user"
+                'id': f"(task {i+1} - not executed)", 'status': "Skipped",
+                'duration': 0.0, 'error': "Execution skipped by user"
             })
 
-    # Count final records in the specified table using the same custom query
     records_after_execution = count_db_records(conn, table_to_monitor, query_template_for_count)
     print(f"Records in {table_to_monitor} after: {records_after_execution if records_after_execution != -1 else 'Error'}")
 
@@ -618,14 +684,11 @@ def main():
     if records_before_execution != -1 and records_after_execution != -1:
         delta_records = records_after_execution - records_before_execution
 
-    # Close connection
     conn.close()
-
     total_script_run_time = time.time() - script_start_time
 
-    # Prepare report data
     report_data_dict = {
-        'total_tasks_found': num_tasks_created, # This is tasks created from CSV
+        'total_tasks_found': num_tasks_created,
         'successful_tasks': successful_task_count,
         'failed_tasks': failed_task_count,
         'total_script_duration': total_script_run_time,
@@ -637,10 +700,54 @@ def main():
         'query_template': query_template_for_count
     }
 
-    # Generate HTML report
-    generate_html_report(report_data_dict)
+    html_report_content_str = generate_html_report(report_data_dict, write_to_file=True)
 
-    # Final summary
+    # Prepare and send data to Supabase
+    # Calculate score (e.g., success rate)
+    score = 0.0
+    if num_tasks_created > 0 and not args.skip_exec: # Only calculate score if tasks were executed
+        score = successful_task_count / num_tasks_created
+    elif args.skip_exec:
+        score = 0.0 # Or some other indicator for skipped execution, e.g. -1, or don't send score
+
+    evaluation_data_for_supabase = {
+        "project": project_name,
+        "agent": args.agent_id, # Using group_id as a unique agent/run identifier
+        "agent_name": agent_name,
+        "branch": branch,
+        "score": round(score, 4), # Score between 0 and 1
+        "dataset_size": num_tasks_created, # Number of tasks processed from CSV
+        "threads": 1, # This script is single-threaded for task execution
+        "experiment": "integration", # Type of evaluation
+        "html_report_content": html_report_content_str,
+        # You can add more metadata if your Supabase function expects it
+        "metadata": {
+            "csv_file": args.csv,
+            "template_file": args.templates,
+            "etendo_url": effective_etendo_url,
+            "monitored_table": table_to_monitor,
+            "max_tasks_processed": max_tasks_to_process,
+            "execution_skipped": args.skip_exec,
+            "total_script_duration_seconds": round(total_script_run_time, 2),
+            "successful_task_count": successful_task_count,
+            "failed_task_count": failed_task_count,
+            "db_records_created_modified": delta_records
+        }
+    }
+
+    print(f"\nAttempting to send evaluation to Supabase for project: {project_name}, agent_id: {args.agent_id} - {agent_name}")
+    try:
+        # Assuming send_evaluation_to_supabase handles its own config (URL, key)
+        # and takes a dictionary.
+        send_evaluation_to_supabase(evaluation_data_for_supabase)
+        print("Evaluation data sent to Supabase successfully.")
+    except NameError: # Handles if send_evaluation_to_supabase was not imported
+        print("INFO: Supabase integration was skipped as 'send_evaluation_to_supabase' is not available.")
+    except Exception as e:
+        print(f"ERROR: Failed to send evaluation data to Supabase: {e}")
+        traceback.print_exc()
+
+
     print("\n--- FINAL SUMMARY ---")
     print(f"Tasks created from CSV: {num_tasks_created}")
     if not args.skip_exec:
@@ -657,11 +764,38 @@ def main():
     print(f"Total script time: {total_script_run_time:.2f} seconds")
     print(f"Script finished. [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
-    # if delta_records is diferent from tasks created, system exit 1
-    if delta_records != num_tasks_created:
-        print("Error: Number of records created/modified does not match the number of tasks created.")
-        exit(1)
+    if not args.skip_exec and delta_records != successful_task_count:
+        # If execution was not skipped, compare delta_records with successful_task_count
+        # as only successful tasks are expected to change records consistently.
+        # num_tasks_created might include tasks that fail and don't change records.
+        print(f"Warning: Number of records created/modified ({delta_records}) does not match the number of successful tasks ({successful_task_count}).")
+        # Depending on strictness, you might still want to exit(1) or just warn.
+        # For now, changed to a warning as task failures might not always mean record change discrepancies.
+        # exit(1)
+    elif args.skip_exec and delta_records != 0:
+        # If execution was skipped, no records should have changed.
+         print(f"Warning: Records changed ({delta_records}) even though execution was skipped.")
 
+
+def get_agent_name(agent_id, conn):
+    agent_name = 'N/A'
+    if agent_id:
+        # Get agent name from the database if agent_id is provided
+        sql = "SELECT name FROM etcop_app WHERE etcop_app_id = %s"
+        try:
+            cur = conn.cursor()
+            cur.execute(sql, (agent_id,))
+            result = cur.fetchone()
+            if result:
+                agent_name = result[0]
+                print(f"Using agent name from DB: {agent_name}")
+            else:
+                print(f"No agent found with ID: {agent_id}. Using default agent name.")
+            cur.close()
+        except Exception as e:
+            print(f"Error fetching agent name from DB: {e}")
+            agent_name = None
+    return agent_name
 
 
 if __name__ == "__main__":

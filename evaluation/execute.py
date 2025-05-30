@@ -1,27 +1,16 @@
-import argparse
-import json
-import os
-import sys
-import time
-from copy import deepcopy
-from typing import List, Dict, Any
+from typing import List
 
-from copilot.core.etendo_utils import get_etendo_host
-from copilot.core.schemas import AssistantSchema
 from dotenv import load_dotenv
 from langsmith import Client, wrappers
 from openai import OpenAI
 from pydantic import ValidationError
-from utils import (
-    calc_md5,
-    generate_html_report,
-    get_agent_config,
-    get_tools_for_agent,
-    save_conversation_from_run,
-    tool_to_openai_function,
-)
 
+from copilot.core.etendo_utils import get_etendo_host
+from copilot.core.schemas import AssistantSchema
 from schemas import Conversation, Message
+from utils import (
+    send_evaluation_to_supabase,
+)
 from utils import validate_dataset_folder
 
 DEFAULT_EXECUTIONS = 5
@@ -70,14 +59,20 @@ def exec_agent(args):
         host = args.etendohost
     config_agent = get_agent_config(agent_id, host, token, user, password)
 
-    # If a save_run_id is provided, extract and save the conversation
     if save_run_id:
+        # Ensure system_prompt is correctly accessed if config_agent is a dict
+        system_prompt_val = config_agent.get("system_prompt") if isinstance(config_agent, dict) else None
         save_conversation_from_run(
-            agent_id, save_run_id, config_agent.get("system_prompt"), base_path=base_path
+            agent_id, save_run_id, system_prompt_val, base_path=base_path
         )
-        return None, None
-    return evaluate_agent(agent_id, config_agent, repetitions, base_path, skip_evaluators)
+        return None, None, None, None, None # Added one None for report_html_path
 
+    results, link, dataset_len = evaluate_agent(agent_id, config_agent, repetitions, base_path, skip_evaluators)
+
+    # Generate HTML report and get its local path and timestamp
+    report_html_path, report_ts = generate_html_report(args, link, results)
+
+    return results, link, dataset_len, config_agent, report_html_path, report_ts
 
 def load_conversations(agent_id: str, base_path: str, prompt: str = None) -> List[Conversation]:
     """
@@ -385,48 +380,147 @@ def evaluate_agent(agent_id, agent_config, k, base_path, skip_evaluators=False):
     Raises:
         Exception: If there is an error reading or creating the dataset.
     """
-    prompt = agent_config.get("system_prompt")  # Retrieve the system prompt from
-    # the agent config
-    model = agent_config.get("model")  # Retrieve the model from the agent config
-    agent_config_assch = AssistantSchema(**agent_config)
-    available_tools = get_tools_for_agent(agent_config_assch)  # Get the tools for the
-    # agent
-    conversations = load_conversations(agent_id, base_path=base_path, prompt=prompt)
-    available_tools = [
-        tool_to_openai_function(tool) for tool in available_tools
-    ]  # Convert tools to OpenAI format
-    examples = convert_conversations_to_examples(
-        conversations, model, tools=available_tools
-    )  # Convert conversations to examples?
-    ls_client = Client()  # Initialize the LangSmith client
-    examples_md5 = calc_md5(examples)  # Calculate the MD5 hash of the examples
-    dat_name = f"Dataset for evaluation {agent_id} MD5:{examples_md5}"  # Generate a unique dataset name
+    prompt = agent_config.get("system_prompt")
+    model = agent_config.get("model")
+
+    # Ensure agent_config is a dict before passing to AssistantSchema
+    if not isinstance(agent_config, dict):
+        print(f"Error: agent_config is not a dictionary. Received: {type(agent_config)}")
+        # Handle error appropriately, e.g., return default/error values or raise exception
+        # For now, let's try to make it work or provide a clear error for this example.
+        # If it's an object that can be dict-like, you might try vars(agent_config)
+        # but this depends heavily on what get_agent_config actually returns.
+        # Assuming it's a dict for now based on .get() usage.
+        agent_config_dict_for_schema = {}
+    else:
+        agent_config_dict_for_schema = agent_config
+
     try:
-        dataset = ls_client.read_dataset(dataset_name=dat_name)  # Attempt to read the dataset
-    except Exception as e:
-        print(f"Error reading dataset: {e}")  # Log any errors
-        dataset = None
+        agent_config_assch = AssistantSchema(**agent_config_dict_for_schema)
+        available_tools_objects = get_tools_for_agent(agent_config_assch)
+        available_tools_openai = [tool_to_openai_function(tool) for tool in available_tools_objects]
+    except Exception as e: # Catch potential errors from AssistantSchema or get_tools_for_agent
+        print(f"Error processing agent configuration for tools: {e}")
+        available_tools_openai = []
+
+
+    conversations = load_conversations(agent_id, base_path=base_path, prompt=prompt)
+    examples = convert_conversations_to_examples(
+        conversations, model, tools=available_tools_openai
+    )
+    ls_client_eval = Client()
+    examples_md5 = calc_md5(examples)
+    dat_name = f"Dataset for evaluation {agent_id} MD5:{examples_md5}"
+    dataset = None
+    try:
+        dataset = ls_client_eval.read_dataset(dataset_name=dat_name)
+    except Exception: # Catches if dataset not found, which is expected
+        pass # dataset remains None
+
     if dataset is None or dataset.id is None:
-        # Create a new dataset if it doesn't exist
-        dataset = ls_client.create_dataset(dataset_name=dat_name)
-        ls_client.create_examples(
+        print(f"Dataset '{dat_name}' not found, creating new one.")
+        dataset = ls_client_eval.create_dataset(dataset_name=dat_name)
+        ls_client_eval.create_examples(
             dataset_id=dataset.id,
             examples=examples,
         )
+    else:
+        print(f"Using existing dataset: '{dat_name}' with ID: {dataset.id}")
 
-    print("\n" * 20)  # Print spacing for readability
-    results = ls_client.evaluate(
-        target,  # Target function for evaluation
-        data=dataset.name,  # Dataset name
+
+    print("\n" * 3) # Reduced excessive newlines
+    print(f"Starting evaluation for agent: {agent_id} on dataset: {dataset.name} with {k} repetitions.")
+    results = ls_client_eval.evaluate(
+        target, # This 'target' function should be defined or imported
+        data=dataset.name,
         evaluators=get_evaluators() if not skip_evaluators else None,
-        # Use evaluators if specified
-        experiment_prefix=agent_id,  # Prefix for the evaluation experiment
-        description="Testing agent",  # Description of the evaluation
-        max_concurrency=4,  # Maximum concurrency for evaluation
-        num_repetitions=k,  # Number of repetitions
+        experiment_prefix=f"{agent_id}-{int(time.time())}", # More unique prefix
+        description=f"Evaluation for agent {agent_id}",
+        max_concurrency=4,
+        num_repetitions=k,
     )
+    print(f"Evaluation finished. Experiment link: {results.url if hasattr(results, 'url') else 'N/A'}")
+    return results, getattr(results, 'url', results.experiment_name if hasattr(results, 'experiment_name') else 'N/A'), len(examples)
 
-    return results, results.experiment_name  # Return the evaluation results
+
+# In execute.py
+import argparse
+import json
+import os
+import sys
+import time
+import subprocess  # <--- Añadir subprocess
+from copy import deepcopy
+from typing import List, Dict, Any
+# ... (resto de tus importaciones) ...
+from utils import (
+    calc_md5,
+    generate_html_report,
+    get_agent_config,
+    get_tools_for_agent,
+    save_conversation_from_run,
+    tool_to_openai_function,
+    prepare_report_data,
+)
+
+# ...
+
+DEFAULT_EXECUTIONS = 5  # Asegúrate que esta constante está definida
+
+
+def get_git_branch_for_directory(directory_path: str) -> str:
+    """
+    Intenta obtener la rama Git actual para el directorio dado.
+    Busca el repositorio Git raíz subiendo desde el directory_path.
+    """
+    original_cwd = os.getcwd()
+    current_path = os.path.abspath(directory_path)
+
+    # Buscar el directorio .git subiendo en la jerarquía
+    git_repo_path = None
+    while current_path != os.path.dirname(current_path):  # Mientras no lleguemos a la raíz del sistema
+        if os.path.isdir(os.path.join(current_path, ".git")):
+            git_repo_path = current_path
+            break
+        current_path = os.path.dirname(current_path)
+
+    # Verificar si se encontró un .git en la raíz (por si acaso)
+    if not git_repo_path and os.path.isdir(os.path.join(current_path, ".git")):
+        git_repo_path = current_path
+
+    if not git_repo_path:
+        # print(f"Advertencia: El directorio {directory_path} no parece estar dentro de un repositorio Git.")
+        return "not_a_git_repo"
+
+    try:
+        os.chdir(git_repo_path)  # Cambiar al directorio raíz del repo para el comando git
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,  # No lanzar excepción en error para manejarlo nosotros
+            timeout=5  # Timeout para evitar que se cuelgue indefinidamente
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            # print(f"Advertencia: No se pudo obtener la rama Git para {git_repo_path}. Error: {result.stderr.strip()}")
+            if "fatal: not a git repository" in result.stderr:
+                return "not_a_git_repo"  # Puede que .git sea un archivo o algo inesperado
+            return "unknown_git_branch_error"
+    except FileNotFoundError:
+        # print("Advertencia: Comando 'git' no encontrado. Asegúrate de que Git esté instalado y en el PATH.")
+        return "git_not_found"
+    except subprocess.TimeoutExpired:
+        # print(f"Advertencia: El comando git para obtener la rama en {git_repo_path} tardó demasiado.")
+        return "git_timeout"
+    except Exception as e:
+        # print(f"Advertencia: Ocurrió un error inesperado al obtener la rama Git: {e}")
+        return "unknown_git_exception"
+    finally:
+        os.chdir(original_cwd)  # Siempre restaurar el directorio de trabajo original
+
+
 
 
 def main():
@@ -458,62 +552,115 @@ def main():
 
     parser.add_argument("--password", help="User password")
     parser.add_argument("--token", help="Authentication token")
-    parser.add_argument(
-        "--dataset",
-        help="Base path where the dataset will be read/writed",
-        default="../com.etendoerp.copilot/dataset",
-    )
+    parser.add_argument("--dataset", help="Base path for dataset", default="../com.etendoerp.copilot/dataset")
     parser.add_argument("--agent_id", required=True, help="Agent ID")
-    parser.add_argument("--k", help="Executions per 'conversation'", default=DEFAULT_EXECUTIONS)
-    parser.add_argument("--save", help="LangSmith Run ID to extract and save the conversation")
-    parser.add_argument("--skip_evaluators", help="Use custom evaluators", action="store_true")
+    parser.add_argument("--k", help="Executions per 'conversation'", default=DEFAULT_EXECUTIONS, type=int)
+    parser.add_argument("--save", help="LangSmith Run ID to extract and save conversation")
+    parser.add_argument("--skip_evaluators", help="Skip custom evaluators", action="store_true")
+    parser.add_argument("--project_name", help="Project name for Supabase payload", default="default_project")
+
 
     args = parser.parse_args()
     if args.envfile:
-        print(
-            f"Loading environment variables from {args.envfile}. Make sure to set the variables in the file."
-        )
+        print(f"Loading environment variables from {args.envfile}.")
         load_dotenv(args.envfile, verbose=True)
 
     if not args.token and not (args.user and args.password):
         print("Error: You must provide a token or a username and password.")
         sys.exit(1)
-
     if args.save and not args.agent_id:
         print("Error: You must provide an agent_id when using the --save flag.")
         sys.exit(1)
 
-    # Create folder if it doesn't exist
     if not os.path.exists("./evaluation_output"):
-        os.makedirs("evaluation_output")
-    results, link = exec_agent(args)
-    if args.save is not None:
+        os.makedirs("evaluation_output", exist_ok=True)
+
+    # exec_agent now returns report_html_path and report_ts
+    exec_results = exec_agent(args)
+    if args.save is not None: # Check if in "save_conversation_from_run" mode
         print("Conversation saved.")
         return
-    # Extract the url of the results
-    res_pand = results.to_pandas()
-    # Save the results to a CSV file
-    output_file = f"evaluation_output/results_{args.agent_id}_{int(time.time())}.csv"
-    res_pand.to_csv(output_file, index=False)
-    # Detectar errores
-    errores = res_pand[
-        (res_pand["feedback.correctness"] is False)
-        | (res_pand["error"].notnull())
-        | (res_pand["outputs.answer"].isnull())
-    ]
 
-    generate_html_report(args, link, results)
+    # Unpack results if not in save mode
+    results, link, dataset_length, agent_config_dict, report_html_path, report_ts = exec_results
 
 
-    if not errores.empty:
-        print(f"{len(errores)} resultados erróneos detectados.")
-        sys.exit(1)
+    # Read HTML content from the generated file
+    html_content_str = None
+    if report_html_path and os.path.exists(report_html_path):
+        try:
+            with open(report_html_path, 'r', encoding='utf-8') as f:
+                html_content_str = f.read()
+            print(f"Contenido del reporte HTML leído desde: {report_html_path}")
+        except Exception as e:
+            print(f"Error al leer el contenido del archivo HTML {report_html_path}: {e}")
+    else:
+        print(f"Archivo de reporte HTML no encontrado o no generado: {report_html_path}")
+
+
+    report_data_for_json = prepare_report_data(results)
+    avg_score = report_data_for_json.get("avg_score")
+    dataset_git_branch = get_git_branch_for_directory(args.dataset)
+
+    summary_data = {
+        "score": float(f"{avg_score:.2f}") if avg_score is not None else None,
+        "dataset_length": dataset_length,
+        "agent_id": args.agent_id,
+        "agent_name": agent_config_dict.get("name", "N/A") if isinstance(agent_config_dict, dict) else "N/A",
+        "branch": dataset_git_branch,
+        "threads": int(args.k), # Ensure args.k is int
+        "experiment_link": link,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        # "html_report_url": None, # No longer using Supabase storage URL here
+        "html_report_content": html_content_str # Add the HTML content directly (can be very large)
+    }
+
+    json_output_file = f"evaluation_output/summary_{args.agent_id}_{report_ts}.json" # Use report_ts
+    with open(json_output_file, "w", encoding="utf-8") as f:
+        json.dump(summary_data, f, indent=4)
+    print(f"Summary JSON generated: {os.path.abspath(json_output_file)}")
+
+    # Determine project name for Supabase payload
+    project_name_for_payload = args.project_name
+    if not project_name_for_payload or project_name_for_payload == "default_project":
+        try:
+            project_name_for_payload = os.path.basename(os.path.dirname(os.path.abspath(args.dataset)))
+        except Exception:
+            project_name_for_payload = "unknown_project"
+
+    payload_for_supabase = {
+        "project": project_name_for_payload,
+        "agent": summary_data["agent_id"],
+        "agent_name": summary_data["agent_name"],
+        "branch": summary_data["branch"],
+        "score": summary_data["score"],
+        "dataset_size": summary_data["dataset_length"],
+        "threads": summary_data["threads"],
+        "experiment": "dataset",
+        "html_report_content": html_content_str # Add the HTML content string
+        # "html_report_url": None, # Remove or set to null if column still exists but unused
+    }
+
+    print(f"Enviando payload a Supabase (HTML embebido, tamaño aproximado: {len(html_content_str)/1024 if html_content_str else 0:.2f} KB)...")
+    send_evaluation_to_supabase(payload_for_supabase)
+
+    if hasattr(results, 'to_pandas'):
+        res_pand = results.to_pandas()
+        output_file_csv = f"evaluation_output/results_{args.agent_id}_{report_ts}.csv"
+        res_pand.to_csv(output_file_csv, index=False)
+        print(f"CSV report generado: {os.path.abspath(output_file_csv)}")
+        errores = res_pand[
+            (res_pand["feedback.correctness"] == False) |
+            (res_pand["error"].notnull()) |
+            (res_pand["outputs.answer"].isnull())
+        ]
+        if not errores.empty:
+            print(f"{len(errores)} resultados erróneos detectados.")
+        else:
+            print("No critical errors detected in results.")
+    else:
+        print("Results object does not have 'to_pandas' method, skipping CSV generation.")
 
 
 if __name__ == "__main__":
-    """
-    Entry point of the script.
-
-    Calls the `main` function to process command-line arguments and execute the agent.
-    """
     main()
