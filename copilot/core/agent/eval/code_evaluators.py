@@ -1,8 +1,12 @@
 import builtins
 import contextlib
+import inspect
 import io
 from typing import Any, Dict, Tuple
 
+from copilot.core.threadcontext import ThreadContext
+from langchain_sandbox import PyodideSandbox
+from langgraph_codeact import EvalCoroutine
 from rizaio import Riza
 
 SANDBOX_PY = "sandbox.py"
@@ -10,6 +14,7 @@ SANDBOX_PY = "sandbox.py"
 EXECUTOR_TYPES = {
     "original": "OriginalExecutor",
     "riza": "RizaExecutor",
+    "sandbox": "SandboxExecutor",
 }
 
 
@@ -33,6 +38,104 @@ class OriginalExecutor:
         return result, new_vars
 
 
+def get_context_line(key, value):
+    """Get the context line for a variable.
+
+    Args:
+        key: The variable name
+        value: The variable value
+
+    Returns:
+        A string representation of the variable
+    """
+    if callable(value):
+        # Get the function's source code
+        src = inspect.getsource(value)
+        return f"\n{src}"
+    else:
+        return f"\n{key} = {repr(value)}"
+
+
+def create_pyodide_eval_fn(sandbox_dir: str = "./sessions", session_id: str | None = None) -> EvalCoroutine:
+    """Create an eval_fn that uses PyodideSandbox.
+
+    Args:
+        sandbox_dir: Directory to store session files
+        session_id: ID of the session to use
+
+    Returns:
+        A function that evaluates code using PyodideSandbox
+    """
+    sandbox = PyodideSandbox(sandbox_dir, allow_net=True)
+
+    async def async_eval_fn(code: str, _locals: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        # Create a wrapper function that will execute the code and return locals
+        wrapper_code = f"""
+def execute():
+    try:
+        # Execute the provided code
+{chr(10).join("        " + line for line in code.strip().split(chr(10)))}
+        return locals()
+    except Exception as e:
+        return {{"error": str(e)}}
+
+execute()
+"""
+        # Convert functions in _locals to their string representation
+        context_setup = ""
+        for key, value in _locals.items():
+            context_setup += get_context_line(key, value)
+
+        try:
+            # Execute the code and get the result
+            response = await sandbox.execute(
+                code=context_setup + "\n\n" + wrapper_code,
+                session_id=session_id,
+            )
+
+            # Check if execution was successful
+            if response.stderr:
+                return f"Error during execution: {response.stderr}", {}
+
+            # Get the output from stdout
+            output = response.stdout if response.stdout else "<Code ran, no output printed to stdout>"
+            result = response.result
+
+            # If there was an error in the result, return it
+            if isinstance(result, dict) and "error" in result:
+                return f"Error during execution: {result['error']}", {}
+
+            # Get the new variables by comparing with original locals
+            new_vars = {k: v for k, v in result.items() if k not in _locals and not k.startswith("_")}
+            return output, new_vars
+
+        except Exception as e:
+            return f"Error during PyodideSandbox execution: {repr(e)}", {}
+
+    return async_eval_fn
+
+
+class SandboxExecutor:
+    """Ejecutor de código sandbox"""
+
+    def __init__(self):
+        self.eval_fn = create_pyodide_eval_fn("./sessions", ThreadContext.get_data("conversation_id"))
+
+    async def execute(self, code: str, _locals: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
+        """
+        Execute code in an isolated environment using PyodideSandbox.
+
+        Args:
+            code: The code to execute
+            _locals: Dictionary containing local variables (can include functions)
+
+        Returns:
+            Tuple containing:
+            - The output from stdout (or error message if execution failed)
+            - Dictionary of new variables created during execution
+        """
+
+
 class CodeExecutor:
     """Clase contenedora para cambiar entre ejecutores"""
 
@@ -46,6 +149,11 @@ class CodeExecutor:
             self.executor = RizaExecutor()
 
     def execute(self, code: str, variables: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
+        # if in variables not exists "etendo_token" add it
+        if "ETENDO_TOKEN" not in variables:
+            from copilot.core import etendo_utils
+
+            variables["ETENDO_TOKEN"] = etendo_utils.get_etendo_token()
         return self.executor.execute(code, variables)
 
 
