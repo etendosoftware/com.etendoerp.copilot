@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
 import requests
@@ -11,7 +11,17 @@ from pydantic import BaseModel, Field, create_model
 
 def schema_to_pydantic_type(schema: Dict[str, Any]) -> Any:
     if "type" not in schema:
-        return Any
+        # If no type is specified, it's safer to default to Any
+        # or handle based on other properties like 'properties' or 'items'
+        # For instance, if 'properties' exists, it's likely an object.
+        if "properties" in schema:
+            schema_type = "object"
+        elif "items" in schema:
+            schema_type = "array"
+        else:
+            return Any # Fallback if type cannot be inferred
+    else:
+        schema_type = schema["type"]
 
     type_map = {
         "string": str,
@@ -20,19 +30,39 @@ def schema_to_pydantic_type(schema: Dict[str, Any]) -> Any:
         "boolean": bool,
     }
 
-    schema_type = schema["type"]
     if schema_type == "array":
         items_schema = schema.get("items", {})
-        return List[schema_to_pydantic_type(items_schema)]
+        if not items_schema: # If items is not defined or empty, List[Any] is a safe bet
+            return List[Any]
+        item_type = schema_to_pydantic_type(items_schema)
+        return List[item_type]
     elif schema_type == "object":
         properties = schema.get("properties", {})
+        if not properties: # Handle object with no properties
+            class EmptyModel(BaseModel):
+                pass
+            return EmptyModel
         fields = {}
+        required_fields = schema.get("required", [])
         for prop, prop_schema in properties.items():
             prop_type = schema_to_pydantic_type(prop_schema)
             prop_description = prop_schema.get("description", f"Field {prop} of the object")
-            fields[prop] = (prop_type, Field(..., description=prop_description))
-        return create_model("DynamicModel", **fields)
+            field_args = {"description": prop_description}
+            if prop_schema.get("type") == "string":
+                if "maxLength" in prop_schema:
+                    field_args["max_length"] = prop_schema["maxLength"]
+                if "pattern" in prop_schema:
+                    field_args["pattern"] = prop_schema["pattern"]
+
+            if prop in required_fields:
+                fields[prop] = (prop_type, Field(..., **field_args))
+            else:
+                fields[prop] = (prop_type, Field(None, **field_args))
+
+        model_name = schema.get("title", "DynamicModel")
+        return create_model(model_name, **fields)
     else:
+        # Fallback to str if type is unknown and not one of the above complex types
         return type_map.get(schema_type, str)
 
 
@@ -108,7 +138,11 @@ class ApiTool(BaseTool, BaseModel):
         if self.request_body:
             content = self.request_body.get("content", {}).get("application/json", {})
             body_schema = content.get("schema", {})
-            fields["body"] = (schema_to_pydantic_type(body_schema), ...)
+
+            item_schema_type = schema_to_pydantic_type(body_schema)
+
+            fields["body"] = (Union[item_schema_type, List[item_schema_type]], ...)
+            self.args_schema = create_model(f"{name}Args", **fields)
 
         self.args_schema = create_model(f"{name}Args", **fields)
 
@@ -133,8 +167,20 @@ class ApiTool(BaseTool, BaseModel):
             url = url.replace(f"{{{param_name}}}", str(param_value))
 
         data = kwargs.get("body", None)
-        if data and isinstance(data, BaseModel):
-            data = data.dict()
+        if isinstance(data, BaseModel):
+            payload_serialized = data.model_dump()
+        elif isinstance(data, list):
+            # Si el payload es una lista
+            payload_serialized = []
+            for item in data:
+                if isinstance(item, BaseModel):
+                    payload_serialized.append(item.model_dump())
+                else:
+                    # Si el item en la lista no es un modelo Pydantic, se asume que ya es serializable
+                    payload_serialized.append(item)
+        else:
+            # Si el payload no es ni un modelo Pydantic ni una lista (ej. ya es un dict), se usa como está
+            payload_serialized = data
 
         try:
             response = requests.request(
@@ -142,7 +188,7 @@ class ApiTool(BaseTool, BaseModel):
                 url=url,
                 params=query_params,
                 headers=headers,
-                json=data,
+                json=payload_serialized,
             )
             response.raise_for_status()
             return summarize(self.method, url, response.text)
@@ -171,8 +217,17 @@ class ApiTool(BaseTool, BaseModel):
             url = url.replace(f"{{{param_name}}}", str(param_value))
 
         data = kwargs.get("body", None)
-        if data and isinstance(data, BaseModel):
-            data = data.dict()
+        if isinstance(data, BaseModel):
+            payload_serialized = data.model_dump()
+        elif isinstance(data, list):
+            payload_serialized = []
+            for item in data:
+                if isinstance(item, BaseModel):
+                    payload_serialized.append(item.model_dump())
+                else:
+                    payload_serialized.append(item)
+        else:
+            payload_serialized = data
 
         async with aiohttp.ClientSession() as session:
             try:
@@ -187,7 +242,7 @@ class ApiTool(BaseTool, BaseModel):
                     url=url,
                     params=query_params if query_params else None,
                     headers=headers if headers else None,
-                    json=data if data else None,
+                    json=payload_serialized if payload_serialized else None,
                 ) as response:
                     response.raise_for_status()
                     text = await response.text()
