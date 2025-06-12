@@ -1,5 +1,5 @@
 import time
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 
 from pydantic import BaseModel
 
@@ -17,7 +17,7 @@ class Message(BaseModel):
     """
 
     role: str  # "AI", "USER", "Tool"
-    content: str
+    content: Union[str, List[Dict[str, Any]]]
     tool_call_id: Optional[str] = None  # ID of the tool call, if applicable
     tool_calls: Optional[List[dict]] = None  # List of tool calls, if applicable
 

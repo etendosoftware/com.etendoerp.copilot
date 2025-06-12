@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
 import requests
@@ -138,7 +138,11 @@ class ApiTool(BaseTool, BaseModel):
         if self.request_body:
             content = self.request_body.get("content", {}).get("application/json", {})
             body_schema = content.get("schema", {})
-            fields["body"] = (schema_to_pydantic_type(body_schema), ...)
+
+            item_schema_type = schema_to_pydantic_type(body_schema)
+
+            fields["body"] = (Union[item_schema_type, List[item_schema_type]], ...)
+            self.args_schema = create_model(f"{name}Args", **fields)
 
         self.args_schema = create_model(f"{name}Args", **fields)
 
