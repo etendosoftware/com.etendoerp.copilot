@@ -25,6 +25,7 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.dal.xml.XMLUtil;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.User;
 import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.common.enterprise.Organization;
@@ -41,6 +42,17 @@ import com.etendoerp.copilot.data.CopilotModel;
  */
 public class CopilotModelUtils {
   private static final Logger log = LogManager.getLogger(CopilotModelUtils.class);
+
+  /**
+   * Private constructor to prevent instantiation of the utility class.
+   * <p>
+   * This constructor is intentionally declared private to ensure that the
+   * `CopilotModelUtils` class cannot be instantiated. This class is designed
+   * to provide static utility methods and does not require instantiation.
+   */
+  private CopilotModelUtils() {
+    // Private constructor to prevent instantiation
+  }
 
   /**
    * Retrieves the default CopilotModel based on the provided provider.
@@ -107,7 +119,7 @@ public class CopilotModelUtils {
       OBContext.setAdminMode(false);
       List<Element> elementList = XMLUtil.getInstance().getRootElement(fis).elements("ETCOP_Openai_Model");
       for (Element modelElem : elementList) {
-        log.info(modelElem.toString());
+        logIfDebug(modelElem.toString());
         upsertModel(modelElem);
       }
       OBDal.getInstance().flush();
@@ -115,6 +127,22 @@ public class CopilotModelUtils {
       throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Logs a debug message if debug logging is enabled.
+   * <p>
+   * This method checks if the logger is in debug mode and, if so, logs the provided message.
+   * It is a utility method to conditionally log debug messages, avoiding unnecessary string
+   * concatenation or processing when debug logging is disabled.
+   *
+   * @param string
+   *     The message to be logged if debug logging is enabled.
+   */
+  private static void logIfDebug(String string) {
+    if (log.isDebugEnabled()) {
+      log.debug(string);
     }
   }
 
@@ -275,6 +303,9 @@ public class CopilotModelUtils {
         return resultModel;
       }
       model = getDefaultModel(provider);
+      if (model == null) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_NoDefaultModel"), provider));
+      }
       resultModel = model.getSearchkey();
       log.debug("Model selected by Default: {}", resultModel);
       return resultModel;

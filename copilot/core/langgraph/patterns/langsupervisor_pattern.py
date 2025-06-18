@@ -36,7 +36,9 @@ class LangSupervisorPattern(BasePattern):
         self._full_question = full_question
         model = ChatOpenAI(model="gpt-4o", temperature=0.1)
         # Create supervisor workflow
-        sv_prompt = get_supervisor_system_prompt(full_question)
+        members_names = [m.name for m in full_question.assistants]
+        members_descriptions = [m.description for m in full_question.assistants]
+        sv_prompt = get_supervisor_system_prompt(full_question, members_names, members_descriptions)
 
         from langchain_core.tools import tool
 
