@@ -759,6 +759,7 @@ public class RestServiceUtil {
     //add data for the supervisor
     jsonRequestForCopilot.put(PROP_TEMPERATURE, copilotApp.getTemperature());
     jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
+    jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
     jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
     jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
     jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
@@ -883,6 +884,7 @@ public class RestServiceUtil {
     StringBuilder prompt = new StringBuilder();
     prompt.append(copilotApp.getPrompt());
     jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getId());
+    jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
     jsonRequestForCopilot.put(PROP_TYPE, appType);
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_HISTORY, TrackingUtil.getHistory(conversationId));
@@ -945,6 +947,7 @@ public class RestServiceUtil {
       JSONObject jsonRequestForCopilot) throws JSONException {
     jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_OPENAI);
     jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
+    jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
   }
 
   /**
