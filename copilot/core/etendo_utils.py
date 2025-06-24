@@ -4,6 +4,8 @@ from copilot.core.exceptions import ToolException
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_debug_curl, read_optional_env_var
 
+APPLICATION_JSON = "application/json"
+
 
 def get_etendo_token():
     """
@@ -135,8 +137,8 @@ def login_etendo(server_url, client_admin_user, client_admin_password):
 
     url = f"{server_url}/sws/login"
     headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
+        "Content-Type": APPLICATION_JSON,
+        "Accept": APPLICATION_JSON,
     }
     data = {
         "username": client_admin_user,
@@ -204,7 +206,7 @@ def request_to_etendo(
     """
     url = f"{etendo_host}{endpoint}"
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": APPLICATION_JSON,
         "Authorization": f"Bearer {bearer_token}",
     }
     if method.upper() == "GET":

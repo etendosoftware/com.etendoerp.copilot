@@ -10,15 +10,12 @@ import static com.etendoerp.copilot.util.CopilotConstants.PROP_QUESTION;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.openbravo.client.application.process.BaseProcessActionHandler;
-import org.openbravo.client.application.process.ResponseActionsBuilder;
 import org.openbravo.dal.core.SessionHandler;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -27,13 +24,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.etendoerp.copilot.rest.RestServiceUtil;
-import com.etendoerp.etendorx.data.ETRXoAuthProvider;
 import com.etendoerp.task.data.Task;
 import com.smf.jobs.Action;
 import com.smf.jobs.ActionResult;
 import com.smf.jobs.Result;
-
-import io.swagger.v3.core.util.Json;
 
 /**
  * ExampleButtonProcess class to handle the process execution for a button.
@@ -102,13 +96,12 @@ public class ExecTask extends Action {
     }
     JSONObject paramValuesJson = parameters;
     JSONArray recordIdsJson = paramValuesJson.getJSONArray("recordIds");
-    ArrayList<String> recordIds = new ArrayList<String>();
+    ArrayList<String> recordIds = new ArrayList<>();
     for (int i = 0; i < recordIdsJson.length(); i++) {
       recordIds.add(recordIdsJson.getString(i));
     }
-    List<Task> selectedTasks = recordIds.stream().map(id -> OBDal.getInstance().get(Task.class, id)).collect(
+    return recordIds.stream().map(id -> OBDal.getInstance().get(Task.class, id)).collect(
         Collectors.toList());
-    return selectedTasks;
   }
 
   /**
