@@ -1,6 +1,10 @@
+import curlify
+import requests
 from copilot.core.exceptions import ToolException
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils import copilot_debug, read_optional_env_var
+from copilot.core.utils import copilot_debug, copilot_debug_curl, read_optional_env_var
+
+APPLICATION_JSON = "application/json"
 
 
 def get_etendo_token():
@@ -64,6 +68,23 @@ def _get_headers(access_token):
 
 
 def call_etendo(method: str, url: str, endpoint: str, body_params, access_token: str):
+    """
+    Sends an HTTP request to a specified Etendo endpoint using the given method, URL, endpoint, body parameters, and access token.
+
+    Args:
+        method (str): The HTTP method to use ('GET', 'POST', 'PUT', 'DELETE').
+        url (str): The base URL of the Etendo server.
+        endpoint (str): The specific API endpoint to call.
+        body_params (dict or any): The parameters to include in the request body (for POST, PUT, DELETE).
+        access_token (str): The access token for authentication.
+
+    Returns:
+        dict: The JSON-decoded response from the server if the request is successful.
+        dict: A dictionary containing an "error" key with the error message if the request fails.
+
+    Raises:
+        ToolException: If an unsupported HTTP method is provided.
+    """
     import requests
 
     headers = _get_headers(access_token)
@@ -82,6 +103,7 @@ def call_etendo(method: str, url: str, endpoint: str, body_params, access_token:
         result = requests.delete(url=full_url, data=json_data, headers=headers)
     else:
         raise ToolException(f"Unsupported HTTP method: {method}")
+    copilot_debug_curl(result.request)
     if result.ok:
         return json.loads(result.text)
     else:
@@ -115,8 +137,8 @@ def login_etendo(server_url, client_admin_user, client_admin_password):
 
     url = f"{server_url}/sws/login"
     headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
+        "Content-Type": APPLICATION_JSON,
+        "Accept": APPLICATION_JSON,
     }
     data = {
         "username": client_admin_user,
@@ -157,3 +179,66 @@ def call_webhook(access_token, body_params, url, webhook_name):
     else:
         copilot_debug(post_result.text)
         return {"error": post_result.text}
+
+
+def request_to_etendo(
+    method,
+    payload,
+    endpoint,
+    etendo_host,
+    bearer_token,
+) -> requests.Response:
+    """
+    Sends an HTTP request to the specified Etendo endpoint using the given method, payload, and authentication.
+
+    Args:
+        method (str): The HTTP method to use ('GET', 'POST', 'PUT', 'DELETE').
+        payload (dict): The JSON payload to send with the request (used for 'POST' and 'PUT' methods).
+        endpoint (str): The API endpoint to target (appended to etendo_host).
+        etendo_host (str): The base URL of the Etendo host.
+        bearer_token (str): The Bearer token for authorization.
+
+    Returns:
+        requests.Response: The response object returned by the requests library.
+
+    Raises:
+        ToolException: If an invalid HTTP method is provided.
+    """
+    url = f"{etendo_host}{endpoint}"
+    headers = {
+        "Content-Type": APPLICATION_JSON,
+        "Authorization": f"Bearer {bearer_token}",
+    }
+    if method.upper() == "GET":
+        response = requests.get(url, headers=headers)
+    elif method.upper() == "POST":
+        response = requests.post(url, headers=headers, json=payload)
+    elif method.upper() == "PUT":
+        response = requests.put(url, headers=headers, json=payload)
+    elif method.upper() == "DELETE":
+        response = requests.delete(url, headers=headers)
+    else:
+        raise ToolException(f"Invalid HTTP method: {method}")
+    copilot_debug(curlify.to_curl(response.request))
+    return response
+
+
+def simple_request_to_etendo(method, payload, endpoint) -> requests.Response:
+    """
+    Sends a simple HTTP request to the Etendo API using the specified method, payload, and endpoint.
+
+    Args:
+        method (str): The HTTP method to use for the request (e.g., 'GET', 'POST').
+        payload (dict): The data to send in the body of the request.
+        endpoint (str): The API endpoint to send the request to.
+
+    Returns:
+        requests.Response: The response object returned by the Etendo API.
+    """
+    return request_to_etendo(
+        method,
+        payload,
+        endpoint,
+        etendo_host=get_etendo_host(),
+        bearer_token=get_etendo_token(),
+    )

@@ -68,3 +68,4 @@ repos:
         language: system
         name: Build UI
         entry: bash -c 'cd web/com.etendoerp.copilot.chat/ && yarn install && yarn build'
+        files: ^web/com\.etendoerp\.copilot\.chat/
