@@ -83,7 +83,7 @@ public class ExecTask extends Action {
    * @throws JSONException
    *     If required fields are missing, malformed, or if a task cannot be found by ID.
    */
-  private static List<Task> getTaskList(JSONObject parameters) throws JSONException {
+  public static List<Task> getTaskList(JSONObject parameters) throws JSONException {
     if (parameters.has("asyncProcessId")) {
       String paramsJsonString = parameters.getString("params");
       JSONObject paramsJson = new JSONObject(paramsJsonString);
