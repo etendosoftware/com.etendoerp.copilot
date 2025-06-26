@@ -3,7 +3,7 @@ package com.etendoerp.copilot.hook;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.etendoerp.openapi.model.OpenAPIEndpoint;
 
