@@ -32,6 +32,8 @@ from dotenv import load_dotenv
 from dulwich.cli import cmd_web_daemon
 from psycopg2 import sql
 
+from copilot.core.utils import read_optional_env_var
+
 # Default database connection configuration
 DB_CONFIG = {
     'dbname': 'copilot_test',
@@ -466,16 +468,11 @@ def load_config(args):
         load_dotenv(args.envfile, verbose=True)
 
         # Update from environment variables using correct property names
-        if os.getenv('bbdd.sid'): # Common alternative for DB name/SID
-            current_db_config['dbname'] = os.getenv('bbdd.sid')
-        if os.getenv('bbdd.user'):
-            current_db_config['user'] = os.getenv('bbdd.user')
-        if os.getenv('bbdd.password'):
-            current_db_config['password'] = os.getenv('bbdd.password')
-        if os.getenv('bbdd.host'):
-            current_db_config['host'] = os.getenv('bbdd.host')
-        if os.getenv('bbdd.port'):
-            current_db_config['port'] = os.getenv('bbdd.port')
+        current_db_config['dbname'] = read_optional_env_var('bbdd.sid','etendo')
+        current_db_config['user'] = read_optional_env_var('bbdd.user','tad')
+        current_db_config['password'] = read_optional_env_var('bbdd.password','tad')
+        current_db_config['host'] = read_optional_env_var('bbdd.host','localhost')
+        current_db_config['port'] = read_optional_env_var('bbdd.port','5432')
         if os.getenv('ETENDO_BASE_URL'):
             current_etendo_url = os.getenv('ETENDO_BASE_URL')
 
