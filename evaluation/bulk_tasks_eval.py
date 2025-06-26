@@ -61,7 +61,7 @@ DEFAULT_ORG_ID = '0'
 DEFAULT_IS_ACTIVE = 'Y'
 DEFAULT_USER_ID = '100'
 DEFAULT_STATUS = 'D0FCC72902F84486A890B70C1EB10C9C'  # Default status for new tasks
-DEFAULT_TASK_TYPE_ID = 'D693563C21374AEEA47CDEBD23C8A0F0'
+DEFAULT_TASK_TYPE_ID = 'A83E397389DB42559B2D7719A442168F'
 
 # Status of tasks to be executed
 TASKS_STATUS = 'D0FCC72902F84486A890B70C1EB10C9C' # Status indicating tasks ready for execution
@@ -466,16 +466,16 @@ def load_config(args):
         load_dotenv(args.envfile, verbose=True)
 
         # Update from environment variables using correct property names
-        if os.getenv('BBDD_SID'): # Common alternative for DB name/SID
-            current_db_config['dbname'] = os.getenv('BBDD_SID')
-        if os.getenv('BBDD_USER'):
-            current_db_config['user'] = os.getenv('BBDD_USER')
-        if os.getenv('BBDD_PASSWORD'):
-            current_db_config['password'] = os.getenv('BBDD_PASSWORD')
-        if os.getenv('BBDD_HOST'):
-            current_db_config['host'] = os.getenv('BBDD_HOST')
-        if os.getenv('BBDD_PORT'):
-            current_db_config['port'] = os.getenv('BBDD_PORT')
+        if os.getenv('bbdd.sid'): # Common alternative for DB name/SID
+            current_db_config['dbname'] = os.getenv('bbdd.sid')
+        if os.getenv('bbdd.user'):
+            current_db_config['user'] = os.getenv('bbdd.user')
+        if os.getenv('bbdd.password'):
+            current_db_config['password'] = os.getenv('bbdd.password')
+        if os.getenv('bbdd.host'):
+            current_db_config['host'] = os.getenv('bbdd.host')
+        if os.getenv('bbdd.port'):
+            current_db_config['port'] = os.getenv('bbdd.port')
         if os.getenv('ETENDO_BASE_URL'):
             current_etendo_url = os.getenv('ETENDO_BASE_URL')
 
