@@ -172,13 +172,14 @@ class ApiTool(BaseTool, BaseModel):
 
         data = kwargs.get("body", None)
         if isinstance(data, BaseModel):
-            payload_serialized = data.model_dump()
+            payload_serialized = data.model_dump(exclude_unset=True)
         elif isinstance(data, list):
             # Si el payload es una lista
             payload_serialized = []
             for item in data:
                 if isinstance(item, BaseModel):
-                    payload_serialized.append(item.model_dump())
+                    item_serialized = item.model_dump(exclude_unset=True)
+                    payload_serialized.append(item_serialized)
                 else:
                     # Si el item en la lista no es un modelo Pydantic, se asume que ya es serializable
                     payload_serialized.append(item)
