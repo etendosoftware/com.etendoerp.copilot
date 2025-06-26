@@ -54,6 +54,10 @@ def schema_to_pydantic_type(schema: Dict[str, Any]) -> Any:
                 if "pattern" in prop_schema:
                     field_args["pattern"] = prop_schema["pattern"]
 
+            if prop_schema.get("nullable", False) or prop not in required_fields:
+                # Use Optional to handle fields that can be None
+                prop_type = Optional[prop_type]
+
             if prop in required_fields:
                 fields[prop] = (prop_type, Field(..., **field_args))
             else:
@@ -217,13 +221,15 @@ class ApiTool(BaseTool, BaseModel):
             url = url.replace(f"{{{param_name}}}", str(param_value))
 
         data = kwargs.get("body", None)
+
         if isinstance(data, BaseModel):
-            payload_serialized = data.model_dump()
+            payload_serialized = data.model_dump(exclude_unset=True)
         elif isinstance(data, list):
             payload_serialized = []
             for item in data:
                 if isinstance(item, BaseModel):
-                    payload_serialized.append(item.model_dump())
+                    item_serialized = item.model_dump(exclude_unset=True)
+                    payload_serialized.append(item_serialized)
                 else:
                     payload_serialized.append(item)
         else:
