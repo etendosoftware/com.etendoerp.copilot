@@ -1,19 +1,14 @@
 from typing import Final
 
-from langchain_openai import ChatOpenAI
-
 from copilot.core import utils
+from langchain_openai import ChatOpenAI
 
 
 def build_system_prompt(members_descriptions, members_names, system_prompt):
     if system_prompt is None:
-        system_prompt_section = (
-            "You are a supervisor."
-        )
+        system_prompt_section = "You are a supervisor."
     else:
-        system_prompt_section = (
-            f"You are a supervisor with the following characteristics: {system_prompt}"
-        )
+        system_prompt_section = f"You are a supervisor with the following characteristics: {system_prompt}"
     core_prompt = """# Role:
 
 You are a supervisor. Based on the conversation provided, your task is to decide who should act next.
@@ -65,7 +60,7 @@ Select one of the following workers:
     if members_descriptions is not None and len(members_descriptions) > 0:
         core_prompt += " Each worker has the following next tag and description:\n"
         core_prompt += "| Next | Description |\n"
-        for name, description in zip(members_names, members_descriptions):
+        for name, description in zip(members_names, members_descriptions, strict=True):
             core_prompt += f"| {name} | {description} |\n"
     system_prompt = system_prompt_section + core_prompt
     return system_prompt
@@ -99,9 +94,8 @@ class SupervisorNode:
                     },
                     "instructions": {
                         "title": "Instructions",
-                        "Description": 
-                            "Instructions for the next agent, including all necessary data. "
-                            "This should be a comprehensive API call that incorporates all data from the conversation.",
+                        "Description": "Instructions for the next agent, including all necessary data. "
+                        "This should be a comprehensive API call that incorporates all data from the conversation.",
                         "type": "string",
                     },
                 },
@@ -118,22 +112,41 @@ class SupervisorNode:
         llm = ChatOpenAI(model=self.OPENAI_MODEL, temperature=temperature, streaming=False)
 
         supervisor_chain = (
-                prompt
-                | llm.bind_functions(functions=[function_def], function_call="route")
-                | JsonOutputFunctionsParser()
+            prompt
+            | llm.bind_functions(functions=[function_def], function_call="route")
+            | JsonOutputFunctionsParser()
         )
 
         return supervisor_chain
 
 
-def get_supervisor_system_prompt(full_question):
-    if full_question is not None and hasattr(full_question,
-                                             "system_prompt") and full_question.system_prompt is not None:
-        return full_question.system_prompt
-    return None
+# Receives a list of members names and members descriptions
+def get_supervisor_system_prompt(
+    full_question, members_names: list[str] = None, members_descriptions: list[str] = None
+):
+    prompt = ""
+    if (
+        full_question is not None
+        and hasattr(full_question, "system_prompt")
+        and full_question.system_prompt is not None
+    ):
+        prompt += full_question.system_prompt
+
+    if members_names is not None and len(members_names) > 0:
+        prompt += "\n\n"
+        prompt += "Each worker has the following next tag and description:\n"
+        prompt += "| Next | Description |\n"
+        for name, description in zip(members_names, members_descriptions, strict=True):
+            prompt += f"| {name} | {description} |\n"
+
+    return prompt
 
 
 def get_supervisor_temperature(full_question):
-    if full_question is not None and hasattr(full_question, "temperature") and full_question.temperature is not None:
+    if (
+        full_question is not None
+        and hasattr(full_question, "temperature")
+        and full_question.temperature is not None
+    ):
         return full_question.temperature
     return 1

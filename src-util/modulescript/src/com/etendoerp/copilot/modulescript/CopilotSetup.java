@@ -38,6 +38,9 @@ public class CopilotSetup extends ModuleScript {
           "DELETE FROM ad_preference WHERE ad_client_id <>'0' AND property IN ('ETCOP_DefaultProvider', " +
               "'ETCOP_DefaultModelOpenAI', 'ETCOP_DefaultModelGoogle');");
       ps3.executeUpdate();
+      PreparedStatement ps4 = cp.getPreparedStatement(
+          "UPDATE etcop_app SET search_k = 4 WHERE search_k IS NULL;");
+      ps4.executeUpdate();
     } catch (Exception e) {
       handleError(e);
     }

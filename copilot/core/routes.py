@@ -26,6 +26,7 @@ from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import (
     GraphQuestionSchema,
     QuestionSchema,
+    SplitterConfig,
     VectorDBInputSchema,
 )
 from copilot.core.threadcontext import ThreadContext
@@ -107,13 +108,8 @@ def _initialize_agent(question: QuestionSchema):
     if agent_type is None:
         agent_type = utils.read_optional_env_var("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
     copilot_agent = select_copilot_agent(agent_type)
-    copilot_info("  Current agent loaded: " + copilot_agent.__class__.__name__)
-    copilot_debug("/question endpoint):")
-    copilot_info("  Question: " + question.question)
-    copilot_debug("  agent_type: " + str(agent_type))
-    copilot_debug("  assistant_id: " + str(question.assistant_id))
-    copilot_debug("  conversation_id: " + str(question.conversation_id))
-    copilot_debug("  file_ids: " + str(question.file_ids))
+    print_call_info(copilot_agent, question)
+
     load_thread_context(question)
     return agent_type, copilot_agent
 
@@ -133,7 +129,7 @@ def _execute_agent(copilot_agent, question: QuestionSchema):
 def _handle_exception(e: Exception):
     """Handle exceptions and return an error response."""
     logger.exception(e)
-    copilot_debug("  Exception: " + str(e))
+    print_debug_except(e)
     if hasattr(e, "response"):
         content = e.response.content
         error_message = json.loads(content).get("error").get("message")
@@ -145,15 +141,16 @@ def _handle_exception(e: Exception):
     }
 
 
+def print_debug_except(e):
+    """Print debug information for exceptions."""
+    copilot_debug("  Exception: " + str(e))
+
+
 @core_router.post("/graph")
 def serve_graph(question: GraphQuestionSchema):
     """Copilot main endpdoint to answering questions."""
     copilot_agent = LanggraphAgent()
-    copilot_info("  Current agent loaded: " + copilot_agent.__class__.__name__)
-    copilot_debug("/question endpoint):")
-    copilot_info("  Question: " + question.question)
-    copilot_debug("  conversation_id: " + str(question.conversation_id))
-
+    print_call_info(copilot_agent, question)
     try:
         copilot_debug(
             "Thread "
@@ -167,7 +164,7 @@ def serve_graph(question: GraphQuestionSchema):
         local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
     except Exception as e:
         logger.exception(e)
-        copilot_debug("  Exception: " + str(e))
+        print_debug_except(e)
         if hasattr(e, "response"):
             content = e.response.content
             # content has the json error message
@@ -185,6 +182,12 @@ def serve_graph(question: GraphQuestionSchema):
     return {"answer": response}
 
 
+def print_call_info(copilot_agent, question):
+    copilot_info("  Current agent loaded: " + copilot_agent.__class__.__name__)
+    copilot_info("  Question: " + question.question)
+    copilot_debug(" Payload: " + str(question.dict()))
+
+
 def event_stream_graph(question: GraphQuestionSchema):
     responses = _serve_agraph(question)
     for response in responses:
@@ -199,10 +202,7 @@ def serve_async_graph(question: GraphQuestionSchema):
 def _serve_agraph(question: GraphQuestionSchema):
     """Copilot main endpdoint to answering questions."""
     copilot_agent = LanggraphAgent()
-    copilot_info("  Current agent loaded: " + copilot_agent.__class__.__name__)
-    copilot_debug("/question endpoint):")
-    copilot_info("  Question: " + question.question)
-    copilot_debug("  conversation_id: " + str(question.conversation_id))
+    print_call_info(copilot_agent, question)
 
     try:
         load_thread_context(question)
@@ -228,7 +228,7 @@ def _serve_agraph(question: GraphQuestionSchema):
         loop.close()
     except Exception as e:
         logger.exception(e)
-        copilot_debug("  Exception: " + str(e))
+        print_debug_except(e)
         if hasattr(e, "response"):
             content = e.response.content
             # content has the json error message
@@ -313,7 +313,7 @@ def serve_assistant():
 
 
 @core_router.post("/ResetVectorDB")
-def resetVectorDB(body: VectorDBInputSchema):
+def reset_vector_db(body: VectorDBInputSchema):
     try:
         kb_vectordb_id = body.kb_vectordb_id
         db_path = get_vector_db_path(kb_vectordb_id)
@@ -353,9 +353,13 @@ def process_text_to_vector_db(
     overwrite: bool = Form(False),
     file: UploadFile = File(None),
     skip_splitting: bool = Form(False),
+    max_chunk_size: int = Form(None),
+    chunk_overlap: int = Form(None),
 ):
     db_path = get_vector_db_path(kb_vectordb_id)
-
+    splitter_config = SplitterConfig(
+        skip_splitting=skip_splitting, max_chunk_size=max_chunk_size, chunk_overlap=chunk_overlap
+    )
     try:
         if overwrite and os.path.exists(db_path):
             os.remove(db_path)
@@ -370,17 +374,31 @@ def process_text_to_vector_db(
             chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
             if extension == "zip":
                 # Process the ZIP file
-                texts = handle_zip_file(file_path, chroma_client, skip_splitting)
+                texts = handle_zip_file(file_path, chroma_client, splitter_config)
 
             else:
-                texts = index_file(extension, file_path, chroma_client, skip_splitting)
+                texts = index_file(extension, file_path, chroma_client, splitter_config)
                 # Remove the temporary file after use
 
             copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
+            max_length = 0
+            for i, _text in enumerate(texts):
+                copilot_debug(f"Document {i}: {len(texts[i].page_content)}")
+                if len(texts[0].page_content) > max_length:
+                    max_length = len(texts[0].page_content)
             if len(texts) > 0:
-                Chroma.from_documents(
-                    texts, get_embedding(), persist_directory=db_path, client_settings=get_chroma_settings()
-                )
+                total_texts = len(texts)
+                # Add texts in batches                of 100
+                for i in range(0, total_texts, 20):
+                    batch_texts = texts[i : i + 20]
+                    # Add the batch of texts to the vector store
+                    Chroma.from_documents(
+                        batch_texts,
+                        get_embedding(),
+                        persist_directory=db_path,
+                        client_settings=get_chroma_settings(),
+                        client=chroma_client,
+                    )
             success = True
             message = f"Database {kb_vectordb_id} created and loaded successfully."
             copilot_debug(message)

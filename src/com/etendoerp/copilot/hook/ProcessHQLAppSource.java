@@ -125,15 +125,8 @@ public class ProcessHQLAppSource {
       additionalFilter += AND + entityAlias + ".organization.id in ( :organizations )";
       parameters.put(ORGANIZATIONS, orgs);
     }
-    // adds the hql filters in the proper place at the end of the query
-    String separator = null;
-    if (StringUtils.containsIgnoreCase(hql, WHERE)) {
-      // if there is already a where clause, append with 'AND'
-      separator = AND;
-    } else {
-      // otherwise, append with 'where'
-      separator = WHERE;
-    }
+    /// Determine the appropriate separator for appending HQL filters
+    String separator = StringUtils.containsIgnoreCase(hql, WHERE) ? AND : WHERE;
     hql = hql + separator + additionalFilter;
     var qry = session.createQuery(hql);
     Set<String> namedParameters = qry.getParameterMetadata().getNamedParameterNames();
@@ -162,15 +155,31 @@ public class ProcessHQLAppSource {
       var listColumnValues = Arrays.stream(values)
           .map(this::printObject).collect(Collectors.toList());
       if (!isCsv) {
-        for (int i = 0; i < listColumnValues.size(); i++) {
-          listColumnValues.set(i, (headersArray.length > i && StringUtils.isNotEmpty(
-              headersArray[i]) ? headersArray[i] : "?") + ": " + listColumnValues.get(i));
-        }
+        addAliasesForColumns(listColumnValues, headersArray);
       }
 
       results.add(String.join(isCsv ? ", " : "\n", listColumnValues));
     }
-    return String.join(isCsv ? "\n" : "\n----------------------------------------------------\n", results);
+    return String.join(isCsv ? "\n" : "\n\n", results);
+  }
+
+  /**
+   * Adds aliases to column values based on the provided headers array.
+   * <p>
+   * This method iterates through the list of column values and prepends each value
+   * with its corresponding alias from the headers array. If a header is not available
+   * or is empty, a default alias ("?") is used.
+   *
+   * @param listColumnValues
+   *     A {@link List} of {@link String} representing the column values to be updated.
+   * @param headersArray
+   *     An array of {@link String} containing the aliases for the columns.
+   */
+  private static void addAliasesForColumns(List<String> listColumnValues, String[] headersArray) {
+    for (int i = 0; i < listColumnValues.size(); i++) {
+      listColumnValues.set(i, (headersArray.length > i && StringUtils.isNotEmpty(
+          headersArray[i]) ? headersArray[i] : "?") + ": " + listColumnValues.get(i));
+    }
   }
 
 
