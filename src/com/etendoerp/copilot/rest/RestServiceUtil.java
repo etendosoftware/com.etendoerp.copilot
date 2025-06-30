@@ -763,6 +763,7 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
     jsonRequestForCopilot.put(PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
     jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
+    jsonRequestForCopilot.put(PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
   }
 
   /**
