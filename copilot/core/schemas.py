@@ -75,6 +75,7 @@ class GraphQuestionSchema(BaseModel):
     assistant_id: Optional[str] = None
     tools: Optional[list[ToolSchema]] = None
     name: Optional[str] = None
+    model: Optional[str] = None
 
 
 class VectorDBInputSchema(BaseModel):
