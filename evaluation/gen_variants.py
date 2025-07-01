@@ -1,12 +1,19 @@
-import pandas as pd
+import argparse
+import json  # For saving stats in a structured way
 import os
 import re
-import argparse
 import traceback
-from typing import List, Dict, Any, Tuple
-from collections import Counter
-import json  # For saving stats in a structured way
+from typing import Any, Dict, List
+
 import numpy as np  # For numerical operations in selection
+import pandas as pd
+from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
+from langchain_core.messages import SystemMessage
+from langchain_core.output_parsers import (
+    StrOutputParser,  # To get string output directly
+)
+
+SCRIPT_FINISHED_ = "--- Script Finished ---"
 
 # Langchain imports - Updated for newer versions
 try:
@@ -14,16 +21,16 @@ try:
 except ImportError:
     print("CRITICAL ERROR: langchain-openai not found. Please install it: pip install langchain-openai")
     print(
-        "Attempting to use deprecated ChatOpenAI from langchain_community.chat_models as a fallback (might not work long-term).")
+        "Attempting to use deprecated ChatOpenAI from langchain_community.chat_models as a fallback (might not work long-term)."
+    )
     try:
-        from langchain_community.chat_models import ChatOpenAI  # Fallback for older setups
+        from langchain_community.chat_models import (
+            ChatOpenAI,  # Fallback for older setups
+        )
     except ImportError:
         print("CRITICAL ERROR: No ChatOpenAI found. Please install langchain-openai.")
         exit(1)  # Exit if no ChatOpenAI can be imported
 
-from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
-from langchain_core.messages import SystemMessage
-from langchain_core.output_parsers import StrOutputParser  # To get string output directly
 
 # NLTK for lexical diversity (optional, install if using)
 try:
@@ -52,12 +59,14 @@ try:
     from sklearn.metrics.pairwise import cosine_distances
 
     SENTENCE_TRANSFORMERS_AVAILABLE = True
-    SBERT_MODEL_NAME = 'paraphrase-multilingual-MiniLM-L12-v2'
+    SBERT_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
     SBERT_MODEL = None
 except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
     SBERT_MODEL = None
-    print("Warning: sentence-transformers or scikit-learn not found. Semantic diversity metrics will be skipped.")
+    print(
+        "Warning: sentence-transformers or scikit-learn not found. Semantic diversity metrics will be skipped."
+    )
     print("To enable them, run: pip install sentence-transformers scikit-learn")
 
 # --- Configuration ---
@@ -73,7 +82,9 @@ def load_sbert_model():
     global SBERT_MODEL
     if SENTENCE_TRANSFORMERS_AVAILABLE and SBERT_MODEL is None:
         try:
-            print(f"Loading SentenceTransformer model '{SBERT_MODEL_NAME}'... (This may take a moment on first run)")
+            print(
+                f"Loading SentenceTransformer model '{SBERT_MODEL_NAME}'... (This may take a moment on first run)"
+            )
             SBERT_MODEL = SentenceTransformer(SBERT_MODEL_NAME)
             print(f"SentenceTransformer model '{SBERT_MODEL_NAME}' loaded successfully.")
         except Exception as e:
@@ -84,8 +95,12 @@ def load_sbert_model():
 
 def calculate_distinct_ngrams(list_of_texts: List[str], n: int = 1) -> Dict[str, Any]:
     if not NLTK_AVAILABLE or not list_of_texts:
-        return {"distinct_count": 0, "total_count": 0, "ratio": 0.0,
-                "status": "Skipped (NLTK not available or no texts)"}
+        return {
+            "distinct_count": 0,
+            "total_count": 0,
+            "ratio": 0.0,
+            "status": "Skipped (NLTK not available or no texts)",
+        }
 
     all_ngrams_list = []
     try:
@@ -106,8 +121,12 @@ def calculate_distinct_ngrams(list_of_texts: List[str], n: int = 1) -> Dict[str,
     total_ngrams_count = len(all_ngrams_list)
     distinct_ngrams_count = len(set(all_ngrams_list))
     ratio = distinct_ngrams_count / total_ngrams_count if total_ngrams_count > 0 else 0.0
-    return {"distinct_count": distinct_ngrams_count, "total_count": total_ngrams_count, "ratio": ratio,
-            "status": "Success"}
+    return {
+        "distinct_count": distinct_ngrams_count,
+        "total_count": total_ngrams_count,
+        "ratio": ratio,
+        "status": "Success",
+    }
 
 
 def average_levenshtein_distance_pairwise(list_of_texts: List[str]) -> Dict[str, Any]:
@@ -147,7 +166,10 @@ def average_cosine_distance_pairwise_semantic(list_of_texts: List[str]) -> Dict[
 
     embeddings = get_embeddings(list_of_texts)
     if embeddings is None or (isinstance(embeddings, list) and not embeddings) or embeddings.shape[0] < 2:
-        return {"average_cosine_distance": 0.0, "status": "Skipped (could not generate enough valid embeddings)"}
+        return {
+            "average_cosine_distance": 0.0,
+            "status": "Skipped (could not generate enough valid embeddings)",
+        }
 
     try:
         distances_matrix = cosine_distances(embeddings)
@@ -172,49 +194,67 @@ def report_and_collect_diversity_metrics(templates: List[str]) -> Dict[str, Any]
         return metrics_summary
 
     metrics_summary["lexical_diversity_nltk"] = {}
-    if NLTK_AVAILABLE:
-        print("\nLexical Diversity (NLTK):")
-        for n_val in [1, 2]:
-            ngram_key = f"distinct_{n_val}_grams"
-            metrics_ngram = calculate_distinct_ngrams(templates, n=n_val)
-            metrics_summary["lexical_diversity_nltk"][ngram_key] = metrics_ngram
-            if metrics_ngram.get("status", "").startswith("Error") or metrics_ngram.get("status", "").startswith(
-                    "Skipped"):
-                print(f"  Distinct-{n_val} grams: {metrics_ngram['status']}")
-            else:
-                print(
-                    f"  Distinct-{n_val} grams: {metrics_ngram['distinct_count']} unique of {metrics_ngram['total_count']} total (Ratio: {metrics_ngram['ratio']:.3f})")
-    else:
-        print("\nLexical Diversity (NLTK): Skipped (NLTK not available).")
-        metrics_summary["lexical_diversity_nltk"]["status"] = "Skipped (NLTK not available)"
+    set_nltk(metrics_summary, templates)
 
     metrics_summary["levenshtein_distance"] = {}
-    if LEVENSHTEIN_AVAILABLE:
-        lev_metrics = average_levenshtein_distance_pairwise(templates)
-        metrics_summary["levenshtein_distance"] = lev_metrics
-        print(
-            f"\nAverage Normalized Levenshtein Distance (Pairwise): {lev_metrics.get('average_normalized_distance', 0.0):.3f} ({lev_metrics.get('status', '')})")
-    else:
-        print("\nAverage Normalized Levenshtein Distance: Skipped (python-Levenshtein not available).")
-        metrics_summary["levenshtein_distance"]["status"] = "Skipped (python-Levenshtein not available)"
+    set_levenstein(metrics_summary, templates)
 
     metrics_summary["semantic_diversity_sbert"] = {}
+    set_semantic_sbert(metrics_summary, templates)
+
+    print("---------------------------------------------")
+    return metrics_summary
+
+
+def set_semantic_sbert(metrics_summary, templates):
     if SENTENCE_TRANSFORMERS_AVAILABLE:
         print(f"\nSemantic Diversity (Sentence Transformers - Model: {SBERT_MODEL_NAME}):")
         if load_sbert_model() is not None:
             cosine_metrics = average_cosine_distance_pairwise_semantic(templates)
             metrics_summary["semantic_diversity_sbert"] = cosine_metrics
             print(
-                f"  Average Cosine Distance (Pairwise Semantic): {cosine_metrics.get('average_cosine_distance', 0.0):.3f} (Higher is more diverse) ({cosine_metrics.get('status', '')})")
+                f"  Average Cosine Distance (Pairwise Semantic): {cosine_metrics.get('average_cosine_distance', 0.0):.3f} (Higher is more diverse) ({cosine_metrics.get('status', '')})"
+            )
         else:
             print("  Skipped (SentenceTransformer model could not be loaded).")
             metrics_summary["semantic_diversity_sbert"]["status"] = "Skipped (SBERT model not loaded)"
     else:
         print("\nSemantic Diversity: Skipped (sentence-transformers or scikit-learn not available).")
-        metrics_summary["semantic_diversity_sbert"]["status"] = "Skipped (sentence-transformers not available)"
+        metrics_summary["semantic_diversity_sbert"][
+            "status"
+        ] = "Skipped (sentence-transformers not available)"
 
-    print("---------------------------------------------")
-    return metrics_summary
+
+def set_nltk(metrics_summary, templates):
+    if NLTK_AVAILABLE:
+        print("\nLexical Diversity (NLTK):")
+        for n_val in [1, 2]:
+            ngram_key = f"distinct_{n_val}_grams"
+            metrics_ngram = calculate_distinct_ngrams(templates, n=n_val)
+            metrics_summary["lexical_diversity_nltk"][ngram_key] = metrics_ngram
+            if metrics_ngram.get("status", "").startswith("Error") or metrics_ngram.get(
+                "status", ""
+            ).startswith("Skipped"):
+                print(f"  Distinct-{n_val} grams: {metrics_ngram['status']}")
+            else:
+                print(
+                    f"  Distinct-{n_val} grams: {metrics_ngram['distinct_count']} unique of {metrics_ngram['total_count']} total (Ratio: {metrics_ngram['ratio']:.3f})"
+                )
+    else:
+        print("\nLexical Diversity (NLTK): Skipped (NLTK not available).")
+        metrics_summary["lexical_diversity_nltk"]["status"] = "Skipped (NLTK not available)"
+
+
+def set_levenstein(metrics_summary, templates):
+    if LEVENSHTEIN_AVAILABLE:
+        lev_metrics = average_levenshtein_distance_pairwise(templates)
+        metrics_summary["levenshtein_distance"] = lev_metrics
+        print(
+            f"\nAverage Normalized Levenshtein Distance (Pairwise): {lev_metrics.get('average_normalized_distance', 0.0):.3f} ({lev_metrics.get('status', '')})"
+        )
+    else:
+        print("\nAverage Normalized Levenshtein Distance: Skipped (python-Levenshtein not available).")
+        metrics_summary["levenshtein_distance"]["status"] = "Skipped (python-Levenshtein not available)"
 
 
 def save_diversity_stats(stats_data: Dict[str, Any], output_stat_file: str):
@@ -228,10 +268,7 @@ def save_diversity_stats(stats_data: Dict[str, Any], output_stat_file: str):
 
 
 # --- Template Selection Logic ---
-def select_most_diverse_templates(
-        all_templates: List[str],
-        num_to_select: int
-) -> List[str]:
+def select_most_diverse_templates(all_templates: List[str], num_to_select: int) -> List[str]:
     """
     Selects a subset of templates that are most semantically diverse.
     Uses a greedy approach based on maximizing minimum cosine distance to already selected templates.
@@ -241,20 +278,26 @@ def select_most_diverse_templates(
         return []
     if len(all_templates) <= num_to_select:
         print(
-            f"Number of generated templates ({len(all_templates)}) is less than or equal to requested ({num_to_select}). Returning all generated templates.")
+            f"Number of generated templates ({len(all_templates)}) is less than or equal to requested ({num_to_select}). Returning all generated templates."
+        )
         return all_templates
 
     sbert_model = load_sbert_model()
     if not sbert_model or not SENTENCE_TRANSFORMERS_AVAILABLE:
         print(
-            "Warning: Semantic diversity model not available. Cannot perform diverse selection. Returning the first N templates.")
+            "Warning: Semantic diversity model not available. Cannot perform diverse selection. Returning the first N templates."
+        )
         return all_templates[:num_to_select]
 
     print(f"\n--- Selecting {num_to_select} most diverse templates from {len(all_templates)} candidates ---")
 
     embeddings = get_embeddings(all_templates)
-    if embeddings is None or len(embeddings) < num_to_select:  # Check if embeddings is None or not enough embeddings
-        print("Warning: Could not generate enough embeddings for diverse selection. Returning the first N templates.")
+    if (
+        embeddings is None or len(embeddings) < num_to_select
+    ):  # Check if embeddings is None or not enough embeddings
+        print(
+            "Warning: Could not generate enough embeddings for diverse selection. Returning the first N templates."
+        )
         return all_templates[:num_to_select]
 
     num_candidates = embeddings.shape[0]
@@ -271,6 +314,14 @@ def select_most_diverse_templates(
         print(f"Error computing distance matrix for diverse selection: {e}. Returning first N templates.")
         return all_templates[:num_to_select]
 
+    selected_templates = select_templates(
+        all_templates, distance_matrix, num_candidates, num_to_select, selected_indices
+    )
+    print(f"Selected {len(selected_templates)} diverse templates.")
+    return selected_templates
+
+
+def select_templates(all_templates, distance_matrix, num_candidates, num_to_select, selected_indices):
     while len(selected_indices) < num_to_select:
         best_next_idx = -1
         max_min_dist_to_selected_set = -1
@@ -293,20 +344,18 @@ def select_most_diverse_templates(
             # but as a fallback if all remaining candidates have 0 distance (are identical)
             print("Warning: Could not find more distinct templates to select. Returning current selection.")
             break
-
     selected_templates = [all_templates[i] for i in selected_indices]
-    print(f"Selected {len(selected_templates)} diverse templates.")
     return selected_templates
 
 
 # --- LLM-Powered Template Generation ---
 def generate_templates_via_llm(
-        task_description: str,
-        placeholder_names: List[str],
-        num_templates_to_generate_final: int,  # This is the N for final selection
-        diversification_multiplier: int,
-        model_name: str = DEFAULT_LLM_MODEL,
-        temperature: float = DEFAULT_LLM_TEMPERATURE
+    task_description: str,
+    placeholder_names: List[str],
+    num_templates_to_generate_final: int,  # This is the N for final selection
+    diversification_multiplier: int,
+    model_name: str = DEFAULT_LLM_MODEL,
+    temperature: float = DEFAULT_LLM_TEMPERATURE,
 ) -> tuple[List[str], Dict[str, Any]]:
     if not os.getenv("OPENAI_API_KEY"):
         print("CRITICAL ERROR: The OPENAI_API_KEY environment variable is not set.")
@@ -320,11 +369,14 @@ def generate_templates_via_llm(
 
     num_initial_templates_to_request = num_templates_to_generate_final * diversification_multiplier
     print(
-        f"Requesting {num_initial_templates_to_request} initial templates from AI (target final: {num_templates_to_generate_final}).")
+        f"Requesting {num_initial_templates_to_request} initial templates from AI (target final: {num_templates_to_generate_final})."
+    )
 
     placeholders_for_prompt = ", ".join([f"{{{{{name}}}}}" for name in placeholder_names])
     if not placeholder_names:
-        placeholders_for_prompt = "(No specific placeholders provided, generate generic templates for the task)"
+        placeholders_for_prompt = (
+            "(No specific placeholders provided, generate generic templates for the task)"
+        )
 
     system_message_content = (
         "You are a highly creative and expert AI assistant specializing in generating flexible and diverse text templates. "
@@ -353,16 +405,19 @@ def generate_templates_via_llm(
         "Generated Templates:"
     )
 
-    prompt_chat = ChatPromptTemplate.from_messages([
-        SystemMessage(content=system_message_content),
-        HumanMessagePromptTemplate.from_template(human_template_str)
-    ])
+    prompt_chat = ChatPromptTemplate.from_messages(
+        [
+            SystemMessage(content=system_message_content),
+            HumanMessagePromptTemplate.from_template(human_template_str),
+        ]
+    )
 
     chain = prompt_chat | llm | StrOutputParser()
 
     try:
         print(
-            f"\n--- Requesting {num_initial_templates_to_request} initial templates from AI for task: '{task_description}' ---")
+            f"\n--- Requesting {num_initial_templates_to_request} initial templates from AI for task: '{task_description}' ---"
+        )
         if placeholder_names:
             print(f"Available placeholders for AI: {placeholder_names}")
         else:
@@ -371,40 +426,22 @@ def generate_templates_via_llm(
         invoke_input = {
             "num_initial_templates": str(num_initial_templates_to_request),  # Updated key
             "task_description": task_description,
-            "list_placeholders_str": placeholders_for_prompt
+            "list_placeholders_str": placeholders_for_prompt,
         }
         llm_response_content = chain.invoke(invoke_input)
 
-        raw_generated_templates = [t.strip() for t in llm_response_content.split('\n') if t.strip()]
+        raw_generated_templates = [t.strip() for t in llm_response_content.split("\n") if t.strip()]
 
         print(f"\n--- {len(raw_generated_templates)} Raw Templates received from AI ---")
 
-        validated_templates = []
-        placeholder_pattern = re.compile(r"\{\{([\w\s.-]+?)\}\}")
-
-        for i, template_str in enumerate(raw_generated_templates):
-            found_placeholders = set(placeholder_pattern.findall(template_str))
-            is_valid = True
-
-            if not found_placeholders and placeholder_names:
-                print(
-                    f"Warning: Template {i + 1} does not seem to use any placeholders, though some were expected: '{template_str[:100]}...'")
-
-            for ph_found in found_placeholders:
-                if ph_found not in placeholder_names:
-                    print(
-                        f"Warning: Template {i + 1} uses a DISALLOWED placeholder ('{ph_found}'). Placeholder should be one of {placeholder_names}. Discarding template: '{template_str[:100]}...'")
-                    is_valid = False
-                    break
-            if is_valid:
-                validated_templates.append(template_str)
+        validated_templates = get_validated_templates(placeholder_names, raw_generated_templates)
 
         print(f"\n--- {len(validated_templates)} Initial Validated and Processed Templates: ---")
-        # for t_idx, t_text in enumerate(validated_templates): # Optional: print all initial validated
-        #      print(f"Initial Template {t_idx+1}: {t_text}")
 
         # Select the most diverse N templates from the validated ones
-        final_selected_templates = select_most_diverse_templates(validated_templates, num_templates_to_generate_final)
+        final_selected_templates = select_most_diverse_templates(
+            validated_templates, num_templates_to_generate_final
+        )
 
         print(f"\n--- {len(final_selected_templates)} Final Selected Diverse Templates: ---")
         for t_idx, t_text in enumerate(final_selected_templates):
@@ -426,15 +463,37 @@ def generate_templates_via_llm(
         return [], {"status": f"LLM chain execution error: {e}"}
 
 
+def get_validated_templates(placeholder_names, raw_generated_templates):
+    validated_templates = []
+    placeholder_pattern = re.compile(r"\{\{([\w\s.-]+?)\}\}")
+    for i, template_str in enumerate(raw_generated_templates):
+        found_placeholders = set(placeholder_pattern.findall(template_str))
+        is_valid = True
+
+        if not found_placeholders and placeholder_names:
+            print(
+                f"Warning: Template {i + 1} does not seem to use any placeholders, though some were expected: '{template_str[:100]}...'"
+            )
+
+        for ph_found in found_placeholders:
+            if ph_found not in placeholder_names:
+                print(
+                    f"Warning: Template {i + 1} uses a DISALLOWED placeholder ('{ph_found}'). Placeholder should be one of {placeholder_names}. Discarding template: '{template_str[:100]}...'"
+                )
+                is_valid = False
+                break
+        if is_valid:
+            validated_templates.append(template_str)
+    return validated_templates
+
+
 # --- CSV Data Instantiation ---
 def instantiate_templates_with_csv_data(
-        csv_path: str,
-        ai_generated_templates: List[str],
-        placeholder_column_names: List[str]
+    csv_path: str, ai_generated_templates: List[str], placeholder_column_names: List[str]
 ) -> List[str]:
     try:
         df_data = pd.read_csv(csv_path, dtype=str)
-        df_data = df_data.fillna('')
+        df_data = df_data.fillna("")
         print(f"\nSuccessfully loaded {len(df_data)} records from '{csv_path}'.")
     except FileNotFoundError:
         print(f"CRITICAL ERROR: CSV file '{csv_path}' not found.")
@@ -452,21 +511,37 @@ def instantiate_templates_with_csv_data(
     warned_missing_cols = set()
 
     print(f"Instantiating {len(ai_generated_templates)} templates with CSV data...")
+    read_data(
+        ai_generated_templates,
+        csv_path,
+        df_data,
+        final_instantiated_texts,
+        placeholder_column_names,
+        warned_missing_cols,
+    )
+    if len(final_instantiated_texts) >= 50:
+        print("Warning: Too many instantiated texts generated. Limiting to 50 for performance.")
+        final_instantiated_texts = final_instantiated_texts[:50]
+    return final_instantiated_texts
+
+
+def read_data(
+    ai_generated_templates,
+    csv_path,
+    df_data,
+    final_instantiated_texts,
+    placeholder_column_names,
+    warned_missing_cols,
+):
     for index, data_row in df_data.iterrows():
         for template_str in ai_generated_templates:
             current_instance = template_str
             data_for_this_row: Dict[str, Any] = {}
 
             for csv_col_name in placeholder_column_names:
-                if csv_col_name not in df_data.columns:
-                    if csv_col_name not in warned_missing_cols:
-                        print(
-                            f"Warning: CSV column '{csv_col_name}' (expected for placeholder '{{{{{csv_col_name}}}}}') not found in '{csv_path}'. Using empty string for this placeholder.")
-                        warned_missing_cols.add(csv_col_name)
-                    data_for_this_row[csv_col_name] = ""
-                else:
-                    data_for_this_row[csv_col_name] = str(data_row[csv_col_name])
-
+                data_for_this_row[csv_col_name] = method_name(
+                    csv_col_name, csv_path, data_row, df_data, warned_missing_cols
+                )
             try:
                 for placeholder_name, value in data_for_this_row.items():
                     current_instance = current_instance.replace(f"{{{{{placeholder_name}}}}}", value)
@@ -477,10 +552,19 @@ def instantiate_templates_with_csv_data(
                 print(f"  Row Data (partial): {dict(list(data_for_this_row.items())[:3])}...")
                 traceback.print_exc()
             # if final_instantiated_texts reach 300 elements, break to avoid memory issues
-    if len(final_instantiated_texts) >= 50:
-        print("Warning: Too many instantiated texts generated. Limiting to 50 for performance.")
-        final_instantiated_texts = final_instantiated_texts[:50]
-    return final_instantiated_texts
+
+
+def method_name(csv_col_name, csv_path, data_row, df_data, warned_missing_cols):
+    if csv_col_name not in df_data.columns:
+        if csv_col_name not in warned_missing_cols:
+            print(
+                f"Warning: CSV column '{csv_col_name}' (expected for placeholder '{{{{{csv_col_name}}}}}') not found in '{csv_path}'. Using empty string for this placeholder."
+            )
+            warned_missing_cols.add(csv_col_name)
+        a = ""
+    else:
+        a = str(data_row[csv_col_name])
+    return a
 
 
 # --- Argument Parsing and Main Execution ---
@@ -488,46 +572,60 @@ def main():
     global NLTK_AVAILABLE, LEVENSHTEIN_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE, DIVERSIFICATION_MULTIPLIER
     parser = argparse.ArgumentParser(
         description="Generate text instances by combining AI-generated templates with CSV data, including diversity metrics for templates.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("csv_file", type=str, help="Path to the input CSV file.")
+    parser.add_argument(
+        "task",
+        type=str,
+        help="Description of the task for which AI will generate templates (e.g., 'draft customer support email responses').",
     )
     parser.add_argument(
-        "csv_file", type=str, help="Path to the input CSV file."
+        "--columns",
+        type=str,
+        nargs="*",
+        help="Space-separated list of CSV column names to be used as placeholders by the AI (e.g., ProductName UserEmail OrderID). If comma-separated, enclose in quotes.",
     )
     parser.add_argument(
-        "task", type=str,
-        help="Description of the task for which AI will generate templates (e.g., 'draft customer support email responses')."
+        "--num_templates",
+        type=int,
+        default=DEFAULT_NUM_TEMPLATES_FINAL,
+        help="Final number of diverse templates to select and use.",  # Help text updated
     )
     parser.add_argument(
-        "--columns", type=str, nargs='*',
-        help="Space-separated list of CSV column names to be used as placeholders by the AI (e.g., ProductName UserEmail OrderID). If comma-separated, enclose in quotes."
+        "--output",
+        type=str,
+        default=DEFAULT_OUTPUT_FILE,
+        help="Path to save the final instantiated text instances. Statistics will be saved to a .stat file with the same base name.",
     )
     parser.add_argument(
-        "--num_templates", type=int, default=DEFAULT_NUM_TEMPLATES_FINAL,
-        help="Final number of diverse templates to select and use."  # Help text updated
+        "--model",
+        type=str,
+        default=DEFAULT_LLM_MODEL,
+        help="Name of the LLM model to use for template generation.",
     )
     parser.add_argument(
-        "--output", type=str, default=DEFAULT_OUTPUT_FILE,
-        help="Path to save the final instantiated text instances. Statistics will be saved to a .stat file with the same base name."
+        "--temp",
+        type=float,
+        default=DEFAULT_LLM_TEMPERATURE,
+        help="Temperature for LLM generation (0.0 to 2.0). Higher values mean more randomness/creativity.",
     )
     parser.add_argument(
-        "--model", type=str, default=DEFAULT_LLM_MODEL, help="Name of the LLM model to use for template generation."
+        "--diversification_multiplier",
+        type=int,
+        default=DIVERSIFICATION_MULTIPLIER,
+        help="Multiplier for initial template generation (final_num * multiplier = initial_request).",
     )
     parser.add_argument(
-        "--temp", type=float, default=DEFAULT_LLM_TEMPERATURE,
-        help="Temperature for LLM generation (0.0 to 2.0). Higher values mean more randomness/creativity."
+        "--skip_nltk",
+        action="store_true",
+        help="Skip NLTK-based lexical diversity metrics (distinct n-grams).",
     )
+    parser.add_argument("--skip_levenshtein", action="store_true", help="Skip Levenshtein distance metric.")
     parser.add_argument(
-        "--diversification_multiplier", type=int, default=DIVERSIFICATION_MULTIPLIER,
-        help="Multiplier for initial template generation (final_num * multiplier = initial_request)."
-    )
-    parser.add_argument(
-        "--skip_nltk", action="store_true", help="Skip NLTK-based lexical diversity metrics (distinct n-grams)."
-    )
-    parser.add_argument(
-        "--skip_levenshtein", action="store_true", help="Skip Levenshtein distance metric."
-    )
-    parser.add_argument(
-        "--skip_semantic", action="store_true", help="Skip SentenceTransformer-based semantic diversity metrics."
+        "--skip_semantic",
+        action="store_true",
+        help="Skip SentenceTransformer-based semantic diversity metrics.",
     )
 
     args = parser.parse_args()
@@ -545,11 +643,13 @@ def main():
     DIVERSIFICATION_MULTIPLIER = args.diversification_multiplier  # Allow override from command line
 
     if not os.getenv("OPENAI_API_KEY"):
-        print("CRITICAL ERROR: The OPENAI_API_KEY environment variable must be set before running this script.")
+        print(
+            "CRITICAL ERROR: The OPENAI_API_KEY environment variable must be set before running this script."
+        )
         print("Example: export OPENAI_API_KEY='your_api_key_here'")
         return
 
-    print(f"--- Starting Generic Template Generation Script ---")
+    print("--- Starting Generic Template Generation Script ---")
     print(f"Using LLM Model: {args.model} with Temperature: {args.temp}")
     print(f"Task Description for AI: '{args.task}'")
     print(f"Final number of diverse templates to select: {args.num_templates}")
@@ -557,32 +657,15 @@ def main():
 
     placeholder_cols = []
     if args.columns:
-        if len(args.columns) == 1 and ',' in args.columns[0]:
-            placeholder_cols = [col.strip() for col in args.columns[0].split(',')]
+        if len(args.columns) == 1 and "," in args.columns[0]:
+            placeholder_cols = [col.strip() for col in args.columns[0].split(",")]
         else:
             placeholder_cols = [col.strip() for col in args.columns]
 
-    if not placeholder_cols:
-        print(
-            "Note: No specific CSV columns provided for placeholders. AI will be asked to generate generic templates for the task.")
-    else:
-        print(f"CSV columns to be used as placeholders by AI: {placeholder_cols}")
+    print_placeholders_cols_msg(placeholder_cols)
 
     if not os.path.exists(args.csv_file):
-        print(f"Warning: CSV file '{args.csv_file}' not found. Creating a dummy CSV for demonstration purposes.")
-        dummy_cols_for_csv = placeholder_cols if placeholder_cols else ['FieldA', 'FieldB', 'Description']
-        if not dummy_cols_for_csv:
-            dummy_cols_for_csv = ['SampleData']
-        dummy_data: Dict[str, List[Any]] = {col: [] for col in dummy_cols_for_csv}
-        for i in range(1, 4):
-            for col in dummy_cols_for_csv:
-                dummy_data[col].append(f"{col}_Value{i}")
-        try:
-            pd.DataFrame(dummy_data).to_csv(args.csv_file, index=False)
-            print(f"Dummy CSV file '{args.csv_file}' created with columns: {dummy_cols_for_csv}.")
-        except Exception as e_csv:
-            print(f"CRITICAL ERROR: Could not create dummy CSV file: {e_csv}")
-            return
+        create_dummy_csv(args, placeholder_cols)
 
     # generate_templates_via_llm now returns a tuple: (templates_list, stats_dict)
     ai_templates, diversity_stats_results = generate_templates_via_llm(
@@ -591,39 +674,69 @@ def main():
         num_templates_to_generate_final=args.num_templates,
         diversification_multiplier=DIVERSIFICATION_MULTIPLIER,
         model_name=args.model,
-        temperature=args.temp
+        temperature=args.temp,
     )
 
     base_output_name, _ = os.path.splitext(args.output)
     stat_file_path = base_output_name + ".stat"
     save_diversity_stats(diversity_stats_results, stat_file_path)
 
-    if ai_templates:
-        final_texts = instantiate_templates_with_csv_data(
-            csv_path=args.csv_file,
-            ai_generated_templates=ai_templates,
-            placeholder_column_names=placeholder_cols
-        )
-
-        if final_texts:
-            print(f"\n--- {len(final_texts)} Final Text Instances Generated (Showing first 5) ---")
-            for i, text_instance in enumerate(final_texts[:5]):
-                print(f"Instance {i + 1}:\n{text_instance}\n" + "-" * 30)
-
-            try:
-                with open(args.output, "w", encoding="utf-8") as f_out:
-                    for text_to_save in final_texts:
-                        f_out.write(text_to_save + "\n<END_OF_INSTANCE>\n\n")
-                print(f"\nAll ({len(final_texts)}) instantiated texts have been saved to: {args.output}")
-            except Exception as e:
-                print(f"CRITICAL ERROR: Could not save instantiated texts to '{args.output}': {e}")
-                traceback.print_exc()
-        else:
-            print("No final text instances were generated from the templates and CSV data.")
-    else:
+    if not ai_templates:
         print("AI did not generate any templates. Cannot proceed with data instantiation.")
+        print(SCRIPT_FINISHED_)
+        return
 
-    print(f"--- Script Finished ---")
+    final_texts = instantiate_templates_with_csv_data(
+        csv_path=args.csv_file,
+        ai_generated_templates=ai_templates,
+        placeholder_column_names=placeholder_cols,
+    )
+
+    if not final_texts:
+        print("No final text instances were generated from the templates and CSV data.")
+        print(SCRIPT_FINISHED_)
+        return
+
+    print(f"\n--- {len(final_texts)} Final Text Instances Generated (Showing first 5) ---")
+    for i, text_instance in enumerate(final_texts[:5]):
+        print(f"Instance {i + 1}:\n{text_instance}\n" + "-" * 30)
+
+    try:
+        with open(args.output, "w", encoding="utf-8") as f_out:
+            for text_to_save in final_texts:
+                f_out.write(text_to_save + "\n<END_OF_INSTANCE>\n\n")
+        print(f"\nAll ({len(final_texts)}) instantiated texts have been saved to: {args.output}")
+    except Exception as e:
+        print(f"CRITICAL ERROR: Could not save instantiated texts to '{args.output}': {e}")
+        traceback.print_exc()
+
+    print(SCRIPT_FINISHED_)
+
+
+def print_placeholders_cols_msg(placeholder_cols):
+    if not placeholder_cols:
+        print(
+            "Note: No specific CSV columns provided for placeholders. AI will be asked to generate generic templates for the task."
+        )
+    else:
+        print(f"CSV columns to be used as placeholders by AI: {placeholder_cols}")
+
+
+def create_dummy_csv(args, placeholder_cols):
+    print(f"Warning: CSV file '{args.csv_file}' not found. Creating a dummy CSV for demonstration purposes.")
+    dummy_cols_for_csv = placeholder_cols if placeholder_cols else ["FieldA", "FieldB", "Description"]
+    if not dummy_cols_for_csv:
+        dummy_cols_for_csv = ["SampleData"]
+    dummy_data: Dict[str, List[Any]] = {col: [] for col in dummy_cols_for_csv}
+    for i in range(1, 4):
+        for col in dummy_cols_for_csv:
+            dummy_data[col].append(f"{col}_Value{i}")
+    try:
+        pd.DataFrame(dummy_data).to_csv(args.csv_file, index=False)
+        print(f"Dummy CSV file '{args.csv_file}' created with columns: {dummy_cols_for_csv}.")
+    except Exception as e_csv:
+        print(f"CRITICAL ERROR: Could not create dummy CSV file: {e_csv}")
+        raise e_csv
 
 
 if __name__ == "__main__":

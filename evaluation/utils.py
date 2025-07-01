@@ -5,10 +5,8 @@ import os
 import sys
 import time
 
-import html
 import pandas as pd
 import requests
-
 from copilot.core.agent import MultimodelAgent
 from copilot.core.agent.agent import get_kb_tool
 from copilot.core.etendo_utils import call_etendo, login_etendo
@@ -22,7 +20,8 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 from openai.types.chat.chat_completion_message_tool_call_param import Function
-from schemas import Conversation, Message
+
+from evaluation.schemas import Conversation, Message
 
 FILE_NAME = "conversations.json"
 
@@ -431,10 +430,15 @@ def create_accordion(df):
         )
     return "\n".join(html_items)
 
+
 def prepare_report_data(results_obj):
     """Prepares data from evaluation results for HTML report generation."""
-    if not (results_obj and hasattr(results_obj, '_results') and
-            isinstance(results_obj._results, list) and results_obj._results):
+    if not (
+        results_obj
+        and hasattr(results_obj, "_results")
+        and isinstance(results_obj._results, list)
+        and results_obj._results
+    ):
         # Return a structure indicating an error or empty data
         return {"error": "Invalid or empty 'results_obj' structure.", "table_items": [], "avg_score": None}
 
@@ -444,106 +448,152 @@ def prepare_report_data(results_obj):
 
     # Process results
     for result_item in results_obj._results:
-        try:
-            # Assuming evaluation_results might be a list or a single dict
-            evaluation_results_data = result_item.get('evaluation_results', {}).get('results', [])
-            if not isinstance(evaluation_results_data, list): # Handle if 'results' is not a list
-                evaluation_results_data = [evaluation_results_data] if evaluation_results_data else []
+        error_message, error_occurred = process_result(
+            error_message, error_occurred, result_item, table_items
+        )
+
+    return build_report_data(error_message, error_occurred, table_items)
 
 
-            child_runs_data = result_item.get('run', {}).child_runs or []
+def process_result(error_message, error_occurred, result_item, table_items):
+    try:
+        # Assuming evaluation_results might be a list or a single dict
+        evaluation_results_data = result_item.get("evaluation_results", {}).get("results", [])
+        if not isinstance(evaluation_results_data, list):  # Handle if 'results' is not a list
+            evaluation_results_data = [evaluation_results_data] if evaluation_results_data else []
 
-            # Heuristic: Try to match eval results to child runs or inputs
-            # This part might need adjustment based on the exact structure of results_obj
-            num_items_to_process = max(len(evaluation_results_data), len(child_runs_data))
-            if num_items_to_process == 0 and result_item.get('run'): # Case where there are no child runs but a main run
-                 num_items_to_process = 1
+        child_runs_data = result_item.get("run", {}).child_runs or []
+
+        # Heuristic: Try to match eval results to child runs or inputs
+        # This part might need adjustment based on the exact structure of results_obj
+        num_items_to_process = max(len(evaluation_results_data), len(child_runs_data))
+        if num_items_to_process == 0 and result_item.get(
+            "run"
+        ):  # Case where there are no child runs but a main run
+            num_items_to_process = 1
+
+        for i in range(num_items_to_process):
+            score = -1
+            eval_comment_content = "N/A"
+            input_comment_content = "N/A"
+            output_data = "N/A"
+
+            # Get score and eval_comment from evaluation_results
+            if i < len(evaluation_results_data) and evaluation_results_data[i]:
+                eval_result = evaluation_results_data[i]
+                score = getattr(eval_result, "score", -1)
+                eval_comment_content = getattr(eval_result, "comment", "N/A")
+
+            # Get input_comment from child_runs or main run inputs
+            current_run_for_input = child_runs_data[i] if i < len(child_runs_data) else result_item.get("run")
+            input_comment_content = read_input_comment_content(current_run_for_input, input_comment_content)
+
+            # Get output_data from child_runs or main run outputs
+            current_run_for_output = (
+                child_runs_data[i] if i < len(child_runs_data) else result_item.get("run")
+            )
+            output_data = read_output_data(current_run_for_output, output_data)
+
+            table_items.append(
+                {
+                    "comment": input_comment_content,
+                    "score": score,
+                    "output": output_data,
+                    "eval_comment": eval_comment_content,
+                }
+            )
+
+    except Exception as e:
+        error_message = f"Error processing result_item: {str(e)}. Item: {json.dumps(result_item, default=str, indent=2)[:500]}..."  # Log part of the item
+        error_occurred = True
+        # Add an error placeholder to table_items to acknowledge the item
+        table_items.append(
+            {
+                "comment": f"Error processing item: {str(e)}",
+                "score": -1,
+                "output": "Error",
+                "eval_comment": "Error processing",
+            }
+        )
+        # Decide whether to break or continue: for now, continue to see other items if possible
+        # break
+    return error_message, error_occurred
 
 
-            for i in range(num_items_to_process):
-                score = -1
-                eval_comment_content = "N/A"
-                input_comment_content = "N/A"
-                output_data = "N/A"
-
-                # Get score and eval_comment from evaluation_results
-                if i < len(evaluation_results_data) and evaluation_results_data[i]:
-                    eval_result = evaluation_results_data[i]
-                    score = getattr(eval_result, 'score', -1)
-                    eval_comment_content = getattr(eval_result, 'comment', 'N/A')
-
-                # Get input_comment from child_runs or main run inputs
-                current_run_for_input = child_runs_data[i] if i < len(child_runs_data) else result_item.get('run')
-                if current_run_for_input:
-                    inputs = getattr(current_run_for_input, 'inputs', {})
-                    if isinstance(inputs, dict) and 'messages' in inputs:
-                        messages = inputs['messages']
-                        # Try to find user message
-                        user_message = next((msg.get('kwargs', {}).get('content') for msg in messages if isinstance(msg, dict) and msg.get('kwargs', {}).get('type') == 'human'), None)
-                        if user_message:
-                            input_comment_content = user_message
-                        elif messages: # Fallback to stringifying messages
-                             input_comment_content = json.dumps(messages)
-                        else:
-                            input_comment_content = json.dumps(inputs) # Fallback if no messages
-                    elif isinstance(inputs, dict):
-                        input_comment_content = json.dumps(inputs)
-                    else:
-                        input_comment_content = str(inputs)
-
-                # Get output_data from child_runs or main run outputs
-                current_run_for_output = child_runs_data[i] if i < len(child_runs_data) else result_item.get('run')
-                if current_run_for_output:
-                    outputs = getattr(current_run_for_output, 'outputs', {})
-                    if isinstance(outputs, dict) and 'generations' in outputs:
-                         # Try to extract AI message content
-                        generations = outputs['generations']
-                        ai_message = next((gen.get('message', {}).get('kwargs', {}).get('content') for gen in generations if isinstance(gen, dict) and gen.get('message')), None)
-                        if ai_message:
-                            output_data = ai_message
-                        else: # Fallback to stringifying outputs
-                            output_data = json.dumps(outputs)
-                    elif isinstance(outputs, dict):
-                        output_data = json.dumps(outputs)
-                    else:
-                        output_data = str(outputs)
-
-
-                table_items.append({
-                    'comment': input_comment_content,
-                    'score': score,
-                    'output': output_data,
-                    'eval_comment': eval_comment_content
-                })
-
-        except Exception as e:
-            error_message = f"Error processing result_item: {str(e)}. Item: {json.dumps(result_item, default=str, indent=2)[:500]}..." # Log part of the item
-            error_occurred = True
-            # Add an error placeholder to table_items to acknowledge the item
-            table_items.append({
-                'comment': f"Error processing item: {str(e)}",
-                'score': -1,
-                'output': "Error",
-                'eval_comment': "Error processing"
-            })
-            # Decide whether to break or continue: for now, continue to see other items if possible
-            # break
-
-    if error_occurred and not error_message: # If individual items had errors but no global one
+def build_report_data(error_message, error_occurred, table_items):
+    if error_occurred and not error_message:  # If individual items had errors but no global one
         error_message = "Errors occurred while processing some evaluation items."
-
-
-    valid_scores = [item['score'] for item in table_items if isinstance(item.get('score'), (int, float)) and item['score'] != -1]
+    valid_scores = [
+        item["score"]
+        for item in table_items
+        if isinstance(item.get("score"), (int, float)) and item["score"] != -1
+    ]
     avg_score = None
     if valid_scores:
         avg_score = sum(valid_scores) / len(valid_scores)
+    result = {
+        "table_items": table_items,
+        "avg_score": avg_score,
+        "error": error_message if error_message else None,
+    }
+    return result
 
-    return {"table_items": table_items, "avg_score": avg_score, "error": error_message if error_message else None}
+
+def read_output_data(current_run_for_output, output_data):
+    if current_run_for_output:
+        outputs = getattr(current_run_for_output, "outputs", {})
+        if isinstance(outputs, dict) and "generations" in outputs:
+            # Try to extract AI message content
+            generations = outputs["generations"]
+            ai_message = next(
+                (
+                    gen.get("message", {}).get("kwargs", {}).get("content")
+                    for gen in generations
+                    if isinstance(gen, dict) and gen.get("message")
+                ),
+                None,
+            )
+            if ai_message:
+                output_data = ai_message
+            else:  # Fallback to stringifying outputs
+                output_data = json.dumps(outputs)
+        elif isinstance(outputs, dict):
+            output_data = json.dumps(outputs)
+        else:
+            output_data = str(outputs)
+    return output_data
+
+
+def read_input_comment_content(current_run_for_input, input_comment_content):
+    if current_run_for_input:
+        inputs = getattr(current_run_for_input, "inputs", {})
+        if isinstance(inputs, dict) and "messages" in inputs:
+            messages = inputs["messages"]
+            # Try to find user message
+            user_message = next(
+                (
+                    msg.get("kwargs", {}).get("content")
+                    for msg in messages
+                    if isinstance(msg, dict) and msg.get("kwargs", {}).get("type") == "human"
+                ),
+                None,
+            )
+            if user_message:
+                input_comment_content = user_message
+            elif messages:  # Fallback to stringifying messages
+                input_comment_content = json.dumps(messages)
+            else:
+                input_comment_content = json.dumps(inputs)  # Fallback if no messages
+        elif isinstance(inputs, dict):
+            input_comment_content = json.dumps(inputs)
+        else:
+            input_comment_content = str(inputs)
+    return input_comment_content
 
 
 def get_score_tailwind_classes(score_value):
     """Returns Tailwind CSS classes for score badges based on EvalDash style."""
-    if score_value is None or score_value == -1: # Error or N/A
+    if score_value is None or score_value == -1:  # Error or N/A
         return "px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
     if score_value >= 0.9:
         return "px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
@@ -558,7 +608,7 @@ def get_score_tailwind_classes(score_value):
 
 def format_report_data_to_html(report_data: dict) -> str:
     """Generates an HTML table and average score display from prepared report data using Tailwind CSS."""
-    if report_data.get("error") and not report_data.get("table_items"): # Only show global error if no items
+    if report_data.get("error") and not report_data.get("table_items"):  # Only show global error if no items
         return f"""
         <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded my-4" role="alert">
             <p class="font-bold">Error</p>
@@ -574,17 +624,20 @@ def format_report_data_to_html(report_data: dict) -> str:
             <p>{html.escape(report_data['error'])}</p>
         </div>"""
 
-
     table_items = report_data.get("table_items", [])
     avg_score = report_data.get("avg_score")
 
     avg_score_html = ""
     if avg_score is not None:
         score_text_color_class = ""
-        if avg_score >= 0.9: score_text_color_class = "text-green-600 dark:text-green-400"
-        elif avg_score >= 0.7: score_text_color_class = "text-yellow-500 dark:text-yellow-400"
-        elif avg_score >= 0.5: score_text_color_class = "text-orange-500 dark:text-orange-400"
-        else: score_text_color_class = "text-red-500 dark:text-red-400"
+        if avg_score >= 0.9:
+            score_text_color_class = "text-green-600 dark:text-green-400"
+        elif avg_score >= 0.7:
+            score_text_color_class = "text-yellow-500 dark:text-yellow-400"
+        elif avg_score >= 0.5:
+            score_text_color_class = "text-orange-500 dark:text-orange-400"
+        else:
+            score_text_color_class = "text-red-500 dark:text-red-400"
 
         avg_score_html = f"""
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 my-6 text-center">
@@ -593,22 +646,24 @@ def format_report_data_to_html(report_data: dict) -> str:
         </div>
         """
 
-    if not table_items and not avg_score_html and not error_message_html: # If truly no data at all
-         return """
+    if not table_items and not avg_score_html and not error_message_html:  # If truly no data at all
+        return """
          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center my-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">No se encontraron resultados de evaluación</h2>
             <p class="text-gray-600 dark:text-gray-400">No hay datos para mostrar en el reporte.</p>
         </div>
         """
 
-
     table_html_rows = []
     for item in table_items:
-        score = item.get('score', -1)
-        score_val_str = f"{(score * 100):.1f}%" if isinstance(score, (int, float)) and score != -1 else "Error"
+        score = item.get("score", -1)
+        score_val_str = (
+            f"{(score * 100):.1f}%" if isinstance(score, (int, float)) and score != -1 else "Error"
+        )
         score_classes = get_score_tailwind_classes(score)
 
-        table_html_rows.append(f"""
+        table_html_rows.append(
+            f"""
       <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
         <td class="px-6 py-4 text-sm text-gray-800 dark:text-gray-200">{shorten(item.get('comment', 'N/A'))}</td>
         <td class="px-6 py-4 text-sm text-gray-800 dark:text-gray-200">{shorten(item.get('output', 'N/A'))}</td>
@@ -617,9 +672,13 @@ def format_report_data_to_html(report_data: dict) -> str:
         </td>
         <td class="px-6 py-4 text-sm text-gray-800 dark:text-gray-200">{shorten(item.get('eval_comment', 'N/A'))}</td>
       </tr>
-""")
+"""
+        )
 
-    html_string = error_message_html + avg_score_html + """
+    html_string = (
+        error_message_html
+        + avg_score_html
+        + """
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden my-6">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -632,11 +691,14 @@ def format_report_data_to_html(report_data: dict) -> str:
                 </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                """ + "\n".join(table_html_rows) + """
+                """
+        + "\n".join(table_html_rows)
+        + """
                 </tbody>
             </table>
         </div>
     </div>"""
+    )
     return html_string
 
 
@@ -654,7 +716,8 @@ def generate_html_report(args, link, results_obj):
     results_html_content = format_report_data_to_html(report_data_dict)
 
     with open(html_file_path, "w", encoding="utf-8") as f:
-        f.write(f"""
+        f.write(
+            f"""
     <!DOCTYPE html>
     <html lang="es" class="">
     <head>
@@ -698,13 +761,16 @@ def generate_html_report(args, link, results_obj):
         </div>
     </body>
     </html>
-    """)
+    """
+        )
     print(f"HTML report generated: {os.path.abspath(html_file_path)}")
-    return html_file_path, report_timestamp # Return the path and timestamp
+    return html_file_path, report_timestamp  # Return the path and timestamp
+
 
 def send_evaluation_to_supabase(data_payload: dict):
     """
-    Envía los datos de la evaluación a la función de Supabase.
+    Sends evaluation data to a Supabase Function.
+    This function constructs a POST request to the specified Supabase Function URL with the provided
     """
     supabase_function_url = "https://hvxogjhuwjyqhsciheyd.supabase.co/functions/v1/evaluations"
     headers = {
@@ -718,9 +784,13 @@ def send_evaluation_to_supabase(data_payload: dict):
         response = requests.post(supabase_function_url, headers=headers, json=data_payload, timeout=15)
         response.raise_for_status()
         print(f"Datos de evaluación enviados exitosamente a Supabase. Status: {response.status_code}")
-        try: print(f"Respuesta de Supabase: {response.json()}")
-        except requests.exceptions.JSONDecodeError: print(f"Respuesta de Supabase (no JSON): {response.text}")
+        try:
+            print(f"Respuesta de Supabase: {response.json()}")
+        except requests.exceptions.JSONDecodeError:
+            print(f"Respuesta de Supabase (no JSON): {response.text}")
     except requests.exceptions.HTTPError as e:
-        print(f"Error HTTP al enviar datos a Supabase: {e}. Respuesta: {e.response.text if e.response else 'N/A'}")
+        print(
+            f"Error HTTP al enviar datos a Supabase: {e}. Respuesta: {e.response.text if e.response else 'N/A'}"
+        )
     except requests.exceptions.RequestException as e:
         print(f"Error de red/petición al enviar datos a Supabase: {e}")

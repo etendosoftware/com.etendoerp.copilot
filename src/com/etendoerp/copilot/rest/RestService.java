@@ -36,6 +36,7 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
 
 public class RestService {
   private static final Logger log4j = LogManager.getLogger(RestService.class);
@@ -100,7 +101,7 @@ public class RestService {
       if (StringUtils.isEmpty(appId)) {
         throw new OBException("App ID is required"); //TODO: add to OBMessageUtils
       }
-      CopilotApp assistant = RestServiceUtil.getAssistantByIDOrName(appId);
+      CopilotApp assistant = CopilotUtils.getAssistantByIDOrName(appId);
       RestServiceUtil.generateAssistantStructure(assistant, result);
       return result;
     } catch (Exception e) {

@@ -1,24 +1,26 @@
 package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.rest.RestServiceUtil.replaceAliasInPrompt;
-import static com.etendoerp.copilot.util.CopilotConstants.KB_FILE_VALID_EXTENSIONS;
+import static com.etendoerp.copilot.util.CopilotConstants.LANGCHAIN_MAX_LENGTH_QUESTION;
 import static com.etendoerp.copilot.util.CopilotConstants.isHQLQueryFile;
 import static com.etendoerp.copilot.util.OpenAIUtils.deleteFile;
+import static com.etendoerp.webhookevents.webhook_util.OpenAPISpecUtils.PROP_NAME;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -32,13 +34,13 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrSubstitutor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
-import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
@@ -47,8 +49,6 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.erpCommon.utility.PropertyException;
 import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.access.User;
-import org.openbravo.model.ad.datamodel.Table;
-import org.openbravo.model.ad.utility.Attachment;
 import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.model.common.enterprise.Warehouse;
 
@@ -56,9 +56,11 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotModel;
+import com.etendoerp.copilot.data.TeamMember;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
+import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
 /**
@@ -313,52 +315,6 @@ public class CopilotUtils {
   }
 
   /**
-   * Retrieves a file associated with the given {@link CopilotFile} instance.
-   * <p>
-   * This method fetches the attachment corresponding to the provided {@link CopilotFile},
-   * downloads its content, and creates a temporary file with the same name and extension.
-   * If the attachment is missing or the file lacks an extension, appropriate exceptions
-   * are thrown. The temporary file is marked for deletion upon JVM exit.
-   *
-   * @param fileToSync
-   *     The {@link CopilotFile} instance for which the associated file is to be retrieved.
-   * @return A {@link File} object representing the temporary file created from the attachment.
-   * @throws IOException
-   *     If an I/O error occurs during file creation or writing.
-   * @throws OBException
-   *     If the attachment is missing, the file lacks an extension, or the temporary file
-   *     cannot be made writable.
-   */
-  public static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
-    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-    OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
-    attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
-    Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
-    if (attach == null) {
-      throwMissingAttachException(fileToSync);
-    }
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    aim.download(attach.getId(), os);
-    // create a temp file
-    String filename = attach.getName();
-    if (filename.lastIndexOf(".") < 0) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingExtension"), filename));
-    }
-
-    String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
-    String extension = filename.substring(filename.lastIndexOf(".") + 1);
-
-    File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
-    boolean setW = tempFile.setWritable(true);
-    if (!setW) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorTempFile"), fileToSync.getName()));
-    }
-    tempFile.deleteOnExit();
-    os.writeTo(new FileOutputStream(tempFile));
-    return tempFile;
-  }
-
-  /**
    * Synchronizes a LangChain source file for a given {@link CopilotAppSource}.
    * <p>
    * This method handles the synchronization of a LangChain source file by determining
@@ -396,11 +352,11 @@ public class CopilotUtils {
         deleteFile(appSource.getOpenaiIdFile(), OpenAIUtils.getOpenaiApiKey());
       }
 
-      fileFromCopilotFile = generateHQLFile(appSource);
+      fileFromCopilotFile = FileUtils.generateHQLFile(appSource);
 
     } else {
       // Retrieve the file for non-HQL query files
-      fileFromCopilotFile = getFileFromCopilotFile(fileToSync);
+      fileFromCopilotFile = FileUtils.getFileFromCopilotFile(fileToSync);
     }
 
     // Prepare database and synchronization parameters
@@ -415,9 +371,9 @@ public class CopilotUtils {
     }
 
     // Check if the file extension is valid
-    if (isValidExtension(extension)) {
+    if (FileUtils.isValidExtension(extension)) {
       // Upload the file to the vector database
-      binaryFileToVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap);
+      FileUtils.binaryFileToVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap);
     } else {
       // Throw an exception for invalid file formats
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
@@ -428,60 +384,6 @@ public class CopilotUtils {
     fileToSync.setUpdated(new Date());
     OBDal.getInstance().save(fileToSync);
     OBDal.getInstance().flush();
-  }
-
-  /**
-   * Checks if the given file extension is valid.
-   * This method compares the provided extension against a list of valid
-   * extensions
-   * defined in the KB\_FILE\_VALID\_EXTENSIONS constant.
-   *
-   * @param extension
-   *     The file extension to be checked.
-   * @return true if the extension is valid, false otherwise.
-   */
-  private static boolean isValidExtension(String extension) {
-    return Arrays.stream(KB_FILE_VALID_EXTENSIONS).anyMatch(
-        validExt -> StringUtils.equalsIgnoreCase(validExt, extension));
-  }
-
-  static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName, String extension, boolean skipSplitting,
-      Long maxChunkSize, Long chunkOverlap) throws JSONException {
-    toVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap);
-  }
-
-  static File generateHQLFile(CopilotAppSource appSource) {
-    String fileNameToCheck = ProcessHQLAppSource.getFileName(appSource);
-    if (StringUtils.equalsIgnoreCase("kb", appSource.getBehaviour()) && (StringUtils.isEmpty(
-        fileNameToCheck) || StringUtils.endsWithIgnoreCase(fileNameToCheck, ".csv"))) {
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_Error_Csv_KB"), appSource.getFile().getName()));
-    }
-
-    return ProcessHQLAppSource.getInstance().generate(appSource);
-  }
-
-  /**
-   * Throws an OBException indicating that an attachment is missing.
-   * This method checks the type of the CopilotFile and throws an exception with a
-   * specific error message
-   * based on whether the file type is attached or not.
-   *
-   * @param fileToSync
-   *     The CopilotFile instance for which the attachment is
-   *     missing.
-   * @throws OBException
-   *     Always thrown to indicate the missing attachment.
-   */
-  public static void throwMissingAttachException(CopilotFile fileToSync) {
-    String errMsg;
-    String type = fileToSync.getType();
-    if (StringUtils.equalsIgnoreCase(type, CopilotConstants.KBF_TYPE_ATTACHED)) {
-      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach"), fileToSync.getName());
-    } else {
-      errMsg = String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingAttachSync"), fileToSync.getName());
-    }
-    throw new OBException(errMsg);
   }
 
   /**
@@ -774,7 +676,7 @@ public class CopilotUtils {
    * <p>
    * This method determines whether the file associated with the given {@link CopilotAppSource}
    * is an HQL query file. If it is, the file is generated using {@link ProcessHQLAppSource}.
-   * Otherwise, the file is retrieved using the {@link #getFileFromCopilotFile(CopilotFile)} method.
+   * Otherwise, the file is retrieved using the {@link FileUtils#getFileFromCopilotFile(CopilotFile)} method.
    * The content of the file is then read and returned as a string.
    *
    * @param appSource
@@ -788,7 +690,7 @@ public class CopilotUtils {
     if (isHQLQueryFile(appSource.getFile())) {
       tempFile = ProcessHQLAppSource.getInstance().generate(appSource);
     } else {
-      tempFile = getFileFromCopilotFile(appSource.getFile());
+      tempFile = FileUtils.getFileFromCopilotFile(appSource.getFile());
     }
     return Files.readString(tempFile.toPath());
   }
@@ -926,65 +828,321 @@ public class CopilotUtils {
   }
 
   /**
-   * Retrieves an attachment associated with the given CopilotFile instance.
+   * Retrieves a CopilotApp instance based on the provided ID or name.
    * <p>
-   * This method creates a criteria query to find an attachment that matches the
-   * given CopilotFile instance.
-   * It filters the attachments by the record ID and table ID, and excludes the
-   * attachment with the same ID as the target instance.
+   * This method first attempts to fetch the CopilotApp instance using the provided ID.
+   * If no instance is found, it treats the ID as the name of the Assistant and attempts to fetch the CopilotApp instance by the Assistant's name.
+   * If still no instance is found, an OBException is thrown.
    *
-   * @param targetInstance
-   *     The CopilotFile instance for which the attachment is to
-   *     be retrieved.
-   * @return The Attachment associated with the given CopilotFile instance, or
-   *     null if no attachment is found.
+   * @param idOrName
+   *     the ID or name of the CopilotApp to retrieve
+   * @return the CopilotApp instance corresponding to the provided ID or name
+   * @throws OBException
+   *     if no CopilotApp instance is found for the provided ID or name
    */
-  public static Attachment getAttachment(CopilotFile targetInstance) {
-    OBCriteria<Attachment> attchCriteria = OBDal.getInstance().createCriteria(Attachment.class);
-    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_RECORD, targetInstance.getId()));
-    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_TABLE,
-        OBDal.getInstance().get(Table.class, CopilotConstants.COPILOT_FILE_AD_TABLE_ID)));
-    attchCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
-    return (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
+  public static CopilotApp getAssistantByIDOrName(String idOrName) {
+    CopilotApp copilotApp = OBDal.getInstance().get(CopilotApp.class, idOrName);
+    if (copilotApp != null) {
+      return copilotApp;
+    }
+    // This is in case the appId provided was the name of the Assistant
+    copilotApp = getAppIdByAssistantName(idOrName);
+    if (copilotApp != null) {
+      return copilotApp;
+    }
+    throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound"), idOrName));
   }
 
   /**
-   * Attaches a file to the given CopilotFile instance.
+   * Retrieves a CopilotApp instance based on the provided Assistant name.
    * <p>
-   * This method uploads a file and associates it with the specified CopilotFile
-   * instance.
+   * This method creates a criteria query to fetch the CopilotApp instance
+   * where the name matches the provided Assistant name. It sets a maximum
+   * result limit of one and returns the unique result.
    *
-   * @param hookObject
-   *     The CopilotFile instance to which the file is to be
-   *     attached.
-   * @param aim
-   *     The AttachImplementationManager used to handle the file
-   *     upload.
-   * @param file
-   *     The file to be attached.
+   * @param appId
+   *     the name of the Assistant to retrieve the CopilotApp instance for
+   * @return the CopilotApp instance corresponding to the provided Assistant name, or null if no match is found
    */
-  public static void attachFile(CopilotFile hookObject, AttachImplementationManager aim, File file) {
-    aim.upload(new HashMap<>(), CopilotConstants.COPILOT_FILE_TAB_ID, hookObject.getId(),
-        hookObject.getOrganization().getId(), file);
+  public static CopilotApp getAppIdByAssistantName(String appId) {
+    OBCriteria<CopilotApp> appCrit = OBDal.getInstance().createCriteria(CopilotApp.class);
+    appCrit.add(Restrictions.eq(CopilotApp.PROPERTY_NAME, appId));
+    appCrit.setMaxResults(1);
+    return (CopilotApp) appCrit.uniqueResult();
   }
 
   /**
-   * Removes the attachment associated with the given CopilotFile instance.
+   * Validates the OpenAI API key by sending a test request to the OpenAI models endpoint.
    * <p>
-   * This method retrieves the attachment associated with the specified
-   * CopilotFile instance and deletes it.
+   * This method retrieves the OpenAI API key from the configuration, constructs an HTTP GET request
+   * to the OpenAI models endpoint, and checks the response status code. If the response indicates
+   * an error (non-200 status code), an {@link OBException} is thrown with an appropriate error message.
+   * <p>
+   * If any exception occurs during the process, it is caught and rethrown as an {@link OBException}.
    *
-   * @param aim
-   *     The AttachImplementationManager used to handle the file
-   *     deletion.
-   * @param hookObject
-   *     The CopilotFile instance whose attachment is to be removed.
+   * @throws OBException
+   *     If the OpenAI API key is invalid or an error occurs during the validation process.
    */
-  public static void removeAttachment(AttachImplementationManager aim, CopilotFile hookObject) {
-    Attachment attachment = CopilotUtils.getAttachment(hookObject);
-    if (attachment != null) {
-      aim.delete(attachment);
+  public static void validateOpenAIKey() {
+    try {
+      // Retrieve the OpenAI API key from the configuration
+      String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
+
+      // Construct the URL for the OpenAI models endpoint
+      URL url = new URL(CopilotConstants.OPENAI_MODELS);
+
+      // Open an HTTP connection to the endpoint
+      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+      // Set the request method to GET
+      connection.setRequestMethod("GET");
+
+      // Add the Authorization header with the OpenAI API key
+      connection.setRequestProperty("Authorization", "Bearer " + openaiApiKey);
+
+      // Check the response code; throw an exception if it is not 200 (OK)
+      if (connection.getResponseCode() != 200) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_OpenAIKeyNotValid")));
+      }
+    } catch (Exception e) {
+      // Catch any exception and rethrow it as an OBException
+      throw new OBException(e.getMessage());
     }
   }
 
+  /**
+   * Checks if the given question exceeds the maximum allowed length for Langchain questions.
+   * <p>
+   * If the question length exceeds the defined maximum length, an OBException is thrown.
+   *
+   * @param question
+   *     the question to be checked
+   * @throws OBException
+   *     if the question length exceeds the maximum allowed length
+   */
+  public static void checkQuestionPrompt(String question) {
+    if (question.length() > LANGCHAIN_MAX_LENGTH_QUESTION) {
+      throw new OBException(OBMessageUtils.messageBD("ETCOP_MaxLengthQuestion"));
+    }
+  }
+
+  /**
+   * This method is used to build a request for the Langraph assistant.
+   * It first initializes a HashMap to store the stages and their associated assistants.
+   * Then, it calls the loadStagesAssistants method to load the assistants for each stage into the HashMap.
+   * Finally, it calls the setStages method to set the stages for the request using the data in the HashMap.
+   *
+   * @param copilotApp
+   *     The CopilotApp instance for which the request is to be built.
+   * @param conversationId
+   *     The conversation ID to be used in the request.
+   * @param jsonRequestForCopilot
+   *     The JSONObject to which the request parameters are to be added.
+   * @throws JSONException
+   *     If there is an error while constructing the JSON request.
+   */
+  public static void buildLangraphRequestForCopilot(CopilotApp copilotApp, String conversationId,
+      JSONObject jsonRequestForCopilot) throws JSONException {
+    HashMap<String, ArrayList<String>> stagesAssistants = new HashMap<>();
+    loadStagesAssistants(copilotApp, jsonRequestForCopilot, conversationId, stagesAssistants);
+    setStages(jsonRequestForCopilot, stagesAssistants);
+    //add data for the supervisor
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_TEMPERATURE, copilotApp.getTemperature());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_ASSISTANT_ID, copilotApp.getId());
+    jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
+    jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
+  }
+
+  /**
+   * This method is used to load the stages and their associated assistants for a given CopilotApp instance.
+   * It iterates over the team members of the CopilotApp instance and creates a JSON object for each one.
+   * Each team member JSON object contains the name of the team member and the type of the assistant.
+   * The team member JSON objects are added to a JSON array, which is then added to the request JSON object under
+   * the key "assistants".
+   *
+   * @param copilotApp
+   *     The CopilotApp instance for which the stages and their associated assistants are to be loaded.
+   * @param jsonRequestForCopilot
+   *     The JSONObject to which the stages and their associated assistants are to be added.
+   * @param stagesAssistants
+   *     A HashMap mapping stage names to a list of assistant names for each stage.
+   */
+  private static void loadStagesAssistants(CopilotApp copilotApp, JSONObject jsonRequestForCopilot,
+      String conversationId, HashMap<String, ArrayList<String>> stagesAssistants) throws JSONException {
+    ArrayList<String> teamMembersIdentifier = new ArrayList<>();
+    JSONArray assistantsArray = new JSONArray();
+
+    for (CopilotApp teamMember : getTeamMembers(copilotApp)) {
+      JSONObject memberData = new JSONObject();
+      try {
+        //the name is the identifier of the team member, but without any character that is not a letter or a number
+        String name = teamMember.getName().replaceAll("[^a-zA-Z0-9]", "");
+        memberData.put("name", name);
+        teamMembersIdentifier.add(name);
+        memberData.put("type", teamMember.getAppType());
+        memberData.put("description", teamMember.getDescription());
+
+        if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
+          String assistantId = teamMember.getOpenaiIdAssistant();
+          if (StringUtils.isEmpty(assistantId)) {
+            throw new OBException(
+                String.format(OBMessageUtils.messageBD("ETCOP_ErrTeamMembNotSync"), teamMember.getName()));
+          }
+          memberData.put(RestServiceUtil.PROP_ASSISTANT_ID, assistantId);
+        } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)
+            || StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_MULTIMODEL)) {
+          buildLangchainRequestForCopilot(teamMember, null, memberData, teamMember.getAppType());
+        }
+
+        assistantsArray.put(memberData);
+
+      } catch (JSONException | IOException e) {
+        RestServiceUtil.log.error(e);
+      }
+    }
+    stagesAssistants.put("stage1", teamMembersIdentifier);
+    jsonRequestForCopilot.put("assistants", assistantsArray);
+    if (StringUtils.isNotEmpty(conversationId)) {
+      jsonRequestForCopilot.put(RestServiceUtil.PROP_HISTORY, TrackingUtil.getHistory(conversationId));
+    }
+    //prompt of the graph supervisor
+    if (StringUtils.isNotEmpty(copilotApp.getPrompt())) {
+      jsonRequestForCopilot.put(RestServiceUtil.PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
+    }
+    //temperature of the graph supervisor
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_TEMPERATURE, copilotApp.getTemperature());
+  }
+
+  /**
+   * This method is used to set the stages for a given request to the Langchain assistant.
+   * It iterates over the stages and their associated assistants, creating a JSON object for each stage.
+   * Each stage JSON object contains the name of the stage and a JSON array of the assistants for that stage.
+   * The stage JSON objects are added to a JSON array, which is then added to a new JSON object under the key "stages".
+   * This new JSON object is then added to the request JSON object under the key "graph".
+   *
+   * @param jsonRequestForCopilot
+   *     The JSONObject to which the stages are to be added.
+   * @param stagesAssistants
+   *     A HashMap mapping stage names to a list of assistant names for each stage.
+   */
+  private static void setStages(JSONObject jsonRequestForCopilot, HashMap<String, ArrayList<String>> stagesAssistants) {
+    try {
+      JSONArray stages = new JSONArray();
+      for (Map.Entry<String, ArrayList<String>> entry : stagesAssistants.entrySet()) {
+        JSONObject stageJson = new JSONObject();
+        stageJson.put("name", entry.getKey());
+        JSONArray assistants = new JSONArray();
+        for (String assistant : entry.getValue()) {
+          assistants.put(assistant);
+        }
+        stageJson.put("assistants", assistants);
+        stages.put(stageJson);
+      }
+      JSONObject graph = new JSONObject();
+      graph.put("stages", stages);
+      jsonRequestForCopilot.put("graph", graph);
+    } catch (JSONException e) {
+      RestServiceUtil.log.error(e);
+    }
+  }
+
+  /**
+   * This method is used to build a request for the Langchain assistant.
+   * It sets the assistant ID to the ID of the CopilotApp instance and the type of the assistant to "Langchain".
+   * If a conversation ID is provided, it adds the conversation history to the request.
+   * It also adds the toolset of the CopilotApp instance to the request.
+   * Depending on the provider of the CopilotApp instance, it sets the provider and model in the request.
+   * If the provider is "OPENAI", it sets the provider to "openai" and the model to the name of the model of the
+   * CopilotApp instance.
+   * If the provider is "GEMINI", it sets the provider to "gemini" and the model to "gemini-1.5-pro-latest".
+   * If the provider is neither "OPENAI" nor "GEMINI", it throws an exception.
+   * If the CopilotApp instance has a prompt, it adds the prompt and the content of the app source file with the
+   * behaviour "system" to the request.
+   *
+   * @param copilotApp
+   *     The CopilotApp instance for which the request is to be built.
+   * @param conversationId
+   *     The conversation ID to be used in the request. If it is not empty, the conversation history will be added to
+   *     the request.
+   * @param jsonRequestForCopilot
+   *     The JSONObject to which the request parameters are to be added.
+   * @param appType
+   *     The type of the assistant, which can be "Langchain" or "Multimodal".
+   * @throws JSONException
+   *     If an error occurs while processing the JSON data.
+   * @throws IOException
+   *     If an error occurs while reading the content of the app source file.
+   */
+
+  public static void buildLangchainRequestForCopilot(CopilotApp copilotApp, String conversationId,
+      JSONObject jsonRequestForCopilot, String appType) throws JSONException, IOException {
+    StringBuilder prompt = new StringBuilder();
+    prompt.append(copilotApp.getPrompt());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_ASSISTANT_ID, copilotApp.getId());
+    jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_TYPE, appType);
+    if (StringUtils.isNotEmpty(conversationId)) {
+      jsonRequestForCopilot.put(RestServiceUtil.PROP_HISTORY, TrackingUtil.getHistory(conversationId));
+    }
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_TEMPERATURE, copilotApp.getTemperature());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_CODE_EXECUTION, copilotApp.isCodeInterpreter());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_KB_SEARCH_K,
+        copilotApp.getSearchResultQty() != null ? copilotApp.getSearchResultQty().intValue() : 4);
+    String promptApp = getAssistantPrompt(copilotApp);
+    if (StringUtils.isNotEmpty(prompt.toString())) {
+      checkPromptLength(prompt);
+      jsonRequestForCopilot.put(RestServiceUtil.PROP_SYSTEM_PROMPT, promptApp);
+    }
+    if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
+      jsonRequestForCopilot.put(RestServiceUtil.PROP_DESCRIPTION, copilotApp.getDescription());
+    }
+    JSONArray appSpecs = new JSONArray();
+    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+      if (StringUtils.equals(appSource.getBehaviour(), CopilotConstants.FILE_BEHAVIOUR_SPECS)) {
+        JSONObject spec = new JSONObject();
+        try {
+          spec.put("name", appSource.getFile().getName());
+          spec.put("type", appSource.getFile().getType());
+          spec.put("spec", CopilotUtils.getAppSourceContent(appSource));
+          appSpecs.put(spec);
+        } catch (JSONException e) {
+          throw new OBException("Error while building the app specs", e);
+        }
+      }
+    }
+    jsonRequestForCopilot.put("specs", appSpecs);
+  }
+
+  /**
+   * This method checks if the given CopilotApp instance is of type "LANGCHAIN" and has associated team members.
+   * It returns true if both conditions are met, otherwise it returns false.
+   *
+   * @param copilotApp
+   *     The CopilotApp instance to be checked.
+   * @return A boolean value indicating whether the CopilotApp instance is of type "LANGCHAIN" and has associated team members.
+   */
+  public static boolean checkIfGraphQuestion(CopilotApp copilotApp) {
+    return StringUtils.equalsIgnoreCase(copilotApp.getAppType(), CopilotConstants.APP_TYPE_LANGGRAPH);
+
+  }
+
+  /**
+   * This method retrieves all the team members associated with a given CopilotApp instance.
+   * It uses Java 8 streams to map each TeamMember instance to its associated CopilotApp instance and collects the results into a list.
+   *
+   * @param copilotApp
+   *     The CopilotApp instance for which the team members are to be retrieved.
+   * @return A list of CopilotApp instances representing the team members of the given CopilotApp instance.
+   */
+  private static List<CopilotApp> getTeamMembers(CopilotApp copilotApp) {
+    return copilotApp.getETCOPTeamMemberList().stream().map(TeamMember::getMember).collect(
+        Collectors.toList());
+  }
 }

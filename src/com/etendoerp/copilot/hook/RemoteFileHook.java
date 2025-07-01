@@ -19,7 +19,7 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.FileUtils;
 
 /**
  * This class implements the CopilotFileHook interface and provides functionality
@@ -51,9 +51,9 @@ public class RemoteFileHook implements CopilotFileHook {
     try {
       Path path = downloadFile(url, fileName);
       AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-      CopilotUtils.removeAttachment(aim, hookObject);
+      FileUtils.removeAttachment(aim, hookObject);
       File file = new File(path.toString());
-      CopilotUtils.attachFile(hookObject, aim, file);
+      FileUtils.attachFile(hookObject, aim, file);
 
     } catch (IOException e) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileDownErr"), url), e);
