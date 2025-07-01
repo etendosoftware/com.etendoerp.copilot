@@ -388,7 +388,7 @@ def process_text_to_vector_db(
                     max_length = len(texts[0].page_content)
             if len(texts) > 0:
                 total_texts = len(texts)
-                # Add texts in batches                of 100
+                # Add texts in batches of 100
                 for i in range(0, total_texts, 20):
                     batch_texts = texts[i : i + 20]
                     # Add the batch of texts to the vector store
