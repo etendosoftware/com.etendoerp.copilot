@@ -22,57 +22,53 @@ import argparse
 import os
 import subprocess
 import time
+import traceback
 import uuid
+from datetime import datetime
+
 import pandas as pd
 import psycopg2
 import requests
-import traceback
-from datetime import datetime
-from dotenv import load_dotenv
-from dulwich.cli import cmd_web_daemon
-from psycopg2 import sql
-
 from copilot.core.utils import read_optional_env_var
+from dotenv import load_dotenv
+from psycopg2 import sql
 
 # Default database connection configuration
 DB_CONFIG = {
-    'dbname': 'copilot_test',
-    'user': 'postgres',
-    'password': 'syspass',
-    'host': 'localhost',
-    'port': '5432'
+    "dbname": "copilot_test",
+    "user": "postgres",
+    "host": "localhost",
+    "port": "5432",
 }
 
 # Default Etendo API configuration
-ETENDO_BASE_URL = 'http://localhost:8080/etendo'
-ETENDO_API_PATH = '/org.openbravo.client.kernel'
-PROCESS_ID = '7260F458FA2E43A7968E25E4B5242E60'
-WINDOW_ID = '172C8727CDB74C948A207A1405CE445B'
-ACTION = 'com.etendoerp.copilot.process.ExecTask'
-AUTH_TOKEN = 'YWRtaW46YWRtaW4='  # admin:admin
+ETENDO_BASE_URL = "http://localhost:8080/etendo"
+ETENDO_API_PATH = "/org.openbravo.client.kernel"
+PROCESS_ID = "7260F458FA2E43A7968E25E4B5242E60"
+WINDOW_ID = "172C8727CDB74C948A207A1405CE445B"
+ACTION = "com.etendoerp.copilot.process.ExecTask"
+AUTH_TOKEN = "YWRtaW46YWRtaW4="  # admin:admin
 
 # Default table to monitor
-DEFAULT_TABLE = 'm_product'
+DEFAULT_TABLE = "m_product"
 
 # Default SQL query template
 DEFAULT_QUERY = "SELECT COUNT(*) FROM {}"
 
 # Default task configuration
-DEFAULT_CLIENT_ID = '23C59575B9CF467C9620760EB255B389'
-DEFAULT_ORG_ID = '0'
-DEFAULT_IS_ACTIVE = 'Y'
-DEFAULT_USER_ID = '100'
-DEFAULT_STATUS = 'D0FCC72902F84486A890B70C1EB10C9C'  # Default status for new tasks
-DEFAULT_TASK_TYPE_ID = 'A83E397389DB42559B2D7719A442168F'
+DEFAULT_CLIENT_ID = "23C59575B9CF467C9620760EB255B389"
+DEFAULT_ORG_ID = "0"
+DEFAULT_IS_ACTIVE = "Y"
+DEFAULT_USER_ID = "100"
+DEFAULT_STATUS = "D0FCC72902F84486A890B70C1EB10C9C"  # Default status for new tasks
+DEFAULT_TASK_TYPE_ID = "A83E397389DB42559B2D7719A442168F"
 
 # Status of tasks to be executed
-TASKS_STATUS = 'D0FCC72902F84486A890B70C1EB10C9C' # Status indicating tasks ready for execution
+TASKS_STATUS = "D0FCC72902F84486A890B70C1EB10C9C"  # Status indicating tasks ready for execution
 
 # HTTP Headers for API requests
-HEADERS = {
-    'Content-Type': 'application/json;charset=UTF-8',
-    'Authorization': 'Basic ' + AUTH_TOKEN
-}
+HEADERS = {"Content-Type": "application/json;charset=UTF-8", "Authorization": "Basic " + AUTH_TOKEN}
+
 
 def get_db_connection(config):
     """
@@ -107,7 +103,7 @@ def load_templates(template_file):
 
     templates = []
     try:
-        with open(template_file, 'r', encoding='utf-8') as f:
+        with open(template_file, "r", encoding="utf-8") as f:
             current_template = ""
             for line in f:
                 if line.strip() == "<END_OF_INSTANCE>":
@@ -170,7 +166,7 @@ def create_tasks_from_templates_and_csv(agent_id, conn, df, templates):
     # Generate a group ID for this batch
     group_id = str(uuid.uuid4())
     tasks_created_count = 0
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
     try:
         cur = conn.cursor()
@@ -199,13 +195,27 @@ def create_tasks_from_templates_and_csv(agent_id, conn, df, templates):
                 ) VALUES (get_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
 
-                cur.execute(insert_query, (
-                    DEFAULT_CLIENT_ID, DEFAULT_ORG_ID, DEFAULT_IS_ACTIVE,
-                    now, DEFAULT_USER_ID, now, DEFAULT_USER_ID,
-                    DEFAULT_STATUS, None, DEFAULT_TASK_TYPE_ID,
-                    task_text, None, agent_id,
-                    'Y', 'N', group_id
-                ))
+                cur.execute(
+                    insert_query,
+                    (
+                        DEFAULT_CLIENT_ID,
+                        DEFAULT_ORG_ID,
+                        DEFAULT_IS_ACTIVE,
+                        now,
+                        DEFAULT_USER_ID,
+                        now,
+                        DEFAULT_USER_ID,
+                        DEFAULT_STATUS,
+                        None,
+                        DEFAULT_TASK_TYPE_ID,
+                        task_text,
+                        None,
+                        agent_id,
+                        "Y",
+                        "N",
+                        group_id,
+                    ),
+                )
 
                 tasks_created_count += 1
 
@@ -248,14 +258,12 @@ def get_task_ids_from_db(conn, group_id=None):
 
         if group_id:
             query = sql.SQL("SELECT {} FROM {} WHERE status = %s AND em_etcop_group = %s").format(
-                sql.Identifier("etask_task_id"),
-                sql.Identifier("etask_task")
+                sql.Identifier("etask_task_id"), sql.Identifier("etask_task")
             )
             cur.execute(query, (TASKS_STATUS, group_id))
         else:
             query = sql.SQL("SELECT {} FROM {} WHERE status = %s").format(
-                sql.Identifier("etask_task_id"),
-                sql.Identifier("etask_task")
+                sql.Identifier("etask_task_id"), sql.Identifier("etask_task")
             )
             cur.execute(query, (TASKS_STATUS,))
 
@@ -314,12 +322,7 @@ def execute_etendo_task(task_id, etendo_url):
     """
     start_time_task = time.time()
     full_url = f"{etendo_url}{ETENDO_API_PATH}?processId={PROCESS_ID}&reportId=null&windowId={WINDOW_ID}&_action={ACTION}"
-    payload = {
-        "recordIds": [task_id],
-        "_buttonValue": "DONE",
-        "_params": {},
-        "_entityName": "ETASK_Task"
-    }
+    payload = {"recordIds": [task_id], "_buttonValue": "DONE", "_params": {}, "_entityName": "ETASK_Task"}
 
     try:
         print(f"  Executing task for ID: {task_id}...")
@@ -390,9 +393,10 @@ def generate_html_report(data, write_to_file=True):
                 <tr><th>Task ID/Reference</th><th>Status</th><th>Duration (s)</th><th>Error Message</th></tr>
     """
 
-    for task in data['task_details']:
-        status_class = "success" if task['status'] == "Success" else ("failure" if task['status'] == "Failure" else "skipped")
-        error_msg_display = task['error'] if task['error'] else "N/A"
+    for task in data["task_details"]:
+        status = {"Success": "success", "Failure": "failure"}
+        status_class = status.get(task["status"], "skipped")
+        error_msg_display = task["error"] if task["error"] else "N/A"
         html_content += f"""<tr>
             <td>{task['id']}</td>
             <td class="{status_class}">{task['status']}</td>
@@ -410,7 +414,7 @@ def generate_html_report(data, write_to_file=True):
         try:
             # create directories if they don't exist
             os.makedirs("evaluation_output", exist_ok=True)
-            with open(filename, 'w', encoding='utf-8') as f:
+            with open(filename, "w", encoding="utf-8") as f:
                 f.write(html_content)
             print(f"\nHTML report generated: {filename}")
         except Exception as e:
@@ -432,11 +436,16 @@ def parse_arguments():
     parser.add_argument("--envfile", help="Environment file (e.g., .env)", default=None)
     parser.add_argument("--etendo_url", help="Base URL of Etendo", default=ETENDO_BASE_URL)
     parser.add_argument("--agent_id", help="Agent ID", default=None)
-    parser.add_argument("--project_name", help="Project name", default='default_project')
+    parser.add_argument("--project_name", help="Project name", default="default_project")
     parser.add_argument("--table", help="Database table to monitor record count", default=DEFAULT_TABLE)
-    parser.add_argument("--query", help="Custom SQL query to count records (use {} as placeholder for table name)",
-                        default=DEFAULT_QUERY)
-    parser.add_argument("--max_tasks", type=int, help="Maximum number of tasks to process from CSV", default=1000)
+    parser.add_argument(
+        "--query",
+        help="Custom SQL query to count records (use {} as placeholder for table name)",
+        default=DEFAULT_QUERY,
+    )
+    parser.add_argument(
+        "--max_tasks", type=int, help="Maximum number of tasks to process from CSV", default=1000
+    )
     parser.add_argument("--skip_exec", action="store_true", help="Skip task execution (only create tasks)")
 
     # Database connection parameters (optional)
@@ -468,36 +477,43 @@ def load_config(args):
         load_dotenv(args.envfile, verbose=True)
 
         # Update from environment variables using correct property names
-        current_db_config['dbname'] = read_optional_env_var('bbdd.sid','etendo')
-        current_db_config['user'] = read_optional_env_var('bbdd.user','tad')
-        current_db_config['password'] = read_optional_env_var('bbdd.password','tad')
-        current_db_config['host'] = read_optional_env_var('bbdd.host','localhost')
-        current_db_config['port'] = read_optional_env_var('bbdd.port','5432')
-        if os.getenv('ETENDO_BASE_URL'):
-            current_etendo_url = os.getenv('ETENDO_BASE_URL')
+        current_db_config["dbname"] = read_optional_env_var("bbdd.sid", "etendo")
+        current_db_config["user"] = read_optional_env_var("bbdd.user", "tad")
+        current_db_config["password"] = read_optional_env_var("bbdd.password", "tad")
+        current_db_config["host"] = read_optional_env_var("bbdd.host", "localhost")
+        current_db_config["port"] = read_optional_env_var("bbdd.port", "5432")
+        if os.getenv("ETENDO_BASE_URL"):
+            current_etendo_url = os.getenv("ETENDO_BASE_URL")
 
     # Command-line arguments override environment file and defaults
     if args.dbname:
-        current_db_config['dbname'] = args.dbname
+        current_db_config["dbname"] = args.dbname
     if args.dbuser:
-        current_db_config['user'] = args.dbuser
+        current_db_config["user"] = args.dbuser
     if args.dbpassword:
-        current_db_config['password'] = args.dbpassword
+        current_db_config["password"] = args.dbpassword
     if args.dbhost:
-        current_db_config['host'] = args.dbhost
+        current_db_config["host"] = args.dbhost
     if args.dbport:
-        current_db_config['port'] = args.dbport
+        current_db_config["port"] = args.dbport
 
     if args.etendo_url != ETENDO_BASE_URL:
-         current_etendo_url = args.etendo_url
-    elif os.getenv('ETENDO_BASE_URL'):
-        current_etendo_url = os.getenv('ETENDO_BASE_URL')
+        current_etendo_url = args.etendo_url
+    elif os.getenv("ETENDO_BASE_URL"):
+        current_etendo_url = os.getenv("ETENDO_BASE_URL")
 
     return current_db_config, current_etendo_url
 
+
 def send_evaluation_to_supabase(data_payload: dict):
     """
-    Envía los datos de la evaluación a la función de Supabase.
+    Sends evaluation data to a Supabase function.
+
+    Args:
+        data_payload (dict): Data to send to Supabase function
+
+    Returns:
+        None
     """
     supabase_function_url = "https://hvxogjhuwjyqhsciheyd.supabase.co/functions/v1/evaluations"
     headers = {
@@ -511,14 +527,18 @@ def send_evaluation_to_supabase(data_payload: dict):
         response = requests.post(supabase_function_url, headers=headers, json=data_payload, timeout=15)
         response.raise_for_status()
         print(f"Datos de evaluación enviados exitosamente a Supabase. Status: {response.status_code}")
-        try: print(f"Respuesta de Supabase: {response.json()}")
-        except requests.exceptions.JSONDecodeError: print(f"Respuesta de Supabase (no JSON): {response.text}")
+        try:
+            print(f"Respuesta de Supabase: {response.json()}")
+        except requests.exceptions.JSONDecodeError:
+            print(f"Respuesta de Supabase (no JSON): {response.text}")
     except requests.exceptions.HTTPError as e:
-        print(f"Error HTTP al enviar datos a Supabase: {e}. Respuesta: {e.response.text if e.response else 'N/A'}")
+        print(
+            f"Error HTTP al enviar datos a Supabase: {e}. Respuesta: {e.response.text if e.response else 'N/A'}"
+        )
     except requests.exceptions.RequestException as e:
         print(f"Error de red/petición al enviar datos a Supabase: {e}")
 
-# TODO Use utils function to get git branch name
+
 def get_git_branch_for_directory(directory_path: str) -> str:
     """
     Intenta obtener la rama Git actual para el directorio dado.
@@ -550,7 +570,7 @@ def get_git_branch_for_directory(directory_path: str) -> str:
             capture_output=True,
             text=True,
             check=False,  # No lanzar excepción en error para manejarlo nosotros
-            timeout=5  # Timeout para evitar que se cuelgue indefinidamente
+            timeout=5,  # Timeout para evitar que se cuelgue indefinidamente
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -566,10 +586,11 @@ def get_git_branch_for_directory(directory_path: str) -> str:
         # print(f"Advertencia: El comando git para obtener la rama en {git_repo_path} tardó demasiado.")
         return "git_timeout"
     except Exception as e:
-        # print(f"Advertencia: Ocurrió un error inesperado al obtener la rama Git: {e}")
+        print(f"Warning: An unexpected error occurred while obtaining the Git branch: {e}")
         return "unknown_git_exception"
     finally:
         os.chdir(original_cwd)  # Siempre restaurar el directorio de trabajo original
+
 
 def main():
     """
@@ -596,7 +617,9 @@ def main():
     query_template_for_count = args.query
     max_tasks_to_process = args.max_tasks
 
-    print(f"Using database: {effective_db_config['host']}:{effective_db_config['port']}/{effective_db_config['dbname']}")
+    print(
+        f"Using database: {effective_db_config['host']}:{effective_db_config['port']}/{effective_db_config['dbname']}"
+    )
     print(f"Using Etendo URL: {effective_etendo_url}")
     print(f"Monitoring table: {table_to_monitor}")
     print(f"Using count query template: {query_template_for_count}")
@@ -608,11 +631,7 @@ def main():
         return
 
     project_name = args.project_name
-    if not project_name or project_name == "default_project":
-        try:
-            project_name = os.path.basename(os.path.dirname(os.path.abspath(os.getcwd() + "/../")))
-        except Exception:
-            project_name = "unknown_project"
+    project_name = get_project_name(project_name)
 
     if args.agent_id is None:
         # get agent_id from the name of the current directory
@@ -639,43 +658,28 @@ def main():
         df_csv_data = df_csv_data.head(max_tasks_to_process)
 
     records_before_execution = count_db_records(conn, table_to_monitor, query_template_for_count)
-    print(f"Records in {table_to_monitor} before: {records_before_execution if records_before_execution != -1 else 'Error'}")
+    print(
+        f"Records in {table_to_monitor} before: {records_before_execution if records_before_execution != -1 else 'Error'}"
+    )
 
-    group_id_for_batch, num_tasks_created = create_tasks_from_templates_and_csv(args.agent_id, conn, df_csv_data, templates_list)
+    group_id_for_batch, num_tasks_created = create_tasks_from_templates_and_csv(
+        args.agent_id, conn, df_csv_data, templates_list
+    )
 
     if num_tasks_created <= 0:
         print("No tasks were created. Exiting.")
         conn.close()
         return
 
-    task_execution_details = []
-    successful_task_count = 0
-    failed_task_count = 0
-
-    if not args.skip_exec:
-        task_ids_to_process = get_task_ids_from_db(conn, group_id_for_batch)
-        print(f"\nExecuting {len(task_ids_to_process)} tasks...")
-        for i, task_id_val in enumerate(task_ids_to_process):
-            print(f"\nProcessing task {i + 1}/{len(task_ids_to_process)}:")
-            success_status, exec_duration, error_detail = execute_etendo_task(str(task_id_val), effective_etendo_url)
-            status_message = "Success" if success_status else "Failure"
-            task_execution_details.append({
-                'id': task_id_val, 'status': status_message,
-                'duration': exec_duration, 'error': error_detail
-            })
-            if success_status: successful_task_count += 1
-            else: failed_task_count += 1
-            print(f"  Result: {status_message}, Duration: {exec_duration:.2f}s")
-    else:
-        print("\nSkipping task execution (--skip_exec specified)")
-        for i in range(num_tasks_created):
-            task_execution_details.append({
-                'id': f"(task {i+1} - not executed)", 'status': "Skipped",
-                'duration': 0.0, 'error': "Execution skipped by user"
-            })
-
-    records_after_execution = count_db_records(conn, table_to_monitor, query_template_for_count)
-    print(f"Records in {table_to_monitor} after: {records_after_execution if records_after_execution != -1 else 'Error'}")
+    failed_task_count, records_after_execution, successful_task_count, task_execution_details = do_execution(
+        args,
+        conn,
+        effective_etendo_url,
+        group_id_for_batch,
+        num_tasks_created,
+        query_template_for_count,
+        table_to_monitor,
+    )
 
     delta_records = -1
     if records_before_execution != -1 and records_after_execution != -1:
@@ -685,16 +689,16 @@ def main():
     total_script_run_time = time.time() - script_start_time
 
     report_data_dict = {
-        'total_tasks_found': num_tasks_created,
-        'successful_tasks': successful_task_count,
-        'failed_tasks': failed_task_count,
-        'total_script_duration': total_script_run_time,
-        'table_name': table_to_monitor,
-        'records_before': records_before_execution,
-        'records_after': records_after_execution,
-        'records_created': delta_records,
-        'task_details': task_execution_details,
-        'query_template': query_template_for_count
+        "total_tasks_found": num_tasks_created,
+        "successful_tasks": successful_task_count,
+        "failed_tasks": failed_task_count,
+        "total_script_duration": total_script_run_time,
+        "table_name": table_to_monitor,
+        "records_before": records_before_execution,
+        "records_after": records_after_execution,
+        "records_created": delta_records,
+        "task_details": task_execution_details,
+        "query_template": query_template_for_count,
     }
 
     html_report_content_str = generate_html_report(report_data_dict, write_to_file=True)
@@ -702,20 +706,20 @@ def main():
     # Prepare and send data to Supabase
     # Calculate score (e.g., success rate)
     score = 0.0
-    if num_tasks_created > 0 and not args.skip_exec: # Only calculate score if tasks were executed
+    if num_tasks_created > 0 and not args.skip_exec:  # Only calculate score if tasks were executed
         score = delta_records / num_tasks_created
     elif args.skip_exec:
-        score = 0.0 # Or some other indicator for skipped execution, e.g. -1, or don't send score
+        score = 0.0  # Or some other indicator for skipped execution, e.g. -1, or don't send score
 
     evaluation_data_for_supabase = {
         "project": project_name,
-        "agent": args.agent_id, # Using group_id as a unique agent/run identifier
+        "agent": args.agent_id,  # Using group_id as a unique agent/run identifier
         "agent_name": agent_name,
         "branch": branch,
-        "score": round(score, 4), # Score between 0 and 1
-        "dataset_size": num_tasks_created, # Number of tasks processed from CSV
-        "threads": 1, # This script is single-threaded for task execution
-        "experiment": "integration", # Type of evaluation
+        "score": round(score, 4),  # Score between 0 and 1
+        "dataset_size": num_tasks_created,  # Number of tasks processed from CSV
+        "threads": 1,  # This script is single-threaded for task execution
+        "experiment": "integration",  # Type of evaluation
         "html_report_content": html_report_content_str,
         # You can add more metadata if your Supabase function expects it
         "metadata": {
@@ -728,23 +732,63 @@ def main():
             "total_script_duration_seconds": round(total_script_run_time, 2),
             "successful_task_count": successful_task_count,
             "failed_task_count": failed_task_count,
-            "db_records_created_modified": delta_records
-        }
+            "db_records_created_modified": delta_records,
+        },
     }
 
-    print(f"\nAttempting to send evaluation to Supabase for project: {project_name}, agent_id: {args.agent_id} - {agent_name}")
+    print(
+        f"\nAttempting to send evaluation to Supabase for project: {project_name}, agent_id: {args.agent_id} - {agent_name}"
+    )
+    send_to_supabase(evaluation_data_for_supabase)
+
+    print_final_results(
+        args,
+        delta_records,
+        failed_task_count,
+        num_tasks_created,
+        query_template_for_count,
+        records_after_execution,
+        records_before_execution,
+        successful_task_count,
+        table_to_monitor,
+        total_script_run_time,
+    )
+
+
+def get_project_name(project_name):
+    if not project_name or project_name == "default_project":
+        try:
+            project_name = os.path.basename(os.path.dirname(os.path.abspath(os.getcwd() + "/../")))
+        except Exception:
+            project_name = "unknown_project"
+    return project_name
+
+
+def send_to_supabase(evaluation_data_for_supabase):
     try:
         # Assuming send_evaluation_to_supabase handles its own config (URL, key)
         # and takes a dictionary.
         send_evaluation_to_supabase(evaluation_data_for_supabase)
         print("Evaluation data sent to Supabase successfully.")
-    except NameError: # Handles if send_evaluation_to_supabase was not imported
+    except NameError:  # Handles if send_evaluation_to_supabase was not imported
         print("INFO: Supabase integration was skipped as 'send_evaluation_to_supabase' is not available.")
     except Exception as e:
         print(f"ERROR: Failed to send evaluation data to Supabase: {e}")
         traceback.print_exc()
 
 
+def print_final_results(
+    args,
+    delta_records,
+    failed_task_count,
+    num_tasks_created,
+    query_template_for_count,
+    records_after_execution,
+    records_before_execution,
+    successful_task_count,
+    table_to_monitor,
+    total_script_run_time,
+):
     print("\n--- FINAL SUMMARY ---")
     print(f"Tasks created from CSV: {num_tasks_created}")
     if not args.skip_exec:
@@ -752,7 +796,7 @@ def main():
         print(f"Successful tasks: {successful_task_count}")
         print(f"Failed tasks: {failed_task_count}")
     else:
-        print(f"Task execution skipped.")
+        print("Task execution skipped.")
     print(f"Monitored table: {table_to_monitor}")
     print(f"Count query used: {query_template_for_count.format(table_to_monitor)}")
     print(f"Records before: {records_before_execution if records_before_execution != -1 else 'Error'}")
@@ -760,22 +804,75 @@ def main():
     print(f"Net records created/modified: {delta_records if delta_records != -1 else 'N/A'}")
     print(f"Total script time: {total_script_run_time:.2f} seconds")
     print(f"Script finished. [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
-
     if not args.skip_exec and delta_records != successful_task_count:
         # If execution was not skipped, compare delta_records with successful_task_count
         # as only successful tasks are expected to change records consistently.
         # num_tasks_created might include tasks that fail and don't change records.
-        print(f"Warning: Number of records created/modified ({delta_records}) does not match the number of successful tasks ({successful_task_count}).")
+        print(
+            f"Warning: Number of records created/modified ({delta_records}) does not match the number of successful tasks ({successful_task_count})."
+        )
         # Depending on strictness, you might still want to exit(1) or just warn.
         # For now, changed to a warning as task failures might not always mean record change discrepancies.
         # exit(1)
     elif args.skip_exec and delta_records != 0:
         # If execution was skipped, no records should have changed.
-         print(f"Warning: Records changed ({delta_records}) even though execution was skipped.")
+        print(f"Warning: Records changed ({delta_records}) even though execution was skipped.")
+
+
+def do_execution(
+    args,
+    conn,
+    effective_etendo_url,
+    group_id_for_batch,
+    num_tasks_created,
+    query_template_for_count,
+    table_to_monitor,
+):
+    task_execution_details = []
+    successful_task_count = 0
+    failed_task_count = 0
+    if not args.skip_exec:
+        task_ids_to_process = get_task_ids_from_db(conn, group_id_for_batch)
+        print(f"\nExecuting {len(task_ids_to_process)} tasks...")
+        for i, task_id_val in enumerate(task_ids_to_process):
+            print(f"\nProcessing task {i + 1}/{len(task_ids_to_process)}:")
+            success_status, exec_duration, error_detail = execute_etendo_task(
+                str(task_id_val), effective_etendo_url
+            )
+            status_message = "Success" if success_status else "Failure"
+            task_execution_details.append(
+                {
+                    "id": task_id_val,
+                    "status": status_message,
+                    "duration": exec_duration,
+                    "error": error_detail,
+                }
+            )
+            if success_status:
+                successful_task_count += 1
+            else:
+                failed_task_count += 1
+            print(f"  Result: {status_message}, Duration: {exec_duration:.2f}s")
+    else:
+        print("\nSkipping task execution (--skip_exec specified)")
+        for i in range(num_tasks_created):
+            task_execution_details.append(
+                {
+                    "id": f"(task {i + 1} - not executed)",
+                    "status": "Skipped",
+                    "duration": 0.0,
+                    "error": "Execution skipped by user",
+                }
+            )
+    records_after_execution = count_db_records(conn, table_to_monitor, query_template_for_count)
+    print(
+        f"Records in {table_to_monitor} after: {records_after_execution if records_after_execution != -1 else 'Error'}"
+    )
+    return failed_task_count, records_after_execution, successful_task_count, task_execution_details
 
 
 def get_agent_name(agent_id, conn):
-    agent_name = 'N/A'
+    agent_name = "N/A"
     if agent_id:
         # Get agent name from the database if agent_id is provided
         sql = "SELECT name FROM etcop_app WHERE etcop_app_id = %s"

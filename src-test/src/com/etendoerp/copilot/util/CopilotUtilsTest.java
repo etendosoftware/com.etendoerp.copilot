@@ -9,7 +9,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
@@ -27,12 +26,10 @@ import org.mockito.MockedStatic;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.weld.test.WeldBaseTest;
-import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
-import org.openbravo.model.ad.utility.Attachment;
 import org.openbravo.test.base.TestConstants;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -100,7 +97,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
     try (MockedStatic<OBMessageUtils> messageUtils = mockStatic(OBMessageUtils.class)) {
       messageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_ErrorMissingAttach")).thenReturn(
           "Missing attachment: %s");
-      OBException ex = assertThrows(OBException.class, () -> CopilotUtils.throwMissingAttachException(file));
+      OBException ex = assertThrows(OBException.class, () -> FileUtils.throwMissingAttachException(file));
       assertEquals("Missing attachment: test.txt", ex.getMessage());
     }
   }
@@ -160,16 +157,4 @@ public class CopilotUtilsTest extends WeldBaseTest {
     }
   }
 
-
-  @Test
-  public void testRemoveAttachment() {
-    CopilotFile file = mock(CopilotFile.class);
-    AttachImplementationManager aim = mock(AttachImplementationManager.class);
-    Attachment attachment = mock(Attachment.class);
-    try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
-      utils.when(() -> CopilotUtils.getAttachment(file)).thenReturn(attachment);
-      CopilotUtils.removeAttachment(aim, file);
-      verify(aim).delete(attachment);
-    }
-  }
 }

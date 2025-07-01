@@ -339,4 +339,4 @@ class TestPatternSupervisor(unittest.TestCase):
         """
 
         for exp in expected_edges_as_tuples:
-            self.assertIn(exp, actual_edges_as_tuples, f"Expected edge {exp} not " f"found in actual edges.")
+            self.assertIn(exp, actual_edges_as_tuples, f"Expected edge {exp} not found in actual edges.")
