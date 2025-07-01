@@ -25,5 +25,8 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <foreign-key foreignTable="ETASK_TASK_TYPE" name="EM_ETCOP_TASK_AGENT_FK">
+        <reference local="EM_ETCOP_AGENTID" foreign="ETASK_TASK_TYPE_ID"/>
+      </foreign-key>
     </table>
   </database>
