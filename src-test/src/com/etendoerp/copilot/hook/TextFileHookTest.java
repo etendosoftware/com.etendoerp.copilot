@@ -23,6 +23,7 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.FileUtils;
 
 /**
  * Text file hook test.
@@ -38,27 +39,29 @@ public class TextFileHookTest extends WeldBaseTest {
     private TextFileHook textFileHook;
     private MockedStatic<WeldUtils> mockedWeldUtils;
     private MockedStatic<CopilotUtils> mockedCopilotUtils;
+    private MockedStatic<FileUtils> mockedFileUtils;
     private AutoCloseable mocks;
 
     @Mock
     private CopilotFile mockCopilotFile;
-    
+
     @Mock
     private AttachImplementationManager mockAttachManager;
-    
+
     private static final String TEST_CONTENT = "test content";
 
     @Before
     public void setUp() throws Exception {
         mocks = MockitoAnnotations.openMocks(this);
         textFileHook = new TextFileHook();
-        
+
         // Setup static mocks
         mockedWeldUtils = mockStatic(WeldUtils.class);
         mockedWeldUtils.when(() -> WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class))
                 .thenReturn(mockAttachManager);
 
         mockedCopilotUtils = mockStatic(CopilotUtils.class);
+        mockedFileUtils = mockStatic(FileUtils.class);
     }
 
     /**
@@ -73,6 +76,9 @@ public class TextFileHookTest extends WeldBaseTest {
         }
         if (mockedCopilotUtils != null) {
             mockedCopilotUtils.close();
+        }
+        if (mockedFileUtils != null) {
+            mockedFileUtils.close();
         }
         if (mocks != null) {
             mocks.close();
@@ -102,7 +108,7 @@ public class TextFileHookTest extends WeldBaseTest {
     public void testExecWithValidTextAndFilename() {
         // Given
         String testFilename = "test.txt";
-        
+
         when(mockCopilotFile.getText()).thenReturn(TEST_CONTENT);
         when(mockCopilotFile.getFilename()).thenReturn(testFilename);
         when(mockCopilotFile.getName()).thenReturn("test");
@@ -113,8 +119,8 @@ public class TextFileHookTest extends WeldBaseTest {
         // Then
         verify(mockCopilotFile, times(1)).getText();
         verify(mockCopilotFile, times(2)).getFilename();
-        mockedCopilotUtils.verify(() -> CopilotUtils.removeAttachment(any(), any()));
-        mockedCopilotUtils.verify(() -> CopilotUtils.attachFile(any(), any(), any()));
+        mockedFileUtils.verify(() -> FileUtils.removeAttachment(any(), any()));
+        mockedFileUtils.verify(() -> FileUtils.attachFile(any(), any(), any()));
     }
 
     /**
@@ -124,7 +130,7 @@ public class TextFileHookTest extends WeldBaseTest {
     public void testExecWithoutFilename() {
         // Given
         String testName = "test";
-        
+
         when(mockCopilotFile.getText()).thenReturn(TEST_CONTENT);
         when(mockCopilotFile.getFilename()).thenReturn("");
         when(mockCopilotFile.getName()).thenReturn(testName);
@@ -135,8 +141,8 @@ public class TextFileHookTest extends WeldBaseTest {
         // Then
         verify(mockCopilotFile, times(1)).getText();
         verify(mockCopilotFile, times(1)).getName();
-        mockedCopilotUtils.verify(() -> CopilotUtils.removeAttachment(any(), any()));
-        mockedCopilotUtils.verify(() -> CopilotUtils.attachFile(any(), any(), any()));
+        mockedFileUtils.verify(() -> FileUtils.removeAttachment(any(), any()));
+        mockedFileUtils.verify(() -> FileUtils.attachFile(any(), any(), any()));
     }
 
     /**
