@@ -5,7 +5,7 @@ import java.util.List;
 
 import javax.enterprise.inject.Instance;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;

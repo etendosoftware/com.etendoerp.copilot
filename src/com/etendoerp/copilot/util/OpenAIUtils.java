@@ -570,7 +570,7 @@ public class OpenAIUtils {
       logIfDebug("Deleting file " + appSource.getFile().getName());
       deleteFile(appSource.getOpenaiIdFile(), openaiApiKey);
     }
-    File file = CopilotUtils.generateHQLFile(appSource);
+    File file = FileUtils.generateHQLFile(appSource);
 
     String fileId = uploadFileToOpenAI(openaiApiKey, file);
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
@@ -705,7 +705,7 @@ public class OpenAIUtils {
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
     Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
     if (attach == null) {
-      CopilotUtils.throwMissingAttachException(fileToSync);
+      FileUtils.throwMissingAttachException(fileToSync);
     }
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     aim.download(attach.getId(), os);

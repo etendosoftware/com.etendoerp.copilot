@@ -85,6 +85,14 @@
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
+      <column name="MAX_CHUNK_SIZE" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="CHUNK_OVERLAP" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="AD_MODULE" name="AD_MODULE_FK">
         <reference local="AD_MODULE_ID" foreign="AD_MODULE_ID"/>
       </foreign-key>

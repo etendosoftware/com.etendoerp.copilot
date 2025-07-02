@@ -1,9 +1,9 @@
-import base64
 import json
 import os
-from pathlib import Path
-from typing import AsyncGenerator, Dict, Final, List, Optional, Tuple, Union
+from typing import AsyncGenerator, Final, Optional, Union
 
+import langchain_core.tools
+import langgraph_codeact
 from copilot.core.agent.agent import (
     AgentResponse,
     AssistantResponse,
@@ -20,15 +20,22 @@ from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import AddableDict
+from langchain_core.tools import StructuredTool
 from langgraph.prebuilt import create_react_agent
+from langgraph_codeact import create_default_prompt
 
 from .. import etendo_utils, utils
 from ..langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
+from ..threadcontext import ThreadContext
 from ..utils import get_full_question
+from .agent_utils import process_local_files
+from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
+from .langgraph_agent import handle_events
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
+tools_loaded = {}
 
 
 class CustomOutputParser(AgentOutputParser):
@@ -100,52 +107,19 @@ def get_llm(model, provider, temperature):
     return llm
 
 
-def process_local_files(local_file_ids: Union[str, List[str]]) -> Tuple[List[Dict], List[str]]:
-    """Process local file IDs, returning image payloads and a list of other file paths."""
-    image_payloads = []
-    other_file_paths = []
+def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
+    """
+    Determines if the CodeAct feature is enabled for the given agent configuration.
 
-    if local_file_ids:
-        # Split paths into a list
-        if isinstance(local_file_ids, str):
-            file_paths = local_file_ids.split(",")
-        elif isinstance(local_file_ids, list) and len(local_file_ids) == 1 and "," in local_file_ids[0]:
-            file_paths = local_file_ids[0].split(",")
-        else:
-            file_paths = local_file_ids
+    Args:
+        agent_configuration (AssistantSchema): The configuration object for the agent,
+            which includes various settings and features.
 
-        # Define supported image formats
-        supported_image_formats = {
-            "JPEG": "image/jpeg",
-            "JPG": "image/jpeg",
-            "PNG": "image/png",
-            "WEBP": "image/webp",
-            "GIF": "image/gif",
-        }
-
-        for file_path in [path.strip() for path in file_paths]:
-            if Path(file_path).is_file():
-                mime = None
-                for ext, mime_type in supported_image_formats.items():
-                    if file_path.lower().endswith(ext.lower()):
-                        mime = mime_type
-                        break
-
-                if mime:  # Image format
-                    with open(file_path, "rb") as image_file:
-                        img_b64 = base64.b64encode(image_file.read()).decode("utf-8")
-                        image_payloads.append(
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"data:{mime};base64,{img_b64}", "detail": "high"},
-                            }
-                        )
-                else:  # Non-image format (PDF, TXT, etc.)
-                    other_file_paths.append(file_path)
-            else:
-                print(f"Skipping: {file_path} does not exist or is not a file")
-
-    return image_payloads, other_file_paths
+    Returns:
+        bool: True if the `code_execution` attribute exists in the `agent_configuration`
+        and is set to True, otherwise False.
+    """
+    return agent_configuration.code_execution
 
 
 class MultimodelAgent(CopilotAgent):
@@ -175,9 +149,8 @@ class MultimodelAgent(CopilotAgent):
         self._assert_system_prompt_is_set()
         llm = get_llm(model, provider, temperature)
 
-        # base_url = "http://127.0.0.1:1234/v1" -> can be used for local LLMs
         _enabled_tools = self.get_functions(tools)
-        kb_tool = get_kb_tool(kb_vectordb_id)  # type: ignore
+        kb_tool = get_kb_tool(agent_configuration)  # type: ignore
         if kb_tool is not None:
             _enabled_tools.append(kb_tool)
             self._configured_tools.append(kb_tool)
@@ -188,6 +161,7 @@ class MultimodelAgent(CopilotAgent):
                     openapi_tools = generate_tools_from_openapi(api_spec)
                     _enabled_tools.extend(openapi_tools)
                     self._configured_tools.extend(openapi_tools)
+        tools_loaded[agent_configuration.assistant_id] = _enabled_tools
         prompt_structure = [
             ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
             MessagesPlaceholder(variable_name="messages"),
@@ -195,11 +169,30 @@ class MultimodelAgent(CopilotAgent):
         ]
 
         ChatPromptTemplate.from_messages(prompt_structure)
-        agent = create_react_agent(
-            model=llm,
-            tools=_enabled_tools,
-            prompt=system_prompt,
-        )
+
+        if is_code_act_enabled(agent_configuration):
+            conv_tools = [
+                t if isinstance(t, StructuredTool) else langchain_core.tools.convert_runnable_to_tool(t)
+                for t in _enabled_tools
+            ]
+            use_pydoide = utils.read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
+            if use_pydoide:
+                eval_fn = create_pyodide_eval_fn("./sessions", ThreadContext.get_data("conversation_id"))
+            else:
+                eval_fn = CodeExecutor("original").execute
+
+            agent = langgraph_codeact.create_codeact(
+                model=llm,
+                tools=conv_tools,
+                eval_fn=eval_fn,
+                prompt=create_default_prompt(tools=conv_tools, base_prompt=system_prompt),
+            )
+        else:
+            agent = create_react_agent(
+                model=llm,
+                tools=_enabled_tools,
+                prompt=system_prompt,
+            )
         return agent
 
     def get_agent_executor(self, agent) -> AgentExecutor:
@@ -242,7 +235,9 @@ class MultimodelAgent(CopilotAgent):
         image_payloads, other_file_paths = process_local_files(question.local_file_ids)
 
         # Construct messages
-        messages = self._memory.get_memory(question.history, full_question)
+        messages_prev = self._memory.get_memory(question.history, full_question)
+        messages = []
+        messages.extend(messages_prev)
         if image_payloads or other_file_paths:
             content = [{"type": "text", "text": full_question}]
             if image_payloads:
@@ -282,6 +277,53 @@ class MultimodelAgent(CopilotAgent):
         image_payloads, other_file_paths = process_local_files(question.local_file_ids)
 
         # Construct messages
+        messages = await self.get_messages_arrray(full_question, image_payloads, other_file_paths, question)
+
+        _input = {
+            "content": full_question,
+            "messages": messages,
+            "system_prompt": question.system_prompt,
+            "thread_id": question.conversation_id,
+        }
+
+        if is_code_act_enabled(agent_configuration=question):
+            agent = agent.compile()
+            agent.get_graph().print_ascii()
+            async for event in agent.astream_events(_input, version="v2"):
+                response = await handle_events(copilot_stream_debug, event, question.conversation_id)
+                if response is not None:
+                    yield response
+            return
+        async for event in agent.astream_events(_input, version="v2"):
+            if copilot_stream_debug:
+                yield AssistantResponse(response=str(event), conversation_id="", role="debug")
+                continue
+            kind = event["event"]
+            if kind == "on_tool_start":
+                yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
+                continue
+            if (
+                kind != "on_chain_end"
+                or (type(event["data"]["output"]) == AddableDict)
+                or (type(event["data"]["output"]) != AIMessage)
+            ):
+                continue
+            output = event["data"]["output"]
+            output_ = output.content
+
+            # check if the output is a list
+            msg = await self.get_messages(output_)
+            yield AssistantResponse(response=str(msg), conversation_id=question.conversation_id)
+
+    async def get_messages(self, output_):
+        msg = str(output_)
+        if type(output_) == list:
+            o = output_[-1]
+            if "text" in o:
+                msg = str(o["text"])
+        return msg
+
+    async def get_messages_arrray(self, full_question, image_payloads, other_file_paths, question):
         messages = self._memory.get_memory(question.history, full_question)
         if image_payloads or other_file_paths:
             content = [{"type": "text", "text": full_question}]
@@ -292,28 +334,4 @@ class MultimodelAgent(CopilotAgent):
                 content.append({"type": "text", "text": "Attached files:\n" + "\n".join(other_file_paths)})
             new_human_message = HumanMessage(content=content)
             messages.append(new_human_message)
-
-        _input = {"content": full_question, "messages": messages, "system_prompt": question.system_prompt}
-        if question.conversation_id is not None:
-            _input["thread_id"] = question.conversation_id
-        async for event in agent.astream_events(_input, version="v2"):
-            if copilot_stream_debug:
-                yield AssistantResponse(response=str(event), conversation_id="", role="debug")
-            kind = event["event"]
-            if kind == "on_tool_start":
-                yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
-            elif kind == "on_chain_end":
-                if not type(event["data"]["output"]) == AddableDict:
-                    output = event["data"]["output"]
-                    if type(output) == AIMessage:
-                        output_ = output.content
-                        # check if the output is a list
-                        if type(output_) == list:
-                            for o in output_:
-                                yield AssistantResponse(
-                                    response=str(o["text"]), conversation_id=question.conversation_id
-                                )
-                        else:
-                            yield AssistantResponse(
-                                response=str(output_), conversation_id=question.conversation_id
-                            )
+        return messages

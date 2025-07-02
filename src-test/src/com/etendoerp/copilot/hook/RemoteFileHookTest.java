@@ -20,6 +20,8 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.FileUtils;
+
 import org.openbravo.model.ad.system.Language;
 
 import static org.junit.Assert.assertEquals;
@@ -40,20 +42,21 @@ public class RemoteFileHookTest extends WeldBaseTest {
      */
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
-    
+
     @Mock
     private CopilotFile mockCopilotFile;
-    
+
     @Mock
     private AttachImplementationManager mockAttachManager;
-    
+
     private MockedStatic<WeldUtils> mockedWeldUtils;
     private MockedStatic<CopilotUtils> mockedCopilotUtils;
+    private MockedStatic<FileUtils> mockedFileUtils;
     private MockedStatic<OBContext> mockedOBContext;
     private RemoteFileHook remoteFileHook;
     private AutoCloseable mocks;
     private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
-    
+
     private static final String EXAMPLE_FILE_URL = "https://example-files.online-convert.com/document/txt/example.txt";
     private static final String CUSTOM_TXT = "custom.txt";
 
@@ -78,6 +81,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
         mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
         mockedCopilotUtils = mockStatic(CopilotUtils.class);
+        mockedFileUtils = mockStatic(FileUtils.class);
     }
 
     /**
@@ -95,6 +99,9 @@ public class RemoteFileHookTest extends WeldBaseTest {
         }
         if (mockedCopilotUtils != null) {
             mockedCopilotUtils.close();
+        }
+        if (mockedFileUtils != null) {
+            mockedFileUtils.close();
         }
         if (mockedOBContext != null) {
             mockedOBContext.close();
@@ -173,8 +180,8 @@ public class RemoteFileHookTest extends WeldBaseTest {
                 .thenReturn(testUrl);
 
         // Mock file operations
-        mockedCopilotUtils.when(() -> CopilotUtils.attachFile(any(), any(), any())).thenAnswer(invocation -> null);
-        mockedCopilotUtils.when(() -> CopilotUtils.removeAttachment(any(), any())).thenAnswer(invocation -> null);
+        mockedFileUtils.when(() -> FileUtils.attachFile(any(), any(), any())).thenAnswer(invocation -> null);
+        mockedFileUtils.when(() -> FileUtils.removeAttachment(any(), any())).thenAnswer(invocation -> null);
 
         // When
         remoteFileHook.exec(mockCopilotFile);
@@ -182,8 +189,8 @@ public class RemoteFileHookTest extends WeldBaseTest {
         // Then
         verify(mockCopilotFile).getUrl();
         verify(mockCopilotFile).getFilename();
-        mockedCopilotUtils.verify(() -> CopilotUtils.removeAttachment(any(), any()));
-        mockedCopilotUtils.verify(() -> CopilotUtils.attachFile(any(), any(), any()));
+        mockedFileUtils.verify(() -> FileUtils.removeAttachment(any(), any()));
+        mockedFileUtils.verify(() -> FileUtils.attachFile(any(), any(), any()));
     }
 
     /**

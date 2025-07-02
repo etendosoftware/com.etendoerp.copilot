@@ -115,7 +115,7 @@ class MembersUtil:
                     if t.name == tool.function.name:
                         tools.append(t)
                         break
-            kb_tool = get_kb_tool(assistant.kb_vectordb_id)  # type: ignore
+            kb_tool = get_kb_tool(assistant)  # type: ignore
             if kb_tool is not None:
                 tools.append(kb_tool)
             if assistant.specs is not None:

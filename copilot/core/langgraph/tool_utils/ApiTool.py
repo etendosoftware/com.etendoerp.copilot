@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
 import requests
@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field, create_model
 
 
 def schema_to_pydantic_type(schema: Dict[str, Any]) -> Any:
-    if "type" not in schema:
+    schema_type = read_schema_type(schema)
+    if schema_type is None:
         return Any
 
     type_map = {
@@ -20,20 +21,78 @@ def schema_to_pydantic_type(schema: Dict[str, Any]) -> Any:
         "boolean": bool,
     }
 
-    schema_type = schema["type"]
     if schema_type == "array":
         items_schema = schema.get("items", {})
-        return List[schema_to_pydantic_type(items_schema)]
+        if not items_schema:  # If items is not defined or empty, List[Any] is a safe bet
+            return List[Any]
+        item_type = schema_to_pydantic_type(items_schema)
+        return List[item_type]
     elif schema_type == "object":
         properties = schema.get("properties", {})
-        fields = {}
-        for prop, prop_schema in properties.items():
-            prop_type = schema_to_pydantic_type(prop_schema)
-            prop_description = prop_schema.get("description", f"Field {prop} of the object")
-            fields[prop] = (prop_type, Field(..., description=prop_description))
-        return create_model("DynamicModel", **fields)
+        if not properties:  # Handle object with no properties
+
+            class EmptyModel(BaseModel):
+                pass
+
+            return EmptyModel
+        fields = get_fields(properties, schema)
+
+        model_name = schema.get("title", "DynamicModel")
+        return create_model(model_name, **fields)
     else:
+        # Fallback to str if type is unknown and not one of the above complex types
         return type_map.get(schema_type, str)
+
+
+def get_fields(properties, schema):
+    """
+    Converts JSON Schema properties to Pydantic fields.
+    Args:
+        properties: Dict[str, Any]: The properties defined in the JSON Schema.
+        schema: Dict[str, Any]: The entire schema definition, used to determine
+        required fields and other properties.
+
+    Returns:
+        Dict[str, Tuple[Any, Field]]: A dictionary where keys are property names and
+        values are tuples of type and Field.
+    """
+    fields = {}
+    required_fields = schema.get("required", [])
+    for prop, prop_schema in properties.items():
+        prop_type = schema_to_pydantic_type(prop_schema)
+        prop_description = prop_schema.get("description", f"Field {prop} of the object")
+        field_args = {"description": prop_description}
+        if prop_schema.get("type") == "string":
+            if "maxLength" in prop_schema:
+                field_args["max_length"] = prop_schema["maxLength"]
+            if "pattern" in prop_schema:
+                field_args["pattern"] = prop_schema["pattern"]
+
+        if prop_schema.get("nullable", False) or prop not in required_fields:
+            # Use Optional to handle fields that can be None
+            prop_type = Optional[prop_type]
+
+        if prop in required_fields:
+            fields[prop] = (prop_type, Field(..., **field_args))
+        else:
+            fields[prop] = (prop_type, Field(None, **field_args))
+    return fields
+
+
+def read_schema_type(schema):
+    if "type" not in schema:
+        # If no type is specified, it's safer to default to Any
+        # or handle based on other properties like 'properties' or 'items'
+        # For instance, if 'properties' exists, it's likely an object.
+        if "properties" in schema:
+            schema_type = "object"
+        elif "items" in schema:
+            schema_type = "array"
+        else:
+            schema_type = None
+    else:
+        schema_type = schema["type"]
+    return schema_type
 
 
 def summarize(method, url, text):
@@ -54,6 +113,37 @@ def summarize(method, url, text):
         except Exception as e:
             copilot_debug(f"Response cannot be summarized: {str(e)}")
     return text
+
+
+def build_payload(kwargs):
+    """
+    Builds a serialized payload based on the provided data.
+
+    This function extracts the 'body' from kwargs and serializes it depending on its type.
+    If the data is a Pydantic BaseModel instance, it uses model_dump to exclude unset values.
+    If the data is a list, it processes each item, serializing BaseModel instances.
+    Otherwise, it returns the data as is.
+
+    Args:
+        kwargs (dict): Dictionary containing the data, including an optional 'body' key representing the payload body.
+
+    Returns:
+        Any: The serialized payload, which can be a dictionary, a list, or the original data.
+    """
+    data = kwargs.get("body", None)
+    if isinstance(data, BaseModel):
+        payload_serialized = data.model_dump(exclude_unset=True)
+    elif isinstance(data, list):
+        payload_serialized = []
+        for item in data:
+            if isinstance(item, BaseModel):
+                item_serialized = item.model_dump(exclude_unset=True)
+                payload_serialized.append(item_serialized)
+            else:
+                payload_serialized.append(item)
+    else:
+        payload_serialized = data
+    return payload_serialized
 
 
 class ApiTool(BaseTool, BaseModel):
@@ -108,22 +198,18 @@ class ApiTool(BaseTool, BaseModel):
         if self.request_body:
             content = self.request_body.get("content", {}).get("application/json", {})
             body_schema = content.get("schema", {})
-            fields["body"] = (schema_to_pydantic_type(body_schema), ...)
+
+            item_schema_type = schema_to_pydantic_type(body_schema)
+
+            fields["body"] = (Union[item_schema_type, List[item_schema_type]], ...)
+            self.args_schema = create_model(f"{name}Args", **fields)
 
         self.args_schema = create_model(f"{name}Args", **fields)
 
     def _run(self, **kwargs: Any) -> str:
         path_params = {p["name"]: kwargs[f"path_{p['name']}"] for p in self.parameters if p["in"] == "path"}
-        query_params = {
-            p["name"]: kwargs[f"query_{p['name']}"]
-            for p in self.parameters
-            if p["in"] == "query" and kwargs.get(f"query_{p['name']}") is not None
-        }
-        headers = {
-            p["name"]: kwargs[f"header_{p['name']}"]
-            for p in self.parameters
-            if p["in"] == "header" and kwargs.get(f"header_{p['name']}") is not None
-        }
+        query_params = self.extract_parameters(kwargs, "query")
+        headers = self.extract_parameters(kwargs, "header")
         from copilot.core import etendo_utils
 
         token = etendo_utils.get_etendo_token()
@@ -132,9 +218,7 @@ class ApiTool(BaseTool, BaseModel):
         for param_name, param_value in path_params.items():
             url = url.replace(f"{{{param_name}}}", str(param_value))
 
-        data = kwargs.get("body", None)
-        if data and isinstance(data, BaseModel):
-            data = data.dict()
+        payload_serialized = build_payload(kwargs)
 
         try:
             response = requests.request(
@@ -142,25 +226,24 @@ class ApiTool(BaseTool, BaseModel):
                 url=url,
                 params=query_params,
                 headers=headers,
-                json=data,
+                json=payload_serialized,
             )
             response.raise_for_status()
             return summarize(self.method, url, response.text)
         except Exception as e:
             return f"Error en la llamada a la API: {str(e)}"
 
+    def extract_parameters(self, kwargs, type_param):
+        return {
+            p["name"]: kwargs[f"{type_param}_{p['name']}"]
+            for p in self.parameters
+            if p["in"] == type_param and kwargs.get(f"{type_param}_{p['name']}") is not None
+        }
+
     async def _arun(self, **kwargs: Any) -> str:
         path_params = {p["name"]: kwargs[f"path_{p['name']}"] for p in self.parameters if p["in"] == "path"}
-        query_params = {
-            p["name"]: kwargs[f"query_{p['name']}"]
-            for p in self.parameters
-            if p["in"] == "query" and kwargs.get(f"query_{p['name']}") is not None
-        }
-        headers = {
-            p["name"]: kwargs[f"header_{p['name']}"]
-            for p in self.parameters
-            if p["in"] == "header" and kwargs.get(f"header_{p['name']}") is not None
-        }
+        query_params = self.extract_parameters(kwargs, "query")
+        headers = self.extract_parameters(kwargs, "header")
         from copilot.core import etendo_utils
 
         token = etendo_utils.get_etendo_token()
@@ -170,9 +253,7 @@ class ApiTool(BaseTool, BaseModel):
         for param_name, param_value in path_params.items():
             url = url.replace(f"{{{param_name}}}", str(param_value))
 
-        data = kwargs.get("body", None)
-        if data and isinstance(data, BaseModel):
-            data = data.dict()
+        payload_serialized = build_payload(kwargs)
 
         async with aiohttp.ClientSession() as session:
             try:
@@ -187,7 +268,7 @@ class ApiTool(BaseTool, BaseModel):
                     url=url,
                     params=query_params if query_params else None,
                     headers=headers if headers else None,
-                    json=data if data else None,
+                    json=payload_serialized if payload_serialized else None,
                 ) as response:
                     response.raise_for_status()
                     text = await response.text()

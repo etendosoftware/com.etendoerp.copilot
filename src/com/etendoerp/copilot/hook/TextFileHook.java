@@ -5,7 +5,6 @@ package com.etendoerp.copilot.hook;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -17,7 +16,7 @@ import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.FileUtils;
 
 /**
  * This class implements the CopilotFileHook interface and provides functionality
@@ -50,9 +49,9 @@ public class TextFileHook implements CopilotFileHook {
     //stored in a temporary folder.
     Path path = generateTextFile(text, fileName);
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-    CopilotUtils.removeAttachment(aim, hookObject);
+    FileUtils.removeAttachment(aim, hookObject);
     File file = new File(path.toString());
-    CopilotUtils.attachFile(hookObject, aim, file);
+    FileUtils.attachFile(hookObject, aim, file);
 
   }
 
