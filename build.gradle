@@ -53,10 +53,10 @@ repositories {
  */
 dependencies {
     implementation('com.konghq:unirest-java:3.14.5')
-    implementation('com.etendoerp:webhookevents:2.0.0')
-    implementation('com.etendoerp:docker:2.0.0')
-    implementation('com.etendoerp:openapi:2.0.0')
-    implementation('com.etendoerp:task:3.0.0')
+    implementation('com.etendoerp:webhookevents:2.1.0')
+    implementation('com.etendoerp:docker:2.1.0')
+    implementation('com.etendoerp:openapi:2.1.0')
+    implementation('com.etendoerp:task:3.1.0')
 
-    implementation('com.etendoerp.platform:etendo-core:[25.1.0,25.2.0)')
+    implementation('com.etendoerp.platform:etendo-core:[25.1.0,25.3.0)')
 }
