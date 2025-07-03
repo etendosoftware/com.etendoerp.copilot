@@ -154,13 +154,13 @@ def serve_graph(question: GraphQuestionSchema):
     copilot_agent = LanggraphAgent()
     print_call_info(copilot_agent, question)
     try:
+        load_thread_context(question)
         copilot_debug(
             "Thread "
             + str(threading.get_ident())
             + " Saving extra info:"
-            + str(ThreadContext.identifier_data())
+            + str(ThreadContext.get_data("extra_info"))
         )
-        load_thread_context(question)
         agent_response: AgentResponse = copilot_agent.execute(question)
         response = agent_response.output
         local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
