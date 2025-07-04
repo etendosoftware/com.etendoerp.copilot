@@ -63,6 +63,9 @@ langgraph-codeact = "^0.1.0"
 restrictedpython = { version = "^8.0", python = ">=3.9,<3.14" }
 rizaio = "^0.10.0"
 openevals = "^0.0.20"
+psycopg2-binary = "^2.9.10"
+langchain-sandbox = "^0.0.4"
+monotonic = "^1.6"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 

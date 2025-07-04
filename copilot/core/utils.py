@@ -62,12 +62,18 @@ def read_optional_env_var(env_var_name: str, default_value: str) -> str:
 
 
 def _read_env_var(env_var_name, default_value):
-    value = os.getenv(env_var_name, default_value)
-    if not value:
-        copilot_debug(f"Environment variable {env_var_name} is not set, using default value {default_value}")
-        return default_value
-    copilot_debug(f"Reading optional environment variable {env_var_name} = {value}")
-    return value
+    upper_env_var = env_var_name.replace('.', '_').upper()
+    value = os.getenv(upper_env_var)
+    if value is not None and value != '':
+        copilot_debug(f"Reading environment variable {upper_env_var} = {value}")
+        return value
+    value = os.getenv(env_var_name)
+    if value is not None and value != '':
+        copilot_debug(f"Reading alternative environment variable {env_var_name} = {value}")
+        return value
+    copilot_debug(
+        f"Environment variable {upper_env_var} / {env_var_name} is not set, using default value {default_value}")
+    return default_value
 
 
 def read_optional_env_var_int(env_var_name: str, default_value: int) -> int:

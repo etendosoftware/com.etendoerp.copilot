@@ -28,9 +28,10 @@ from .. import etendo_utils, utils
 from ..langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
+from ..threadcontext import ThreadContext
 from ..utils import get_full_question
 from .agent_utils import process_local_files
-from .eval.code_evaluators import CodeExecutor
+from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
 from .langgraph_agent import handle_events
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
@@ -174,12 +175,16 @@ class MultimodelAgent(CopilotAgent):
                 t if isinstance(t, StructuredTool) else langchain_core.tools.convert_runnable_to_tool(t)
                 for t in _enabled_tools
             ]
-            code_executor = CodeExecutor("original")
+            use_pydoide = utils.read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
+            if use_pydoide:
+                eval_fn = create_pyodide_eval_fn("./sessions", ThreadContext.get_data("conversation_id"))
+            else:
+                eval_fn = CodeExecutor("original").execute
 
             agent = langgraph_codeact.create_codeact(
                 model=llm,
                 tools=conv_tools,
-                eval_fn=code_executor.execute,
+                eval_fn=eval_fn,
                 prompt=create_default_prompt(tools=conv_tools, base_prompt=system_prompt),
             )
         else:
@@ -230,7 +235,9 @@ class MultimodelAgent(CopilotAgent):
         image_payloads, other_file_paths = process_local_files(question.local_file_ids)
 
         # Construct messages
-        messages = self._memory.get_memory(question.history, full_question)
+        messages_prev = self._memory.get_memory(question.history, full_question)
+        messages = []
+        messages.extend(messages_prev)
         if image_payloads or other_file_paths:
             content = [{"type": "text", "text": full_question}]
             if image_payloads:
@@ -270,6 +277,53 @@ class MultimodelAgent(CopilotAgent):
         image_payloads, other_file_paths = process_local_files(question.local_file_ids)
 
         # Construct messages
+        messages = await self.get_messages_arrray(full_question, image_payloads, other_file_paths, question)
+
+        _input = {
+            "content": full_question,
+            "messages": messages,
+            "system_prompt": question.system_prompt,
+            "thread_id": question.conversation_id,
+        }
+
+        if is_code_act_enabled(agent_configuration=question):
+            agent = agent.compile()
+            agent.get_graph().print_ascii()
+            async for event in agent.astream_events(_input, version="v2"):
+                response = await handle_events(copilot_stream_debug, event, question.conversation_id)
+                if response is not None:
+                    yield response
+            return
+        async for event in agent.astream_events(_input, version="v2"):
+            if copilot_stream_debug:
+                yield AssistantResponse(response=str(event), conversation_id="", role="debug")
+                continue
+            kind = event["event"]
+            if kind == "on_tool_start":
+                yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
+                continue
+            if (
+                kind != "on_chain_end"
+                or (type(event["data"]["output"]) == AddableDict)
+                or (type(event["data"]["output"]) != AIMessage)
+            ):
+                continue
+            output = event["data"]["output"]
+            output_ = output.content
+
+            # check if the output is a list
+            msg = await self.get_messages(output_)
+            yield AssistantResponse(response=str(msg), conversation_id=question.conversation_id)
+
+    async def get_messages(self, output_):
+        msg = str(output_)
+        if type(output_) == list:
+            o = output_[-1]
+            if "text" in o:
+                msg = str(o["text"])
+        return msg
+
+    async def get_messages_arrray(self, full_question, image_payloads, other_file_paths, question):
         messages = self._memory.get_memory(question.history, full_question)
         if image_payloads or other_file_paths:
             content = [{"type": "text", "text": full_question}]
@@ -280,37 +334,4 @@ class MultimodelAgent(CopilotAgent):
                 content.append({"type": "text", "text": "Attached files:\n" + "\n".join(other_file_paths)})
             new_human_message = HumanMessage(content=content)
             messages.append(new_human_message)
-
-        _input = {"content": full_question, "messages": messages, "system_prompt": question.system_prompt}
-        if question.conversation_id is not None:
-            _input["thread_id"] = question.conversation_id
-        if is_code_act_enabled(agent_configuration=question):
-            agent = agent.compile()
-            agent.get_graph().print_ascii()
-            async for event in agent.astream_events(_input, version="v2"):
-                response = await handle_events(copilot_stream_debug, event, question.conversation_id)
-                if response is not None:
-                    yield response
-        else:
-            async for event in agent.astream_events(_input, version="v2"):
-                if copilot_stream_debug:
-                    yield AssistantResponse(response=str(event), conversation_id="", role="debug")
-                kind = event["event"]
-                if kind == "on_tool_start":
-                    yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
-                elif kind == "on_chain_end":
-                    if not type(event["data"]["output"]) == AddableDict:
-                        output = event["data"]["output"]
-                        if type(output) == AIMessage:
-                            output_ = output.content
-                            # check if the output is a list
-                            if type(output_) == list:
-                                o = output_[-1]
-                                if "text" in o:
-                                    yield AssistantResponse(
-                                        response=str(o["text"]), conversation_id=question.conversation_id
-                                    )
-                            else:
-                                yield AssistantResponse(
-                                    response=str(output_), conversation_id=question.conversation_id
-                                )
+        return messages

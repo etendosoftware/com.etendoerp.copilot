@@ -29,6 +29,7 @@ import org.openbravo.test.base.TestConstants;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.FileUtils;
 
 /**
  * Text file hook test.
@@ -48,6 +49,7 @@ public class ProcessHQLAppSourceTest extends WeldBaseTest {
 
   private MockedStatic<WeldUtils> mockedWeldUtils;
   private MockedStatic<CopilotUtils> mockedCopilotUtils;
+  private MockedStatic<FileUtils> mockedFileUtils;
   private MockedStatic<OBContext> mockedOBContext;
   private ProcessHQLAppSource processHqlAppSource;
   private AutoCloseable mocks;
@@ -81,6 +83,7 @@ public class ProcessHQLAppSourceTest extends WeldBaseTest {
     mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
     mockedCopilotUtils = mockStatic(CopilotUtils.class);
+    mockedFileUtils = mockStatic(FileUtils.class);
   }
 
   /**
@@ -99,6 +102,9 @@ public class ProcessHQLAppSourceTest extends WeldBaseTest {
     }
     if (mockedCopilotUtils != null) {
       mockedCopilotUtils.close();
+    }
+    if (mockedFileUtils != null) {
+      mockedFileUtils.close();
     }
     if (mockedOBContext != null) {
       mockedOBContext.close();
@@ -120,8 +126,8 @@ public class ProcessHQLAppSourceTest extends WeldBaseTest {
     when(mockCopilotAppSource.getFile()).thenReturn(mockCopilotFile);
 
     // Mock file operations
-    mockedCopilotUtils.when(() -> CopilotUtils.attachFile(any(), any(), any())).thenAnswer(invocation -> null);
-    mockedCopilotUtils.when(() -> CopilotUtils.removeAttachment(any(), any())).thenAnswer(invocation -> null);
+    mockedFileUtils.when(() -> FileUtils.attachFile(any(), any(), any())).thenAnswer(invocation -> null);
+    mockedFileUtils.when(() -> FileUtils.removeAttachment(any(), any())).thenAnswer(invocation -> null);
 
     // When
     File resultFile = processHqlAppSource.generate(mockCopilotAppSource);
@@ -146,8 +152,8 @@ public class ProcessHQLAppSourceTest extends WeldBaseTest {
     when(mockCopilotAppSource.getFile()).thenReturn(mockCopilotFile);
 
     // Mock file operations
-    mockedCopilotUtils.when(() -> CopilotUtils.attachFile(any(), any(), any())).thenAnswer(invocation -> null);
-    mockedCopilotUtils.when(() -> CopilotUtils.removeAttachment(any(), any())).thenAnswer(invocation -> null);
+    mockedFileUtils.when(() -> FileUtils.attachFile(any(), any(), any())).thenAnswer(invocation -> null);
+    mockedFileUtils.when(() -> FileUtils.removeAttachment(any(), any())).thenAnswer(invocation -> null);
 
     // When
     File resultFile = processHqlAppSource.generate(mockCopilotAppSource);
