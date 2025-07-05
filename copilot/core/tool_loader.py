@@ -1,10 +1,9 @@
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, TypeAlias
+from typing import Dict, List, Optional, TypeAlias, Final
 
 import toml
 
-from tools import *  # noqa: F403
 
 from . import tool_installer, utils
 
@@ -122,7 +121,7 @@ class ToolLoader:
         # load native tools implemented by copilot
         for tool_name, enabled in self.native_tool_config.items():
             print_green(f"Loading native tool {tool_name}")
-            if enabled and self._is_tool_implemented(tool_name):
+            if enabled :
                 class_name = globals()[tool_name]
                 configured_tools.append(class_name())
             # nothing todo, tool_name is disabled from config
@@ -131,9 +130,7 @@ class ToolLoader:
         # load third party tools implemented by users
         for tool_name, enabled in self.third_party_tool_config.items():
             print_green(f"Loading third party tool {tool_name}")
-            if enabled and self._is_tool_implemented(tool_name):
-                class_name = globals()[tool_name]
-                configured_tools.append(class_name())
+            if enabled :
                 if tool_name in self._tools_dependencies.keys() and (
                     tool_name not in ToolLoader.installed_deps
                 ):
@@ -141,6 +138,8 @@ class ToolLoader:
                     tool_installer.install_dependencies(dependencies=self._tools_dependencies[tool_name])
                     ToolLoader.installed_deps.append(tool_name)
                 # nothing todo, tool_name has not dependendies defined
+                class_name = globals()[tool_name]
+                configured_tools.append(class_name())
 
             # nothing todo, tool_name is disabled from config
             print_green(SUCCESS_CODE)
