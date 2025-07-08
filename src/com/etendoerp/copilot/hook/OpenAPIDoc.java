@@ -20,6 +20,11 @@ import io.swagger.v3.oas.models.parameters.RequestBody;
  */
 public class OpenAPIDoc implements OpenAPIEndpoint {
   private static final List<String> COPILOT_TAG = Collections.singletonList("Copilot");
+  private static final String APPLICATION_JSON = "application/json";
+  private static final String APP_ID = "app_id";
+  private static final String QUERY = "query";
+  private static final String QUESTION = "question";
+  private static final String CONVERSATION_ID = "conversation_id";
 
   /**
    * Checks if the provided tag is valid for this endpoint.
@@ -82,7 +87,7 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
     var response = new io.swagger.v3.oas.models.responses.ApiResponse();
     response.setDescription("The transcription of the audio file");
     response.content(new Content().
-        addMediaType("application/json", new MediaType()
+        addMediaType(APPLICATION_JSON, new MediaType()
             .schema(new StringSchema())));
     transcription.responses(new io.swagger.v3.oas.models.responses.ApiResponses().addApiResponse("200", response));
     var pathItem = new io.swagger.v3.oas.models.PathItem();
@@ -105,13 +110,12 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
     operation.setTags(OpenAPIDoc.COPILOT_TAG);
     var response = new io.swagger.v3.oas.models.responses.ApiResponse();
     response.setDescription("A list of available assistants for the current user");
-    // Response schema: array of objects { id: string, name: string }
     var itemSchema = new ObjectSchema()
             .addProperties("id", new StringSchema().description("Assistant unique ID"))
             .addProperties("name", new StringSchema().description("Assistant name"));
     var arraySchema = new io.swagger.v3.oas.models.media.ArraySchema()
             .items(itemSchema);
-    response.content(new Content().addMediaType("application/json",
+    response.content(new Content().addMediaType(APPLICATION_JSON,
             new MediaType().schema(arraySchema)));
     operation.responses(new io.swagger.v3.oas.models.responses.ApiResponses()
             .addApiResponse("200", response));
@@ -137,38 +141,38 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
             "All parameters are sent as URL query parameters.");
     // Define query parameters
     operation.addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
-            .name("app_id")
-            .in("query")
+            .name(APP_ID)
+            .in(QUERY)
             .required(true)
             .description("The ID of the assistant to use")
             .schema(new StringSchema()));
     operation.addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
-            .name("question")
-            .in("query")
+            .name(QUESTION)
+            .in(QUERY)
             .required(true)
             .description("The question to ask")
             .schema(new StringSchema()));
     operation.addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
-            .name("conversation_id")
-            .in("query")
+            .name(CONVERSATION_ID)
+            .in(QUERY)
             .required(false)
             .description("The conversation ID, if continuing an existing conversation")
             .schema(new StringSchema()));
     operation.addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
             .name("file")
-            .in("query")
+            .in(QUERY)
             .required(false)
             .description("Optional file attachment")
             .schema(new StringSchema()));
     // Response: application/json
     var responseSchema = new ObjectSchema()
-            .addProperties("app_id", new StringSchema())
-            .addProperties("conversation_id", new StringSchema())
+            .addProperties(APP_ID, new StringSchema())
+            .addProperties(CONVERSATION_ID, new StringSchema())
             .addProperties("response", new StringSchema())
             .addProperties("timestamp", new StringSchema().description("ISO-8601 timestamp"));
     var apiResponse = new io.swagger.v3.oas.models.responses.ApiResponse()
             .description("The answer to the user's question")
-            .content(new Content().addMediaType("application/json", new MediaType().schema(responseSchema)));
+            .content(new Content().addMediaType(APPLICATION_JSON, new MediaType().schema(responseSchema)));
     operation.responses(new io.swagger.v3.oas.models.responses.ApiResponses()
             .addApiResponse("200", apiResponse));
     var pathItem = new io.swagger.v3.oas.models.PathItem().get(operation);
@@ -191,24 +195,24 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
             "Parameters must be sent in the JSON request body.");
     // Define request body schema
     var requestSchema = new ObjectSchema()
-            .addProperties("app_id", new StringSchema().description("ID of the assistant to use"))
-            .addProperties("question", new StringSchema().description("The question to ask"))
-            .addProperties("conversation_id", new StringSchema().description("Optional conversation ID"))
+            .addProperties(APP_ID, new StringSchema().description("ID of the assistant to use"))
+            .addProperties(QUESTION, new StringSchema().description("The question to ask"))
+            .addProperties(CONVERSATION_ID, new StringSchema().description("Optional conversation ID"))
             .addProperties("file", new StringSchema().description("Optional file attachment"))
-            .required(List.of("app_id", "question"));
+            .required(List.of(APP_ID, QUESTION));
     var requestBody = new RequestBody()
             .description("JSON object containing the question, assistant ID, and optional parameters")
-            .content(new Content().addMediaType("application/json", new MediaType().schema(requestSchema)));
+            .content(new Content().addMediaType(APPLICATION_JSON, new MediaType().schema(requestSchema)));
     operation.setRequestBody(requestBody);
     // Define response schema
     var responseSchema = new ObjectSchema()
-            .addProperties("app_id", new StringSchema())
-            .addProperties("conversation_id", new StringSchema())
+            .addProperties(APP_ID, new StringSchema())
+            .addProperties(CONVERSATION_ID, new StringSchema())
             .addProperties("response", new StringSchema())
             .addProperties("timestamp", new StringSchema().description("ISO-8601 timestamp"));
     var apiResponse = new io.swagger.v3.oas.models.responses.ApiResponse()
             .description("The answer to the user's question")
-            .content(new Content().addMediaType("application/json", new MediaType().schema(responseSchema)));
+            .content(new Content().addMediaType(APPLICATION_JSON, new MediaType().schema(responseSchema)));
     operation.responses(new io.swagger.v3.oas.models.responses.ApiResponses()
             .addApiResponse("200", apiResponse));
     var pathItem = new io.swagger.v3.oas.models.PathItem().post(operation);
@@ -230,17 +234,17 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
     operation.setDescription("Stores a question in the user session for later use.");
     // Request body schema
     var requestSchema = new ObjectSchema()
-            .addProperties("question", new StringSchema().description("The question to cache"))
-            .required(List.of("question"));
+            .addProperties(QUESTION, new StringSchema().description("The question to cache"))
+            .required(List.of(QUESTION));
     var requestBody = new RequestBody()
             .description("JSON object containing the question to cache")
-            .content(new Content().addMediaType("application/json", new MediaType().schema(requestSchema)));
+            .content(new Content().addMediaType(APPLICATION_JSON, new MediaType().schema(requestSchema)));
 
     operation.setRequestBody(requestBody);
     // 200 OK response
     var successResponse = new io.swagger.v3.oas.models.responses.ApiResponse()
             .description("The question was cached successfully")
-            .content(new Content().addMediaType("application/json",
+            .content(new Content().addMediaType(APPLICATION_JSON,
                     new MediaType().schema(
                             new ObjectSchema().addProperties("message", new StringSchema())
                     )
@@ -248,7 +252,7 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
     // 400 error response
     var errorResponse = new io.swagger.v3.oas.models.responses.ApiResponse()
             .description("Bad request (missing or invalid question)")
-            .content(new Content().addMediaType("application/json",
+            .content(new Content().addMediaType(APPLICATION_JSON,
                     new MediaType().schema(
                             new ObjectSchema().addProperties("error", new StringSchema())
                     )
@@ -289,7 +293,7 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
             .addProperties("fileName", new StringSchema().description("Original file name"));
     var apiResponse = new io.swagger.v3.oas.models.responses.ApiResponse()
             .description("File upload result")
-            .content(new Content().addMediaType("application/json", new MediaType().schema(responseSchema)));
+            .content(new Content().addMediaType(APPLICATION_JSON, new MediaType().schema(responseSchema)));
     operation.responses(new io.swagger.v3.oas.models.responses.ApiResponses()
             .addApiResponse("200", apiResponse));
     var pathItem = new io.swagger.v3.oas.models.PathItem().post(operation);
@@ -313,13 +317,13 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
     // 200 OK response (empty JSON object)
     var successResponse = new io.swagger.v3.oas.models.responses.ApiResponse()
             .description("Configuration check successful")
-            .content(new Content().addMediaType("application/json",
+            .content(new Content().addMediaType(APPLICATION_JSON,
                     new MediaType().schema(new ObjectSchema())
             ));
     // 500 error response
     var errorResponse = new io.swagger.v3.oas.models.responses.ApiResponse()
             .description("Internal server error")
-            .content(new Content().addMediaType("application/json",
+            .content(new Content().addMediaType(APPLICATION_JSON,
                     new MediaType().schema(
                             new ObjectSchema().addProperties("error", new StringSchema())
                     )
@@ -347,8 +351,8 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
     operation.setDescription("Returns the structure (configuration or schema) for the assistant specified by app_id.");
     // Query parameter: app_id (required)
     operation.addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
-            .name("app_id")
-            .in("query")
+            .name(APP_ID)
+            .in(QUERY)
             .required(true)
             .description("The assistant ID")
             .schema(new StringSchema()));
@@ -357,7 +361,7 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
             .description("Structure object for the specified assistant");
     var apiResponse = new io.swagger.v3.oas.models.responses.ApiResponse()
             .description("Structure response")
-            .content(new Content().addMediaType("application/json", new MediaType().schema(responseSchema)));
+            .content(new Content().addMediaType(APPLICATION_JSON, new MediaType().schema(responseSchema)));
     operation.responses(new io.swagger.v3.oas.models.responses.ApiResponses()
             .addApiResponse("200", apiResponse));
     var pathItem = new io.swagger.v3.oas.models.PathItem().get(operation);
