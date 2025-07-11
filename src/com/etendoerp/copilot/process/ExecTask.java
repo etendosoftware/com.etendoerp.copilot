@@ -2,6 +2,7 @@ package com.etendoerp.copilot.process;
 
 
 import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_COMPLETED;
+import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_EVAL;
 import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_IN_PROGRESS;
 import static com.etendoerp.copilot.process.AddBulkTasks.getStatus;
 import static com.etendoerp.copilot.rest.RestServiceUtil.APP_ID;
@@ -126,7 +127,7 @@ public class ExecTask extends Action {
       }
 
       execTask(task);
-      task.setStatus(getStatus(TASK_STATUS_COMPLETED));
+      task.setStatus(getStatus(TASK_STATUS_EVAL));
     } catch (Exception e) {
       if (logger != null) {
         logger.log("Error processing task " + task.getId() + ": " + e.getMessage() + "\n");
