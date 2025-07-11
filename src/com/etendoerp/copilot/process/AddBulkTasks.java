@@ -148,7 +148,7 @@ public class AddBulkTasks extends BaseProcessActionHandler {
 
   public static Status getStatus(String identifier) {
     return (Status) OBDal.getInstance().createCriteria(Status.class).add(
-        Restrictions.eq(Status.PROPERTY_IDENTIFIER, identifier)).setMaxResults(1).uniqueResult();
+        Restrictions.eq(Status.PROPERTY_SEARCHKEY, identifier)).setMaxResults(1).uniqueResult();
   }
 
   public static TaskType getCopilotTaskType() {
