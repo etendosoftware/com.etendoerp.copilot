@@ -1,7 +1,6 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
-import org.gradle.internal.resource.transport.http.HttpRequestException
-import org.gradle.api.plugins.ExtraPropertiesExtension
+
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -114,7 +113,7 @@ task 'copilot.do' {
         }
         if (!etendoHost) {
             project.logger.lifecycle("${redText}🤖 Host not provided, using default (http://localhost:8080/etendo).${resetText}")
-            etendoHost="http://localhost:8080/etendo"
+            etendoHost = "http://localhost:8080/etendo"
         }
         if (app_id == null || app_id == "") {
             project.logger.lifecycle("${redText}🤖 Please provide the parameter: app_id (Ex. -Papp_id=\'A1B2C3D4E5F6G7H8\').${resetText}")
@@ -391,8 +390,8 @@ task 'copilot.env.file' {
         def copilotPortDebug = project.hasProperty("COPILOT_PORT_DEBUG") ? project.property("COPILOT_PORT_DEBUG").toString() : "5100"
         def copilotImageTag = project.hasProperty("COPILOT_IMAGE_TAG") ? project.property("COPILOT_IMAGE_TAG").toString() : "master"
         def copilotPullImage = project.hasProperty("COPILOT_PULL_IMAGE") ? project.property("COPILOT_PULL_IMAGE").toString() : "true"
-        def copilotOllamaHost= project.hasProperty("COPILOT_OLLAMA_HOST") ? project.property("COPILOT_OLLAMA_HOST").toString() : getDefaultOllamaHost(copilotEnabled, ollamaEnabled)
-        def copilotOllamaPort= project.hasProperty("COPILOT_OLLAMA_PORT") ? project.property("COPILOT_OLLAMA_PORT").toString() : "11434"
+        def copilotOllamaHost = project.hasProperty("COPILOT_OLLAMA_HOST") ? project.property("COPILOT_OLLAMA_HOST").toString() : getDefaultOllamaHost(copilotEnabled, ollamaEnabled)
+        def copilotOllamaPort = project.hasProperty("COPILOT_OLLAMA_PORT") ? project.property("COPILOT_OLLAMA_PORT").toString() : "11434"
         env.withWriterAppend { writer ->
             writer.write("ETENDO_HOST=${etendoHost}\n")
             println "Writing ETENDO_HOST=${etendoHost}"
@@ -422,6 +421,123 @@ task 'copilot.env.file' {
             println "Writing COPILOT_OLLAMA_PORT=${copilotOllamaPort}"
 
         }
+    }
+}
+
+task 'copilot.variables.setup' {
+    group = "configuration"
+    description = "Detects and prints the suggested Copilot and Tomcat configuration variables."
+
+    doLast {
+        def yellow = "\u001B[33;1m"
+        def red = "\u001B[31;1m"
+        def green = "\u001B[32;1m"
+        def reset = "\u001B[0m"
+
+        def reader = new BufferedReader(new InputStreamReader(System.in))
+
+        // === CONTEXT NAME ===
+        def contextName = project.findProperty("context.name")
+        if (!contextName) {
+            throw new GradleException("${red}❌ ERROR: Missing required property 'context.name'. Use -Pcontext.name=your_context${reset}")
+        }
+
+        // === DETECT TOMCAT MODE ===
+        def tomcatMode = null
+        if (project.hasProperty("docker_com.etendoerp.tomcat") && project.property("docker_com.etendoerp.tomcat").toString() == "true") {
+            tomcatMode = "docker"
+        }
+
+        if (!tomcatMode) {
+            System.out.print("${yellow} \n💬 Please enter Tomcat mode ('docker', 'local', or 'server'):\n ${reset}")
+            System.out.flush()
+            tomcatMode = reader.readLine()?.trim()?.toLowerCase()
+            if (!["docker", "local", "server"].contains(tomcatMode)) {
+                throw new GradleException("${red}❌ Invalid Tomcat mode. Must be 'docker', 'local', or 'server'.${reset}")
+            }
+        }
+
+        // === DETECT COPILOT MODE ===
+        def copilotMode = null
+        if (project.hasProperty("docker_com.etendoerp.copilot") && project.property("docker_com.etendoerp.copilot").toString() == "true") {
+            copilotMode = "docker"
+        }
+
+        if (!copilotMode) {
+            System.out.print("${yellow}\n💬 Please enter Copilot mode ('docker' or 'local'): \n${reset}")
+            System.out.flush()
+            copilotMode = reader.readLine()?.trim()?.toLowerCase()
+            if (!["docker", "local"].contains(copilotMode)) {
+                throw new GradleException("${red}❌ Invalid Copilot mode. Must be 'docker' or 'local'.${reset}")
+            }
+        }
+
+        // === TOMCAT PORT ===
+        def tomcatPort = project.findProperty("tomcatPort")
+        if (!tomcatPort) {
+            try {
+                tomcatPort = envFile().property("TOMCAT_PORT")?.toString()
+            } catch (Exception ignored) {}
+        }
+
+        if (!tomcatPort && tomcatMode != "docker") {
+            if (tomcatMode == "server") {
+                println "${yellow}\n💡 Tip: You can check the server port with:${reset}"
+                println "${green}    sudo cat /etc/apache2/ports.conf \n${reset}"
+            }
+
+            System.out.print("${yellow}\n💬 Please enter the Tomcat port manually: \n${reset}")
+            System.out.flush()
+            tomcatPort = reader.readLine()?.trim()
+            if (!tomcatPort) {
+                throw new GradleException("${red}❌ ERROR: 'tomcatPort' is required when Tomcat is not dockerized.${reset}")
+            }
+        }
+
+        if (!tomcatPort && tomcatMode == "docker") {
+            tomcatPort = "8080"
+        }
+
+        // === COPILOT PORT ===
+        def copilotPort = project.findProperty("copilotPort") ?: "5005"
+
+        // === VARIABLE CONSTRUCTION ===
+        def etendoHost
+        def etendoHostDocker
+        def copilotHost
+
+        if (tomcatMode == "docker" && copilotMode == "docker") {
+            etendoHost = "http://tomcat:8080/${contextName}"
+            etendoHostDocker = etendoHost
+            copilotHost = "copilot"
+        } else if (copilotMode == "docker" && tomcatMode != "docker") {
+            def gatewayIp = "172.17.0.1"
+            try {
+                def process = ["sh", "-c", "docker run --rm --network bridge debian bash -c 'apt update -qq >/dev/null && apt install -y -qq iproute2 >/dev/null && getent hosts host.docker.internal || echo host.docker.internal \$(ip route | grep default | cut -d\" \" -f3)' | awk '{print \$1}'"].execute()
+                gatewayIp = process.text.trim()
+            } catch (Exception e) {
+                println "${yellow}⚠️ WARNING: Failed to get Docker bridge IP. Using default: 172.17.0.1${reset}"
+            }
+
+            etendoHost = "http://localhost:${tomcatPort}/${contextName}"
+            etendoHostDocker = "http://${gatewayIp}:${tomcatPort}/${contextName}"
+            copilotHost = "localhost"
+        } else {
+            etendoHost = "http://localhost:${tomcatPort}/${contextName}"
+            etendoHostDocker = etendoHost
+            copilotHost = "localhost"
+        }
+
+        // === OUTPUT ===
+        println ""
+        println "${green}✅ Suggested gradle.properties values:${reset}"
+        println "-------------------------------------------"
+        println "ETENDO_HOST=${etendoHost}"
+        println "ETENDO_HOST_DOCKER=${etendoHostDocker}"
+        println "COPILOT_HOST=${copilotHost}"
+        println "COPILOT_PORT=${copilotPort}"
+        println "-------------------------------------------"
+        println ""
     }
 }
 
