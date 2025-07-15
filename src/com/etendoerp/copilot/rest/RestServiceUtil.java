@@ -302,6 +302,9 @@ public class RestServiceUtil {
         CopilotUtils.validateOpenAIKey();
         break;
       case CopilotConstants.APP_TYPE_MULTIMODEL:
+        if (copilotApp.getModel() == null || StringUtils.equals(copilotApp.getModel().getProvider(), "openai")) {
+          CopilotUtils.validateOpenAIKey();
+        }
         break;
       case CopilotConstants.APP_TYPE_LANGGRAPH:
         break;
