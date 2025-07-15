@@ -7,6 +7,8 @@ import static com.etendoerp.copilot.rest.RestServiceUtil.FILE;
 import static com.etendoerp.copilot.rest.RestServiceUtil.GET_ASSISTANTS;
 import static com.etendoerp.copilot.rest.RestServiceUtil.QUESTION;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
+import com.etendoerp.copilot.util.WebhookPermissionUtils;
+
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -500,6 +502,10 @@ public class RestService {
   private void processAsyncRequest(HttpServletRequest request, HttpServletResponse response,
       JSONObject json) throws IOException, JSONException {
     try {
+      String roleId = OBContext.getOBContext().getRole().getId();
+      String appId = json.getString(CopilotConstants.PROP_APP_ID);
+      WebhookPermissionUtils.assignMissingPermissions(roleId, appId);
+
       RestServiceUtil.handleQuestion(true, response, json);
     } catch (OBException e) {
       RestServiceUtil.setEventStreamMode(response);
@@ -525,6 +531,10 @@ public class RestService {
    */
   public void processSyncRequest(HttpServletResponse response, JSONObject json) throws IOException, JSONException {
     try {
+      String roleId = OBContext.getOBContext().getRole().getId();
+      String appId = json.getString(CopilotConstants.PROP_APP_ID);
+      WebhookPermissionUtils.assignMissingPermissions(roleId, appId);
+
       var responseOriginal = RestServiceUtil.handleQuestion(false, response, json);
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
       response.getWriter().write(responseOriginal.toString());
@@ -537,6 +547,7 @@ public class RestService {
       }
     }
   }
+
 
 
   private void handleAssistants(HttpServletResponse response) {
