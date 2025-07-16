@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.etendoerp.copilot.util.CopilotModelUtils;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItem;
 import org.apache.commons.lang3.StringUtils;
@@ -302,7 +303,7 @@ public class RestServiceUtil {
         CopilotUtils.validateOpenAIKey();
         break;
       case CopilotConstants.APP_TYPE_MULTIMODEL:
-        if (copilotApp.getModel() == null || StringUtils.equals(copilotApp.getModel().getProvider(), "openai")) {
+        if (StringUtils.equals(CopilotModelUtils.getProvider(copilotApp), "openai")) {
           CopilotUtils.validateOpenAIKey();
         }
         break;
