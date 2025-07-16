@@ -1,6 +1,8 @@
 # Second stage, copy over the requirements and install them
 FROM python:3.12.9-slim
-RUN apt update && apt install -y libzbar0 curl
+RUN apt update  \
+    && apt install -y libzbar0 curl \
+    && rm -rf /var/lib/apt/lists/*
 # Install uv
 RUN curl -Ls https://astral.sh/uv/install.sh | sh
 # Add uv to PATH

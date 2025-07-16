@@ -3,7 +3,9 @@ FROM python:3.12.9-slim AS requirements-stage
 WORKDIR /tmp
 
 # Install necessary tools
-RUN apt update && apt install -y curl
+RUN apt update  \
+    && apt install -y curl  \
+    && rm -rf /var/lib/apt/lists/*
 RUN curl -Ls https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
@@ -14,8 +16,10 @@ COPY ./pyproject.toml /tmp/
 RUN uv export --no-hashes --format=requirements-txt --output-file=requirements.txt
 
 # Stage 2: Final application stage
-FROM python:3.12.9
-RUN apt update && apt install -y libzbar0 curl
+FROM python:3.12.9-slim
+RUN apt update  \
+    && apt install -y libzbar0 curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install uv
 RUN curl -Ls https://astral.sh/uv/install.sh | sh
