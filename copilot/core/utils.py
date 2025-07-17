@@ -62,17 +62,18 @@ def read_optional_env_var(env_var_name: str, default_value: str) -> str:
 
 
 def _read_env_var(env_var_name, default_value):
-    upper_env_var = env_var_name.replace('.', '_').upper()
+    upper_env_var = env_var_name.replace(".", "_").upper()
     value = os.getenv(upper_env_var)
-    if value is not None and value != '':
+    if value is not None and value != "":
         copilot_debug(f"Reading environment variable {upper_env_var} = {value}")
         return value
     value = os.getenv(env_var_name)
-    if value is not None and value != '':
+    if value is not None and value != "":
         copilot_debug(f"Reading alternative environment variable {env_var_name} = {value}")
         return value
     copilot_debug(
-        f"Environment variable {upper_env_var} / {env_var_name} is not set, using default value {default_value}")
+        f"Environment variable {upper_env_var} / {env_var_name} is not set, using default value {default_value}"
+    )
     return default_value
 
 
@@ -119,6 +120,16 @@ def copilot_info(message: str):
         or os.getenv("COPILOT_DEBUG", "False").lower() in "true"
     ):
         print_violet(message)
+
+
+def copilot_error(message: str):
+    """Prints an error message in red."""
+    print_red(f"Error: {message}")
+
+
+def copilot_warning(message: str):
+    """Prints a warning message in orange."""
+    print_orange(f"Warning: {message}")
 
 
 def is_docker():
