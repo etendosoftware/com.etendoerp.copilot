@@ -17,12 +17,12 @@ def register_basic_tools(app):
         app: FastMCP application instance
     """
 
-    @app.tool()
+    @app.tool
     def ping() -> str:
         """A simple ping tool to test MCP connectivity."""
         return "pong"
 
-    @app.tool()
+    @app.tool
     def server_info() -> dict:
         """Get basic server information."""
         return {

@@ -5,6 +5,7 @@ This module provides MCP server implementation with FastMCP, enabling
 integration with Claude Desktop and other MCP clients. It includes:
 
 - MCP Server implementation
+- Dynamic MCP Server for on-demand instance creation
 - Tool providers for Etendo operations
 - Resource handlers for file system and database access
 - Schema definitions for request/response validation
@@ -17,6 +18,13 @@ Requirements:
 from .manager import MCPServerManager, start_mcp_server_from_env, stop_mcp_server
 from .resources import BaseResource, ResourceContent
 from .server import MCPServer, MCPServerConfig
+from .simplified_dynamic_manager import (
+    SimplifiedDynamicMCPManager,
+    get_simplified_dynamic_mcp_manager,
+    start_simplified_dynamic_mcp_server,
+    stop_simplified_dynamic_mcp_server,
+)
+from .simplified_dynamic_utils import start_simplified_dynamic_mcp_with_cleanup
 from .tools import BaseTool, ToolResult
 from .utils import is_mcp_enabled, start_mcp_with_cleanup
 
@@ -30,6 +38,11 @@ __all__ = [
     "MCPServerManager",
     "start_mcp_server_from_env",
     "stop_mcp_server",
+    "SimplifiedDynamicMCPManager",
+    "start_simplified_dynamic_mcp_server",
+    "stop_simplified_dynamic_mcp_server",
+    "get_simplified_dynamic_mcp_manager",
+    "start_simplified_dynamic_mcp_with_cleanup",
     "start_mcp_with_cleanup",
     "is_mcp_enabled",
 ]

@@ -1,13 +1,15 @@
 """This module is the entry point for the application.
 
 This module is the entry point for the application. It creates the Flask app
-and runs both the main FastAPI server and the MCP server in parallel.
+and runs both the main FastAPI server and the dynamic MCP server in parallel.
 """
 import os
 
 import uvicorn
 from copilot import app
-from copilot.core.mcp import start_mcp_with_cleanup
+from copilot.core.mcp.simplified_dynamic_utils import (
+    start_simplified_dynamic_mcp_with_cleanup,
+)
 from copilot.core.utils import is_docker
 
 COPILOT_PORT = "COPILOT_PORT"
@@ -36,8 +38,8 @@ if __name__ == "__main__":
             print("\033[95m Waiting for debugger to attach... \033[00m")
             debugpy.wait_for_client()
 
-    # Start MCP server (always enabled)
-    start_mcp_with_cleanup()
+    # Start Simplified Dynamic MCP server (creates instances on-demand)
+    start_simplified_dynamic_mcp_with_cleanup()
 
     # Start the main FastAPI server
     print(f"\033[92m Starting main server on {HOST}:{port} \033[00m")

@@ -21,7 +21,7 @@ def register_session_tools(app):
         app: FastMCP application instance
     """
 
-    @app.tool()
+    @app.tool
     def init_session(agent_id: str) -> str:
         """Initialize a new session with the specified agent_id.
 
@@ -36,13 +36,13 @@ def register_session_tools(app):
         logger.info(f"Session initialized with agent_id: {agent_id}")
         return f"Sesión inicializada para el agente: {agent_id}"
 
-    @app.tool()
+    @app.tool
     def agent_greeting() -> str:
         """Get a personalized greeting from the current session's agent."""
         agent_id = current_agent_id.get()
         return f"¡El agente {agent_id} te envía saludos!"
 
-    @app.tool()
+    @app.tool
     def get_agent_info() -> str:
         """Get information about the current session's agent."""
         agent_id = current_agent_id.get()
