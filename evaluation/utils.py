@@ -20,7 +20,8 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 from openai.types.chat.chat_completion_message_tool_call_param import Function
-from schemas import Conversation, Message
+
+from .schemas import Conversation, Message
 
 FILE_NAME = "conversations.json"
 
@@ -749,9 +750,7 @@ def generate_html_report(args, link, results_obj):
 
 
 def send_evaluation_to_supabase(data_payload: dict):
-    """
-    Envía los datos de la evaluación a la función de Supabase.
-    """
+    """Envía los datos de la evaluación a la función de Supabase."""
     supabase_function_url = "https://hvxogjhuwjyqhsciheyd.supabase.co/functions/v1/evaluations"
     headers = {
         "Content-Type": "application/json",

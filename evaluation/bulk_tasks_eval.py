@@ -29,6 +29,9 @@ from datetime import datetime
 import pandas as pd
 import psycopg2
 import requests
+
+# Import refactored utilities
+from common_utils import EvaluationLogger
 from copilot.core.utils import read_optional_env_var
 from dotenv import load_dotenv
 from psycopg2 import sql
@@ -395,11 +398,14 @@ def generate_html_report(data, write_to_file=True):
     """
 
     for task in data["task_details"]:
-        status_class = (
-            "success"
-            if task["status"] == "Success"
-            else ("failure" if task["status"] == "Failure" else "skipped")
-        )
+        # Determine status class
+        if task["status"] == "Success":
+            status_class = "success"
+        elif task["status"] == "Failure":
+            status_class = "failure"
+        else:
+            status_class = "skipped"
+
         error_msg_display = task["error"] if task["error"] else "N/A"
         html_content += f"""<tr>
             <td>{task['id']}</td>
@@ -510,9 +516,7 @@ def load_config(args):
 
 
 def send_evaluation_to_supabase(data_payload: dict):
-    """
-    Envía los datos de la evaluación a la función de Supabase.
-    """
+    """Envía los datos de la evaluación a la función de Supabase."""
     supabase_function_url = "https://hvxogjhuwjyqhsciheyd.supabase.co/functions/v1/evaluations"
     headers = {
         "Content-Type": "application/json",
@@ -537,7 +541,6 @@ def send_evaluation_to_supabase(data_payload: dict):
         print(f"Error de red/petición al enviar datos a Supabase: {e}")
 
 
-# TODO Use utils function to get git branch name
 def get_git_branch_for_directory(directory_path: str) -> str:
     """
     Intenta obtener la rama Git actual para el directorio dado.
@@ -591,44 +594,25 @@ def get_git_branch_for_directory(directory_path: str) -> str:
         os.chdir(original_cwd)  # Siempre restaurar el directorio de trabajo original
 
 
-def main():
-    """
-    Main function that orchestrates the entire task execution process:
-    1. Parses command-line arguments
-    2. Loads configuration from environment file and arguments
-    3. Connects to the database
-    4. Loads templates and CSV data
-    5. Creates tasks by combining templates with CSV data
-    6. Counts records in the specified table before execution
-    7. Executes the created tasks
-    8. Counts records in the specified table after execution
-    9. Generates an HTML report
-    10. Sends evaluation data to Supabase
-    11. Displays execution summary
-    """
-    script_start_time = time.time()
-    print(f"Starting script... [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+def _setup_execution_environment(args) -> tuple:
+    """Setup execution environment and validate configuration"""
+    logger = EvaluationLogger("BULK_TASKS")
+    logger.info("Setting up execution environment")
 
-    args = parse_arguments()
     effective_db_config, effective_etendo_url = load_config(args)
 
-    table_to_monitor = args.table
-    query_template_for_count = args.query
-    max_tasks_to_process = args.max_tasks
-
-    print(
-        f"Using database: {effective_db_config['host']}:{effective_db_config['port']}/{effective_db_config['dbname']}"
+    logger.info(
+        f"Database: {effective_db_config['host']}:{effective_db_config['port']}/{effective_db_config['dbname']}"
     )
-    print(f"Using Etendo URL: {effective_etendo_url}")
-    print(f"Monitoring table: {table_to_monitor}")
-    print(f"Using count query template: {query_template_for_count}")
-    print(f"Maximum task limit: {max_tasks_to_process}")
+    logger.info(f"Etendo URL: {effective_etendo_url}")
+    logger.info(f"Monitoring table: {args.table}")
+    logger.info(f"Maximum task limit: {args.max_tasks}")
 
-    conn = get_db_connection(effective_db_config)
-    if not conn:
-        print("Could not connect to the database. Exiting.")
-        return
+    return logger, effective_db_config, effective_etendo_url
 
+
+def _setup_project_context(args, conn):
+    """Setup project context including agent and branch information"""
     project_name = args.project_name
     if not project_name or project_name == "default_project":
         try:
@@ -636,53 +620,43 @@ def main():
         except Exception:
             project_name = "unknown_project"
 
-    if args.agent_id is None:
-        # get agent_id from the name of the current directory
-        args.agent_id = os.path.basename(os.getcwd())
-
-    agent_name = get_agent_name(args.agent_id, conn)
-
+    agent_id = args.agent_id or os.path.basename(os.getcwd())
+    agent_name = get_agent_name(agent_id, conn)
     branch = get_git_branch_for_directory(os.getcwd())
 
+    return project_name, agent_id, agent_name, branch
+
+
+def _load_and_validate_data(args, logger):
+    """Load and validate templates and CSV data"""
     templates_list = load_templates(args.templates)
     if not templates_list:
-        print("No templates loaded. Exiting.")
-        conn.close()
-        return
+        logger.error("No templates loaded")
+        return None, None
 
     df_csv_data = load_csv_data(args.csv)
     if df_csv_data is None:
-        print("No CSV data loaded. Exiting.")
-        conn.close()
-        return
+        logger.error("No CSV data loaded")
+        return None, None
 
-    if len(df_csv_data) > max_tasks_to_process:
-        print(f"Limiting to {max_tasks_to_process} rows from CSV (out of {len(df_csv_data)} total)")
-        df_csv_data = df_csv_data.head(max_tasks_to_process)
+    # Limit data if necessary
+    if len(df_csv_data) > args.max_tasks:
+        logger.info(f"Limiting to {args.max_tasks} rows from CSV (out of {len(df_csv_data)} total)")
+        df_csv_data = df_csv_data.head(args.max_tasks)
 
-    records_before_execution = count_db_records(conn, table_to_monitor, query_template_for_count)
-    print(
-        f"Records in {table_to_monitor} before: {records_before_execution if records_before_execution != -1 else 'Error'}"
-    )
+    return templates_list, df_csv_data
 
-    group_id_for_batch, num_tasks_created = create_tasks_from_templates_and_csv(
-        args.agent_id, conn, df_csv_data, templates_list
-    )
 
-    if num_tasks_created <= 0:
-        print("No tasks were created. Exiting.")
-        conn.close()
-        return
-
+def _execute_tasks(args, task_ids_to_process, effective_etendo_url, logger):
+    """Execute Etendo tasks and collect results"""
     task_execution_details = []
     successful_task_count = 0
     failed_task_count = 0
 
     if not args.skip_exec:
-        task_ids_to_process = get_task_ids_from_db(conn, group_id_for_batch)
-        print(f"\nExecuting {len(task_ids_to_process)} tasks...")
+        logger.info(f"Executing {len(task_ids_to_process)} tasks")
         for i, task_id_val in enumerate(task_ids_to_process):
-            print(f"\nProcessing task {i + 1}/{len(task_ids_to_process)}:")
+            logger.info(f"Processing task {i + 1}/{len(task_ids_to_process)}")
             success_status, exec_duration, error_detail = execute_etendo_task(
                 str(task_id_val), effective_etendo_url
             )
@@ -699,10 +673,9 @@ def main():
                 successful_task_count += 1
             else:
                 failed_task_count += 1
-            print(f"  Result: {status_message}, Duration: {exec_duration:.2f}s")
     else:
-        print("\nSkipping task execution (--skip_exec specified)")
-        for i in range(num_tasks_created):
+        logger.info("Skipping task execution (--skip_exec specified)")
+        for i in range(len(task_ids_to_process)):
             task_execution_details.append(
                 {
                     "id": f"(task {i+1} - not executed)",
@@ -712,109 +685,121 @@ def main():
                 }
             )
 
-    records_after_execution = count_db_records(conn, table_to_monitor, query_template_for_count)
-    print(
-        f"Records in {table_to_monitor} after: {records_after_execution if records_after_execution != -1 else 'Error'}"
-    )
+    return task_execution_details, successful_task_count, failed_task_count
 
-    delta_records = -1
-    if records_before_execution != -1 and records_after_execution != -1:
-        delta_records = records_after_execution - records_before_execution
 
-    conn.close()
-    total_script_run_time = time.time() - script_start_time
-
-    report_data_dict = {
-        "total_tasks_found": num_tasks_created,
-        "successful_tasks": successful_task_count,
-        "failed_tasks": failed_task_count,
-        "total_script_duration": total_script_run_time,
-        "table_name": table_to_monitor,
-        "records_before": records_before_execution,
-        "records_after": records_after_execution,
-        "records_created": delta_records,
-        "task_details": task_execution_details,
-        "query_template": query_template_for_count,
-    }
-
+def _generate_report_and_send_results(args, report_data_dict, logger):
+    """Generate HTML report and send results to Supabase"""
     html_report_content_str = generate_html_report(report_data_dict, write_to_file=True)
 
-    # Prepare and send data to Supabase
-    # Calculate score (e.g., success rate)
+    # Calculate score
     score = 0.0
-    if num_tasks_created > 0 and not args.skip_exec:  # Only calculate score if tasks were executed
-        score = delta_records / num_tasks_created
-    elif args.skip_exec:
-        score = 0.0  # Or some other indicator for skipped execution, e.g. -1, or don't send score
+    if report_data_dict["total_tasks_found"] > 0 and not args.skip_exec:
+        score = report_data_dict["records_created"] / report_data_dict["total_tasks_found"]
 
-    evaluation_data_for_supabase = {
-        "project": project_name,
-        "agent": args.agent_id,  # Using group_id as a unique agent/run identifier
-        "agent_name": agent_name,
-        "branch": branch,
-        "score": round(score, 4),  # Score between 0 and 1
-        "dataset_size": num_tasks_created,  # Number of tasks processed from CSV
-        "threads": 1,  # This script is single-threaded for task execution
-        "experiment": "integration",  # Type of evaluation
+    # Send to Supabase
+    evaluation_data = {
+        "project": args.project_name,
+        "agent": args.agent_id,
+        "branch": get_git_branch_for_directory(os.getcwd()),
+        "score": score,
+        "dataset_size": report_data_dict["total_tasks_found"],
+        "experiment": "bulk_tasks",
         "html_report_content": html_report_content_str,
-        # You can add more metadata if your Supabase function expects it
-        "metadata": {
-            "csv_file": args.csv,
-            "template_file": args.templates,
-            "etendo_url": effective_etendo_url,
-            "monitored_table": table_to_monitor,
-            "max_tasks_processed": max_tasks_to_process,
-            "execution_skipped": args.skip_exec,
-            "total_script_duration_seconds": round(total_script_run_time, 2),
-            "successful_task_count": successful_task_count,
-            "failed_task_count": failed_task_count,
-            "db_records_created_modified": delta_records,
-        },
     }
 
-    print(
-        f"\nAttempting to send evaluation to Supabase for project: {project_name}, agent_id: {args.agent_id} - {agent_name}"
-    )
+    logger.info("Sending evaluation data to Supabase")
+    send_evaluation_to_supabase(evaluation_data)
+
+    return html_report_content_str
+
+
+def main():
+    """Main function that orchestrates the entire task execution process using modular
+    components."""
+    script_start_time = time.time()
+
+    # Parse arguments and setup environment
+    args = parse_arguments()
+    logger, effective_db_config, effective_etendo_url = _setup_execution_environment(args)
+
+    # Connect to database
+    conn = get_db_connection(effective_db_config)
+    if not conn:
+        logger.error("Could not connect to the database")
+        return
+
     try:
-        # Assuming send_evaluation_to_supabase handles its own config (URL, key)
-        # and takes a dictionary.
-        send_evaluation_to_supabase(evaluation_data_for_supabase)
-        print("Evaluation data sent to Supabase successfully.")
-    except NameError:  # Handles if send_evaluation_to_supabase was not imported
-        print("INFO: Supabase integration was skipped as 'send_evaluation_to_supabase' is not available.")
-    except Exception as e:
-        print(f"ERROR: Failed to send evaluation data to Supabase: {e}")
-        traceback.print_exc()
+        # Setup project context
+        _, agent_id, _, _ = _setup_project_context(args, conn)
+        args.agent_id = agent_id  # Update args with resolved agent_id
 
-    print("\n--- FINAL SUMMARY ---")
-    print(f"Tasks created from CSV: {num_tasks_created}")
-    if not args.skip_exec:
-        print(f"Tasks executed: {successful_task_count + failed_task_count}")
-        print(f"Successful tasks: {successful_task_count}")
-        print(f"Failed tasks: {failed_task_count}")
-    else:
-        print("Task execution skipped.")
-    print(f"Monitored table: {table_to_monitor}")
-    print(f"Count query used: {query_template_for_count.format(table_to_monitor)}")
-    print(f"Records before: {records_before_execution if records_before_execution != -1 else 'Error'}")
-    print(f"Records after: {records_after_execution if records_after_execution != -1 else 'Error'}")
-    print(f"Net records created/modified: {delta_records if delta_records != -1 else 'N/A'}")
-    print(f"Total script time: {total_script_run_time:.2f} seconds")
-    print(f"Script finished. [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+        # Load and validate data
+        templates_list, df_csv_data = _load_and_validate_data(args, logger)
+        if not templates_list or df_csv_data is None:
+            return
 
-    if not args.skip_exec and delta_records != successful_task_count:
-        # If execution was not skipped, compare delta_records with successful_task_count
-        # as only successful tasks are expected to change records consistently.
-        # num_tasks_created might include tasks that fail and don't change records.
-        print(
-            f"Warning: Number of records created/modified ({delta_records}) does not match the number of successful tasks ({successful_task_count})."
+        # Count records before execution
+        records_before_execution = count_db_records(conn, args.table, args.query)
+        logger.info(f"Records in {args.table} before: {records_before_execution}")
+
+        # Create tasks
+        group_id_for_batch, num_tasks_created = create_tasks_from_templates_and_csv(
+            agent_id, conn, df_csv_data, templates_list
         )
-        # Depending on strictness, you might still want to exit(1) or just warn.
-        # For now, changed to a warning as task failures might not always mean record change discrepancies.
-        # exit(1)
-    elif args.skip_exec and delta_records != 0:
-        # If execution was skipped, no records should have changed.
-        print(f"Warning: Records changed ({delta_records}) even though execution was skipped.")
+
+        if num_tasks_created <= 0:
+            logger.error("No tasks were created")
+            return
+
+        # Execute tasks
+        task_ids_to_process = get_task_ids_from_db(conn, group_id_for_batch)
+        task_execution_details, successful_task_count, failed_task_count = _execute_tasks(
+            args, task_ids_to_process, effective_etendo_url, logger
+        )
+
+        # Count records after execution
+        records_after_execution = count_db_records(conn, args.table, args.query)
+        logger.info(f"Records in {args.table} after: {records_after_execution}")
+
+        # Calculate delta
+        delta_records = -1
+        if records_before_execution != -1 and records_after_execution != -1:
+            delta_records = records_after_execution - records_before_execution
+
+        # Prepare report data
+        total_script_run_time = time.time() - script_start_time
+        report_data_dict = {
+            "total_tasks_found": num_tasks_created,
+            "successful_tasks": successful_task_count,
+            "failed_tasks": failed_task_count,
+            "total_script_duration": total_script_run_time,
+            "table_name": args.table,
+            "records_before": records_before_execution,
+            "records_after": records_after_execution,
+            "records_created": delta_records,
+            "task_details": task_execution_details,
+            "query_template": args.query,
+        }
+
+        # Generate report and send results
+        _generate_report_and_send_results(args, report_data_dict, logger)
+
+        # Display summary
+        _display_execution_summary(report_data_dict, logger)
+
+    finally:
+        conn.close()
+
+
+def _display_execution_summary(report_data_dict, logger):
+    """Display execution summary"""
+    logger.info("=== EXECUTION SUMMARY ===")
+    logger.info(f"Total tasks: {report_data_dict['total_tasks_found']}")
+    logger.info(f"Successful: {report_data_dict['successful_tasks']}")
+    logger.info(f"Failed: {report_data_dict['failed_tasks']}")
+    logger.info(f"Records created: {report_data_dict['records_created']}")
+    logger.info(f"Total duration: {report_data_dict['total_script_duration']:.2f}s")
 
 
 def get_agent_name(agent_id, conn):
