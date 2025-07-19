@@ -20,8 +20,7 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 from openai.types.chat.chat_completion_message_tool_call_param import Function
-
-from evaluation.schemas import Conversation, Message
+from schemas import Conversation, Message
 
 FILE_NAME = "conversations.json"
 
@@ -448,81 +447,115 @@ def prepare_report_data(results_obj):
 
     # Process results
     for result_item in results_obj._results:
-        error_message, error_occurred = process_result(
-            error_message, error_occurred, result_item, table_items
-        )
+        try:
+            # Assuming evaluation_results might be a list or a single dict
+            evaluation_results_data = result_item.get("evaluation_results", {}).get("results", [])
+            if not isinstance(evaluation_results_data, list):  # Handle if 'results' is not a list
+                evaluation_results_data = [evaluation_results_data] if evaluation_results_data else []
 
-    return build_report_data(error_message, error_occurred, table_items)
+            child_runs_data = result_item.get("run", {}).child_runs or []
 
+            # Heuristic: Try to match eval results to child runs or inputs
+            # This part might need adjustment based on the exact structure of results_obj
+            num_items_to_process = max(len(evaluation_results_data), len(child_runs_data))
+            if num_items_to_process == 0 and result_item.get(
+                "run"
+            ):  # Case where there are no child runs but a main run
+                num_items_to_process = 1
 
-def process_result(error_message, error_occurred, result_item, table_items):
-    try:
-        # Assuming evaluation_results might be a list or a single dict
-        evaluation_results_data = result_item.get("evaluation_results", {}).get("results", [])
-        if not isinstance(evaluation_results_data, list):  # Handle if 'results' is not a list
-            evaluation_results_data = [evaluation_results_data] if evaluation_results_data else []
+            for i in range(num_items_to_process):
+                score = -1
+                eval_comment_content = "N/A"
+                input_comment_content = "N/A"
+                output_data = "N/A"
 
-        child_runs_data = result_item.get("run", {}).child_runs or []
+                # Get score and eval_comment from evaluation_results
+                if i < len(evaluation_results_data) and evaluation_results_data[i]:
+                    eval_result = evaluation_results_data[i]
+                    score = getattr(eval_result, "score", -1)
+                    eval_comment_content = getattr(eval_result, "comment", "N/A")
 
-        # Heuristic: Try to match eval results to child runs or inputs
-        # This part might need adjustment based on the exact structure of results_obj
-        num_items_to_process = max(len(evaluation_results_data), len(child_runs_data))
-        if num_items_to_process == 0 and result_item.get(
-            "run"
-        ):  # Case where there are no child runs but a main run
-            num_items_to_process = 1
+                # Get input_comment from child_runs or main run inputs
+                current_run_for_input = (
+                    child_runs_data[i] if i < len(child_runs_data) else result_item.get("run")
+                )
+                if current_run_for_input:
+                    inputs = getattr(current_run_for_input, "inputs", {})
+                    if isinstance(inputs, dict) and "messages" in inputs:
+                        messages = inputs["messages"]
+                        # Try to find user message
+                        user_message = next(
+                            (
+                                msg.get("kwargs", {}).get("content")
+                                for msg in messages
+                                if isinstance(msg, dict) and msg.get("kwargs", {}).get("type") == "human"
+                            ),
+                            None,
+                        )
+                        if user_message:
+                            input_comment_content = user_message
+                        elif messages:  # Fallback to stringifying messages
+                            input_comment_content = json.dumps(messages)
+                        else:
+                            input_comment_content = json.dumps(inputs)  # Fallback if no messages
+                    elif isinstance(inputs, dict):
+                        input_comment_content = json.dumps(inputs)
+                    else:
+                        input_comment_content = str(inputs)
 
-        for i in range(num_items_to_process):
-            score = -1
-            eval_comment_content = "N/A"
-            input_comment_content = "N/A"
-            output_data = "N/A"
+                # Get output_data from child_runs or main run outputs
+                current_run_for_output = (
+                    child_runs_data[i] if i < len(child_runs_data) else result_item.get("run")
+                )
+                if current_run_for_output:
+                    outputs = getattr(current_run_for_output, "outputs", {})
+                    if isinstance(outputs, dict) and "generations" in outputs:
+                        # Try to extract AI message content
+                        generations = outputs["generations"]
+                        ai_message = next(
+                            (
+                                gen.get("message", {}).get("kwargs", {}).get("content")
+                                for gen in generations
+                                if isinstance(gen, dict) and gen.get("message")
+                            ),
+                            None,
+                        )
+                        if ai_message:
+                            output_data = ai_message
+                        else:  # Fallback to stringifying outputs
+                            output_data = json.dumps(outputs)
+                    elif isinstance(outputs, dict):
+                        output_data = json.dumps(outputs)
+                    else:
+                        output_data = str(outputs)
 
-            # Get score and eval_comment from evaluation_results
-            if i < len(evaluation_results_data) and evaluation_results_data[i]:
-                eval_result = evaluation_results_data[i]
-                score = getattr(eval_result, "score", -1)
-                eval_comment_content = getattr(eval_result, "comment", "N/A")
+                table_items.append(
+                    {
+                        "comment": input_comment_content,
+                        "score": score,
+                        "output": output_data,
+                        "eval_comment": eval_comment_content,
+                    }
+                )
 
-            # Get input_comment from child_runs or main run inputs
-            current_run_for_input = child_runs_data[i] if i < len(child_runs_data) else result_item.get("run")
-            input_comment_content = read_input_comment_content(current_run_for_input, input_comment_content)
-
-            # Get output_data from child_runs or main run outputs
-            current_run_for_output = (
-                child_runs_data[i] if i < len(child_runs_data) else result_item.get("run")
-            )
-            output_data = read_output_data(current_run_for_output, output_data)
-
+        except Exception as e:
+            error_message = f"Error processing result_item: {str(e)}. Item: {json.dumps(result_item, default=str, indent=2)[:500]}..."  # Log part of the item
+            error_occurred = True
+            # Add an error placeholder to table_items to acknowledge the item
             table_items.append(
                 {
-                    "comment": input_comment_content,
-                    "score": score,
-                    "output": output_data,
-                    "eval_comment": eval_comment_content,
+                    "comment": f"Error processing item: {str(e)}",
+                    "score": -1,
+                    "output": "Error",
+                    "eval_comment": "Error processing",
                 }
             )
+            # Decide whether to break or continue: for now, continue to see other items if possible
+            # break
 
-    except Exception as e:
-        error_message = f"Error processing result_item: {str(e)}. Item: {json.dumps(result_item, default=str, indent=2)[:500]}..."  # Log part of the item
-        error_occurred = True
-        # Add an error placeholder to table_items to acknowledge the item
-        table_items.append(
-            {
-                "comment": f"Error processing item: {str(e)}",
-                "score": -1,
-                "output": "Error",
-                "eval_comment": "Error processing",
-            }
-        )
-        # Decide whether to break or continue: for now, continue to see other items if possible
-        # break
-    return error_message, error_occurred
-
-
-def build_report_data(error_message, error_occurred, table_items):
     if error_occurred and not error_message:  # If individual items had errors but no global one
         error_message = "Errors occurred while processing some evaluation items."
+
     valid_scores = [
         item["score"]
         for item in table_items
@@ -531,64 +564,12 @@ def build_report_data(error_message, error_occurred, table_items):
     avg_score = None
     if valid_scores:
         avg_score = sum(valid_scores) / len(valid_scores)
-    result = {
+
+    return {
         "table_items": table_items,
         "avg_score": avg_score,
         "error": error_message if error_message else None,
     }
-    return result
-
-
-def read_output_data(current_run_for_output, output_data):
-    if current_run_for_output:
-        outputs = getattr(current_run_for_output, "outputs", {})
-        if isinstance(outputs, dict) and "generations" in outputs:
-            # Try to extract AI message content
-            generations = outputs["generations"]
-            ai_message = next(
-                (
-                    gen.get("message", {}).get("kwargs", {}).get("content")
-                    for gen in generations
-                    if isinstance(gen, dict) and gen.get("message")
-                ),
-                None,
-            )
-            if ai_message:
-                output_data = ai_message
-            else:  # Fallback to stringifying outputs
-                output_data = json.dumps(outputs)
-        elif isinstance(outputs, dict):
-            output_data = json.dumps(outputs)
-        else:
-            output_data = str(outputs)
-    return output_data
-
-
-def read_input_comment_content(current_run_for_input, input_comment_content):
-    if current_run_for_input:
-        inputs = getattr(current_run_for_input, "inputs", {})
-        if isinstance(inputs, dict) and "messages" in inputs:
-            messages = inputs["messages"]
-            # Try to find user message
-            user_message = next(
-                (
-                    msg.get("kwargs", {}).get("content")
-                    for msg in messages
-                    if isinstance(msg, dict) and msg.get("kwargs", {}).get("type") == "human"
-                ),
-                None,
-            )
-            if user_message:
-                input_comment_content = user_message
-            elif messages:  # Fallback to stringifying messages
-                input_comment_content = json.dumps(messages)
-            else:
-                input_comment_content = json.dumps(inputs)  # Fallback if no messages
-        elif isinstance(inputs, dict):
-            input_comment_content = json.dumps(inputs)
-        else:
-            input_comment_content = str(inputs)
-    return input_comment_content
 
 
 def get_score_tailwind_classes(score_value):
@@ -769,8 +750,7 @@ def generate_html_report(args, link, results_obj):
 
 def send_evaluation_to_supabase(data_payload: dict):
     """
-    Sends evaluation data to a Supabase Function.
-    This function constructs a POST request to the specified Supabase Function URL with the provided
+    Envía los datos de la evaluación a la función de Supabase.
     """
     supabase_function_url = "https://hvxogjhuwjyqhsciheyd.supabase.co/functions/v1/evaluations"
     headers = {

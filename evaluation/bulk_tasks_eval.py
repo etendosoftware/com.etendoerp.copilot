@@ -37,6 +37,7 @@ from psycopg2 import sql
 DB_CONFIG = {
     "dbname": "copilot_test",
     "user": "postgres",
+    "password": "syspass",
     "host": "localhost",
     "port": "5432",
 }
@@ -394,8 +395,11 @@ def generate_html_report(data, write_to_file=True):
     """
 
     for task in data["task_details"]:
-        status = {"Success": "success", "Failure": "failure"}
-        status_class = status.get(task["status"], "skipped")
+        status_class = (
+            "success"
+            if task["status"] == "Success"
+            else ("failure" if task["status"] == "Failure" else "skipped")
+        )
         error_msg_display = task["error"] if task["error"] else "N/A"
         html_content += f"""<tr>
             <td>{task['id']}</td>
@@ -507,13 +511,7 @@ def load_config(args):
 
 def send_evaluation_to_supabase(data_payload: dict):
     """
-    Sends evaluation data to a Supabase function.
-
-    Args:
-        data_payload (dict): Data to send to Supabase function
-
-    Returns:
-        None
+    Envía los datos de la evaluación a la función de Supabase.
     """
     supabase_function_url = "https://hvxogjhuwjyqhsciheyd.supabase.co/functions/v1/evaluations"
     headers = {
@@ -539,6 +537,7 @@ def send_evaluation_to_supabase(data_payload: dict):
         print(f"Error de red/petición al enviar datos a Supabase: {e}")
 
 
+# TODO Use utils function to get git branch name
 def get_git_branch_for_directory(directory_path: str) -> str:
     """
     Intenta obtener la rama Git actual para el directorio dado.
@@ -585,8 +584,8 @@ def get_git_branch_for_directory(directory_path: str) -> str:
     except subprocess.TimeoutExpired:
         # print(f"Advertencia: El comando git para obtener la rama en {git_repo_path} tardó demasiado.")
         return "git_timeout"
-    except Exception as e:
-        print(f"Warning: An unexpected error occurred while obtaining the Git branch: {e}")
+    except Exception:
+        # print(f"Advertencia: Ocurrió un error inesperado al obtener la rama Git: {e}")
         return "unknown_git_exception"
     finally:
         os.chdir(original_cwd)  # Siempre restaurar el directorio de trabajo original
@@ -631,7 +630,11 @@ def main():
         return
 
     project_name = args.project_name
-    project_name = get_project_name(project_name)
+    if not project_name or project_name == "default_project":
+        try:
+            project_name = os.path.basename(os.path.dirname(os.path.abspath(os.getcwd() + "/../")))
+        except Exception:
+            project_name = "unknown_project"
 
     if args.agent_id is None:
         # get agent_id from the name of the current directory
@@ -671,14 +674,47 @@ def main():
         conn.close()
         return
 
-    failed_task_count, records_after_execution, successful_task_count, task_execution_details = do_execution(
-        args,
-        conn,
-        effective_etendo_url,
-        group_id_for_batch,
-        num_tasks_created,
-        query_template_for_count,
-        table_to_monitor,
+    task_execution_details = []
+    successful_task_count = 0
+    failed_task_count = 0
+
+    if not args.skip_exec:
+        task_ids_to_process = get_task_ids_from_db(conn, group_id_for_batch)
+        print(f"\nExecuting {len(task_ids_to_process)} tasks...")
+        for i, task_id_val in enumerate(task_ids_to_process):
+            print(f"\nProcessing task {i + 1}/{len(task_ids_to_process)}:")
+            success_status, exec_duration, error_detail = execute_etendo_task(
+                str(task_id_val), effective_etendo_url
+            )
+            status_message = "Success" if success_status else "Failure"
+            task_execution_details.append(
+                {
+                    "id": task_id_val,
+                    "status": status_message,
+                    "duration": exec_duration,
+                    "error": error_detail,
+                }
+            )
+            if success_status:
+                successful_task_count += 1
+            else:
+                failed_task_count += 1
+            print(f"  Result: {status_message}, Duration: {exec_duration:.2f}s")
+    else:
+        print("\nSkipping task execution (--skip_exec specified)")
+        for i in range(num_tasks_created):
+            task_execution_details.append(
+                {
+                    "id": f"(task {i+1} - not executed)",
+                    "status": "Skipped",
+                    "duration": 0.0,
+                    "error": "Execution skipped by user",
+                }
+            )
+
+    records_after_execution = count_db_records(conn, table_to_monitor, query_template_for_count)
+    print(
+        f"Records in {table_to_monitor} after: {records_after_execution if records_after_execution != -1 else 'Error'}"
     )
 
     delta_records = -1
@@ -739,32 +775,6 @@ def main():
     print(
         f"\nAttempting to send evaluation to Supabase for project: {project_name}, agent_id: {args.agent_id} - {agent_name}"
     )
-    send_to_supabase(evaluation_data_for_supabase)
-
-    print_final_results(
-        args,
-        delta_records,
-        failed_task_count,
-        num_tasks_created,
-        query_template_for_count,
-        records_after_execution,
-        records_before_execution,
-        successful_task_count,
-        table_to_monitor,
-        total_script_run_time,
-    )
-
-
-def get_project_name(project_name):
-    if not project_name or project_name == "default_project":
-        try:
-            project_name = os.path.basename(os.path.dirname(os.path.abspath(os.getcwd() + "/../")))
-        except Exception:
-            project_name = "unknown_project"
-    return project_name
-
-
-def send_to_supabase(evaluation_data_for_supabase):
     try:
         # Assuming send_evaluation_to_supabase handles its own config (URL, key)
         # and takes a dictionary.
@@ -776,19 +786,6 @@ def send_to_supabase(evaluation_data_for_supabase):
         print(f"ERROR: Failed to send evaluation data to Supabase: {e}")
         traceback.print_exc()
 
-
-def print_final_results(
-    args,
-    delta_records,
-    failed_task_count,
-    num_tasks_created,
-    query_template_for_count,
-    records_after_execution,
-    records_before_execution,
-    successful_task_count,
-    table_to_monitor,
-    total_script_run_time,
-):
     print("\n--- FINAL SUMMARY ---")
     print(f"Tasks created from CSV: {num_tasks_created}")
     if not args.skip_exec:
@@ -804,6 +801,7 @@ def print_final_results(
     print(f"Net records created/modified: {delta_records if delta_records != -1 else 'N/A'}")
     print(f"Total script time: {total_script_run_time:.2f} seconds")
     print(f"Script finished. [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+
     if not args.skip_exec and delta_records != successful_task_count:
         # If execution was not skipped, compare delta_records with successful_task_count
         # as only successful tasks are expected to change records consistently.
@@ -817,58 +815,6 @@ def print_final_results(
     elif args.skip_exec and delta_records != 0:
         # If execution was skipped, no records should have changed.
         print(f"Warning: Records changed ({delta_records}) even though execution was skipped.")
-
-
-def do_execution(
-    args,
-    conn,
-    effective_etendo_url,
-    group_id_for_batch,
-    num_tasks_created,
-    query_template_for_count,
-    table_to_monitor,
-):
-    task_execution_details = []
-    successful_task_count = 0
-    failed_task_count = 0
-    if not args.skip_exec:
-        task_ids_to_process = get_task_ids_from_db(conn, group_id_for_batch)
-        print(f"\nExecuting {len(task_ids_to_process)} tasks...")
-        for i, task_id_val in enumerate(task_ids_to_process):
-            print(f"\nProcessing task {i + 1}/{len(task_ids_to_process)}:")
-            success_status, exec_duration, error_detail = execute_etendo_task(
-                str(task_id_val), effective_etendo_url
-            )
-            status_message = "Success" if success_status else "Failure"
-            task_execution_details.append(
-                {
-                    "id": task_id_val,
-                    "status": status_message,
-                    "duration": exec_duration,
-                    "error": error_detail,
-                }
-            )
-            if success_status:
-                successful_task_count += 1
-            else:
-                failed_task_count += 1
-            print(f"  Result: {status_message}, Duration: {exec_duration:.2f}s")
-    else:
-        print("\nSkipping task execution (--skip_exec specified)")
-        for i in range(num_tasks_created):
-            task_execution_details.append(
-                {
-                    "id": f"(task {i + 1} - not executed)",
-                    "status": "Skipped",
-                    "duration": 0.0,
-                    "error": "Execution skipped by user",
-                }
-            )
-    records_after_execution = count_db_records(conn, table_to_monitor, query_template_for_count)
-    print(
-        f"Records in {table_to_monitor} after: {records_after_execution if records_after_execution != -1 else 'Error'}"
-    )
-    return failed_task_count, records_after_execution, successful_task_count, task_execution_details
 
 
 def get_agent_name(agent_id, conn):
