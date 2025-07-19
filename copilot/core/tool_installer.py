@@ -12,13 +12,13 @@ from .utils import SUCCESS_CODE, print_green, print_orange, print_yellow
 def _pip_uninstall(package: str):
     """Uninstall the provided package via pip from code."""
     print_yellow(f"Running pip uninstall {package}")
-    subprocess.check_call(["python", "-m", "pip", "uninstall", "-y", package])
+    subprocess.check_call(["uv", "pip", "uninstall", "-y", package])
 
 
 def _pip_install(package: str):
     """Install the provided package via pip from code."""
     print_yellow(f"Running pip install {package}")
-    subprocess.check_call(["python", "-m", "pip", "install", package])
+    subprocess.check_call(["uv", "pip", "install", "--link-mode=copy", package])
 
 
 def _check_version_mismatch(installed_version: str, required_version: str) -> bool:

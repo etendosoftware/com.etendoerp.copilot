@@ -17,7 +17,7 @@ repos:
       - id: mixed-line-ending
       - id: debug-statements
       - id: check-added-large-files
-        exclude: 'web/com.etendoerp.copilot.dist/assets/index-.*\.js'
+        exclude: '(^uv\.lock$)|(^web/com\.etendoerp\.copilot\.dist/assets/index-.*\.js$)'
   - repo: https://github.com/pycqa/pydocstyle
     rev: "6.3.0"
     hooks:
@@ -39,16 +39,9 @@ repos:
       - id: black
   - repo: local
     hooks:
-      - id: install-export-plugin
-        name: Install Poetry Export Plugin
-        entry: pip install poetry-plugin-export
-        language: system
-        pass_filenames: false
-  - repo: local
-    hooks:
       - id: export-requirements
-        name: Export requirements.txt from poetry.lock
-        entry: poetry export -f requirements.txt --output requirements.txt --without-hashes
+        name: Export requirements.txt from uv.lock
+        entry: "uv export --no-hashes --format=requirements-txt --output-file=requirements.txt"
         language: system
         pass_filenames: false
 
