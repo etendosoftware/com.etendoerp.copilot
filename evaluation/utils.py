@@ -46,11 +46,11 @@ def calc_md5(examples):
 
 
 def get_agent_config(
-    agent_id,
-    host,
-    token=None,
-    user=None,
-    password=None,
+        agent_id,
+        host,
+        token=None,
+        user=None,
+        password=None,
 ):
     """
     Retrieves the configuration of an agent from the Etendo system.
@@ -268,7 +268,7 @@ def validate_dataset_folder(agent_path):
 
 
 def save_conversation_from_run(
-    agent_id: str, run_id: str, system_prompt: str = None, base_path: str = "dataset"
+        agent_id: str, run_id: str, system_prompt: str = None, base_path: str = "dataset"
 ):
     """
     Extracts a conversation from LangSmith using the provided run ID and saves it in the dataset/<agent_id> folder.
@@ -399,9 +399,9 @@ def create_accordion(df):
         row_style = (
             ' style="background-color:#ffe6e6;"'
             if (
-                row.get("feedback.correctness") is False
-                or pd.notnull(row.get("error"))
-                or pd.isnull(row.get("outputs.answer"))
+                    row.get("feedback.correctness") is False
+                    or pd.notnull(row.get("error"))
+                    or pd.isnull(row.get("outputs.answer"))
             )
             else ""
         )
@@ -430,118 +430,176 @@ def create_accordion(df):
     return "\n".join(html_items)
 
 
-def prepare_report_data(results_obj):
-    """Prepares data from evaluation results for HTML report generation."""
-    if not (
-        results_obj
-        and hasattr(results_obj, "_results")
-        and isinstance(results_obj._results, list)
-        and results_obj._results
-    ):
-        # Return a structure indicating an error or empty data
+# --- ADDED HELPER FUNCTIONS ---
+
+def _validate_results_obj(results_obj: Any) -> bool:
+    """Performs initial validation of the results_obj structure."""
+    return (
+            results_obj
+            and hasattr(results_obj, "_results")
+            and isinstance(results_obj._results, list)
+            and results_obj._results
+    )
+
+
+def _extract_evaluation_data(eval_data: Any) -> Tuple[float, str]:
+    """Safely extracts score and comment from an evaluation result item."""
+    score = -1
+    eval_comment = "N/A"
+
+    if eval_data:
+        score = getattr(eval_data, "score", -1)
+        eval_comment = getattr(eval_data, "comment", "N/A")
+    return score, eval_comment
+
+
+def _extract_message_content(messages: Any) -> str:
+    """Extracts content from a list of message dictionaries (e.g., human/AI messages)."""
+    if not isinstance(messages, list):
+        return json.dumps(messages) if isinstance(messages, dict) else str(messages)
+
+    # Prioritize human messages for input, AI messages for output
+    # This might need refinement based on exact message structure
+    content_key_path = ["kwargs", "content"]
+
+    # Try to find a human message for input comment
+    user_message = next(
+        (
+            _get_nested_value(msg, content_key_path)
+            for msg in messages
+            if isinstance(msg, dict) and _get_nested_value(msg, ["kwargs", "type"]) == "human"
+        ),
+        None,
+    )
+    if user_message:
+        return user_message
+
+    # Try to find an AI message (for outputs typically)
+    ai_message = next(
+        (
+            _get_nested_value(gen, ["message", "kwargs", "content"])
+            for gen in messages  # Assuming generations might be in a list too
+            if isinstance(gen, dict) and "message" in gen and "kwargs" in gen["message"]
+        ),
+        None,
+    )
+    if ai_message:
+        return ai_message
+
+    return json.dumps(messages) if messages else "N/A"
+
+
+def _get_nested_value(data: Any, path: List[str], default: Any = None) -> Any:
+    """Helper to safely get a nested value from a dict/object."""
+    current_value = data
+    for key in path:
+        if isinstance(current_value, dict):
+            current_value = current_value.get(key, default)
+        elif hasattr(current_value, key):  # For objects with attributes
+            current_value = getattr(current_value, key, default)
+        else:
+            return default
+        if current_value is default:  # If a key was not found or attribute missing
+            return default
+    return current_value
+
+
+def _extract_run_io_content(run_obj: Any) -> Tuple[str, str]:
+    """Extracts input and output content from a run object."""
+    input_comment = "N/A"
+    output_data = "N/A"
+
+    if run_obj:
+        inputs = getattr(run_obj, "inputs", {})
+        outputs = getattr(run_obj, "outputs", {})
+
+        # Handle inputs
+        if isinstance(inputs, dict) and "messages" in inputs:
+            input_comment = _extract_message_content(inputs["messages"])
+        elif isinstance(inputs, dict):
+            input_comment = json.dumps(inputs)
+        else:
+            input_comment = str(inputs)
+
+        # Handle outputs
+        if isinstance(outputs, dict) and "generations" in outputs:
+            output_data = _extract_message_content(outputs["generations"])
+        elif isinstance(outputs, dict):
+            output_data = json.dumps(outputs)
+        else:
+            output_data = str(outputs)
+
+    return input_comment, output_data
+
+
+def _process_single_result_item(
+        result_item: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Processes a single item from results_obj._results and returns a formatted table item."""
+    table_item = {
+        "comment": "N/A",
+        "score": -1,
+        "output": "N/A",
+        "eval_comment": "N/A",
+    }
+
+    evaluation_results_data = _get_nested_value(result_item, ["evaluation_results", "results"], [])
+    if not isinstance(evaluation_results_data, list):
+        evaluation_results_data = [evaluation_results_data] if evaluation_results_data else []
+
+    child_runs_data = _get_nested_value(result_item, ["run", "child_runs"], [])
+    main_run = result_item.get("run")
+
+    num_items_to_process = max(len(evaluation_results_data), len(child_runs_data))
+    if num_items_to_process == 0 and main_run:
+        num_items_to_process = 1  # Handle case with no child runs but a main run
+
+    if num_items_to_process > 0:  # Only process if there's at least one conceptual item
+        # For simplicity, we assume one-to-one mapping or take the first valid one
+        # This logic might need further refinement based on the exact complex data structure
+
+        # Get evaluation data
+        eval_result_for_item = evaluation_results_data[0] if evaluation_results_data else None
+        table_item["score"], table_item["eval_comment"] = _extract_evaluation_data(eval_result_for_item)
+
+        # Get run I/O data
+        run_for_io = child_runs_data[0] if child_runs_data else main_run
+        table_item["comment"], table_item["output"] = _extract_run_io_content(run_for_io)
+
+    return table_item
+
+
+# --- REFACTORED prepare_report_data FUNCTION ---
+
+def prepare_report_data(results_obj: Any) -> Dict[str, Any]:
+    """
+    Prepares data from evaluation results for HTML report generation.
+
+    Args:
+        results_obj: An object containing evaluation results, expected to have a `_results`
+                     attribute which is a list of dictionaries.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - 'table_items': List of dictionaries, each representing a row in the report table.
+            - 'avg_score': The average score of valid items, or None.
+            - 'error': An error message if any critical error occurred, otherwise None.
+    """
+    if not _validate_results_obj(results_obj):
         return {"error": "Invalid or empty 'results_obj' structure.", "table_items": [], "avg_score": None}
 
     table_items = []
     error_occurred = False
     error_message = ""
 
-    # Process results
-    for result_item in results_obj._results:
+    # Process each top-level result item
+    for idx, result_item in enumerate(results_obj._results):
         try:
-            # Assuming evaluation_results might be a list or a single dict
-            evaluation_results_data = result_item.get("evaluation_results", {}).get("results", [])
-            if not isinstance(evaluation_results_data, list):  # Handle if 'results' is not a list
-                evaluation_results_data = [evaluation_results_data] if evaluation_results_data else []
-
-            child_runs_data = result_item.get("run", {}).child_runs or []
-
-            # Heuristic: Try to match eval results to child runs or inputs
-            # This part might need adjustment based on the exact structure of results_obj
-            num_items_to_process = max(len(evaluation_results_data), len(child_runs_data))
-            if num_items_to_process == 0 and result_item.get(
-                "run"
-            ):  # Case where there are no child runs but a main run
-                num_items_to_process = 1
-
-            for i in range(num_items_to_process):
-                score = -1
-                eval_comment_content = "N/A"
-                input_comment_content = "N/A"
-                output_data = "N/A"
-
-                # Get score and eval_comment from evaluation_results
-                if i < len(evaluation_results_data) and evaluation_results_data[i]:
-                    eval_result = evaluation_results_data[i]
-                    score = getattr(eval_result, "score", -1)
-                    eval_comment_content = getattr(eval_result, "comment", "N/A")
-
-                # Get input_comment from child_runs or main run inputs
-                current_run_for_input = (
-                    child_runs_data[i] if i < len(child_runs_data) else result_item.get("run")
-                )
-                if current_run_for_input:
-                    inputs = getattr(current_run_for_input, "inputs", {})
-                    if isinstance(inputs, dict) and "messages" in inputs:
-                        messages = inputs["messages"]
-                        # Try to find user message
-                        user_message = next(
-                            (
-                                msg.get("kwargs", {}).get("content")
-                                for msg in messages
-                                if isinstance(msg, dict) and msg.get("kwargs", {}).get("type") == "human"
-                            ),
-                            None,
-                        )
-                        if user_message:
-                            input_comment_content = user_message
-                        elif messages:  # Fallback to stringifying messages
-                            input_comment_content = json.dumps(messages)
-                        else:
-                            input_comment_content = json.dumps(inputs)  # Fallback if no messages
-                    elif isinstance(inputs, dict):
-                        input_comment_content = json.dumps(inputs)
-                    else:
-                        input_comment_content = str(inputs)
-
-                # Get output_data from child_runs or main run outputs
-                current_run_for_output = (
-                    child_runs_data[i] if i < len(child_runs_data) else result_item.get("run")
-                )
-                if current_run_for_output:
-                    outputs = getattr(current_run_for_output, "outputs", {})
-                    if isinstance(outputs, dict) and "generations" in outputs:
-                        # Try to extract AI message content
-                        generations = outputs["generations"]
-                        ai_message = next(
-                            (
-                                gen.get("message", {}).get("kwargs", {}).get("content")
-                                for gen in generations
-                                if isinstance(gen, dict) and gen.get("message")
-                            ),
-                            None,
-                        )
-                        if ai_message:
-                            output_data = ai_message
-                        else:  # Fallback to stringifying outputs
-                            output_data = json.dumps(outputs)
-                    elif isinstance(outputs, dict):
-                        output_data = json.dumps(outputs)
-                    else:
-                        output_data = str(outputs)
-
-                table_items.append(
-                    {
-                        "comment": input_comment_content,
-                        "score": score,
-                        "output": output_data,
-                        "eval_comment": eval_comment_content,
-                    }
-                )
-
+            processed_item = _process_single_result_item(result_item)
+            table_items.append(processed_item)
         except Exception as e:
-            error_message = f"Error processing result_item: {str(e)}. Item: {json.dumps(result_item, default=str, indent=2)[:500]}..."  # Log part of the item
+            error_message = f"Error processing result_item at index {idx}: {str(e)}. Item: {json.dumps(result_item, default=str, indent=2)[:500]}..."
             error_occurred = True
-            # Add an error placeholder to table_items to acknowledge the item
             table_items.append(
                 {
                     "comment": f"Error processing item: {str(e)}",
@@ -550,20 +608,18 @@ def prepare_report_data(results_obj):
                     "eval_comment": "Error processing",
                 }
             )
-            # Decide whether to break or continue: for now, continue to see other items if possible
-            # break
+            # Continue to process other items even if one fails
 
-    if error_occurred and not error_message:  # If individual items had errors but no global one
+    if error_occurred and not error_message:
         error_message = "Errors occurred while processing some evaluation items."
 
+    # Calculate average score
     valid_scores = [
         item["score"]
         for item in table_items
         if isinstance(item.get("score"), (int, float)) and item["score"] != -1
     ]
-    avg_score = None
-    if valid_scores:
-        avg_score = sum(valid_scores) / len(valid_scores)
+    avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else None
 
     return {
         "table_items": table_items,
@@ -657,9 +713,9 @@ def format_report_data_to_html(report_data: dict) -> str:
         )
 
     html_string = (
-        error_message_html
-        + avg_score_html
-        + """
+            error_message_html
+            + avg_score_html
+            + """
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden my-6">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -673,8 +729,8 @@ def format_report_data_to_html(report_data: dict) -> str:
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 """
-        + "\n".join(table_html_rows)
-        + """
+            + "\n".join(table_html_rows)
+            + """
                 </tbody>
             </table>
         </div>
