@@ -81,3 +81,8 @@ evaluation_output/*
 .kiro/
 bin/
 examples/
+
+# Test results and validation files
+tests/refactor_validation_results/*
+tests/__pycache__/*
+tests/.pytest_cache/*
