@@ -1,70 +1,83 @@
 package com.etendoerp.copilot.util;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.List;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import org.openbravo.dal.core.OBContext;
+import org.hibernate.criterion.Restrictions;
+import org.openbravo.base.provider.OBProvider;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.ad.system.Client;
+import org.openbravo.model.common.enterprise.Organization;
+
+import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.RoleWebhookaccessV;
+import com.etendoerp.webhookevents.data.DefinedWebHook;
+import com.etendoerp.webhookevents.data.DefinedwebhookRole;
+
 
 /**
- * Utility class to manage webhook permission assignment.
+ * Utility class to manage webhook permission assignment using the DAL.
  * Automatically assigns missing webhook permissions to a given role and application.
  */
 public class WebhookPermissionUtils {
 
+  private static final Logger log = LogManager.getLogger();
+
   /**
-   * Assigns all missing webhook permissions for the given role and app.
-   * Only those not currently assigned are inserted into the permissions table.
+   * Assigns all missing webhook permissions for the given role and app using OBCriteria.
    *
-   * @param roleId The ID of the role to assign permissions to.
-   * @param appId  The ID of the assistant application.
+   * @param role The role to assign permissions to.
+   * @param app  The ID of the assistant application.
    */
-  public static void assignMissingPermissions(String roleId, String appId) {
-    final String sql = """
-      SELECT smfwhe_definedwebhook_id
-      FROM etcop_role_webhookaccess_v
-      WHERE ad_role_id = ? AND etcop_app_id = ? AND has_role_webhook = false
-    """;
+  public static void assignMissingPermissions(Role role, CopilotApp app) {
+    try {
+      OBDal.getInstance().getSession().clear();
+      OBCriteria<RoleWebhookaccessV> criteria = OBDal.getInstance()
+          .createCriteria(RoleWebhookaccessV.class);
 
-    try (PreparedStatement ps = OBDal.getInstance().getConnection().prepareStatement(sql)) {
-      ps.setString(1, roleId);
-      ps.setString(2, appId);
+      criteria.add(Restrictions.eq(RoleWebhookaccessV.PROPERTY_ROLE , role));
+      criteria.add(Restrictions.eq(RoleWebhookaccessV.PROPERTY_ETCOPAPP, app));
+      criteria.add(Restrictions.eq(RoleWebhookaccessV.PROPERTY_HASROLEWEBHOOK, false));
 
-      try (ResultSet rs = ps.executeQuery()) {
-        while (rs.next()) {
-          String webhookId = rs.getString("smfwhe_definedwebhook_id");
-          createPermission(roleId, webhookId);
-        }
+      List<RoleWebhookaccessV> missingPermissions = criteria.list();
+
+      if (missingPermissions.isEmpty()) {
+        log.debug("No missing webhook permissions to assign for role {} and app {}", role.getId(), app.getId());
+        return;
       }
 
-    } catch (SQLException e) {
-      e.printStackTrace();
+      log.info("Assigning {} missing webhook permissions for role {}...", missingPermissions.size(), role.getId());
+      for (RoleWebhookaccessV permissionInfo : missingPermissions) {
+        createPermission(permissionInfo.getRole(), permissionInfo.getSmfwheDefinedwebhook());
+      }
+
+      OBDal.getInstance().flush();
+
+    } catch (Exception e) {
+      log.error("Error assigning webhook permissions for role {} and app {}", role.getId(), app.getId(), e);
+      OBDal.getInstance().rollbackAndClose();
     }
   }
 
   /**
-   * Inserts a new permission entry into the webhook role table.
+   * Creates a new permission entry by instantiating the DAL object.
    *
-   * @param roleId    The role ID to assign the webhook to.
-   * @param webhookId The webhook ID.
+   * @param role    The Role object to assign the webhook to.
+   * @param webhook The DefinedWebhook object.
    */
-  private static void createPermission(String roleId, String webhookId) {
-    final String insertSql = """
-      INSERT INTO smfwhe_definedwebhook_role (
-        smfwhe_definedwebhook_role_id, ad_client_id, ad_org_id, isactive,
-        created, createdby, updated, updatedby,
-        smfwhe_definedwebhook_id, ad_role_id
-      )
-      VALUES (get_uuid(), '0', '0', 'Y', now(), '0', now(), '0', ?, ?)
-    """;
+  private static void createPermission(Role role, DefinedWebHook webhook) {
+    DefinedwebhookRole webhookPermission = OBProvider.getInstance().get(DefinedwebhookRole.class);
 
-    try (PreparedStatement ps = OBDal.getInstance().getConnection().prepareStatement(insertSql)) {
-      ps.setString(1, webhookId);
-      ps.setString(2, roleId);
-      ps.executeUpdate();
-    } catch (SQLException e) {
-      e.printStackTrace();
-    }
+    webhookPermission.setClient(OBDal.getInstance().get(Client.class, "0"));
+    webhookPermission.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
+    webhookPermission.setActive(true);
+    webhookPermission.setRole(role);
+    webhookPermission.setSmfwheDefinedwebhook(webhook);
+
+    OBDal.getInstance().save(webhookPermission);
   }
 }
+

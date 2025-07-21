@@ -34,7 +34,9 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.access.Role;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.util.CopilotConstants;
@@ -499,12 +501,29 @@ public class RestService {
     }
   }
 
+  /**
+   * Assigns missing webhook permissions to the given role based on the application ID.
+   * <p>
+   * This method retrieves the application ID from the provided {@link JSONObject},
+   * fetches the corresponding {@link CopilotApp} instance from the database, and assigns
+   * any missing webhook permissions using {@link WebhookPermissionUtils#assignMissingPermissions}.
+   *
+   * @param role The {@link Role} to which the permissions should be assigned.
+   * @param json The {@link JSONObject} containing the {@code appId} parameter.
+   * @throws JSONException if the {@code appId} is missing or malformed in the JSON object.
+   */
+  private void assignWebhookPermissions(Role role, JSONObject json) throws JSONException {
+    String appId = json.getString(CopilotConstants.PROP_APP_ID);
+    CopilotApp copApp = OBDal.getInstance().get(CopilotApp.class, appId);
+    WebhookPermissionUtils.assignMissingPermissions(role, copApp);
+  }
+
   private void processAsyncRequest(HttpServletRequest request, HttpServletResponse response,
       JSONObject json) throws IOException, JSONException {
     try {
-      String roleId = OBContext.getOBContext().getRole().getId();
-      String appId = json.getString(CopilotConstants.PROP_APP_ID);
-      WebhookPermissionUtils.assignMissingPermissions(roleId, appId);
+      Role role = OBContext.getOBContext().getRole();
+      assignWebhookPermissions(role, json);
+      RestServiceUtil.handleQuestion(true, response, json);
 
       RestServiceUtil.handleQuestion(true, response, json);
     } catch (OBException e) {
@@ -531,11 +550,10 @@ public class RestService {
    */
   public void processSyncRequest(HttpServletResponse response, JSONObject json) throws IOException, JSONException {
     try {
-      String roleId = OBContext.getOBContext().getRole().getId();
-      String appId = json.getString(CopilotConstants.PROP_APP_ID);
-      WebhookPermissionUtils.assignMissingPermissions(roleId, appId);
-
+      Role role = OBContext.getOBContext().getRole();
+      assignWebhookPermissions(role, json);
       var responseOriginal = RestServiceUtil.handleQuestion(false, response, json);
+
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
       response.getWriter().write(responseOriginal.toString());
     } catch (CopilotRestServiceException e) {
