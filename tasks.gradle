@@ -513,7 +513,7 @@ task 'copilot.variables.setup' {
         } else if (copilotMode == "docker" && tomcatMode != "docker") {
             def gatewayIp = "172.17.0.1"
             try {
-                def process = ["sh", "-c", "docker run --rm --network bridge debian bash -c 'apt update -qq >/dev/null && apt install -y -qq iproute2 >/dev/null && getent hosts host.docker.internal || echo host.docker.internal \$(ip route | grep default | cut -d\" \" -f3)' | awk '{print \$1}'"].execute()
+                def process = ["sh", "-c", "docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'"].execute()
                 gatewayIp = process.text.trim()
             } catch (Exception e) {
                 println "${yellow}⚠️ WARNING: Failed to get Docker bridge IP. Using default: 172.17.0.1${reset}"
