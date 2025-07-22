@@ -507,7 +507,6 @@ public class RestService {
       Role role = OBContext.getOBContext().getRole();
       RestServiceUtil.handleQuestion(true, response, json);
 
-      RestServiceUtil.handleQuestion(true, response, json);
     } catch (OBException e) {
       RestServiceUtil.setEventStreamMode(response);
       JSONObject errorEventJSON = RestServiceUtil.getErrorEventJSON(request, e);
