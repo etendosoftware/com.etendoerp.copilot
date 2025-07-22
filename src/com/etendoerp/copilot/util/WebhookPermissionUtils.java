@@ -39,7 +39,7 @@ public class WebhookPermissionUtils {
           .createCriteria(RoleWebhookaccessV.class);
 
       criteria.add(Restrictions.eq(RoleWebhookaccessV.PROPERTY_ROLE , role));
-      criteria.add(Restrictions.eq(RoleWebhookaccessV.PROPERTY_ETCOPAPP, app));
+      criteria.add(Restrictions.eq(RoleWebhookaccessV.PROPERTY_ASSISTANT, app));
       criteria.add(Restrictions.eq(RoleWebhookaccessV.PROPERTY_HASROLEWEBHOOK, false));
 
       List<RoleWebhookaccessV> missingPermissions = criteria.list();
@@ -51,7 +51,7 @@ public class WebhookPermissionUtils {
 
       log.info("Assigning {} missing webhook permissions for role {}...", missingPermissions.size(), role.getId());
       for (RoleWebhookaccessV permissionInfo : missingPermissions) {
-        createPermission(permissionInfo.getRole(), permissionInfo.getSmfwheDefinedwebhook());
+        createPermission(permissionInfo.getRole(), permissionInfo.getWebHook());
       }
 
       OBDal.getInstance().flush();
