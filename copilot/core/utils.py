@@ -3,6 +3,7 @@ import shutil
 import socket
 from typing import Final
 
+import curlify
 from colorama import Fore, Style
 from copilot.core.schemas import QuestionSchema
 
@@ -84,6 +85,13 @@ def copilot_debug(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
     if is_debug_enabled():
         print_yellow(message)
+
+
+def copilot_debug_curl(request):
+    """Prints a curl command representation of the request if COPILOT_DEBUG is set to True."""
+    if is_debug_enabled():
+        curl_str = curlify.to_curl(request)
+        copilot_debug("cUrl command: " + curl_str)
 
 
 def copilot_debug_custom(message: str, color: str):

@@ -449,7 +449,7 @@ task 'copilot.variables.setup' {
         }
 
         if (!tomcatMode) {
-            System.out.print("${yellow}💬 Please enter Tomcat mode ('docker', 'local', or 'server'): ${reset}")
+            System.out.print("${yellow} \n💬 Please enter Tomcat mode ('docker', 'local', or 'server'):\n ${reset}")
             System.out.flush()
             tomcatMode = reader.readLine()?.trim()?.toLowerCase()
             if (!["docker", "local", "server"].contains(tomcatMode)) {
@@ -464,7 +464,7 @@ task 'copilot.variables.setup' {
         }
 
         if (!copilotMode) {
-            System.out.print("${yellow}💬 Please enter Copilot mode ('docker' or 'local'): ${reset}")
+            System.out.print("${yellow}\n💬 Please enter Copilot mode ('docker' or 'local'): \n${reset}")
             System.out.flush()
             copilotMode = reader.readLine()?.trim()?.toLowerCase()
             if (!["docker", "local"].contains(copilotMode)) {
@@ -482,11 +482,11 @@ task 'copilot.variables.setup' {
 
         if (!tomcatPort && tomcatMode != "docker") {
             if (tomcatMode == "server") {
-                println "${yellow}💡 Tip: You can check the server port with:${reset}"
-                println "${green}    sudo cat /etc/apache2/ports.conf${reset}"
+                println "${yellow}\n💡 Tip: You can check the server port with:${reset}"
+                println "${green}    sudo cat /etc/apache2/ports.conf \n${reset}"
             }
 
-            System.out.print("${yellow}💬 Please enter the Tomcat port manually: ${reset}")
+            System.out.print("${yellow}\n💬 Please enter the Tomcat port manually: \n${reset}")
             System.out.flush()
             tomcatPort = reader.readLine()?.trim()
             if (!tomcatPort) {
@@ -513,7 +513,7 @@ task 'copilot.variables.setup' {
         } else if (copilotMode == "docker" && tomcatMode != "docker") {
             def gatewayIp = "172.17.0.1"
             try {
-                def process = ["sh", "-c", "docker network inspect bridge | grep Gateway | head -n1 | awk -F'\"' '{print \$4}'"].execute()
+                def process = ["sh", "-c", "docker run --rm --network bridge debian bash -c 'apt update -qq >/dev/null && apt install -y -qq iproute2 >/dev/null && getent hosts host.docker.internal || echo host.docker.internal \$(ip route | grep default | cut -d\" \" -f3)' | awk '{print \$1}'"].execute()
                 gatewayIp = process.text.trim()
             } catch (Exception e) {
                 println "${yellow}⚠️ WARNING: Failed to get Docker bridge IP. Using default: 172.17.0.1${reset}"

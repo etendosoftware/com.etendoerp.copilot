@@ -285,35 +285,37 @@ class MultimodelAgent(CopilotAgent):
             "system_prompt": question.system_prompt,
             "thread_id": question.conversation_id,
         }
-
-        if is_code_act_enabled(agent_configuration=question):
-            agent = agent.compile()
-            agent.get_graph().print_ascii()
+        try:
+            if is_code_act_enabled(agent_configuration=question):
+                agent = agent.compile()
+                agent.get_graph().print_ascii()
+                async for event in agent.astream_events(_input, version="v2"):
+                    response = await handle_events(copilot_stream_debug, event, question.conversation_id)
+                    if response is not None:
+                        yield response
+                return
             async for event in agent.astream_events(_input, version="v2"):
-                response = await handle_events(copilot_stream_debug, event, question.conversation_id)
-                if response is not None:
-                    yield response
-            return
-        async for event in agent.astream_events(_input, version="v2"):
-            if copilot_stream_debug:
-                yield AssistantResponse(response=str(event), conversation_id="", role="debug")
-                continue
-            kind = event["event"]
-            if kind == "on_tool_start":
-                yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
-                continue
-            if (
-                kind != "on_chain_end"
-                or (type(event["data"]["output"]) == AddableDict)
-                or (type(event["data"]["output"]) != AIMessage)
-            ):
-                continue
-            output = event["data"]["output"]
-            output_ = output.content
+                if copilot_stream_debug:
+                    yield AssistantResponse(response=str(event), conversation_id="", role="debug")
+                    continue
+                kind = event["event"]
+                if kind == "on_tool_start":
+                    yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
+                    continue
+                if (
+                    kind != "on_chain_end"
+                    or (type(event["data"]["output"]) == AddableDict)
+                    or (type(event["data"]["output"]) != AIMessage)
+                ):
+                    continue
+                output = event["data"]["output"]
+                output_ = output.content
 
-            # check if the output is a list
-            msg = await self.get_messages(output_)
-            yield AssistantResponse(response=str(msg), conversation_id=question.conversation_id)
+                # check if the output is a list
+                msg = await self.get_messages(output_)
+                yield AssistantResponse(response=str(msg), conversation_id=question.conversation_id)
+        except Exception as e:
+            yield AssistantResponse(response=str(e), conversation_id=question.conversation_id,  role="error")
 
     async def get_messages(self, output_):
         msg = str(output_)

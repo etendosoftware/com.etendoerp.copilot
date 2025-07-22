@@ -115,9 +115,11 @@ def _initialize_agent(question: QuestionSchema):
 
 
 def load_thread_context(question):
+    conversation_id = question.conversation_id
+    ThreadContext.load_conversation(conversation_id)
     ThreadContext.set_data("extra_info", question.extra_info)
     ThreadContext.set_data("assistant_id", question.assistant_id)
-    ThreadContext.set_data("conversation_id", question.conversation_id)
+    ThreadContext.set_data("conversation_id", conversation_id)
 
 
 def _execute_agent(copilot_agent, question: QuestionSchema):
@@ -152,13 +154,13 @@ def serve_graph(question: GraphQuestionSchema):
     copilot_agent = LanggraphAgent()
     print_call_info(copilot_agent, question)
     try:
+        load_thread_context(question)
         copilot_debug(
             "Thread "
             + str(threading.get_ident())
             + " Saving extra info:"
-            + str(ThreadContext.identifier_data())
+            + str(ThreadContext.get_data("extra_info"))
         )
-        load_thread_context(question)
         agent_response: AgentResponse = copilot_agent.execute(question)
         response = agent_response.output
         local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
@@ -266,12 +268,23 @@ async def _serve_question_async(question: QuestionSchema):
                 break
             if isinstance(response, Exception):
                 copilot_debug(f"Error: {str(response)}")
-                continue
+                raise response
             yield _response(response)
         await task
     except Exception as e:
-        response = _handle_exception(e)
-        yield {"answer": response}
+        logger.exception(e)
+        print_debug_except(e)
+        if hasattr(e, "response"):
+            content = e.response.content
+            # content has the json error message
+            error_message = json.loads(content).get("error").get("message")
+        else:
+            error_message = str(e)
+
+        response_error = AssistantResponse(
+            response=error_message, conversation_id=question.conversation_id, role="error"
+        )
+        yield _response(response_error)
 
 
 async def event_stream(question: QuestionSchema):
