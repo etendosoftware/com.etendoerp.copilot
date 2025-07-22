@@ -74,8 +74,8 @@ public class WebhookPermissionUtils {
   private static void createPermission(Role role, DefinedWebHook webhook) {
     DefinedwebhookRole webhookPermission = OBProvider.getInstance().get(DefinedwebhookRole.class);
 
-    webhookPermission.setClient(OBDal.getInstance().get(Client.class, "0"));
-    webhookPermission.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
+    webhookPermission.setClient(role.getClient());
+    webhookPermission.setOrganization(role.getOrganization());
     webhookPermission.setActive(true);
     webhookPermission.setRole(role);
     webhookPermission.setSmfwheDefinedwebhook(webhook);
