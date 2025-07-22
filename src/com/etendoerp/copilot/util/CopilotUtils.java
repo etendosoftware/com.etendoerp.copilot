@@ -1175,7 +1175,7 @@ public class CopilotUtils {
     List<CopilotAppMCP> appMcpList = appMcpCriteria.list();
     
     for (CopilotAppMCP appMcp : appMcpList) {
-      CopilotMCP mcpConfig = appMcp.getCopilotMCP();
+      CopilotMCP mcpConfig = appMcp.getMCPServer();
       if (mcpConfig != null && mcpConfig.isActive() && StringUtils.isNotEmpty(mcpConfig.getJsonStructure())) {
         try {
           // Parse the JSON structure and add it to the array
