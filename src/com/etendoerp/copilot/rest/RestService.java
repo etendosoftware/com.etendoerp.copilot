@@ -504,7 +504,6 @@ public class RestService {
   private void processAsyncRequest(HttpServletRequest request, HttpServletResponse response,
       JSONObject json) throws IOException, JSONException {
     try {
-      Role role = OBContext.getOBContext().getRole();
       RestServiceUtil.handleQuestion(true, response, json);
 
     } catch (OBException e) {
@@ -531,7 +530,6 @@ public class RestService {
    */
   public void processSyncRequest(HttpServletResponse response, JSONObject json) throws IOException, JSONException {
     try {
-      Role role = OBContext.getOBContext().getRole();
       var responseOriginal = RestServiceUtil.handleQuestion(false, response, json);
 
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);

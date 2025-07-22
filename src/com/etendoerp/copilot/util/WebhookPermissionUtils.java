@@ -25,6 +25,9 @@ import com.etendoerp.webhookevents.data.DefinedwebhookRole;
 public class WebhookPermissionUtils {
 
   private static final Logger log = LogManager.getLogger();
+  private WebhookPermissionUtils() {
+    throw new UnsupportedOperationException("Utility class - cannot be instantiated");
+  }
 
   /**
    * Assigns all missing webhook permissions for the given role and app using OBCriteria.
