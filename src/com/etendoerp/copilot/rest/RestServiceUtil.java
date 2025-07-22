@@ -786,19 +786,32 @@ public class RestServiceUtil {
         assistants.put(assistantJson);
       }
 
-      for (CopilotApp app : appList) {
-        try {
-          WebhookPermissionUtils.assignMissingPermissions(role, app);
-        } catch (Exception e) {
-          log.error("Error assigning webhook permissions for app '{}': {}", app.getName(), e.getMessage(), e);
-        }
-      }
+      assignWebhookPermissionsSafely(appList, role);
 
       return assistants;
     } catch (Exception e) {
       throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Assigns missing webhook permissions for each assistant in the list for the given role.
+   * <p>
+   * This method wraps each permission assignment in a try-catch block to avoid
+   * interrupting the main assistant loading flow in case of individual errors.
+   *
+   * @param appList The list of assistant applications to assign permissions for.
+   * @param role    The role to which the webhook permissions should be assigned.
+   */
+  private static void assignWebhookPermissionsSafely(List<CopilotApp> appList, Role role) {
+    for (CopilotApp app : appList) {
+      try {
+        WebhookPermissionUtils.assignMissingPermissions(role, app);
+      } catch (Exception e) {
+        log.error("Error assigning webhook permissions for app '{}': {}", app.getName(), e.getMessage(), e);
+      }
     }
   }
 
