@@ -63,6 +63,7 @@ import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.TrackingUtil;
+import com.etendoerp.copilot.util.WebhookPermissionUtils;
 
 public class RestServiceUtil {
 
@@ -763,20 +764,36 @@ public class RestServiceUtil {
       //send json of assistants
       JSONArray assistants = new JSONArray();
       OBContext context = OBContext.getOBContext();
+      Role role = context.getRole();
+
       List<CopilotApp> appList = new HashSet<>(OBDal.getInstance()
           .createCriteria(CopilotRoleApp.class)
-          .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, context.getRole()))
-          .list()).stream().map(CopilotRoleApp::getCopilotApp)
+          .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, role))
+          .list()).stream()
+          .map(CopilotRoleApp::getCopilotApp)
           .distinct()
           .collect(Collectors.toList());
-      appList.sort((app1, app2) -> getLastConversation(context.getUser(), app2)
-          .compareTo(getLastConversation(context.getUser(), app1)));
+
+      appList.sort((app1, app2) ->
+          getLastConversation(context.getUser(), app2)
+              .compareTo(getLastConversation(context.getUser(), app1))
+      );
+
       for (CopilotApp app : appList) {
         JSONObject assistantJson = new JSONObject();
         assistantJson.put(APP_ID, app.getId());
         assistantJson.put("name", app.getName());
         assistants.put(assistantJson);
       }
+
+      for (CopilotApp app : appList) {
+        try {
+          WebhookPermissionUtils.assignMissingPermissions(role, app);
+        } catch (Exception e) {
+          log.error("Error assigning webhook permissions for app '{}': {}", app.getName(), e.getMessage(), e);
+        }
+      }
+
       return assistants;
     } catch (Exception e) {
       throw new OBException(e);
