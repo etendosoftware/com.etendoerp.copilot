@@ -52,7 +52,7 @@ public class WebhookPermissionUtils {
         return;
       }
 
-      log.info("Assigning {} missing webhook permissions for role {}...", missingPermissions.size(), role.getId());
+      log.debug("Assigning {} missing webhook permissions for role {}...", missingPermissions.size(), role.getId());
       for (RoleWebhookaccessV permissionInfo : missingPermissions) {
         createPermission(permissionInfo.getRole(), permissionInfo.getWebHook());
       }
