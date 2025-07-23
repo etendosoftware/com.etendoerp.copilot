@@ -26,7 +26,9 @@ RUN curl -Ls https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
 # Create virtual environment using uv
-RUN mkdir -p /venv && cd /venv && uv venv
+RUN mkdir -p /venv && cd /venv && uv venv \
+    && /venv/.venv/bin/python -m ensurepip --upgrade \
+    && /venv/.venv/bin/pip3 install --upgrade pip
 
 # Set working directory
 WORKDIR /app
