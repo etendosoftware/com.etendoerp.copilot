@@ -15,7 +15,6 @@ final String ARG_PROPERTY = "arg"
 final String COPILOT_PORT_PROPERTY = "COPILOT_PORT"
 final String OPENAI_API_KEY_PROPERTY = "OPENAI_API_KEY"
 final String COPILOT_DOCKER_REPO = "etendo_copilot_core"
-final String TOOLS_CONFIG_FILE = "tools_config.json"
 final String COPILOT_IMAGE_TAG = 'COPILOT_IMAGE_TAG'
 final String COPILOT_PULL_IMAGE = 'COPILOT_PULL_IMAGE'
 final String COPILOT_DOCKER_CONTAINER_NAME = 'COPILOT_DOCKER_CONTAINER_NAME'
@@ -236,6 +235,7 @@ task 'copilot.build' {
                 exclude "**/.git/**"
                 exclude "**/node_modules/**"
                 exclude "**/.venv/**"
+                exclude "**/venv/**"
                 eachFile { fileCopyDetails ->
                     counter++
                     project.logger.info("Copying Copilot files ${counter}: ${fileCopyDetails.file.path}")
@@ -245,28 +245,23 @@ task 'copilot.build' {
         }
 
         if (copilotExists) {
-            File toolsConfigFile = new File(project.buildDir, COPILOT + File.separator + TOOLS_CONFIG_FILE)
             String toolDependencyFileName = getToolsDependenciesFileName(project)
             File toolsDependenciesFileMain = new File(project.buildDir, COPILOT + File.separator + toolDependencyFileName)
-            def toolsConfigJson = new JsonSlurper().parseText(toolsConfigFile.readLines().join(" "))
 
-            // Get tools in SOURCES
+            // Get tools in SOURCES - simplified version without JSON generation
             if (moduleProject != null) {
                 moduleProject.subprojects.each { subproject ->
                     File toolsDir = new File(subproject.projectDir, "tools")
                     if (toolsDir.exists() && !subproject.name.equals(COPILOT_MODULE)) {
+                        // Copy tool files
                         project.copy {
                             from {
                                 toolsDir.path
                             }
                             into "${project.buildDir.path}${File.separator}copilot${File.separator}tools"
                         }
-                        toolsDir.listFiles().each { file ->
-                            toolsConfigJson.third_party_tools[file.name.replaceFirst(~/\.[^\.]+$/, '')] = true
-                        }
-                        def json_data = JsonOutput.toJson(toolsConfigJson)
-                        toolsConfigFile.write(JsonOutput.prettyPrint(json_data))
-                        //lets read the Dependencies file of the subproject and add it to the main one
+
+                        // Merge dependencies file if it exists
                         File toolsDependenciesFile = new File(subproject.projectDir, toolDependencyFileName)
                         if (toolsDependenciesFile.exists()) {
                             //add a line break

@@ -62,7 +62,8 @@ dependencies = [
     "psycopg2-binary>=2.9.10,<3",
     "langchain-sandbox>=0.0.4,<0.0.5",
     "monotonic~=1.6",
-    "fastmcp>=2.10.5",
+    "fastmcp==2.10.6",
+    "pytest-dotenv>=0.5.2",
 ]
 
 [dependency-groups]

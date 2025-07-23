@@ -1,35 +1,15 @@
-# load file tools_config.json
-import json
+# Local setup script for development environment
 import os
 
 import toml
 
 # log that script started
-print("local_setup.py started")
-with open("tools_config.json") as f:
-    tools_config = json.load(f)
-    tpt = tools_config["third_party_tools"]
-    # list files in tools directory
+print("local_setup.py started - Dynamic tool loading mode")
+print("Skipping tools_config.json generation - using dynamic discovery instead")
 
-    tools = os.listdir("tools")
-    # filter only .py files that not start with __
-    tools = [tool for tool in tools if tool.endswith(".py") and not tool.startswith("__")]
-
-    # remove extension from files, and add a list of filenames without extension to tools_config
-    for i in range(len(tools)):
-        tools[i] = tools[i].replace(".py", "")
-    # check if the tool is a third party tool, if not add it to the tools_config
-    for tool in tools:
-        if tool not in tpt:
-            tpt[tool] = True
-    # update tools_config
-    tools_config["third_party_tools"] = tpt
-    # save tools_config, overwriting the original file
-    with open("tools_config.json", "w") as f:
-        ## save the json indented
-        json.dump(tools_config, f, indent=4)
-
-# dependenci installation
+# The new ToolLoader will automatically discover all tools, so we don't need to
+# maintain a tools_config.json file anymore. This script now only handles
+# dependency installation from modules.# dependenci installation
 # i have a set of tools_deps.toml files, one in actual directory, and one in ../*/ directory
 #  and install them
 
@@ -62,7 +42,11 @@ for root, _dirs, files in os.walk(parent_dir):
                             else:
                                 cmd = f"uv pip install {k}{v}"
                             print(f"Installing {k} with command: {cmd}")
-                            os.system(cmd)
+                            result = os.system(cmd)
+                            if result != 0:
+                                print(f"Warning: Failed to install {k}, trying with pip fallback...")
+                                fallback_cmd = cmd.replace("uv pip", "pip")
+                                os.system(fallback_cmd)
 
 # log that script ended
 print("local_setup.py ended")

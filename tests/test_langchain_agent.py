@@ -9,14 +9,13 @@ from copilot.core.schemas import QuestionSchema
 from copilot.core.utils import get_full_question
 from langchain_core.agents import AgentFinish
 from langchain_core.runnables import RunnableSequence
-from langsmith import unit
 
 
 @pytest.fixture
 def langchain_agent():
     with patch("copilot.core.tool_loader.ToolLoader") as mock_tool_loader:
-        mock_load_tools = mock_tool_loader.return_value.load_tools
-        mock_load_tools.return_value = MagicMock()  # Mock the configured tools
+        mock_load_configured_tools = mock_tool_loader.return_value.load_configured_tools
+        mock_load_configured_tools.return_value = []  # Return empty list instead of MagicMock
         return LangchainAgent()
 
 
