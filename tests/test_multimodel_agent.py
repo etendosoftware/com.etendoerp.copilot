@@ -305,10 +305,34 @@ class TestMultimodelAgent:
         
         # Mock agent
         mock_agent = MagicMock()
+        
+        # Mock the _process_regular_agent_events method
+        async def mock_process_regular_agent_events(*args, **kwargs):
+            yield AssistantResponse(
+                response="Paris is the capital of France.",
+                conversation_id=sample_question_schema.conversation_id
+            )
+        
+        with patch.object(multimodel_agent, 'aget_agent', return_value=mock_agent):
+            with patch.object(multimodel_agent, 'get_messages_arrray', return_value=[]):
+                with patch.object(multimodel_agent, '_process_regular_agent_events', side_effect=mock_process_regular_agent_events):
+                    responses = []
+                    async for response in multimodel_agent.aexecute(sample_question_schema):
+                        responses.append(response)
+                    
+                    assert len(responses) > 0
+                    assert isinstance(responses[0], AssistantResponse)
+                    assert "Paris is the capital of France." in responses[0].response
+
+    @pytest.mark.asyncio
+    async def test_process_regular_agent_events(self, multimodel_agent):
+        """Test the _process_regular_agent_events method directly."""
+        # Mock agent
+        mock_agent = MagicMock()
         mock_event_data = {
             "event": "on_chain_end",
             "data": {
-                "output": AIMessage(content="Paris is the capital of France.")
+                "output": AIMessage(content="Test response message.")
             }
         }
         
@@ -317,14 +341,17 @@ class TestMultimodelAgent:
         
         mock_agent.astream_events = mock_astream_events
         
-        with patch.object(multimodel_agent, 'aget_agent', return_value=mock_agent):
-            with patch.object(multimodel_agent, 'get_messages_arrray', return_value=[]):
-                responses = []
-                async for response in multimodel_agent.aexecute(sample_question_schema):
-                    responses.append(response)
-                
-                assert len(responses) > 0
-                assert isinstance(responses[0], AssistantResponse)
+        # Test the extracted method
+        responses = []
+        async for response in multimodel_agent._process_regular_agent_events(
+            mock_agent, {}, False, "test_conversation"
+        ):
+            responses.append(response)
+        
+        assert len(responses) > 0
+        assert isinstance(responses[0], AssistantResponse)
+        assert "Test response message." in responses[0].response
+        assert responses[0].conversation_id == "test_conversation"
 
     @pytest.mark.asyncio
     async def test_get_messages_string(self, multimodel_agent):

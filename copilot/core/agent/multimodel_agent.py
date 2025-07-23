@@ -182,8 +182,6 @@ async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
         client = MultiServerMCPClient(mcp_servers_config)
         # Get tools with timeout
         tools = await asyncio.wait_for(client.get_tools(), timeout=45.0)
-        if tools:
-            tool_names = [getattr(tool, 'name', 'unnamed') for tool in tools]
 
         return tools
 
@@ -438,28 +436,33 @@ class MultimodelAgent(CopilotAgent):
                     if response is not None:
                         yield response
                 return
-            async for event in agent.astream_events(_input, version="v2"):
-                if copilot_stream_debug:
-                    yield AssistantResponse(response=str(event), conversation_id="", role="debug")
-                    continue
-                kind = event["event"]
-                if kind == "on_tool_start":
-                    yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
-                    continue
-                if (
-                    kind != "on_chain_end"
-                    or (type(event["data"]["output"]) == AddableDict)
-                    or (type(event["data"]["output"]) != AIMessage)
-                ):
-                    continue
-                output = event["data"]["output"]
-                output_ = output.content
-
-                # check if the output is a list
-                msg = await self.get_messages(output_)
-                yield AssistantResponse(response=str(msg), conversation_id=question.conversation_id)
+            async for response in self._process_regular_agent_events(agent, _input, copilot_stream_debug, question.conversation_id):
+                yield response
         except Exception as e:
             yield AssistantResponse(response=str(e), conversation_id=question.conversation_id,  role="error")
+
+    async def _process_regular_agent_events(self, agent, _input, copilot_stream_debug, conversation_id):
+        """Process events for regular (non-code-act) agents."""
+        async for event in agent.astream_events(_input, version="v2"):
+            if copilot_stream_debug:
+                yield AssistantResponse(response=str(event), conversation_id="", role="debug")
+                continue
+            kind = event["event"]
+            if kind == "on_tool_start":
+                yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
+                continue
+            if (
+                kind != "on_chain_end"
+                or (type(event["data"]["output"]) == AddableDict)
+                or (type(event["data"]["output"]) != AIMessage)
+            ):
+                continue
+            output = event["data"]["output"]
+            output_ = output.content
+
+            # check if the output is a list
+            msg = await self.get_messages(output_)
+            yield AssistantResponse(response=str(msg), conversation_id=conversation_id)
 
     async def get_messages(self, output_):
         msg = str(output_)
