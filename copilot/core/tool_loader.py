@@ -101,48 +101,34 @@ class ToolLoader:
             import importlib
 
             ToolLoader._tools_module = importlib.import_module("tools")
-            # Add all tools to global namespace of this module
-            current_module = __import__(__name__)
-            for attr_name in dir(ToolLoader._tools_module):
-                if not attr_name.startswith("_"):
-                    attr_value = getattr(ToolLoader._tools_module, attr_name)
-                    setattr(current_module, attr_name, attr_value)
-                    globals()[attr_name] = attr_value
         except ImportError as e:
             print_yellow(f"Warning: Could not import tools module: {e}")
+            ToolLoader._tools_module = None
 
     def _get_tool_config(self, filepath: Optional[str]) -> Dict:
-        """Returns the content of the tools configuration file or generates it dynamically."""
-        # If file exists, use it
-        if filepath and Path(filepath).is_file():
-            with open(filepath, "r") as config_tools_file:
-                try:
-                    return json.load(config_tools_file)
-                except json.decoder.JSONDecodeError as ex:
-                    raise ApplicationError("Unsupported tool configuration file format") from ex
-
-        # Generate configuration dynamically if file doesn't exist
-        print_yellow("tools_config.json not found, generating configuration dynamically...")
+        """Generate dynamic tool configuration by scanning available tool classes."""
+        print_yellow("Generating configuration dynamically from tools directory...")
         return self._generate_dynamic_tool_config()
 
     def _generate_dynamic_tool_config(self) -> Dict:
-        """Generate tool configuration by scanning available tool classes."""
+        """Generate tool configuration by scanning available concrete tool classes."""
         # Import tools module to discover available tools
         self._import_tools()
 
         config = {"native_tools": {}, "third_party_tools": {}}
 
-        # Get all available tool classes
-        if ToolLoader._tools_module:
-            for attr_name in dir(ToolLoader._tools_module):
-                if not attr_name.startswith("_"):
-                    attr_value = getattr(ToolLoader._tools_module, attr_name)
-                    # Check if it's a tool class (inherits from ToolWrapper)
-                    if hasattr(attr_value, "__bases__") and any(
-                        "ToolWrapper" in str(base) for base in attr_value.__mro__
-                    ):
-                        config["third_party_tools"][attr_name] = True
-                        print_green(f"Auto-discovered tool: {attr_name}")
+        # Get all concrete ToolWrapper subclasses
+        for tool_class in ToolWrapper.__subclasses__():
+            tool_name = tool_class.__name__
+
+            # Skip abstract classes and ToolWrapper itself
+            if hasattr(tool_class, "__abstractmethods__") and tool_class.__abstractmethods__:
+                continue
+            if tool_class.__name__ == "ToolWrapper":
+                continue
+
+            config["third_party_tools"][tool_name] = True
+            print_green(f"Auto-discovered tool: {tool_name}")
 
         print_green(f"Generated dynamic configuration with {len(config['third_party_tools'])} tools")
         return config
@@ -193,7 +179,20 @@ class ToolLoader:
         return parts[0] if left else parts[1]
 
     def _is_tool_implemented(self, tool_name: str) -> bool:
-        return tool_name in {tool.__name__ for tool in ToolWrapper.__subclasses__()}
+        """Check if a tool is implemented either in tools module or as ToolWrapper subclass."""
+        # Check in ToolWrapper subclasses
+        if tool_name in {tool.__name__ for tool in ToolWrapper.__subclasses__()}:
+            return True
+
+        # Check in imported tools module
+        if ToolLoader._tools_module and hasattr(ToolLoader._tools_module, tool_name):
+            attr_value = getattr(ToolLoader._tools_module, tool_name)
+            if hasattr(attr_value, "__bases__") and any(
+                "ToolWrapper" in str(base) for base in attr_value.__mro__
+            ):
+                return True
+
+        return False
 
     def _get_tool_class(self, tool_name: str):
         """Get tool class from either tools module or globals."""
@@ -202,38 +201,38 @@ class ToolLoader:
         return globals().get(tool_name)
 
     def load_configured_tools(self) -> LangChainTools:
-        """Loads the configured tools. Dependencies should already be installed."""
+        """Loads all available concrete tool implementations."""
         # Return cached tools if already loaded
         if ToolLoader._configured_tools is not None:
             return ToolLoader._configured_tools
 
-        # Import tools module after dependencies are installed
+        # Import tools module to ensure all tools are loaded
         self._import_tools()
 
         configured_tools: LangChainTools = []
 
-        # load native tools implemented by copilot
-        for tool_name, enabled in self.native_tool_config.items():
-            print_green(f"Loading native tool {tool_name}")
-            if enabled and self._is_tool_implemented(tool_name):
-                class_name = self._get_tool_class(tool_name)
-                if class_name:
-                    configured_tools.append(class_name())
-            # nothing todo, tool_name is disabled from config
-            print_green(SUCCESS_CODE)
+        # Load all concrete ToolWrapper subclasses
+        print_yellow("Loading all available tools...")
+        for tool_class in ToolWrapper.__subclasses__():
+            try:
+                # Skip abstract classes and ToolWrapper itself
+                if hasattr(tool_class, "__abstractmethods__") and tool_class.__abstractmethods__:
+                    print_yellow(f"Skipping abstract tool class: {tool_class.__name__}")
+                    continue
 
-        # load third party tools implemented by users
-        for tool_name, enabled in self.third_party_tool_config.items():
-            print_green(f"Loading third party tool {tool_name}")
-            if enabled and self._is_tool_implemented(tool_name):
-                class_name = self._get_tool_class(tool_name)
-                if class_name:
-                    configured_tools.append(class_name())
-            # nothing todo, tool_name is disabled from config
-            print_green(SUCCESS_CODE)
+                # Skip ToolWrapper base class
+                if tool_class.__name__ == "ToolWrapper":
+                    continue
+
+                tool_instance = tool_class()
+                configured_tools.append(tool_instance)
+                print_green(f"Loaded tool: {tool_class.__name__}")
+            except Exception as e:
+                print_yellow(f"Warning: Could not instantiate tool {tool_class.__name__}: {e}")
 
         # Cache the loaded tools
         ToolLoader._configured_tools = configured_tools
+        print_green(f"Successfully loaded {len(configured_tools)} tools")
         return configured_tools
 
     def _get_filtered_base_tools(self, enabled_tools: Optional[List[ToolSchema]]) -> LangChainTools:
