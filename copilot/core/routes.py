@@ -268,12 +268,23 @@ async def _serve_question_async(question: QuestionSchema):
                 break
             if isinstance(response, Exception):
                 copilot_debug(f"Error: {str(response)}")
-                continue
+                raise response
             yield _response(response)
         await task
     except Exception as e:
-        response = _handle_exception(e)
-        yield {"answer": response}
+        logger.exception(e)
+        print_debug_except(e)
+        if hasattr(e, "response"):
+            content = e.response.content
+            # content has the json error message
+            error_message = json.loads(content).get("error").get("message")
+        else:
+            error_message = str(e)
+
+        response_error = AssistantResponse(
+            response=error_message, conversation_id=question.conversation_id, role="error"
+        )
+        yield _response(response_error)
 
 
 async def event_stream(question: QuestionSchema):
