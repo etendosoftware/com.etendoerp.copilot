@@ -148,23 +148,25 @@ class TestMultimodelAgent:
 
     def test_convert_mcp_servers_config_nested(self):
         """Test MCP server config conversion with nested servers."""
-        mcp_servers = [
-            {
-                "mcpServers": {
-                    "filesystem": {
-                        "command": "npx",
-                        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
-                        "disabled": False
+        import tempfile
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mcp_servers = [
+                {
+                    "mcpServers": {
+                        "filesystem": {
+                            "command": "npx",
+                            "args": ["-y", "@modelcontextprotocol/server-filesystem", temp_dir],
+                            "disabled": False
+                        }
                     }
                 }
-            }
-        ]
-        
-        result = convert_mcp_servers_config(mcp_servers)
-        
-        assert "filesystem" in result
-        assert result["filesystem"]["command"] == "npx"
-        assert result["filesystem"]["args"][0] == "-y"
+            ]
+            
+            result = convert_mcp_servers_config(mcp_servers)
+            
+            assert "filesystem" in result
+            assert result["filesystem"]["command"] == "npx"
+            assert result["filesystem"]["args"][0] == "-y"
 
     def test_convert_mcp_servers_config_direct(self):
         """Test MCP server config conversion with direct server config."""
@@ -435,6 +437,7 @@ class TestMCPIntegration:
     async def test_get_mcp_tools_success(self, mock_mcp_client_class):
         """Test successful MCP tools retrieval."""
         from copilot.core.agent.multimodel_agent import get_mcp_tools
+        import tempfile
         
         # Mock MCP client and tools
         mock_client = MagicMock()
@@ -444,18 +447,19 @@ class TestMCPIntegration:
         mock_client.get_tools = AsyncMock(return_value=[mock_tool])
         mock_mcp_client_class.return_value = mock_client
         
-        mcp_config = {
-            "filesystem": {
-                "command": "npx",
-                "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mcp_config = {
+                "filesystem": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-filesystem", temp_dir]
+                }
             }
-        }
-        
-        result = await get_mcp_tools(mcp_config)
-        
-        assert len(result) == 1
-        assert result[0] == mock_tool
-        mock_mcp_client_class.assert_called_once_with(mcp_config)
+            
+            result = await get_mcp_tools(mcp_config)
+            
+            assert len(result) == 1
+            assert result[0] == mock_tool
+            mock_mcp_client_class.assert_called_once_with(mcp_config)
 
     @pytest.mark.asyncio
     @patch("copilot.core.agent.multimodel_agent.MultiServerMCPClient")
