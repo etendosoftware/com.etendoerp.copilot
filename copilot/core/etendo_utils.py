@@ -92,7 +92,7 @@ def call_etendo(method: str, url: str, endpoint: str, body_params, access_token:
 
     json_data = json.dumps(body_params)
     full_url = url + endpoint
-    copilot_debug(f"Calling Webhook(POST): {full_url}")
+    copilot_debug(f"Calling Etendo Classic Endpoint(POST): {full_url}")
     if method.upper() == "GET":
         result = requests.get(url=full_url, headers=headers)
     elif method.upper() == "POST":
