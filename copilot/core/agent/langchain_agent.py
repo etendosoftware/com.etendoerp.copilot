@@ -5,7 +5,6 @@ from copilot.core.agent.agent import (
     AgentResponse,
     AssistantResponse,
     CopilotAgent,
-    get_kb_tool,
 )
 from langchain.agents import (
     AgentExecutor,
@@ -21,7 +20,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from .. import utils
 from ..memory.memory_handler import MemoryHandler
-from ..schemas import QuestionSchema, ToolSchema
+from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..utils import get_full_question
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
@@ -53,6 +52,7 @@ class LangchainAgent(CopilotAgent):
         system_prompt: str = None,
         temperature: float = 1,
         kb_vectordb_id: Optional[str] = None,
+        agent_configuration: Optional[AssistantSchema] = None,
     ):
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
@@ -66,7 +66,9 @@ class LangchainAgent(CopilotAgent):
         if provider == "gemini":
             agent = self.get_gemini_agent(open_ai_model)
         else:
-            agent = self.get_openai_agent(open_ai_model, tools, system_prompt, temperature, kb_vectordb_id)
+            agent = self.get_openai_agent(
+                open_ai_model, tools, system_prompt, temperature, kb_vectordb_id, agent_configuration
+            )
 
         return agent
 
@@ -85,17 +87,31 @@ class LangchainAgent(CopilotAgent):
         return agent_exec
 
     def get_openai_agent(
-        self, open_ai_model, tools, system_prompt, temperature=1, kb_vectordb_id: Optional[str] = None
+        self,
+        open_ai_model,
+        tools,
+        system_prompt,
+        temperature=1,
+        kb_vectordb_id: Optional[str] = None,
+        agent_configuration: Optional[AssistantSchema] = None,
     ):
         _llm = init_chat_model(
             temperature=temperature, model_provider="openai", model=open_ai_model, streaming=False
         )
-        _enabled_tools = self.get_functions(tools)
 
-        kb_tool = get_kb_tool()
-        if kb_tool is not None:
-            _enabled_tools.append(kb_tool)
-            self._configured_tools.append(kb_tool)
+        # Use the unified tool loader to get all tools
+        from ..tool_loader import ToolLoader
+
+        tool_loader = ToolLoader()
+        _enabled_tools = tool_loader.get_all_tools(
+            agent_configuration=agent_configuration,
+            enabled_tools=tools,
+            include_kb_tool=True,
+            include_openapi_tools=True,
+        )
+
+        # Update the instance configured tools
+        self._configured_tools = _enabled_tools
 
         if len(_enabled_tools):
             prompt = ChatPromptTemplate.from_messages(
@@ -116,16 +132,6 @@ class LangchainAgent(CopilotAgent):
             )
             agent = prompt | llm | OpenAIToolsAgentOutputParser()
         return agent
-
-    def get_functions(self, tools):
-        _enabled_tools = []
-        if tools:
-            for tool in tools:
-                for t in self._configured_tools:
-                    if t.name == tool.function.name:
-                        _enabled_tools.append(t)
-                        break
-        return _enabled_tools
 
     def get_gemini_agent(self, open_ai_model, temperature=1):
         prompt = ChatPromptTemplate.from_messages(
@@ -201,9 +207,9 @@ class LangchainAgent(CopilotAgent):
                 if len(event["parent_ids"]) == 1:
                     yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
             elif kind == "on_chain_end":
-                if not type(event["data"]["output"]) == AddableDict:
+                if not isinstance(event["data"]["output"], AddableDict):
                     output = event["data"]["output"]
-                    if type(output) == AgentFinish:
+                    if isinstance(output, AgentFinish):
                         return_values = output.return_values
                         yield AssistantResponse(
                             response=str(return_values["output"]), conversation_id=question.conversation_id

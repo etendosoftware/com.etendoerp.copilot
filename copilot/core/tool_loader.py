@@ -1,10 +1,8 @@
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, TypeAlias
+from typing import Dict, Final, List, Optional, TypeAlias
 
 import toml
-
-from tools import *  # noqa: F403
 
 from . import tool_installer, utils
 
@@ -16,6 +14,9 @@ from .exceptions import (
     ToolConfigFileNotFound,
     ToolDependenciesFileNotFound,
 )
+from .kb_utils import get_kb_tool
+from .langgraph.tool_utils.ApiTool import generate_tools_from_openapi
+from .schemas import AssistantSchema, ToolSchema
 from .tool_dependencies import Dependency, ToolsDependencies
 from .tool_wrapper import ToolWrapper
 
@@ -39,14 +40,30 @@ class ToolLoader:
     """Responsible for loading the user tools and making them available to the copilot agent."""
 
     installed_deps = []  # Save tools that have already installed dependencies
+    _tools_module = None  # Store the imported tools module
+    _instance = None  # Singleton instance
+    _configured_tools = None  # Cache for loaded tools
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(
         self,
         config_filename: Optional[str] = CONFIGURED_TOOLS_FILENAME,
         tools_deps_filename: Optional[str] = DEPENDENCIES_TOOLS_FILENAME,
     ):
+        # Only initialize once
+        if hasattr(self, "_initialized"):
+            return
+
         self._tools_config = self._get_tool_config(filepath=config_filename)
         self._tools_dependencies = self._get_tool_dependencies(filepath=tools_deps_filename)
+
+        # Install dependencies for enabled tools BEFORE importing tools
+        self._install_enabled_tool_dependencies()
+        self._initialized = True
 
     @property
     def native_tool_config(self) -> Dict:
@@ -56,16 +73,79 @@ class ToolLoader:
     def third_party_tool_config(self) -> Dict:
         return self._tools_config.get(THIRD_PARTY_TOOLS_NODE_NAME, {})
 
-    def _get_tool_config(self, filepath: Optional[str]) -> Dict:
-        """Returs the content of the tools configuration file."""
-        if not filepath or not Path(filepath).is_file():
-            raise ToolConfigFileNotFound()
+    def _install_enabled_tool_dependencies(self):
+        """Install dependencies for all enabled tools before importing them."""
+        # Get enabled third party tools that have dependencies
+        enabled_tools_with_deps = []
 
-        with open(filepath, "r") as config_tools_file:
-            try:
-                return json.load(config_tools_file)
-            except json.decoder.JSONDecodeError as ex:
-                raise ApplicationError("Unsupported tool configuration file format") from ex
+        for tool_name, enabled in self.third_party_tool_config.items():
+            if enabled and tool_name in self._tools_dependencies.keys():
+                enabled_tools_with_deps.append(tool_name)
+
+        # Install dependencies for enabled tools
+        for tool_name in enabled_tools_with_deps:
+            if tool_name not in ToolLoader.installed_deps:
+                print_yellow(f"Installing dependencies for {tool_name} tool before loading...")
+                tool_installer.install_dependencies(dependencies=self._tools_dependencies[tool_name])
+                ToolLoader.installed_deps.append(tool_name)
+
+        if enabled_tools_with_deps:
+            utils.copilot_info("Dependencies installed successfully")
+
+    def _import_tools(self):
+        """Import tools module after dependencies are installed."""
+        if ToolLoader._tools_module is not None:
+            return  # Already imported
+
+        try:
+            import importlib
+
+            ToolLoader._tools_module = importlib.import_module("tools")
+            # Add all tools to global namespace of this module
+            current_module = __import__(__name__)
+            for attr_name in dir(ToolLoader._tools_module):
+                if not attr_name.startswith("_"):
+                    attr_value = getattr(ToolLoader._tools_module, attr_name)
+                    setattr(current_module, attr_name, attr_value)
+                    globals()[attr_name] = attr_value
+        except ImportError as e:
+            print_yellow(f"Warning: Could not import tools module: {e}")
+
+    def _get_tool_config(self, filepath: Optional[str]) -> Dict:
+        """Returns the content of the tools configuration file or generates it dynamically."""
+        # If file exists, use it
+        if filepath and Path(filepath).is_file():
+            with open(filepath, "r") as config_tools_file:
+                try:
+                    return json.load(config_tools_file)
+                except json.decoder.JSONDecodeError as ex:
+                    raise ApplicationError("Unsupported tool configuration file format") from ex
+
+        # Generate configuration dynamically if file doesn't exist
+        print_yellow("tools_config.json not found, generating configuration dynamically...")
+        return self._generate_dynamic_tool_config()
+
+    def _generate_dynamic_tool_config(self) -> Dict:
+        """Generate tool configuration by scanning available tool classes."""
+        # Import tools module to discover available tools
+        self._import_tools()
+
+        config = {"native_tools": {}, "third_party_tools": {}}
+
+        # Get all available tool classes
+        if ToolLoader._tools_module:
+            for attr_name in dir(ToolLoader._tools_module):
+                if not attr_name.startswith("_"):
+                    attr_value = getattr(ToolLoader._tools_module, attr_name)
+                    # Check if it's a tool class (inherits from ToolWrapper)
+                    if hasattr(attr_value, "__bases__") and any(
+                        "ToolWrapper" in str(base) for base in attr_value.__mro__
+                    ):
+                        config["third_party_tools"][attr_name] = True
+                        print_green(f"Auto-discovered tool: {attr_name}")
+
+        print_green(f"Generated dynamic configuration with {len(config['third_party_tools'])} tools")
+        return config
 
     def _get_tool_dependencies(self, filepath: Optional[str]) -> ToolsDependencies:
         """Returs the content of the tools dependencies formatted."""
@@ -115,16 +195,30 @@ class ToolLoader:
     def _is_tool_implemented(self, tool_name: str) -> bool:
         return tool_name in {tool.__name__ for tool in ToolWrapper.__subclasses__()}
 
+    def _get_tool_class(self, tool_name: str):
+        """Get tool class from either tools module or globals."""
+        if ToolLoader._tools_module and hasattr(ToolLoader._tools_module, tool_name):
+            return getattr(ToolLoader._tools_module, tool_name)
+        return globals().get(tool_name)
+
     def load_configured_tools(self) -> LangChainTools:
-        """Loads the configured tools. If a tool has dependencies, they will be installed dinamically."""
+        """Loads the configured tools. Dependencies should already be installed."""
+        # Return cached tools if already loaded
+        if ToolLoader._configured_tools is not None:
+            return ToolLoader._configured_tools
+
+        # Import tools module after dependencies are installed
+        self._import_tools()
+
         configured_tools: LangChainTools = []
 
         # load native tools implemented by copilot
         for tool_name, enabled in self.native_tool_config.items():
             print_green(f"Loading native tool {tool_name}")
             if enabled and self._is_tool_implemented(tool_name):
-                class_name = globals()[tool_name]
-                configured_tools.append(class_name())
+                class_name = self._get_tool_class(tool_name)
+                if class_name:
+                    configured_tools.append(class_name())
             # nothing todo, tool_name is disabled from config
             print_green(SUCCESS_CODE)
 
@@ -132,17 +226,110 @@ class ToolLoader:
         for tool_name, enabled in self.third_party_tool_config.items():
             print_green(f"Loading third party tool {tool_name}")
             if enabled and self._is_tool_implemented(tool_name):
-                class_name = globals()[tool_name]
-                configured_tools.append(class_name())
-                if tool_name in self._tools_dependencies.keys() and (
-                    tool_name not in ToolLoader.installed_deps
-                ):
-                    print_yellow(f"Installing dependencies for {tool_name} tool: ...")
-                    tool_installer.install_dependencies(dependencies=self._tools_dependencies[tool_name])
-                    ToolLoader.installed_deps.append(tool_name)
-                # nothing todo, tool_name has not dependendies defined
-
+                class_name = self._get_tool_class(tool_name)
+                if class_name:
+                    configured_tools.append(class_name())
             # nothing todo, tool_name is disabled from config
             print_green(SUCCESS_CODE)
-        utils.copilot_info("Dependencies installed successfully")
+
+        # Cache the loaded tools
+        ToolLoader._configured_tools = configured_tools
         return configured_tools
+
+    def _get_filtered_base_tools(self, enabled_tools: Optional[List[ToolSchema]]) -> LangChainTools:
+        """Get base configured tools, filtered by enabled_tools."""
+        base_tools = self.load_configured_tools()
+
+        # If no enabled_tools specified, agent has no permission for base tools
+        if not enabled_tools:
+            return []
+
+        enabled_tool_names = {tool.function.name for tool in enabled_tools}
+        return [tool for tool in base_tools if tool.name in enabled_tool_names]
+
+    def _add_kb_tool(self, tools: LangChainTools, agent_configuration: Optional[AssistantSchema]) -> None:
+        """Add knowledge base tool if available and requested."""
+        if not agent_configuration:
+            return
+
+        kb_tool = get_kb_tool(agent_configuration)
+        if kb_tool is not None:
+            tools.append(kb_tool)
+
+    def _add_openapi_tools(
+        self, tools: LangChainTools, agent_configuration: Optional[AssistantSchema]
+    ) -> None:
+        """Add OpenAPI generated tools if available and requested."""
+        if not agent_configuration or not agent_configuration.specs:
+            return
+
+        for spec in agent_configuration.specs:
+            if spec.type == "FLOW":
+                try:
+                    api_spec = json.loads(spec.spec)
+                    openapi_tools = generate_tools_from_openapi(api_spec)
+                    tools.extend(openapi_tools)
+                except (json.JSONDecodeError, Exception) as e:
+                    print_yellow(f"Warning: Could not generate tools from OpenAPI spec: {e}")
+
+    def get_all_tools(
+        self,
+        agent_configuration: Optional[AssistantSchema] = None,
+        enabled_tools: Optional[List[ToolSchema]] = None,
+        include_kb_tool: bool = True,
+        include_openapi_tools: bool = True,
+    ) -> LangChainTools:
+        """
+        Get all tools including base configured tools plus dynamically generated ones.
+
+        Args:
+            agent_configuration: Assistant configuration containing KB and API specs
+            enabled_tools: List of specific tools the agent has permission to use.
+                          If None or empty, NO base tools will be included (agent has no permissions).
+                          Only the tools specified here will be loaded from the base configuration.
+            include_kb_tool: Whether to include knowledge base search tool
+            include_openapi_tools: Whether to include OpenAPI generated tools
+
+        Returns:
+            Complete list of tools including filtered base + dynamic tools
+        """
+        # Start with base configured tools (filtered if needed)
+        # Make a copy to avoid modifying cached/shared lists
+        all_tools = self._get_filtered_base_tools(enabled_tools).copy()
+
+        # Add knowledge base tool if requested
+        if include_kb_tool:
+            self._add_kb_tool(all_tools, agent_configuration)
+
+        # Add OpenAPI generated tools if requested
+        if include_openapi_tools:
+            self._add_openapi_tools(all_tools, agent_configuration)
+
+        return all_tools
+
+    def get_enabled_tool_functions(
+        self,
+        enabled_tools: Optional[List[ToolSchema]] = None,
+        agent_configuration: Optional[AssistantSchema] = None,
+        include_kb_tool: bool = True,
+        include_openapi_tools: bool = True,
+    ) -> LangChainTools:
+        """
+        Get only the specific tools that are enabled, plus dynamic tools.
+        This is useful for agents that need to filter tools based on configuration.
+
+        Args:
+            enabled_tools: List of specific tools to enable
+            agent_configuration: Assistant configuration for dynamic tools
+            include_kb_tool: Whether to include knowledge base search tool
+            include_openapi_tools: Whether to include OpenAPI generated tools
+
+        Returns:
+            Filtered list of enabled tools plus dynamic tools
+        """
+        return self.get_all_tools(
+            agent_configuration=agent_configuration,
+            enabled_tools=enabled_tools,
+            include_kb_tool=include_kb_tool,
+            include_openapi_tools=include_openapi_tools,
+        )
