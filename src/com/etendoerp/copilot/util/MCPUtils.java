@@ -53,6 +53,7 @@ public class MCPUtils {
                 try {
                     // Parse the JSON structure and add it to the array
                     JSONObject mcpJson = new JSONObject(mcpConfig.getJsonStructure());
+                    mcpJson.put("name", mcpConfig.getName());
                     mcpConfigurations.put(mcpJson);
                 } catch (JSONException e) {
                     log.warn("Invalid JSON structure in MCP configuration: " + mcpConfig.getName(), e);

@@ -39,24 +39,6 @@ SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 tools_loaded = {}
 
 
-def _process_nested_mcp_servers(server_config: dict, mcp_config: dict) -> None:
-    """Process nested MCP servers configuration."""
-    nested_servers = server_config['mcpServers']
-    for nested_name, nested_config in nested_servers.items():
-        if not nested_config.get('disabled', False):
-            mcp_config[nested_name] = nested_config
-
-
-def _process_direct_mcp_server(server_config: dict, mcp_config: dict) -> None:
-    """Process direct MCP server configuration."""
-    server_name = server_config.get('name', f"server_{len(mcp_config)}")
-
-    if server_config.get('disabled', False):
-        return
-
-    mcp_config[server_name] = server_config
-
-
 def convert_mcp_servers_config(mcp_servers_list: list) -> dict:
     """
     Convert MCP servers list from QuestionSchema to the format expected by MultiServerMCPClient.
@@ -72,10 +54,19 @@ def convert_mcp_servers_config(mcp_servers_list: list) -> dict:
 
     mcp_config = {}
     for server_config in mcp_servers_list:
-        if 'mcpServers' in server_config:
-            _process_nested_mcp_servers(server_config, mcp_config)
-        else:
-            _process_direct_mcp_server(server_config, mcp_config)
+        server_name = server_config.get('name', f"server_{len(mcp_config)}")
+        
+        if server_config.get('disabled', False):
+            continue
+            
+        # Create a copy of the server config without the 'name' field
+        config_copy = {k: v for k, v in server_config.items() if k != 'name'}
+        
+        # Set default transport to stdio if not provided
+        if 'transport' not in config_copy:
+            config_copy['transport'] = 'stdio'
+            
+        mcp_config[server_name] = config_copy
 
     return mcp_config
 

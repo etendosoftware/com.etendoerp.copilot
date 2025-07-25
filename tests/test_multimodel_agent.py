@@ -147,26 +147,22 @@ class TestMultimodelAgent:
         assert result == {}
 
     def test_convert_mcp_servers_config_nested(self):
-        """Test MCP server config conversion with nested servers."""
-        import tempfile
-        with tempfile.TemporaryDirectory() as temp_dir:
-            mcp_servers = [
-                {
-                    "mcpServers": {
-                        "filesystem": {
-                            "command": "npx",
-                            "args": ["-y", "@modelcontextprotocol/server-filesystem", temp_dir],
-                            "disabled": False
-                        }
-                    }
-                }
-            ]
-            
-            result = convert_mcp_servers_config(mcp_servers)
-            
-            assert "filesystem" in result
-            assert result["filesystem"]["command"] == "npx"
-            assert result["filesystem"]["args"][0] == "-y"
+        """Test MCP server config conversion with direct server config (updated)."""
+        mcp_servers = [
+            {
+                "name": "filesystem",
+                "command": "npx",
+                "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+                "disabled": False
+            }
+        ]
+        
+        result = convert_mcp_servers_config(mcp_servers)
+        
+        assert "filesystem" in result
+        assert result["filesystem"]["command"] == "npx"
+        assert result["filesystem"]["args"][0] == "-y"
+        assert result["filesystem"]["transport"] == "stdio"  # Default transport added
 
     def test_convert_mcp_servers_config_direct(self):
         """Test MCP server config conversion with direct server config."""
@@ -184,6 +180,44 @@ class TestMultimodelAgent:
         assert "test_server" in result
         assert result["test_server"]["command"] == "python"
         assert result["test_server"]["args"] == ["-m", "test_server"]
+        assert result["test_server"]["transport"] == "stdio"  # Default transport added
+        assert "name" not in result["test_server"]  # Name field should be removed
+
+    def test_convert_mcp_servers_config_with_custom_transport(self):
+        """Test MCP server config conversion with custom transport."""
+        mcp_servers = [
+            {
+                "name": "custom_server",
+                "command": "python",
+                "transport": "sse",
+                "disabled": False
+            }
+        ]
+        
+        result = convert_mcp_servers_config(mcp_servers)
+        
+        assert "custom_server" in result
+        assert result["custom_server"]["transport"] == "sse"  # Custom transport preserved
+
+    def test_convert_mcp_servers_config_no_name_field(self):
+        """Test MCP server config conversion without name field (auto-generated)."""
+        mcp_servers = [
+            {
+                "command": "python",
+                "args": ["-m", "test1"]
+            },
+            {
+                "command": "node",
+                "args": ["server.js"]
+            }
+        ]
+        
+        result = convert_mcp_servers_config(mcp_servers)
+        
+        assert "server_0" in result
+        assert "server_1" in result
+        assert result["server_0"]["command"] == "python"
+        assert result["server_1"]["command"] == "node"
 
     def test_convert_mcp_servers_config_disabled(self):
         """Test MCP server config conversion with disabled server."""
