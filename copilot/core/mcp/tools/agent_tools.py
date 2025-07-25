@@ -22,7 +22,6 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-
 # Constants
 APPLICATION_JSON = "application/json"
 ERROR_NO_AGENT_ID = "No agent identifier available"
@@ -393,7 +392,9 @@ def register_agent_tools(app, identifier: Optional[str] = None, etendo_token: Op
             include_openapi_tools=True,
         )
 
-        mcp_tools = convert_langchain_tools_to_mcp(_base_tools)
+        mcp_tools = [_gen_prompt_tool(agent_config)]
+        mcp_tools.extend(convert_langchain_tools_to_mcp(_base_tools))
+
         for tool in mcp_tools:
             # Use add_tool method which expects a Tool object
             app.add_tool(tool)
@@ -405,6 +406,31 @@ def register_agent_tools(app, identifier: Optional[str] = None, etendo_token: Op
     except Exception as e:
         copilot_error(f"Error listing agent tools: {e}")
         return {"success": False, "error": f"Unexpected error: {str(e)}"}
+
+
+def _gen_prompt_tool(agent_config: AssistantSchema, identifier: Optional[str] = None) -> Tool:
+    # add a tool that retrieves the agent prompt
+    def _get_prompt_tool() -> dict:
+        """Tool to retrieve the agent structure."""
+        try:
+            return {
+                "success": True,
+                "agent_name": agent_config.name or identifier,
+                "agent_prompt": agent_config.system_prompt or "No system prompt configured",
+            }
+
+        except Exception as e:
+            copilot_error(f"Error getting agent structure: {e}")
+            return {"success": False, "error": f"Unexpected error: {str(e)}"}
+
+    get_prompt_tool = Tool.from_function(
+        fn=_get_prompt_tool,
+        name="get_agent_prompt",
+        description="Retrieve the agent's system prompt and configuration",
+        tags={"agent", "structure"},
+        enabled=True,
+    )
+    return get_prompt_tool
 
 
 async def initialize_agent_from_etendo(identifier: str):
