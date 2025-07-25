@@ -21,6 +21,7 @@ from copilot.core.agent import AgentEnum, AgentResponse, copilot_agents
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
+from copilot.core.etendo_utils import validate_etendo_token
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import (
@@ -491,7 +492,7 @@ def check_copilot_host(authorization: str = Header(None)):
     try:
         etendo_host_docker = etendo_utils.get_etendo_host()
 
-        if not authorization or not authorization.startswith("Bearer "):
+        if not authorization or not validate_etendo_token(authorization):
             raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
 
         if not etendo_host_docker:

@@ -9,6 +9,8 @@ import logging
 from typing import Optional
 
 import httpx
+from copilot.core.etendo_utils import normalize_etendo_token, validate_etendo_token
+from copilot.core.mcp.auth_utils import extract_etendo_token_from_mcp_context
 from copilot.core.utils import read_optional_env_var
 
 logger = logging.getLogger(__name__)
@@ -62,16 +64,8 @@ def register_basic_tools(app):
         return "Hello! You are connected to Etendo Copilot MCP Server!"
 
     def get_etendo_token():
-        from fastmcp.server.dependencies import get_context
-
-        context = get_context()
-        req = context.get_http_request()
-        token = req.headers.get("etendo-token", None)
-        if not token or token == "":
-            return None
-        if not token.startswith("Bearer "):
-            token = f"Bearer {token}"
-        return token
+        """Get Etendo token from MCP request context using the generalized auth utility."""
+        return extract_etendo_token_from_mcp_context()
 
     @app.tool
     def server_info() -> dict:
@@ -97,10 +91,19 @@ def register_basic_tools(app):
         """
         try:
             etendo_token = get_etendo_token()
-            if not etendo_token or not etendo_token.startswith("Bearer "):
+            if not etendo_token:
                 return {
                     "success": False,
-                    "error": "No valid Bearer token found in request headers. Authentication required.",
+                    "error": "No authentication token found in request headers. Authentication required.",
+                    "status_code": 401,
+                }
+
+            # Normalize the token first, then validate
+            normalized_token = normalize_etendo_token(etendo_token)
+            if not validate_etendo_token(normalized_token):
+                return {
+                    "success": False,
+                    "error": "Invalid Bearer token format. Authentication required.",
                     "status_code": 401,
                 }
 
@@ -114,7 +117,7 @@ def register_basic_tools(app):
             headers = {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "Authorization": etendo_token,  # Use the token from MCP connection
+                "Authorization": normalized_token,  # Use the normalized token
             }
 
             # Get Etendo host from environment variable
