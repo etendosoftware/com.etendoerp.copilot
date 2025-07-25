@@ -166,7 +166,7 @@ fastapi==0.115.12
     #   etendo-copilot-core
 fastjsonschema==2.21.1
     # via poetry
-fastmcp==2.10.5
+fastmcp==2.10.6
     # via etendo-copilot-core
 filelock==3.18.0
     # via

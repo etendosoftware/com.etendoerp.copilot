@@ -1065,7 +1065,7 @@ requires-dist = [
     { name = "curlify", specifier = ">=2.2.1,<3" },
     { name = "debugpy", specifier = ">=1.8.7,<2" },
     { name = "fastapi", specifier = ">=0.115.4,<0.116" },
-    { name = "fastmcp", specifier = ">=2.10.5" },
+    { name = "fastmcp", specifier = "==2.10.6" },
     { name = "frontend", specifier = ">=0.0.3,<0.0.4" },
     { name = "grandalf", specifier = ">=0.8,<0.9" },
     { name = "ipython", specifier = ">=8.25.0,<9" },
@@ -1167,7 +1167,7 @@ wheels = [
 
 [[package]]
 name = "fastmcp"
-version = "2.10.5"
+version = "2.10.6"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "authlib" },
@@ -1181,9 +1181,9 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ec/08/7e9c8dc9c2712ccc6393383ef6d7999b84f658ee37cabc42f853e72f86e1/fastmcp-2.10.5.tar.gz", hash = "sha256:f829e0b11c4d136db1d81e20e8acb19cf5108f64059482d1853f3c940326cf04", size = 1618410, upload-time = "2025-07-11T22:23:32.968Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/a0/eceb88277ef9e3a442e099377a9b9c29fb2fa724e234486e03a44ca1c677/fastmcp-2.10.6.tar.gz", hash = "sha256:5a7b3301f9f1b64610430caef743ac70175c4b812e1949f037e4db65b0a42c5a", size = 1640538, upload-time = "2025-07-19T20:02:12.543Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/74/453a1e6d7673b831a04ac0167d34a3c21cf2a17d55b4d242f262474fff1f/fastmcp-2.10.5-py3-none-any.whl", hash = "sha256:ab218f6a66b61f6f83c413d37aa18f5c30882c44c8925f39ecd02dd855826540", size = 201275, upload-time = "2025-07-11T22:23:31.314Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/05/4958cccbe862958d862b6a15f2d10d2f5ec3c411268dcb131a433e5e7a0d/fastmcp-2.10.6-py3-none-any.whl", hash = "sha256:9782416a8848cc0f4cfcc578e5c17834da620bef8ecf4d0daabf5dd1272411a2", size = 202613, upload-time = "2025-07-19T20:02:11.47Z" },
 ]
 
 [[package]]
