@@ -129,58 +129,43 @@ def _create_langchain_tool_executor(langchain_tool: BaseTool, unify_arguments: b
     # Generate function code based on unify_arguments parameter
     param_names = list(tool_args_model.model_fields.keys())
 
-    if unify_arguments:
-        # Create function that takes a single 'args' parameter as a dictionary
-        copilot_debug(
-            f"Creating unified executor for tool '{langchain_tool.name}' with unified args: {param_names}"
-        )
+    # Create function with individual parameters (original behavior)
+    param_definitions = []
+    required_params = []
+    optional_params = []
 
-        function_code = f'''
-from typing import Dict, Any
-def dynamic_tool_executor(args: Dict[str, Any]):
-    """Execute {langchain_tool.name} with unified arguments object."""
-    # Use args directly, filtering out None values
-    cleaned_input = {{k: v for k, v in args.items() if v is not None}}
+    # Separate required and optional parameters to ensure correct order
+    for field_name, field_info in tool_args_model.model_fields.items():
+        param_def = _build_param_definition(field_name, field_info)
+        if field_info.is_required():
+            required_params.append(param_def)
+        else:
+            optional_params.append(param_def)
 
-    # Execute the tool
-    return tool_instance.run(cleaned_input)
-'''
-    else:
-        # Create function with individual parameters (original behavior)
-        param_definitions = []
-        required_params = []
-        optional_params = []
+    # Combine with required parameters first, then optional ones
+    param_definitions = required_params + optional_params
+    param_string = ", ".join(param_definitions)
+    copilot_debug(
+        f"Creating individual parameters executor for tool '{langchain_tool.name}' with params: {param_names}"
+    )
 
-        # Separate required and optional parameters to ensure correct order
-        for field_name, field_info in tool_args_model.model_fields.items():
-            param_def = _build_param_definition(field_name, field_info)
-            if field_info.is_required():
-                required_params.append(param_def)
-            else:
-                optional_params.append(param_def)
-
-        # Combine with required parameters first, then optional ones
-        param_definitions = required_params + optional_params
-        param_string = ", ".join(param_definitions)
-        copilot_debug(
-            f"Creating individual parameters executor for tool '{langchain_tool.name}' with params: {param_names}"
-        )
-
-        function_code = f'''
+    function_code = f'''
 from typing import Dict, Any
 def dynamic_tool_executor({param_string}):
     """Execute {langchain_tool.name} with specific parameters."""
     # Collect arguments into dictionary
     input_dict = {{
-{",".join([f"        '{param}': {param}" for param in param_names])}
+    {",".join([f"        '{param}': {param}" for param in param_names])}
     }}
-
+    print(f"Executing tool '{langchain_tool.name}' with input: {{input_dict}}")
     # Filter out None values
     cleaned_input = {{k: v for k, v in input_dict.items() if v is not None}}
 
+    print(f"Cleaned input for tool '{langchain_tool.name}': {{cleaned_input}}")
+
     # Execute the tool
     return tool_instance.run(cleaned_input)
-'''
+    '''
 
     # Execute the function code
     namespace = {
