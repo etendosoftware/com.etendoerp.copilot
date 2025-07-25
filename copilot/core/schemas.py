@@ -48,6 +48,7 @@ class AssistantSchema(BaseModel):
     kb_search_k: Optional[int] = 4
     specs: Optional[list[AssistantSpecs]] = None
     code_execution: Optional[bool] = False
+    mcp_servers: Optional[list[dict]] = None
 
 
 class QuestionSchema(AssistantSchema):

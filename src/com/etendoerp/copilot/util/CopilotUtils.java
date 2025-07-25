@@ -53,8 +53,10 @@ import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.model.common.enterprise.Warehouse;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.CopilotAppMCP;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.CopilotMCP;
 import com.etendoerp.copilot.data.CopilotModel;
 import com.etendoerp.copilot.data.TeamMember;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
@@ -1118,6 +1120,12 @@ public class CopilotUtils {
       }
     }
     jsonRequestForCopilot.put("specs", appSpecs);
+    
+    // Add MCP configurations
+    JSONArray mcpConfigurations = MCPUtils.getMCPConfigurations(copilotApp);
+    if (mcpConfigurations.length() > 0) {
+      jsonRequestForCopilot.put("mcp_servers", mcpConfigurations);
+    }
   }
 
   /**
