@@ -267,7 +267,7 @@ class ToolLoader:
                     api_spec = json.loads(spec.spec)
                     openapi_tools = generate_tools_from_openapi(api_spec)
                     tools.extend(openapi_tools)
-                except (json.JSONDecodeError, Exception) as e:
+                except Exception as e:
                     print_yellow(f"Warning: Could not generate tools from OpenAPI spec: {e}")
 
     def get_all_tools(
