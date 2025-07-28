@@ -4,7 +4,6 @@ Tests for MCP base tools module.
 This module tests the base tool classes and utilities for MCP tools.
 """
 
-
 import pytest
 from copilot.core.mcp.tools.base import BaseTool, ToolResult
 
@@ -304,14 +303,6 @@ class TestBaseToolInheritance:
 
 class TestModuleIntegration:
     """Integration tests for the base tools module."""
-
-    def test_module_imports(self):
-        """Test that all expected classes can be imported."""
-        from copilot.core.mcp.tools.base import BaseTool, ToolResult
-
-        # Verify classes exist
-        assert BaseTool is not None
-        assert ToolResult is not None
 
     def test_pydantic_integration(self):
         """Test integration with Pydantic."""

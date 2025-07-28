@@ -51,7 +51,6 @@ class LangchainAgent(CopilotAgent):
         tools: list[ToolSchema] = None,
         system_prompt: str = None,
         temperature: float = 1,
-        kb_vectordb_id: Optional[str] = None,
         agent_configuration: Optional[AssistantSchema] = None,
     ):
         """Construct and return an agent from scratch, using LangChain Expression Language.
@@ -67,7 +66,11 @@ class LangchainAgent(CopilotAgent):
             agent = self.get_gemini_agent(open_ai_model)
         else:
             agent = self.get_openai_agent(
-                open_ai_model, tools, system_prompt, temperature, kb_vectordb_id, agent_configuration
+                open_ai_model=open_ai_model,
+                tools=tools,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                agent_configuration=agent_configuration,
             )
 
         return agent
@@ -91,8 +94,7 @@ class LangchainAgent(CopilotAgent):
         open_ai_model,
         tools,
         system_prompt,
-        temperature=1,
-        kb_vectordb_id: Optional[str] = None,
+        temperature: float = 1,
         agent_configuration: Optional[AssistantSchema] = None,
     ):
         _llm = init_chat_model(

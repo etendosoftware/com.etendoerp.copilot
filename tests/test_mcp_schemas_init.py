@@ -64,32 +64,6 @@ class TestModuleImports:
         assert copilot.core.mcp.schemas.__doc__ is not None
         assert "MCP Schemas module" in copilot.core.mcp.schemas.__doc__
 
-    def test_protocol_module_imports(self):
-        """Test that protocol module imports work correctly."""
-        # This tests the internal import structure
-        try:
-            from copilot.core.mcp.schemas.protocol import (
-                ListResourcesRequest,
-                ListToolsRequest,
-                MCPError,
-                MCPRequest,
-                MCPResponse,
-                ResourceReadRequest,
-                ToolCallRequest,
-            )
-
-            # All imports should succeed
-            assert MCPRequest is not None
-            assert MCPResponse is not None
-            assert MCPError is not None
-            assert ToolCallRequest is not None
-            assert ResourceReadRequest is not None
-            assert ListToolsRequest is not None
-            assert ListResourcesRequest is not None
-
-        except ImportError as e:
-            pytest.fail(f"Failed to import from protocol module: {e}")
-
 
 class TestSchemaAvailability:
     """Test that all schemas are properly available through the module."""
@@ -165,31 +139,6 @@ class TestSchemaInheritance:
             # Note: Some might be other types like dataclasses or regular classes
             # We check if they have basic attributes that suggest they're data models
             assert hasattr(schema, "__name__")
-
-    def test_schema_instantiation_requirements(self):
-        """Test that schemas can be inspected for instantiation requirements."""
-        import inspect
-
-        schemas_to_test = [
-            MCPRequest,
-            MCPResponse,
-            MCPError,
-            ToolCallRequest,
-            ResourceReadRequest,
-            ListToolsRequest,
-            ListResourcesRequest,
-        ]
-
-        for schema in schemas_to_test:
-            # Should be able to get signature
-            try:
-                sig = inspect.signature(schema)
-                # Should have some kind of signature (even if empty)
-                assert sig is not None or True  # Always passes but shows intent
-            except (ValueError, TypeError):
-                # Some schemas might not have inspectable signatures
-                # This is acceptable for certain types of schemas
-                pass
 
 
 class TestSchemaIntegration:

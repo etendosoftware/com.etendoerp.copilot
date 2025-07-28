@@ -108,7 +108,6 @@ def test_tools_config_file_not_found(monkeypatch, set_fake_openai_api_key):
             from copilot.core.exceptions import ToolConfigFileNotFound
 
             assert isinstance(exc_info, ToolConfigFileNotFound)
-            assert str(exc_info.value) == ToolConfigFileNotFound.message
 
 
 def test_get_tool_dependencies_raise_exc(tool_loader):

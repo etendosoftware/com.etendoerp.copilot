@@ -11,7 +11,6 @@ from . import tool_installer, utils
 # fmt: off
 from .exceptions import (
     ApplicationError,
-    ToolConfigFileNotFound,
     ToolDependenciesFileNotFound,
 )
 from .kb_utils import get_kb_tool
@@ -21,7 +20,7 @@ from .tool_wrapper import ToolWrapper
 from .toolgen.ApiTool import generate_tools_from_openapi
 
 # fmt: on
-from .utils import SUCCESS_CODE, print_green, print_yellow
+from .utils import print_green, print_yellow
 
 LangChainTools: TypeAlias = List[ToolWrapper]
 
@@ -58,7 +57,7 @@ class ToolLoader:
         if hasattr(self, "_initialized"):
             return
 
-        self._tools_config = self._get_tool_config(filepath=config_filename)
+        self._tools_config = self._get_tool_config()
         self._tools_dependencies = self._get_tool_dependencies(filepath=tools_deps_filename)
 
         # Install dependencies for enabled tools BEFORE importing tools
@@ -105,7 +104,7 @@ class ToolLoader:
             print_yellow(f"Warning: Could not import tools module: {e}")
             ToolLoader._tools_module = None
 
-    def _get_tool_config(self, filepath: Optional[str]) -> Dict:
+    def _get_tool_config(self) -> Dict:
         """Generate dynamic tool configuration by scanning available tool classes."""
         print_yellow("Generating configuration dynamically from tools directory...")
         return self._generate_dynamic_tool_config()

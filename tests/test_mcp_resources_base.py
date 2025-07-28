@@ -4,7 +4,6 @@ Tests for MCP base resources module.
 This module tests the base resource classes and utilities for MCP resources.
 """
 
-
 import pytest
 from copilot.core.mcp.resources.base import BaseResource, ResourceContent
 
@@ -319,14 +318,6 @@ class TestToMcpResource:
 
 class TestModuleIntegration:
     """Integration tests for the base resources module."""
-
-    def test_module_imports(self):
-        """Test that all expected classes can be imported."""
-        from copilot.core.mcp.resources.base import BaseResource, ResourceContent
-
-        # Verify classes exist
-        assert BaseResource is not None
-        assert ResourceContent is not None
 
     def test_pydantic_integration(self):
         """Test integration with Pydantic."""
