@@ -23,7 +23,7 @@
 <!--07D09DCE8CF448D98685D73E3DBFE7EB-->  <NAME><![CDATA[Retrieval]]></NAME>
 <!--07D09DCE8CF448D98685D73E3DBFE7EB-->  <PRINTNAME><![CDATA[Retrieval]]></PRINTNAME>
 <!--07D09DCE8CF448D98685D73E3DBFE7EB-->  <DESCRIPTION><![CDATA[Enable knowledge retrieval from uploaded files]]></DESCRIPTION>
-<!--07D09DCE8CF448D98685D73E3DBFE7EB-->  <HELP><![CDATA[Retrieval enables the assistant with knowledge from files that you or your users upload. Once a file is uploaded, the assistant automatically decides when to retrieve content based on user requests]]></HELP>
+<!--07D09DCE8CF448D98685D73E3DBFE7EB-->  <HELP><![CDATA[Retrieval enables the agent with knowledge from files that you or your users upload. Once a file is uploaded, the agent automatically decides when to retrieve content based on user requests]]></HELP>
 <!--07D09DCE8CF448D98685D73E3DBFE7EB-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--07D09DCE8CF448D98685D73E3DBFE7EB-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--07D09DCE8CF448D98685D73E3DBFE7EB--></AD_ELEMENT>
@@ -135,7 +135,7 @@
 <!--2170B97569494C6BBBDC120924EA4240-->  <NAME><![CDATA[Sync Tool Structure]]></NAME>
 <!--2170B97569494C6BBBDC120924EA4240-->  <PRINTNAME><![CDATA[Sync Tool Structure]]></PRINTNAME>
 <!--2170B97569494C6BBBDC120924EA4240-->  <DESCRIPTION><![CDATA[Get a Tool's parameter information from its class]]></DESCRIPTION>
-<!--2170B97569494C6BBBDC120924EA4240-->  <HELP><![CDATA[This process will load the Description and the JSON Info fields of the tool. This data is get from the tool class. This information is used to create the parameters in the Assistant]]></HELP>
+<!--2170B97569494C6BBBDC120924EA4240-->  <HELP><![CDATA[This process will load the Description and the JSON Info fields of the tool. This data is get from the tool class. This information is used to create the parameters in the agent]]></HELP>
 <!--2170B97569494C6BBBDC120924EA4240-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--2170B97569494C6BBBDC120924EA4240-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--2170B97569494C6BBBDC120924EA4240--></AD_ELEMENT>
@@ -188,8 +188,8 @@
 <!--2E093C1D73A346E78DBA1B618F264F29-->  <COLUMNNAME><![CDATA[Openai_Id_File]]></COLUMNNAME>
 <!--2E093C1D73A346E78DBA1B618F264F29-->  <NAME><![CDATA[OpenAI File ID]]></NAME>
 <!--2E093C1D73A346E78DBA1B618F264F29-->  <PRINTNAME><![CDATA[OpenAI File ID]]></PRINTNAME>
-<!--2E093C1D73A346E78DBA1B618F264F29-->  <DESCRIPTION><![CDATA[File record for Assistant to use]]></DESCRIPTION>
-<!--2E093C1D73A346E78DBA1B618F264F29-->  <HELP><![CDATA[The file that will be uploaded to the assistant and used as knowledge base]]></HELP>
+<!--2E093C1D73A346E78DBA1B618F264F29-->  <DESCRIPTION><![CDATA[File record for agent to use]]></DESCRIPTION>
+<!--2E093C1D73A346E78DBA1B618F264F29-->  <HELP><![CDATA[The file that will be uploaded to the agent and used as knowledge base]]></HELP>
 <!--2E093C1D73A346E78DBA1B618F264F29-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--2E093C1D73A346E78DBA1B618F264F29-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--2E093C1D73A346E78DBA1B618F264F29--></AD_ELEMENT>
@@ -256,8 +256,8 @@
 <!--35D15513772343078A8FD967C859F329-->  <COLUMNNAME><![CDATA[Etdoc_Prompt]]></COLUMNNAME>
 <!--35D15513772343078A8FD967C859F329-->  <NAME><![CDATA[Prompt]]></NAME>
 <!--35D15513772343078A8FD967C859F329-->  <PRINTNAME><![CDATA[Prompt]]></PRINTNAME>
-<!--35D15513772343078A8FD967C859F329-->  <DESCRIPTION><![CDATA[Prompt sended to assistant.]]></DESCRIPTION>
-<!--35D15513772343078A8FD967C859F329-->  <HELP><![CDATA[Reference only field to store message sended to assistant.]]></HELP>
+<!--35D15513772343078A8FD967C859F329-->  <DESCRIPTION><![CDATA[Prompt sended to agent.]]></DESCRIPTION>
+<!--35D15513772343078A8FD967C859F329-->  <HELP><![CDATA[Reference only field to store message sended to agent.]]></HELP>
 <!--35D15513772343078A8FD967C859F329-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--35D15513772343078A8FD967C859F329-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--35D15513772343078A8FD967C859F329--></AD_ELEMENT>
@@ -298,8 +298,8 @@
 <!--39FD5138287441BEA0551BE3A02961A6-->  <COLUMNNAME><![CDATA[System_app]]></COLUMNNAME>
 <!--39FD5138287441BEA0551BE3A02961A6-->  <NAME><![CDATA[System App]]></NAME>
 <!--39FD5138287441BEA0551BE3A02961A6-->  <PRINTNAME><![CDATA[System App]]></PRINTNAME>
-<!--39FD5138287441BEA0551BE3A02961A6-->  <DESCRIPTION><![CDATA[Indicates if the Assistant is only for System Administrator]]></DESCRIPTION>
-<!--39FD5138287441BEA0551BE3A02961A6-->  <HELP><![CDATA[The function of this check is to limit the use of certain Assistant to the system administrator and not to the end user.]]></HELP>
+<!--39FD5138287441BEA0551BE3A02961A6-->  <DESCRIPTION><![CDATA[Indicates if the agent is only for System Administrator]]></DESCRIPTION>
+<!--39FD5138287441BEA0551BE3A02961A6-->  <HELP><![CDATA[The function of this check is to limit the use of certain agent to the system administrator and not to the end user.]]></HELP>
 <!--39FD5138287441BEA0551BE3A02961A6-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--39FD5138287441BEA0551BE3A02961A6-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--39FD5138287441BEA0551BE3A02961A6--></AD_ELEMENT>
@@ -350,7 +350,7 @@
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <COLUMNNAME><![CDATA[Hql]]></COLUMNNAME>
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <NAME><![CDATA[Hql]]></NAME>
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <PRINTNAME><![CDATA[Hql]]></PRINTNAME>
-<!--449B104D66B5430BA144C60E3E83B2FB-->  <DESCRIPTION><![CDATA[HQL clause for Assistant context.]]></DESCRIPTION>
+<!--449B104D66B5430BA144C60E3E83B2FB-->  <DESCRIPTION><![CDATA[HQL clause for agent context.]]></DESCRIPTION>
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <HELP><![CDATA[Adds an HQL statement to model the data to be sent. This HQL will be evaluated and its results will be exported in a .csv file.]]></HELP>
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
@@ -365,7 +365,7 @@
 <!--455D579E05AB4D8EB7D81984545420D4-->  <NAME><![CDATA[Model]]></NAME>
 <!--455D579E05AB4D8EB7D81984545420D4-->  <PRINTNAME><![CDATA[Model]]></PRINTNAME>
 <!--455D579E05AB4D8EB7D81984545420D4-->  <DESCRIPTION><![CDATA[Dropdown with the LLM models available]]></DESCRIPTION>
-<!--455D579E05AB4D8EB7D81984545420D4-->  <HELP><![CDATA[If this field is empty, the 'Sync Assistant' process obtains the available models]]></HELP>
+<!--455D579E05AB4D8EB7D81984545420D4-->  <HELP><![CDATA[If this field is empty, the 'Sync Agent' process obtains the available models]]></HELP>
 <!--455D579E05AB4D8EB7D81984545420D4-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--455D579E05AB4D8EB7D81984545420D4-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--455D579E05AB4D8EB7D81984545420D4--></AD_ELEMENT>
@@ -381,7 +381,7 @@
 <!--4A3A8363E805476E84672269D7935842-->  <DESCRIPTION><![CDATA[The type of Application being defined]]></DESCRIPTION>
 <!--4A3A8363E805476E84672269D7935842-->  <HELP><![CDATA[There are two types of applications:
 * Langchain Agent: perform specific tasks in natural language
-* OpenAI Assistant: OpenAI technology. Self-trained with available knowledge base]]></HELP>
+* OpenAI agent: OpenAI technology. Self-trained with available knowledge base]]></HELP>
 <!--4A3A8363E805476E84672269D7935842-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--4A3A8363E805476E84672269D7935842-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--4A3A8363E805476E84672269D7935842--></AD_ELEMENT>
@@ -395,7 +395,7 @@
 <!--4A6450A744DC4AA48DC07C529F6790E3-->  <NAME><![CDATA[Member]]></NAME>
 <!--4A6450A744DC4AA48DC07C529F6790E3-->  <PRINTNAME><![CDATA[Member]]></PRINTNAME>
 <!--4A6450A744DC4AA48DC07C529F6790E3-->  <DESCRIPTION><![CDATA[Link to the member of the Team.]]></DESCRIPTION>
-<!--4A6450A744DC4AA48DC07C529F6790E3-->  <HELP><![CDATA[Team members are apps (assistants) that are part of the work team.]]></HELP>
+<!--4A6450A744DC4AA48DC07C529F6790E3-->  <HELP><![CDATA[Team members are apps (agent) that are part of the work team.]]></HELP>
 <!--4A6450A744DC4AA48DC07C529F6790E3-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--4A6450A744DC4AA48DC07C529F6790E3-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--4A6450A744DC4AA48DC07C529F6790E3--></AD_ELEMENT>
@@ -478,7 +478,7 @@
 <!--59BECE1DF66F4E22AD59BB966EDFFBCA-->  <COLUMNNAME><![CDATA[Code_Interpreter]]></COLUMNNAME>
 <!--59BECE1DF66F4E22AD59BB966EDFFBCA-->  <NAME><![CDATA[Code Execution (Experimental)]]></NAME>
 <!--59BECE1DF66F4E22AD59BB966EDFFBCA-->  <PRINTNAME><![CDATA[Code Interpreter]]></PRINTNAME>
-<!--59BECE1DF66F4E22AD59BB966EDFFBCA-->  <DESCRIPTION><![CDATA[Enables the assistant to write and run code.]]></DESCRIPTION>
+<!--59BECE1DF66F4E22AD59BB966EDFFBCA-->  <DESCRIPTION><![CDATA[Enables the agent to write and run code.]]></DESCRIPTION>
 <!--59BECE1DF66F4E22AD59BB966EDFFBCA-->  <HELP><![CDATA[This check enables the experimental feature of code execution in “Multi-model type” agents. For the case of “OpenAI type” agents, it activates the “Code Interpreter” functionality of the OpenAI API.]]></HELP>
 <!--59BECE1DF66F4E22AD59BB966EDFFBCA-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--59BECE1DF66F4E22AD59BB966EDFFBCA-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
@@ -504,8 +504,8 @@
 <!--6209DDE38DCF4536BE5530084038E09F-->  <COLUMNNAME><![CDATA[Prompt]]></COLUMNNAME>
 <!--6209DDE38DCF4536BE5530084038E09F-->  <NAME><![CDATA[Prompt]]></NAME>
 <!--6209DDE38DCF4536BE5530084038E09F-->  <PRINTNAME><![CDATA[Prompt]]></PRINTNAME>
-<!--6209DDE38DCF4536BE5530084038E09F-->  <DESCRIPTION><![CDATA[Specific instructions of the assistant.]]></DESCRIPTION>
-<!--6209DDE38DCF4536BE5530084038E09F-->  <HELP><![CDATA[Specific instructions of the assistant]]></HELP>
+<!--6209DDE38DCF4536BE5530084038E09F-->  <DESCRIPTION><![CDATA[Specific instructions of the agent.]]></DESCRIPTION>
+<!--6209DDE38DCF4536BE5530084038E09F-->  <HELP><![CDATA[Specific instructions of the agent]]></HELP>
 <!--6209DDE38DCF4536BE5530084038E09F-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--6209DDE38DCF4536BE5530084038E09F-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--6209DDE38DCF4536BE5530084038E09F--></AD_ELEMENT>
@@ -516,8 +516,10 @@
 <!--65D8314808714929A1DAFFB2BA416554-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--65D8314808714929A1DAFFB2BA416554-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--65D8314808714929A1DAFFB2BA416554-->  <COLUMNNAME><![CDATA[Etcop_Role_App_ID]]></COLUMNNAME>
-<!--65D8314808714929A1DAFFB2BA416554-->  <NAME><![CDATA[Copilot Role Assistant]]></NAME>
-<!--65D8314808714929A1DAFFB2BA416554-->  <PRINTNAME><![CDATA[Copilot Role Assistant]]></PRINTNAME>
+<!--65D8314808714929A1DAFFB2BA416554-->  <NAME><![CDATA[Copilot Role Agent]]></NAME>
+<!--65D8314808714929A1DAFFB2BA416554-->  <PRINTNAME><![CDATA[Copilot Role Agent]]></PRINTNAME>
+<!--65D8314808714929A1DAFFB2BA416554-->  <DESCRIPTION><![CDATA[ Identifier that links a Copilot Agent with a specific user role..]]></DESCRIPTION>
+<!--65D8314808714929A1DAFFB2BA416554-->  <HELP><![CDATA[This field connects a Copilot Agent to an application role, defining which users or profiles are allowed to access and interact with the agent.]]></HELP>
 <!--65D8314808714929A1DAFFB2BA416554-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--65D8314808714929A1DAFFB2BA416554-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--65D8314808714929A1DAFFB2BA416554--></AD_ELEMENT>
@@ -601,7 +603,7 @@
 <!--7B108BD851F34E1C9867757CFE3E03D9-->  <NAME><![CDATA[Openai Vectordb ID]]></NAME>
 <!--7B108BD851F34E1C9867757CFE3E03D9-->  <PRINTNAME><![CDATA[Openai Vectordb ID]]></PRINTNAME>
 <!--7B108BD851F34E1C9867757CFE3E03D9-->  <DESCRIPTION><![CDATA[OpenAI Vector Database Identifier]]></DESCRIPTION>
-<!--7B108BD851F34E1C9867757CFE3E03D9-->  <HELP><![CDATA[In case the application is of the OpenAI Assistant type, when synchronising it, an identifier is stored and used as a reference.]]></HELP>
+<!--7B108BD851F34E1C9867757CFE3E03D9-->  <HELP><![CDATA[In case the application is of the OpenAI agent type, when synchronising it, an identifier is stored and used as a reference.]]></HELP>
 <!--7B108BD851F34E1C9867757CFE3E03D9-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--7B108BD851F34E1C9867757CFE3E03D9-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--7B108BD851F34E1C9867757CFE3E03D9--></AD_ELEMENT>
@@ -626,8 +628,10 @@
 <!--84F4C804C1EA4A45A59F2D90B231564A-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--84F4C804C1EA4A45A59F2D90B231564A-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--84F4C804C1EA4A45A59F2D90B231564A-->  <COLUMNNAME><![CDATA[Etcop_App_Source_ID]]></COLUMNNAME>
-<!--84F4C804C1EA4A45A59F2D90B231564A-->  <NAME><![CDATA[Copilot Assistant File]]></NAME>
-<!--84F4C804C1EA4A45A59F2D90B231564A-->  <PRINTNAME><![CDATA[Copilot Assistant File]]></PRINTNAME>
+<!--84F4C804C1EA4A45A59F2D90B231564A-->  <NAME><![CDATA[Copilot Agent File]]></NAME>
+<!--84F4C804C1EA4A45A59F2D90B231564A-->  <PRINTNAME><![CDATA[Copilot Agent File]]></PRINTNAME>
+<!--84F4C804C1EA4A45A59F2D90B231564A-->  <DESCRIPTION><![CDATA[Represents a file used by the Copilot Agent as a data or knowledge source.]]></DESCRIPTION>
+<!--84F4C804C1EA4A45A59F2D90B231564A-->  <HELP><![CDATA[This field stores a file uploaded to the Copilot Agent. This file can be used to retrieve contextual information or execute tasks.]]></HELP>
 <!--84F4C804C1EA4A45A59F2D90B231564A-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--84F4C804C1EA4A45A59F2D90B231564A-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--84F4C804C1EA4A45A59F2D90B231564A--></AD_ELEMENT>
@@ -735,7 +739,7 @@
 <!--A58EF1EA6F4E4654B36687B5497CBED2-->  <NAME><![CDATA[Tool Webhook]]></NAME>
 <!--A58EF1EA6F4E4654B36687B5497CBED2-->  <PRINTNAME><![CDATA[Tool Webhook]]></PRINTNAME>
 <!--A58EF1EA6F4E4654B36687B5497CBED2-->  <DESCRIPTION><![CDATA[Record which represents the relationship between a Skill/Tool and a Webhook.]]></DESCRIPTION>
-<!--A58EF1EA6F4E4654B36687B5497CBED2-->  <HELP><![CDATA[This link allows to indicate which "Webhooks" are used by a Skill/Tool, to allow the synchronization processes to give the role access to use the Webhook if they are allowed to use an Assistant with this tool configured.]]></HELP>
+<!--A58EF1EA6F4E4654B36687B5497CBED2-->  <HELP><![CDATA[This link allows to indicate which "Webhooks" are used by a Skill/Tool, to allow the synchronization processes to give the role access to use the Webhook if they are allowed to use an agent with this tool configured.]]></HELP>
 <!--A58EF1EA6F4E4654B36687B5497CBED2-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--A58EF1EA6F4E4654B36687B5497CBED2-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--A58EF1EA6F4E4654B36687B5497CBED2--></AD_ELEMENT>
@@ -748,8 +752,8 @@
 <!--A7CB157EDE3B44B1BF699AFEAA820775-->  <COLUMNNAME><![CDATA[Temperature]]></COLUMNNAME>
 <!--A7CB157EDE3B44B1BF699AFEAA820775-->  <NAME><![CDATA[Temperature]]></NAME>
 <!--A7CB157EDE3B44B1BF699AFEAA820775-->  <PRINTNAME><![CDATA[Temperature]]></PRINTNAME>
-<!--A7CB157EDE3B44B1BF699AFEAA820775-->  <DESCRIPTION><![CDATA[Temperature of the Assistant, value between 0 and 2]]></DESCRIPTION>
-<!--A7CB157EDE3B44B1BF699AFEAA820775-->  <HELP><![CDATA[In the context of a Large Language Model (LLM) that is used by the assistant, "temperature" is a parameter that controls the randomness of the model's responses:
+<!--A7CB157EDE3B44B1BF699AFEAA820775-->  <DESCRIPTION><![CDATA[Temperature of the agent, value between 0 and 2]]></DESCRIPTION>
+<!--A7CB157EDE3B44B1BF699AFEAA820775-->  <HELP><![CDATA[In the context of a Large Language Model (LLM) that is used by the agent, "temperature" is a parameter that controls the randomness of the model's responses:
 
 Low temperature (e.g., 0.1): Produces more predictable and conservative outputs.
 High temperature (e.g., 1.0 or higher): Produces more random and creative outputs.
@@ -779,10 +783,10 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <COLUMNNAME><![CDATA[Openai_Id_Assistant]]></COLUMNNAME>
-<!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <NAME><![CDATA[OpenAI Assistant ID]]></NAME>
-<!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <PRINTNAME><![CDATA[OpenAI Assistant ID]]></PRINTNAME>
-<!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <DESCRIPTION><![CDATA[Read-only field in which the ID of the assistant is displayed once created]]></DESCRIPTION>
-<!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <HELP><![CDATA[Read-only field in which the ID of the assistant is displayed once created]]></HELP>
+<!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <NAME><![CDATA[OpenAI Agent ID]]></NAME>
+<!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <PRINTNAME><![CDATA[OpenAI Agent ID]]></PRINTNAME>
+<!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <DESCRIPTION><![CDATA[Read-only field in which the ID of the agent is displayed once created]]></DESCRIPTION>
+<!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <HELP><![CDATA[This read-only field displays the unique identifier assigned to the OpenAI Agent after it has been successfully created. It is used for referencing and managing the agent across related processes]]></HELP>
 <!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--AF81D37CBEB74DB3AD2EFAF7D8DC87EB--></AD_ELEMENT>
@@ -837,8 +841,8 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--C83F2C87025649F9B3847C5CF9878EB8-->  <COLUMNNAME><![CDATA[Etcop_File_ID]]></COLUMNNAME>
 <!--C83F2C87025649F9B3847C5CF9878EB8-->  <NAME><![CDATA[File]]></NAME>
 <!--C83F2C87025649F9B3847C5CF9878EB8-->  <PRINTNAME><![CDATA[File]]></PRINTNAME>
-<!--C83F2C87025649F9B3847C5CF9878EB8-->  <DESCRIPTION><![CDATA[File record for Assistant to use]]></DESCRIPTION>
-<!--C83F2C87025649F9B3847C5CF9878EB8-->  <HELP><![CDATA[The file that will be uploaded to the assistant and used as knowledge base]]></HELP>
+<!--C83F2C87025649F9B3847C5CF9878EB8-->  <DESCRIPTION><![CDATA[File record for agent to use]]></DESCRIPTION>
+<!--C83F2C87025649F9B3847C5CF9878EB8-->  <HELP><![CDATA[The file that will be uploaded to the agent and used as knowledge base]]></HELP>
 <!--C83F2C87025649F9B3847C5CF9878EB8-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--C83F2C87025649F9B3847C5CF9878EB8-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--C83F2C87025649F9B3847C5CF9878EB8--></AD_ELEMENT>
@@ -851,8 +855,8 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <COLUMNNAME><![CDATA[sync_status]]></COLUMNNAME>
 <!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <NAME><![CDATA[Sync Status]]></NAME>
 <!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <PRINTNAME><![CDATA[Sync Status]]></PRINTNAME>
-<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <DESCRIPTION><![CDATA[Indicates the synchronization status of the assistant. This column holds two possible values: 'synchronized' when the assistant is fully synchronized with the system, and 'pending synchronization' when the synchronization process is still incomplete or aw]]></DESCRIPTION>
-<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <HELP><![CDATA[This column indicates the current status of the assistant. This field will not be modified manually; it changes to 'Pending Synchronization' when there is a modification or modifications in related groups (assistants, tools, knowledge files, team members, etc.). To change it to 'Synchronized,' it is necessary to synchronize the assistant using the 'Sync Assistant' button.]]></HELP>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <DESCRIPTION><![CDATA[Indicates the synchronization status of the agent. This column holds two possible values: 'synchronized' when the agent is fully synchronized with the system, and 'pending synchronization' when the synchronization process is still incomplete or aw]]></DESCRIPTION>
+<!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <HELP><![CDATA[This column indicates the current status of the agent. This field will not be modified manually; it changes to 'Pending Synchronization' when there is a modification or modifications in related groups (agent, tools, knowledge files, team members, etc.). To change it to 'Synchronized,' it is necessary to synchronize the agent using the 'Sync agent' button.]]></HELP>
 <!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--D1CD602ECBFF4F149B07430A2F5A7F7F-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--D1CD602ECBFF4F149B07430A2F5A7F7F--></AD_ELEMENT>
@@ -866,7 +870,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--D29E5ED55E9A4F25BC2609ECA7DFF100-->  <NAME><![CDATA[Alias]]></NAME>
 <!--D29E5ED55E9A4F25BC2609ECA7DFF100-->  <PRINTNAME><![CDATA[Alias]]></PRINTNAME>
 <!--D29E5ED55E9A4F25BC2609ECA7DFF100-->  <DESCRIPTION><![CDATA[Alias to replace with the content of the file.]]></DESCRIPTION>
-<!--D29E5ED55E9A4F25BC2609ECA7DFF100-->  <HELP><![CDATA[During the reading of the Assistant prompt, if an alias is specified, all occurrences of @alias@ will be replaced by the contents of the file. If not specified, it will be included at the end of the file.]]></HELP>
+<!--D29E5ED55E9A4F25BC2609ECA7DFF100-->  <HELP><![CDATA[During the reading of the agent prompt, if an alias is specified, all occurrences of @alias@ will be replaced by the contents of the file. If not specified, it will be included at the end of the file.]]></HELP>
 <!--D29E5ED55E9A4F25BC2609ECA7DFF100-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--D29E5ED55E9A4F25BC2609ECA7DFF100-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--D29E5ED55E9A4F25BC2609ECA7DFF100--></AD_ELEMENT>
@@ -891,7 +895,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--D966D5BBDCBA4810AA39F9B6F08D5DE7-->  <COLUMNNAME><![CDATA[Conversation]]></COLUMNNAME>
 <!--D966D5BBDCBA4810AA39F9B6F08D5DE7-->  <NAME><![CDATA[Conversation]]></NAME>
 <!--D966D5BBDCBA4810AA39F9B6F08D5DE7-->  <PRINTNAME><![CDATA[Conversation]]></PRINTNAME>
-<!--D966D5BBDCBA4810AA39F9B6F08D5DE7-->  <DESCRIPTION><![CDATA[Conversation ID of the assistant execution.]]></DESCRIPTION>
+<!--D966D5BBDCBA4810AA39F9B6F08D5DE7-->  <DESCRIPTION><![CDATA[Conversation ID of the agent execution.]]></DESCRIPTION>
 <!--D966D5BBDCBA4810AA39F9B6F08D5DE7-->  <HELP><![CDATA[Unique value which this conversation is identified.]]></HELP>
 <!--D966D5BBDCBA4810AA39F9B6F08D5DE7-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--D966D5BBDCBA4810AA39F9B6F08D5DE7-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
@@ -905,7 +909,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--DAEC96C365D844F0A8D5736434B8A727-->  <COLUMNNAME><![CDATA[Behaviour]]></COLUMNNAME>
 <!--DAEC96C365D844F0A8D5736434B8A727-->  <NAME><![CDATA[Behaviour]]></NAME>
 <!--DAEC96C365D844F0A8D5736434B8A727-->  <PRINTNAME><![CDATA[Behaviour]]></PRINTNAME>
-<!--DAEC96C365D844F0A8D5736434B8A727-->  <DESCRIPTION><![CDATA[Determine the behaviour of the file in the assistant.]]></DESCRIPTION>
+<!--DAEC96C365D844F0A8D5736434B8A727-->  <DESCRIPTION><![CDATA[Determine the behaviour of the file in the agent.]]></DESCRIPTION>
 <!--DAEC96C365D844F0A8D5736434B8A727-->  <HELP><![CDATA[The action determine in which moment the data is attached.]]></HELP>
 <!--DAEC96C365D844F0A8D5736434B8A727-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--DAEC96C365D844F0A8D5736434B8A727-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
@@ -973,10 +977,10 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--EB18E75DB048479DA72392C90A7E5E5E-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--EB18E75DB048479DA72392C90A7E5E5E-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--EB18E75DB048479DA72392C90A7E5E5E-->  <COLUMNNAME><![CDATA[Sync_Assistant]]></COLUMNNAME>
-<!--EB18E75DB048479DA72392C90A7E5E5E-->  <NAME><![CDATA[Sync Assistant]]></NAME>
-<!--EB18E75DB048479DA72392C90A7E5E5E-->  <PRINTNAME><![CDATA[Sync Assistant]]></PRINTNAME>
-<!--EB18E75DB048479DA72392C90A7E5E5E-->  <DESCRIPTION><![CDATA[This process updates or creates a new assistant if it does not exist.]]></DESCRIPTION>
-<!--EB18E75DB048479DA72392C90A7E5E5E-->  <HELP><![CDATA[This process updates or creates a new assistant if it does not exist. It configures the wizard, updates the list of Open AI Models, and uploads files used as a knowledge base.]]></HELP>
+<!--EB18E75DB048479DA72392C90A7E5E5E-->  <NAME><![CDATA[Sync Agent]]></NAME>
+<!--EB18E75DB048479DA72392C90A7E5E5E-->  <PRINTNAME><![CDATA[Sync Agent]]></PRINTNAME>
+<!--EB18E75DB048479DA72392C90A7E5E5E-->  <DESCRIPTION><![CDATA[This process updates or creates a new agent if it does not exist.]]></DESCRIPTION>
+<!--EB18E75DB048479DA72392C90A7E5E5E-->  <HELP><![CDATA[This process updates or creates a new agent if it does not exist. It configures the agent, updates the list of Open AI Models, and uploads files used as a knowledge base.]]></HELP>
 <!--EB18E75DB048479DA72392C90A7E5E5E-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--EB18E75DB048479DA72392C90A7E5E5E-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--EB18E75DB048479DA72392C90A7E5E5E--></AD_ELEMENT>
@@ -987,10 +991,10 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--EE822C557F8E4CD19597B4373601F75B-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--EE822C557F8E4CD19597B4373601F75B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--EE822C557F8E4CD19597B4373601F75B-->  <COLUMNNAME><![CDATA[Etcop_App_ID]]></COLUMNNAME>
-<!--EE822C557F8E4CD19597B4373601F75B-->  <NAME><![CDATA[Assistant]]></NAME>
-<!--EE822C557F8E4CD19597B4373601F75B-->  <PRINTNAME><![CDATA[Assistant]]></PRINTNAME>
-<!--EE822C557F8E4CD19597B4373601F75B-->  <DESCRIPTION><![CDATA[Assistant.]]></DESCRIPTION>
-<!--EE822C557F8E4CD19597B4373601F75B-->  <HELP><![CDATA[Assistants can answer queries or perform tasks according to your configuration.]]></HELP>
+<!--EE822C557F8E4CD19597B4373601F75B-->  <NAME><![CDATA[Agent]]></NAME>
+<!--EE822C557F8E4CD19597B4373601F75B-->  <PRINTNAME><![CDATA[Agent]]></PRINTNAME>
+<!--EE822C557F8E4CD19597B4373601F75B-->  <DESCRIPTION><![CDATA[Agent.]]></DESCRIPTION>
+<!--EE822C557F8E4CD19597B4373601F75B-->  <HELP><![CDATA[Agent can answer queries or perform tasks according to your configuration.]]></HELP>
 <!--EE822C557F8E4CD19597B4373601F75B-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--EE822C557F8E4CD19597B4373601F75B-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--EE822C557F8E4CD19597B4373601F75B--></AD_ELEMENT>
