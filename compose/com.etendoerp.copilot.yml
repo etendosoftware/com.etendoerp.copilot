@@ -9,6 +9,7 @@ services:
       - ../copilot:/app/
       - ${SOURCE_PATH}/modules:/modules
       - pip_cache:/root/.cache/pip
+      - uv_cache:/root/.cache/uv
       - copilot_attached_files:/copilotAttachedFiles
       - vectordbs:/app/vectordbs
       - /var/run/docker.sock:/var/run/docker.sock
@@ -18,4 +19,4 @@ volumes:
   pip_cache:
   copilot_attached_files:
   vectordbs:
-
+  uv_cache:
