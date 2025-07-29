@@ -382,6 +382,7 @@ task 'copilot.env.file' {
         def etendoHostDocker = project.hasProperty("ETENDO_HOST_DOCKER") ? project.property("ETENDO_HOST_DOCKER").toString() : getDefaultEtendoHostDocker(tomcatEnabled, copilotEnabled, strTomcatPort)
         def copilotHost = project.hasProperty("COPILOT_HOST") ? project.property("COPILOT_HOST").toString() : getDefaultCopilotHost(tomcatEnabled, copilotEnabled)
         def copilotPort = project.hasProperty("COPILOT_PORT") ? project.property("COPILOT_PORT").toString() : "5005"
+        def copilotPortMCP = project.hasProperty("COPILOT_PORT_MCP") ? project.property("COPILOT_PORT_MCP").toString() : "5006"
         def copilotPortDebug = project.hasProperty("COPILOT_PORT_DEBUG") ? project.property("COPILOT_PORT_DEBUG").toString() : "5100"
         def copilotImageTag = project.hasProperty("COPILOT_IMAGE_TAG") ? project.property("COPILOT_IMAGE_TAG").toString() : "master"
         def copilotPullImage = project.hasProperty("COPILOT_PULL_IMAGE") ? project.property("COPILOT_PULL_IMAGE").toString() : "true"
@@ -496,6 +497,8 @@ task 'copilot.variables.setup' {
         // === COPILOT PORT ===
         def copilotPort = project.findProperty("copilotPort") ?: "5005"
 
+        // === COPILOT PORT FOR MCP SERVER ===
+        def copilotPortMCP = project.hasProperty("copilotPortMCP") ? project.property("copilotPortMCP").toString() : "5006"
         // === VARIABLE CONSTRUCTION ===
         def etendoHost
         def etendoHostDocker
@@ -531,6 +534,7 @@ task 'copilot.variables.setup' {
         println "ETENDO_HOST_DOCKER=${etendoHostDocker}"
         println "COPILOT_HOST=${copilotHost}"
         println "COPILOT_PORT=${copilotPort}"
+        println "COPILOT_PORT_MCP=${copilotPortMCP}"
         println "-------------------------------------------"
         println ""
     }
