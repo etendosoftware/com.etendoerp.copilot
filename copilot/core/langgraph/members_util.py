@@ -2,11 +2,15 @@ import functools
 import re
 from typing import List, Sequence
 
+from baseutils.logging_envvar import (
+    copilot_debug,
+    copilot_debug_custom,
+    is_debug_enabled,
+)
 from colorama import Fore, Style
 from copilot.core.agent import AssistantAgent
 from copilot.core.schema.graph_member import GraphMember
 from copilot.core.schemas import AssistantSchema
-from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
 from langchain.agents import AgentExecutor
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langgraph.prebuilt.chat_agent_executor import create_react_agent

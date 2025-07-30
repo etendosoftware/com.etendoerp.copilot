@@ -1,13 +1,13 @@
 import os
 from typing import AsyncGenerator, Dict, Final
 
+from baseutils.logging_envvar import read_optional_env_var
 from langchain.agents import AgentExecutor
 from langchain.agents.openai_assistant.base import OpenAIAssistantAction
 from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
 from langchain_core.agents import AgentFinish
 from langchain_core.runnables import AddableDict
 
-from .. import utils
 from ..schemas import QuestionSchema
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
 
@@ -15,7 +15,7 @@ from .agent import AgentResponse, AssistantResponse, CopilotAgent
 class AssistantAgent(CopilotAgent):
     """OpenAI Assistant Agent implementation."""
 
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
+    OPENAI_MODEL: Final[str] = read_optional_env_var("OPENAI_MODEL", "gpt-4o")
     ASSISTANT_NAME: Final[str] = "Copilot [LOCAL]"
 
     def __init__(self):

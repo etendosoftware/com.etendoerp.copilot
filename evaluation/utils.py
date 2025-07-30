@@ -7,7 +7,7 @@ import time
 
 import pandas as pd
 import requests
-from copilot.core.etendo_utils import call_etendo, login_etendo
+from core.utils.etendo_utils import call_etendo, login_etendo
 from langchain_core.utils.function_calling import convert_to_openai_function
 from langsmith import Client
 from openai.types.chat import (

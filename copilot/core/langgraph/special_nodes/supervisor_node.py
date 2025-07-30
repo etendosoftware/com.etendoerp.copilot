@@ -1,6 +1,6 @@
 from typing import Final
 
-from copilot.core import utils
+from baseutils.logging_envvar import read_optional_env_var
 from langchain_openai import ChatOpenAI
 
 
@@ -67,7 +67,7 @@ Select one of the following workers:
 
 
 class SupervisorNode:
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o-mini")
+    OPENAI_MODEL: Final[str] = read_optional_env_var("OPENAI_MODEL", "gpt-4o-mini")
 
     def build(self, members_names, members_descriptions=None, system_prompt=None, temperature=0):
         from langchain.output_parsers.openai_functions import JsonOutputFunctionsParser

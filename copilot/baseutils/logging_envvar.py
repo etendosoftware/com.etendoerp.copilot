@@ -5,7 +5,6 @@ from typing import Final
 
 import curlify
 from colorama import Fore, Style
-from copilot.core.schemas import QuestionSchema
 
 SUCCESS_CODE: Final[str] = "\u2713"
 
@@ -32,17 +31,6 @@ def print_yellow(message):
 
 def print_violet(message):
     print(f"{Fore.MAGENTA} {message}{Style.RESET_ALL}")
-
-
-def get_full_question(question: QuestionSchema) -> str:
-    if question.local_file_ids is None or len(question.local_file_ids) == 0:
-        return question.question
-    result = question.question
-    result += "\n" + "Local Files Ids for Context:"
-    for file_id in question.local_file_ids:
-        parent_dir_of_current_dir = os.path.dirname(os.getcwd())
-        result += "\n - " + parent_dir_of_current_dir + file_id
-    return result
 
 
 def _handle_etendo_host_var(env_var_name, default_value):

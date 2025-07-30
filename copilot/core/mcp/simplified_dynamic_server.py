@@ -14,19 +14,19 @@ from typing import Dict, Optional
 
 import httpx
 import uvicorn
-from copilot.core.etendo_utils import normalize_etendo_token
+from baseutils.logging_envvar import (
+    copilot_debug,
+    copilot_error,
+    copilot_info,
+    copilot_warning,
+)
 from copilot.core.mcp.auth_utils import extract_etendo_token_from_request
 from copilot.core.mcp.tools import (
     register_agent_tools,
     register_basic_tools,
 )
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils import (
-    copilot_debug,
-    copilot_error,
-    copilot_info,
-    copilot_warning,
-)
+from core.utils.etendo_utils import normalize_etendo_token
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse

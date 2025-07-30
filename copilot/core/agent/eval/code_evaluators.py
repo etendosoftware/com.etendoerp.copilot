@@ -151,7 +151,7 @@ class CodeExecutor:
     def execute(self, code: str, variables: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
         # if in variables not exists "etendo_token" add it
         if "ETENDO_TOKEN" not in variables:
-            from copilot.core import etendo_utils
+            from core.utils import etendo_utils
 
             variables["ETENDO_TOKEN"] = etendo_utils.get_etendo_token()
         return self.executor.execute(code, variables)
