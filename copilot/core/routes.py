@@ -17,7 +17,7 @@ from pathlib import Path
 import chromadb
 import requests
 from copilot.core import etendo_utils, utils
-from copilot.core.agent import AgentEnum, AgentResponse, copilot_agents
+from copilot.core.agent import AgentEnum, AgentResponse, _get_agent_executors
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
@@ -31,6 +31,7 @@ from copilot.core.schemas import (
     VectorDBInputSchema,
 )
 from copilot.core.threadcontext import ThreadContext
+from copilot.core.tool_loader import ToolLoader
 from copilot.core.utils import copilot_debug, copilot_info
 from copilot.core.vectordb_utils import (
     LANGCHAIN_DEFAULT_COLLECTION_NAME,
@@ -52,6 +53,7 @@ current_agent = None
 
 
 def select_copilot_agent(copilot_type: str):
+    copilot_agents = _get_agent_executors()
     if copilot_type not in copilot_agents:
         raise UnsupportedAgent()
     return copilot_agents[copilot_type]
@@ -301,13 +303,12 @@ async def serve_async_question(question: QuestionSchema):
 @core_router.get("/tools")
 def serve_tools():
     """Show tools available, with their information."""
-    langchain_agent = select_copilot_agent(AgentEnum.LANGCHAIN.value)
-    tool_list = langchain_agent.get_tools()
+    tools_list = ToolLoader().load_configured_tools()
     tool_dict = {}
-    for tool in tool_list:
+    for tool in tools_list:
         tool_dict[tool.name] = {
             "description": tool.description,
-            "parameters": tool.args,
+            "parameters": tool.args if hasattr(tool, "args") else getattr(tool, "args_schema", None),
         }
     return {"answer": tool_dict}
 

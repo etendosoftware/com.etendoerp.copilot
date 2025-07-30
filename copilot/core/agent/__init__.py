@@ -19,6 +19,3 @@ def _get_agent_executors():
         class_name = globals()[_agents.get(agent)]
         agents_classes[agent] = class_name()
     return agents_classes
-
-
-copilot_agents = _get_agent_executors()

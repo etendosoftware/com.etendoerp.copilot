@@ -5,6 +5,7 @@ This module contains tools that are dynamically loaded from Etendo Classic
 based on the agent configuration and provides tools specific to each agent.
 """
 
+import inspect
 import logging
 from typing import List, Optional, Type
 
@@ -202,6 +203,16 @@ async def _execute_langchain_tool(langchain_tool: BaseTool, kwargs: dict):
         return langchain_tool(**kwargs)
 
 
+def has_KWARGS(tool):
+    sig = inspect.signature(tool._run)
+    # Reject functions with *args or **kwargs
+    for param in sig.parameters.values():
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            raise ValueError("Functions with *args are not supported as tools")
+        if param.kind == inspect.Parameter.VAR_KEYWORD:
+            raise ValueError("Functions with **kwargs are not supported as tools")
+
+
 def _convert_single_tool_to_mcp(tool: BaseTool) -> Tool:
     """Convert a single LangChain tool to FastMCP Tool."""
     from fastmcp.tools import Tool
@@ -214,8 +225,12 @@ def _convert_single_tool_to_mcp(tool: BaseTool) -> Tool:
             copilot_debug(f"Tool {tool.name} is a ToolWrapper - using unified arguments")
             toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=True)
         elif isinstance(tool, BaseTool):
-            copilot_debug(f"Tool {tool.name} is a BaseTool - using individual parameters")
-            toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=False)
+            copilot_debug(f"Tool {tool.name} is a BaseTool ")
+            # check if has kwargs or variable arguments
+            if not has_KWARGS(tool):
+                toolfn_conv = tool._run
+            else:
+                toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=False)
         else:
             copilot_error(f"Unsupported tool type: {type(tool)}. Using individual parameters as fallback.")
             toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=False)

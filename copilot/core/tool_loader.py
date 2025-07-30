@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
-from typing import Dict, Final, List, Optional, TypeAlias
+from typing import Any, Dict, Final, List, Optional, TypeAlias
 
 import toml
+from langchain_core.tools import BaseTool
 
 from . import tool_installer, utils
 
@@ -16,7 +17,7 @@ from .exceptions import (
 from .kb_utils import get_kb_tool
 from .schemas import AssistantSchema, ToolSchema
 from .tool_dependencies import Dependency, ToolsDependencies
-from .tool_wrapper import ToolWrapper
+from .tool_wrapper import CopilotTool, ToolWrapper
 from .toolgen.ApiTool import generate_tools_from_openapi
 
 # fmt: on
@@ -117,13 +118,16 @@ class ToolLoader:
         config = {"native_tools": {}, "third_party_tools": {}}
 
         # Get all concrete ToolWrapper subclasses
-        for tool_class in ToolWrapper.__subclasses__():
+        subclasses__: List[Any] = []
+        subclasses__.extend(ToolWrapper.__subclasses__())  # Get all ToolWrapper subclasses
+        subclasses__.extend(CopilotTool.__subclasses__())  # Include CopilotTool subclasses
+        for tool_class in subclasses__:
             tool_name = tool_class.__name__
 
             # Skip abstract classes and ToolWrapper itself
             if hasattr(tool_class, "__abstractmethods__") and tool_class.__abstractmethods__:
                 continue
-            if tool_class.__name__ == "ToolWrapper":
+            if tool_class.__name__ in {"ToolWrapper", "CopilotTool"}:
                 continue
 
             config["third_party_tools"][tool_name] = True
@@ -212,7 +216,10 @@ class ToolLoader:
 
         # Load all concrete ToolWrapper subclasses
         print_yellow("Loading all available tools...")
-        for tool_class in ToolWrapper.__subclasses__():
+        subclasses__: List[Any] = []
+        subclasses__.extend(ToolWrapper.__subclasses__())  # Get all ToolWrapper subclasses
+        subclasses__.extend(CopilotTool.__subclasses__())  # Include BaseTool subclasses
+        for tool_class in subclasses__:
             try:
                 # Skip abstract classes and ToolWrapper itself
                 if hasattr(tool_class, "__abstractmethods__") and tool_class.__abstractmethods__:
@@ -220,7 +227,7 @@ class ToolLoader:
                     continue
 
                 # Skip ToolWrapper base class
-                if tool_class.__name__ == "ToolWrapper":
+                if tool_class.__name__ in {"ToolWrapper", "CopilotTool"}:
                     continue
 
                 tool_instance = tool_class()

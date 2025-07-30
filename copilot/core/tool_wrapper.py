@@ -124,7 +124,25 @@ allowing for a standardized way to handle different types of responses from tool
 """
 
 
-class ToolWrapper(BaseTool, metaclass=abc.ABCMeta):
+class CopilotTool(BaseTool, metaclass=abc.ABCMeta):
+    """
+    Abstract base class for Etendo Copilot tools.
+
+    This intermediate class extends LangChain's BaseTool and provides
+    a foundation for all Copilot tools.
+    """
+
+    pass
+
+
+class ToolWrapper(CopilotTool, metaclass=abc.ABCMeta):
+    """
+    Wrapper class for Copilot tools that provides additional functionality.
+
+    This class extends CopilotTool and provides enhanced error handling,
+    validation, and execution patterns for Etendo Copilot tools.
+    """
+
     handle_validation_error: bool = True
 
     @abc.abstractmethod
