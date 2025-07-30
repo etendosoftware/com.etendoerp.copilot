@@ -1,9 +1,9 @@
 import logging
 
+from baseutils.logging_envvar import read_optional_env_var_int
 from copilot.core.schemas import AssistantGraph
 from langchain_core.messages import HumanMessage
 
-from ..utils import read_optional_env_var_int
 from .patterns.base_pattern import BasePattern
 from .patterns.loop_pattern import LoopPattern
 
@@ -31,7 +31,7 @@ class CopilotLangGraph:
         config = {
             "configurable": {"thread_id": thread_id},
             "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 50),
-            "max_iterations": 100
+            "max_iterations": 100,
         }
         if get_image:
             import base64

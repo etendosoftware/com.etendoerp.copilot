@@ -3,6 +3,7 @@ from typing import AsyncGenerator, Final, Optional, Union
 
 import langchain_core.tools
 import langgraph_codeact
+from baseutils.logging_envvar import read_optional_env_var
 from copilot.core.agent.agent import (
     AgentResponse,
     AssistantResponse,
@@ -22,11 +23,12 @@ from langchain_core.tools import StructuredTool
 from langgraph.prebuilt import create_react_agent
 from langgraph_codeact import create_default_prompt
 
-from .. import etendo_utils, utils
+from .. import utils
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..threadcontext import ThreadContext
-from ..utils import get_full_question
+from ..utils import etendo_utils
+from ..utils.agent import get_full_question
 from .agent_utils import process_local_files
 from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
 from .langgraph_agent import handle_events
@@ -120,7 +122,7 @@ def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
 
 
 class MultimodelAgent(CopilotAgent):
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
+    OPENAI_MODEL: Final[str] = read_optional_env_var("OPENAI_MODEL", "gpt-4o")
     _memory: MemoryHandler = None
 
     def __init__(self):

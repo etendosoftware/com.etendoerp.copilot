@@ -1,8 +1,12 @@
 import curlify
 import requests
+from baseutils.logging_envvar import (
+    copilot_debug,
+    copilot_debug_curl,
+    read_optional_env_var,
+)
 from copilot.core.exceptions import ToolException
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils import copilot_debug, copilot_debug_curl, read_optional_env_var
 
 APPLICATION_JSON = "application/json"
 BEARER_PREFIX = "Bearer "
