@@ -9,9 +9,9 @@ import logging
 from typing import Optional
 
 import httpx
-from copilot.core.etendo_utils import normalize_etendo_token, validate_etendo_token
+from baseutils.logging_envvar import read_optional_env_var
 from copilot.core.mcp.auth_utils import extract_etendo_token_from_mcp_context
-from copilot.core.utils import read_optional_env_var
+from core.utils.etendo_utils import normalize_etendo_token, validate_etendo_token
 
 logger = logging.getLogger(__name__)
 

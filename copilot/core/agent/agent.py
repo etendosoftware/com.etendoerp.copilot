@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Final, Optional
 
-from .. import tool_installer, utils
+from baseutils.logging_envvar import read_optional_env_var
+
+from .. import tool_installer
 from ..exceptions import (
     OpenAIApiKeyNotFound,
     SystemPromptNotFound,
@@ -39,7 +41,7 @@ class CopilotAgent:
     """Copilot Agent interface."""
 
     OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
-    SYSTEM_PROMPT: Final[str] = utils.read_optional_env_var(
+    SYSTEM_PROMPT: Final[str] = read_optional_env_var(
         "SYSTEM_PROMPT",
         "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.",
     )

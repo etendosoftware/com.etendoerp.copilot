@@ -8,7 +8,7 @@ from various request sources including FastAPI requests and MCP requests.
 import logging
 from typing import Optional
 
-from copilot.core.etendo_utils import BEARER_PREFIX, normalize_etendo_token
+from core.utils.etendo_utils import BEARER_PREFIX, normalize_etendo_token
 from fastapi import Request
 
 logger = logging.getLogger(__name__)

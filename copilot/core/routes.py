@@ -16,11 +16,8 @@ from pathlib import Path
 
 import chromadb
 import requests
-from copilot.core import etendo_utils, utils
-from copilot.core.agent import AgentEnum, AgentResponse
-from copilot.core.agent.agent import AssistantResponse
-from copilot.core.agent.assistant_agent import AssistantAgent
-from copilot.core.agent.langgraph_agent import LanggraphAgent
+from baseutils.logging_envvar import copilot_debug, copilot_info, read_optional_env_var
+from copilot.core import utils
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import (
@@ -30,7 +27,7 @@ from copilot.core.schemas import (
     VectorDBInputSchema,
 )
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils import copilot_debug, copilot_info
+from copilot.core.tool_loader import ToolLoader
 from copilot.core.vectordb_utils import (
     LANGCHAIN_DEFAULT_COLLECTION_NAME,
     get_chroma_settings,
@@ -39,6 +36,10 @@ from copilot.core.vectordb_utils import (
     handle_zip_file,
     index_file,
 )
+from core.agent import AssistantAgent
+from core.agent.agent import AgentEnum, AgentResponse, AssistantResponse
+from core.agent.langgraph_agent import LanggraphAgent
+from core.utils import etendo_utils
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from langchain_community.vectorstores import Chroma
 from starlette.responses import StreamingResponse
@@ -109,7 +110,7 @@ def _initialize_agent(question: QuestionSchema):
     """Initialize and return the copilot agent."""
     agent_type = question.type
     if agent_type is None:
-        agent_type = utils.read_optional_env_var("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
+        agent_type = read_optional_env_var("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
     copilot_agent = select_copilot_agent(agent_type)
     print_call_info(copilot_agent, question)
 
@@ -304,13 +305,12 @@ async def serve_async_question(question: QuestionSchema):
 @core_router.get("/tools")
 def serve_tools():
     """Show tools available, with their information."""
-    langchain_agent = select_copilot_agent(AgentEnum.LANGCHAIN.value)
-    tool_list = langchain_agent.get_tools()
+    tools_list = ToolLoader().load_configured_tools()
     tool_dict = {}
-    for tool in tool_list:
+    for tool in tools_list:
         tool_dict[tool.name] = {
             "description": tool.description,
-            "parameters": tool.args,
+            "parameters": tool.args if hasattr(tool, "args") else getattr(tool, "args_schema", None),
         }
     return {"answer": tool_dict}
 
@@ -494,7 +494,7 @@ def transcript_file(file: UploadFile = File(...)):
 def check_copilot_host(authorization: str = Header(None)):
     try:
         etendo_host_docker = etendo_utils.get_etendo_host()
-        from .etendo_utils import validate_etendo_token
+        from .utils.etendo_utils import validate_etendo_token
 
         if not authorization or not validate_etendo_token(authorization):
             raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
