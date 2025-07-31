@@ -1,6 +1,7 @@
 """
 Test the MultimodelAgent class
 """
+import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -148,21 +149,22 @@ class TestMultimodelAgent:
 
     def test_convert_mcp_servers_config_nested(self):
         """Test MCP server config conversion with direct server config (updated)."""
-        mcp_servers = [
-            {
-                "name": "filesystem",
-                "command": "npx",
-                "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
-                "disabled": False
-            }
-        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mcp_servers = [
+                {
+                    "name": "filesystem",
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-filesystem", temp_dir],
+                    "disabled": False
+                }
+            ]
         
-        result = convert_mcp_servers_config(mcp_servers)
-        
-        assert "filesystem" in result
-        assert result["filesystem"]["command"] == "npx"
-        assert result["filesystem"]["args"][0] == "-y"
-        assert result["filesystem"]["transport"] == "stdio"  # Default transport added
+            result = convert_mcp_servers_config(mcp_servers)
+
+            assert "filesystem" in result
+            assert result["filesystem"]["command"] == "npx"
+            assert result["filesystem"]["args"][0] == "-y"
+            assert result["filesystem"]["transport"] == "stdio"  # Default transport added
 
     def test_convert_mcp_servers_config_direct(self):
         """Test MCP server config conversion with direct server config."""

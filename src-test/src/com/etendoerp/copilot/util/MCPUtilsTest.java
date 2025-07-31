@@ -27,6 +27,10 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppMCP;
 import com.etendoerp.copilot.data.CopilotMCP;
 
+/**
+ * Test class for MCPUtils to verify the retrieval of MCP configurations
+ * from the database and their JSON structure validation.
+ */
 public class MCPUtilsTest extends WeldBaseTest {
 
   @Override
