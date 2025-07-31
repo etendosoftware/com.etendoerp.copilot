@@ -2,7 +2,6 @@ package com.etendoerp.copilot.eventhandler;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
@@ -25,9 +24,15 @@ import org.openbravo.test.base.TestConstants;
 
 import com.etendoerp.copilot.data.CopilotMCP;
 
+/**
+ * Test class for MCPValidationHandler to verify JSON validation functionality
+ * for MCP server configurations during entity persistence events.
+ */
 public class MCPValidationHandlerTest extends WeldBaseTest {
 
-  private MCPValidationHandler handler;
+  private static final String TEST_SERVER_NAME = "test_server";
+  private static final String INVALID_JSON_STRUCTURE = "{ invalid json }";
+
   private AutoCloseable mocks;
 
   @Mock
@@ -49,14 +54,6 @@ public class MCPValidationHandlerTest extends WeldBaseTest {
         OBContext.getOBContext().getCurrentClient().getId(), OBContext.getOBContext().getCurrentOrganization().getId(),
         OBContext.getOBContext().getRole().getId());
     RequestContext.get().setVariableSecureApp(vsa);
-    
-    // Create a handler spy that overrides isValidEvent to always return true
-    handler = new MCPValidationHandler() {
-      @Override
-      protected boolean isValidEvent(EntityPersistenceEvent event) {
-        return true;
-      }
-    };
   }
 
   @After
@@ -69,8 +66,15 @@ public class MCPValidationHandlerTest extends WeldBaseTest {
   @Test
   public void testOnSave_WithValidJson() {
     // Arrange
+    MCPValidationHandler handler = new MCPValidationHandler() {
+      @Override
+      protected boolean isValidEvent(EntityPersistenceEvent event) {
+        return true;
+      }
+    };
+    
     when(copilotMCP.isActive()).thenReturn(true);
-    when(copilotMCP.getName()).thenReturn("test_server");
+    when(copilotMCP.getName()).thenReturn(TEST_SERVER_NAME);
     when(copilotMCP.getJsonStructure()).thenReturn("{\"command\": \"npx\"}");
     when(newEvent.getTargetInstance()).thenReturn(copilotMCP);
 
@@ -81,9 +85,16 @@ public class MCPValidationHandlerTest extends WeldBaseTest {
   @Test
   public void testOnSave_WithInvalidJson() {
     // Arrange
+    MCPValidationHandler handler = new MCPValidationHandler() {
+      @Override
+      protected boolean isValidEvent(EntityPersistenceEvent event) {
+        return true;
+      }
+    };
+    
     when(copilotMCP.isActive()).thenReturn(true);
-    when(copilotMCP.getName()).thenReturn("test_server");
-    when(copilotMCP.getJsonStructure()).thenReturn("{ invalid json }");
+    when(copilotMCP.getName()).thenReturn(TEST_SERVER_NAME);
+    when(copilotMCP.getJsonStructure()).thenReturn(INVALID_JSON_STRUCTURE);
     when(newEvent.getTargetInstance()).thenReturn(copilotMCP);
 
     try (MockedStatic<OBMessageUtils> messageUtils = mockStatic(OBMessageUtils.class)) {
@@ -98,8 +109,15 @@ public class MCPValidationHandlerTest extends WeldBaseTest {
   @Test
   public void testOnSave_WithInactiveRecord() {
     // Arrange
+    MCPValidationHandler handler = new MCPValidationHandler() {
+      @Override
+      protected boolean isValidEvent(EntityPersistenceEvent event) {
+        return true;
+      }
+    };
+    
     when(copilotMCP.isActive()).thenReturn(false);
-    when(copilotMCP.getJsonStructure()).thenReturn("{ invalid json }");
+    when(copilotMCP.getJsonStructure()).thenReturn(INVALID_JSON_STRUCTURE);
     when(newEvent.getTargetInstance()).thenReturn(copilotMCP);
 
     // Act & Assert - Should not validate inactive records
@@ -109,9 +127,16 @@ public class MCPValidationHandlerTest extends WeldBaseTest {
   @Test
   public void testOnUpdate_WithInvalidJson() {
     // Arrange
+    MCPValidationHandler handler = new MCPValidationHandler() {
+      @Override
+      protected boolean isValidEvent(EntityPersistenceEvent event) {
+        return true;
+      }
+    };
+    
     when(copilotMCP.isActive()).thenReturn(true);
-    when(copilotMCP.getName()).thenReturn("test_server");
-    when(copilotMCP.getJsonStructure()).thenReturn("{ invalid json }");
+    when(copilotMCP.getName()).thenReturn(TEST_SERVER_NAME);
+    when(copilotMCP.getJsonStructure()).thenReturn(INVALID_JSON_STRUCTURE);
     when(updateEvent.getTargetInstance()).thenReturn(copilotMCP);
 
     try (MockedStatic<OBMessageUtils> messageUtils = mockStatic(OBMessageUtils.class)) {
