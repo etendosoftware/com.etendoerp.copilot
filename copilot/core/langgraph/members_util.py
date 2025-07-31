@@ -1,14 +1,9 @@
 import functools
-import json
 import re
 from typing import List, Sequence
 
 from colorama import Fore, Style
 from copilot.core.agent import AssistantAgent
-from copilot.core.agent.agent import (
-    get_kb_tool,
-)
-from copilot.core.langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from copilot.core.schema.graph_member import GraphMember
 from copilot.core.schemas import AssistantSchema
 from copilot.core.utils import copilot_debug, copilot_debug_custom, is_debug_enabled
@@ -104,26 +99,16 @@ class MembersUtil:
             )
             member = GraphMember(assistant.name, model_node)
         else:
-            from copilot.core.agent import MultimodelAgent
+            # Use the unified tool loader to get all tools
+            from copilot.core.tool_loader import ToolLoader
 
-            multimodel_agent = MultimodelAgent()
-            configured_tools = multimodel_agent.get_tools()
-            tools = []
-
-            for tool in assistant.tools if assistant.tools is not None else []:
-                for t in configured_tools:
-                    if t.name == tool.function.name:
-                        tools.append(t)
-                        break
-            kb_tool = get_kb_tool(assistant)  # type: ignore
-            if kb_tool is not None:
-                tools.append(kb_tool)
-            if assistant.specs is not None:
-                for spec in assistant.specs:
-                    if spec.type == "FLOW":
-                        api_spec = json.loads(spec.spec)
-                        openapi_tools = generate_tools_from_openapi(api_spec)
-                        tools.extend(openapi_tools)
+            tool_loader = ToolLoader()
+            tools = tool_loader.get_all_tools(
+                agent_configuration=assistant,
+                enabled_tools=assistant.tools,
+                include_kb_tool=True,
+                include_openapi_tools=True,
+            )
 
             agent_tools.extend(tools)
             from copilot.core.agent.multimodel_agent import get_llm

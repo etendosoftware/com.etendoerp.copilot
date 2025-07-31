@@ -1,14 +1,13 @@
-from ...core.utils import print_green
+from ..utils import print_green
 from .agent import AgentEnum, AgentResponse
 from .assistant_agent import AssistantAgent
-from .langchain_agent import LangchainAgent
 from .multimodel_agent import MultimodelAgent
 
 
 def _get_agent_executors():
     _agents = {
         AgentEnum.OPENAI_ASSISTANT.value: AssistantAgent.__name__,
-        AgentEnum.LANGCHAIN.value: LangchainAgent.__name__,
+        AgentEnum.LANGCHAIN.value: MultimodelAgent.__name__,
         AgentEnum.MULTIMODEL.value: MultimodelAgent.__name__,
     }
 

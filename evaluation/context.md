@@ -2247,7 +2247,7 @@ import pandas as pd
 from copilot.core.agent import MultimodelAgent
 from copilot.core.agent.agent import get_kb_tool
 from copilot.core.etendo_utils import call_etendo, login_etendo
-from copilot.core.langgraph.tool_utils.ApiTool import generate_tools_from_openapi
+from copilot.core.toolgen.ApiTool import generate_tools_from_openapi
 from langchain_core.utils.function_calling import convert_to_openai_function
 from langsmith import Client
 from openai.types.chat import (
@@ -2938,4 +2938,3 @@ def generate_html_report(args, link, results_obj):
     return html_file_path, report_timestamp # Return the path and timestamp
 
 ```
-

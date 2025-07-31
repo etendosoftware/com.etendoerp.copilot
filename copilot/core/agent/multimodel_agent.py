@@ -1,4 +1,3 @@
-import json
 import os
 from typing import AsyncGenerator, Final, Optional, Union
 
@@ -8,7 +7,6 @@ from copilot.core.agent.agent import (
     AgentResponse,
     AssistantResponse,
     CopilotAgent,
-    get_kb_tool,
 )
 from langchain.agents import (
     AgentExecutor,
@@ -25,7 +23,6 @@ from langgraph.prebuilt import create_react_agent
 from langgraph_codeact import create_default_prompt
 
 from .. import etendo_utils, utils
-from ..langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..threadcontext import ThreadContext
@@ -149,18 +146,19 @@ class MultimodelAgent(CopilotAgent):
         self._assert_system_prompt_is_set()
         llm = get_llm(model, provider, temperature)
 
-        _enabled_tools = self.get_functions(tools)
-        kb_tool = get_kb_tool(agent_configuration)  # type: ignore
-        if kb_tool is not None:
-            _enabled_tools.append(kb_tool)
-            self._configured_tools.append(kb_tool)
-        if agent_configuration.specs is not None:
-            for spec in agent_configuration.specs:
-                if spec.type == "FLOW":
-                    api_spec = json.loads(spec.spec)
-                    openapi_tools = generate_tools_from_openapi(api_spec)
-                    _enabled_tools.extend(openapi_tools)
-                    self._configured_tools.extend(openapi_tools)
+        # Use the unified tool loader to get all tools
+        from ..tool_loader import ToolLoader
+
+        tool_loader = ToolLoader()
+        _enabled_tools = tool_loader.get_all_tools(
+            agent_configuration=agent_configuration,
+            enabled_tools=tools,
+            include_kb_tool=True,
+            include_openapi_tools=True,
+        )
+
+        # Replace the instance configured tools with the complete list
+        self._configured_tools = _enabled_tools
         tools_loaded[agent_configuration.assistant_id] = _enabled_tools
         prompt_structure = [
             ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
@@ -208,16 +206,6 @@ class MultimodelAgent(CopilotAgent):
         max_exec_time = utils.read_optional_env_var_float("COPILOT_EXECUTION_TIMEOUT", 0)
         agent_exec.max_execution_time = None if max_exec_time == 0 else max_exec_time
         return agent_exec
-
-    def get_functions(self, tools):
-        _enabled_tools = []
-        if tools:
-            for tool in tools:
-                for t in self._configured_tools:
-                    if t.name == tool.function.name:
-                        _enabled_tools.append(t)
-                        break
-        return _enabled_tools
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
@@ -315,7 +303,7 @@ class MultimodelAgent(CopilotAgent):
                 msg = await self.get_messages(output_)
                 yield AssistantResponse(response=str(msg), conversation_id=question.conversation_id)
         except Exception as e:
-            yield AssistantResponse(response=str(e), conversation_id=question.conversation_id,  role="error")
+            yield AssistantResponse(response=str(e), conversation_id=question.conversation_id, role="error")
 
     async def get_messages(self, output_):
         msg = str(output_)
