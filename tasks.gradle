@@ -283,11 +283,7 @@ task 'copilot.build' {
                         }
                         into "${project.buildDir.path}${File.separator}copilot${File.separator}tools"
                     }
-                    jarModuleToolsDir.listFiles().each { file ->
-                        toolsConfigJson.third_party_tools[file.name.replaceFirst(~/\.[^\.]+$/, '')] = true
-                    }
-                    def json_data = JsonOutput.toJson(toolsConfigJson)
-                    toolsConfigFile.write(JsonOutput.prettyPrint(json_data))
+
                     //lets read the Dependencies file of the subproject and add it to the main one
                     File toolsDependenciesFile = new File(jarModule, toolDependencyFileName)
                     if (toolsDependenciesFile.exists()) {
