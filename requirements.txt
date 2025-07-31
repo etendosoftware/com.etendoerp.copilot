@@ -321,6 +321,7 @@ langchain-core==0.3.72
     #   langchain-deepseek
     #   langchain-experimental
     #   langchain-google-genai
+    #   langchain-mcp-adapters
     #   langchain-ollama
     #   langchain-openai
     #   langchain-sandbox
@@ -335,6 +336,8 @@ langchain-deepseek==0.1.4
 langchain-experimental==0.3.4
     # via etendo-copilot-core
 langchain-google-genai==2.1.8
+    # via etendo-copilot-core
+langchain-mcp-adapters==0.1.9
     # via etendo-copilot-core
 langchain-ollama==0.3.6
     # via etendo-copilot-core
@@ -395,7 +398,9 @@ matplotlib-inline==0.1.7
 mccabe==0.7.0
     # via pylint
 mcp==1.12.2
-    # via fastmcp
+    # via
+    #   fastmcp
+    #   langchain-mcp-adapters
 mdurl==0.1.2
     # via markdown-it-py
 mmh3==5.2.0
@@ -830,6 +835,7 @@ typing-extensions==4.14.1
     #   huggingface-hub
     #   ipython
     #   langchain-core
+    #   langchain-mcp-adapters
     #   multidict
     #   openai
     #   opentelemetry-api

@@ -3,9 +3,13 @@ FROM python:3.12.9-slim AS requirements-stage
 WORKDIR /tmp
 
 # Install necessary tools
-RUN apt update  \
-    && apt install -y curl  \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt update && \
+    apt install -y curl libzbar0 nodejs && \
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt install -y nodejs && \
+    npm install -g npm@latest && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN curl -Ls https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
