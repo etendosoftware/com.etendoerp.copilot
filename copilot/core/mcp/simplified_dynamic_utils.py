@@ -6,11 +6,16 @@ with the main application lifecycle.
 """
 
 import atexit
+import logging
 import signal
 import sys
 
-from .simplified_dynamic_manager import get_simplified_dynamic_mcp_manager
+from .simplified_dynamic_manager import (
+    get_simplified_dynamic_mcp_manager,
+    start_simplified_dynamic_mcp_server,
+)
 
+logger = logging.getLogger(__name__)
 _shutdown_registered = False
 
 
@@ -50,10 +55,18 @@ def start_simplified_dynamic_mcp_with_cleanup() -> bool:
     Returns:
         bool: True if server started successfully.
     """
-    from . import start_simplified_dynamic_mcp_server
+    try:
+        # Set up cleanup handlers first (continue even if this fails)
+        try:
+            setup_simplified_dynamic_mcp_shutdown_handlers()
+        except Exception as e:
+            logger.warning(f"Failed to setup shutdown handlers: {e}")
 
-    # Set up cleanup handlers
-    setup_simplified_dynamic_mcp_shutdown_handlers()
+        logger.info("Simplified Dynamic MCP server setup with cleanup handlers")
 
-    # Always start the server
-    return start_simplified_dynamic_mcp_server()
+        # Always start the server
+        return start_simplified_dynamic_mcp_server()
+
+    except Exception as e:
+        logger.error(f"Failed to start simplified dynamic MCP server with cleanup: {e}")
+        return False

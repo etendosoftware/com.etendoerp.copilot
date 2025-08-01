@@ -1,0 +1,462 @@
+"""
+Agent-specific tools for MCP server.
+
+This module contains tools that are dynamically loaded from Etendo Classic
+based on the agent configuration and provides tools specific to each agent.
+"""
+
+import logging
+from typing import List, Optional, Type
+
+import httpx
+from copilot.core.etendo_utils import call_etendo, get_etendo_host
+from copilot.core.mcp.auth_utils import extract_etendo_token_from_mcp_context
+from copilot.core.schemas import AssistantSchema
+from copilot.core.tool_loader import ToolLoader
+from copilot.core.tool_wrapper import ToolWrapper
+from copilot.core.utils import copilot_debug, copilot_error, copilot_info
+from fastmcp.server.dependencies import get_context
+from fastmcp.tools.tool import Tool
+from langchain_core.tools import BaseTool
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+
+# Constants
+APPLICATION_JSON = "application/json"
+ERROR_NO_AGENT_ID = "No agent identifier available"
+ERROR_NO_TOKEN = "No authentication token available"
+
+
+def get_agent_identifier() -> Optional[str]:
+    """Get the agent identifier from the MCP server context."""
+    try:
+        context = get_context()
+        return context.fastmcp._mcp_server.version
+    except Exception as e:
+        logger.error(f"Error getting agent identifier: {e}")
+        return None
+
+
+def fetch_agent_structure_from_etendo(identifier: str, etendo_token: str) -> Optional[AssistantSchema]:
+    """
+    Fetch agent structure from Etendo Classic endpoint.
+
+    Args:
+        identifier: The agent identifier (app_id)
+        etendo_token: Bearer token for authentication
+
+    Returns:
+        AssistantSchema: Agent configuration or None if error
+    """
+    try:
+        etendo_host = get_etendo_host()
+        url = f"{etendo_host}/sws/copilot/structure"
+
+        copilot_debug(f"Fetching agent structure from {url} with app_id={identifier}")
+
+        response: dict = call_etendo(
+            url=etendo_host,
+            endpoint="/sws/copilot/structure?app_id=" + identifier,
+            method="GET",
+            body_params={},
+            access_token=etendo_token,
+        )
+        return AssistantSchema(**response)
+
+    except httpx.HTTPStatusError as e:
+        copilot_error(f"HTTP error fetching agent structure: {e}")
+
+
+def _get_param_type_annotation(field_info) -> str:
+    """Extract type annotation from field info."""
+    try:
+        if hasattr(field_info, "annotation") and field_info.annotation:
+            if hasattr(field_info.annotation, "__name__") and (
+                field_info.annotation.__name__ not in ("Union", "Optional")
+            ):
+                return field_info.annotation.__name__
+            else:
+                return "Any"
+    except (AttributeError, TypeError):
+        pass
+    return "str"
+
+
+def _build_param_definition(field_name: str, field_info) -> str:
+    """Build parameter definition string for function signature."""
+    type_annotation = _get_param_type_annotation(field_info)
+
+    if field_info.is_required():
+        return f"{field_name}: {type_annotation}"
+
+    default_val = getattr(field_info, "default", None)
+    if default_val is not None:
+        if isinstance(default_val, str):
+            return f"{field_name}: {type_annotation} = '{default_val}'"
+        else:
+            return f"{field_name}: {type_annotation} = {default_val}"
+    else:
+        return f"{field_name}: {type_annotation} = None"
+
+
+def _create_langchain_tool_executor(langchain_tool: BaseTool, unify_arguments: bool = False):
+    """
+    Generates a dynamic 'tool_executor' for a LangChain BaseTool.
+    The executor can accept arguments as individual parameters or as a unified object.
+
+    Args:
+        langchain_tool: An instance of LangChain's BaseTool.
+        unify_arguments: If True, creates a function that takes a single 'args' object.
+                        If False, creates a function with individual parameters.
+
+    Returns:
+        A function that serves as the tool's executor, receiving
+        the tool's arguments either individually or as a unified object.
+    """
+    # The LangChain tool's argument schema is a Pydantic BaseModel
+    tool_args_model: Type[BaseModel] = langchain_tool.args_schema or BaseModel
+
+    # If the tool doesn't have an explicit args_schema, create a simple function
+    if tool_args_model is BaseModel:
+
+        def simple_tool_executor(input: str = ""):
+            """Simple executor for tools without an explicit Pydantic schema."""
+            copilot_debug(f"Executing tool '{langchain_tool.name}' with input: {input}")
+            return langchain_tool.run(input)
+
+        return simple_tool_executor
+
+    # Generate function code based on unify_arguments parameter
+    param_names = list(tool_args_model.model_fields.keys())
+
+    # Create function with individual parameters (original behavior)
+    param_definitions = []
+    required_params = []
+    optional_params = []
+
+    # Separate required and optional parameters to ensure correct order
+    for field_name, field_info in tool_args_model.model_fields.items():
+        param_def = _build_param_definition(field_name, field_info)
+        if field_info.is_required():
+            required_params.append(param_def)
+        else:
+            optional_params.append(param_def)
+
+    # Combine with required parameters first, then optional ones
+    param_definitions = required_params + optional_params
+    param_string = ", ".join(param_definitions)
+    copilot_debug(
+        f"Creating individual parameters executor for tool '{langchain_tool.name}' with params: {param_names}"
+    )
+
+    function_code = f'''
+from typing import Dict, Any
+def dynamic_tool_executor({param_string}):
+    """Execute {langchain_tool.name} with specific parameters."""
+    # Collect arguments into dictionary
+    input_dict = {{
+    {",".join([f"        '{param}': {param}" for param in param_names])}
+    }}
+    print(f"Executing tool '{langchain_tool.name}' with input: {{input_dict}}")
+    # Filter out None values
+    cleaned_input = {{k: v for k, v in input_dict.items() if v is not None}}
+
+    print(f"Cleaned input for tool '{langchain_tool.name}': {{cleaned_input}}")
+
+    # Execute the tool
+    return tool_instance.run(cleaned_input)
+    '''
+
+    # Execute the function code
+    namespace = {
+        "tool_instance": langchain_tool,
+        "copilot_debug": copilot_debug,
+        "copilot_error": copilot_error,
+    }
+
+    exec(function_code, namespace)
+
+    # Get the created function
+    executor = namespace["dynamic_tool_executor"]
+    executor.__name__ = f"execute_{langchain_tool.name}"
+
+    # Update docstring based on mode
+    mode_desc = "unified arguments object" if unify_arguments else "specific parameters"
+    executor.__doc__ = f"Execute {langchain_tool.name} tool with {mode_desc}"
+
+    return executor
+
+
+async def _execute_langchain_tool(langchain_tool: BaseTool, kwargs: dict):
+    """Execute a LangChain tool using the most appropriate method."""
+    if hasattr(langchain_tool, "run"):
+        return langchain_tool.run(tool_input=kwargs)
+    elif hasattr(langchain_tool, "ainvoke"):
+        return await langchain_tool.ainvoke(kwargs)
+    elif hasattr(langchain_tool, "arun"):
+        return await langchain_tool.arun(**kwargs)
+    elif hasattr(langchain_tool, "invoke"):
+        return langchain_tool.invoke(kwargs)
+    else:
+        return langchain_tool(**kwargs)
+
+
+def _convert_single_tool_to_mcp(tool: BaseTool) -> Tool:
+    """Convert a single LangChain tool to FastMCP Tool."""
+    from fastmcp.tools import Tool
+
+    try:
+        copilot_debug(f"Converting LangChain tool to MCP format: {tool.name}")
+
+        # Determine how to handle arguments based on tool type
+        if isinstance(tool, ToolWrapper):
+            copilot_debug(f"Tool {tool.name} is a ToolWrapper - using unified arguments")
+            toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=True)
+        elif isinstance(tool, BaseTool):
+            copilot_debug(f"Tool {tool.name} is a BaseTool - using individual parameters")
+            toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=False)
+        else:
+            copilot_error(f"Unsupported tool type: {type(tool)}. Using individual parameters as fallback.")
+            toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=False)
+
+        mcp_tool = Tool.from_function(
+            fn=toolfn_conv,
+            name=tool.name,
+            description=(tool.description or "No description provided")
+            + "\nInput Structure: \n"
+            + str(tool.args_schema.model_json_schema()),
+            tags={tool.__class__.__name__} if tool.__class__.__name__ else set(),
+            enabled=True,
+        )
+
+        # Store the schema information
+        mcp_tool.parameters = tool.args_schema.model_json_schema()
+
+        # Store reference to original tool for debugging/metadata
+        mcp_tool._original_langchain_tool = tool
+
+        return mcp_tool
+
+    except Exception as e:
+        # Shutdown the entire application if tool conversion fails
+        copilot_error(f"Failed to create executor for tool {tool.name}: {e}")
+
+
+def method_name(tool):
+    return tool.args_schema
+
+
+def convert_langchain_tools_to_mcp(tools: List[BaseTool]) -> List[Tool]:
+    """
+    Convert LangChain tools to MCP format.
+
+    Args:
+        tools: List of LangChain BaseTool objects
+
+    Returns:
+        List[Tool]: Tools converted to FastMCP Tool format ready for registration
+    """
+    mcp_tools = []
+
+    for tool in tools:
+        if not isinstance(tool, BaseTool):
+            copilot_error(f"Invalid tool type: {type(tool)}. Expected BaseTool.")
+            continue
+
+        try:
+            mcp_tool = _convert_single_tool_to_mcp(tool)
+            mcp_tools.append(mcp_tool)
+            copilot_debug(f"Converted LangChain tool '{tool.name}' to FastMCP Tool")
+
+        except Exception as e:
+            copilot_error(f"Error converting LangChain tool '{tool.name}' to MCP format: {e}")
+            continue
+
+    return mcp_tools
+
+
+def setup_agent_from_etendo(identifier: str, etendo_token: str) -> bool:
+    """
+    Setup agent configuration from Etendo Classic.
+
+    Args:
+        identifier: Agent identifier
+        etendo_token: Bearer token for authentication
+
+    Returns:
+        bool: True if setup successful, False otherwise
+    """
+    global agent_tools
+
+    try:
+        # Fetch agent structure from Etendo
+        agent_config = fetch_agent_structure_from_etendo(identifier, etendo_token)
+
+        if not agent_config:
+            copilot_error(f"Could not fetch agent configuration for {identifier}")
+            return False
+
+        copilot_info(f"Agent config loaded: {agent_config.name or identifier}")
+
+        # Configure system prompt if available
+        if agent_config.system_prompt:
+            copilot_debug(f"System prompt configured for agent {identifier}: {agent_config.system_prompt}...")
+
+        # Convert agent tools to MCP format and store in global array
+        if agent_config.tools:
+            copilot_info(f"Processing {len(agent_config.tools)} agent tools from Etendo")
+            mcp_tools = convert_langchain_tools_to_mcp(agent_config.tools)
+
+            # Store converted tools in global array for external access
+            agent_tools = mcp_tools
+            copilot_info(
+                f"✅ Converted {len(mcp_tools)} agent tools to MCP format and stored in agent_tools array"
+            )
+
+            # Log the tools that were converted
+            for tool in mcp_tools:
+                copilot_debug(f"  - {tool.name}: {tool.description}")
+        else:
+            agent_tools = []
+            copilot_info("No tools found in agent configuration")
+
+        copilot_info(f"Agent {identifier} successfully configured from Etendo Classic")
+        copilot_info(f"agent_tools array contains {len(agent_tools)} tools ready for MCP registration")
+        return True
+
+    except Exception as e:
+        copilot_error(f"Error setting up agent from Etendo: {e}")
+        return False
+
+
+def _get_agent_structure_tool() -> dict:
+    """Internal implementation for get_agent_structure tool."""
+    try:
+        identifier = get_agent_identifier()
+
+        etendo_token = extract_etendo_token_from_mcp_context()
+        if not etendo_token:
+            return {"success": False, "error": ERROR_NO_TOKEN}
+
+        agent_config = fetch_agent_structure_from_etendo(identifier, etendo_token)
+        if not agent_config:
+            return {"success": False, "error": "Could not fetch agent structure"}
+
+        return {
+            "success": True,
+            "agent": {
+                "name": agent_config.name,
+                "type": agent_config.type,
+                "assistant_id": agent_config.assistant_id,
+                "system_prompt": agent_config.system_prompt,
+                "model": agent_config.model,
+                "provider": agent_config.provider,
+                "tools_count": len(agent_config.tools) if agent_config.tools else 0,
+                "description": agent_config.description,
+            },
+        }
+
+    except Exception as e:
+        copilot_error(f"Error getting agent structure: {e}")
+        return {"success": False, "error": f"Unexpected error: {str(e)}"}
+
+
+def register_agent_tools(app, identifier: Optional[str] = None, etendo_token: Optional[str] = None) -> dict:
+    """
+    Register agent-specific tools with the MCP app.
+
+    This function gets the agent identifier and token, then fetches
+    the agent configuration from Etendo Classic and sets up the tools.
+
+    Args:
+        etendo_token: Bearer token for authentication
+        identifier:  Agent identifier (app_id) to fetch configuration
+        app: FastMCP application instance
+    """
+    try:
+        if not identifier:
+            return {"success": False, "error": ERROR_NO_AGENT_ID}
+
+        if not etendo_token:
+            return {"success": False, "error": ERROR_NO_TOKEN}
+
+        agent_config: AssistantSchema = fetch_agent_structure_from_etendo(identifier, etendo_token)
+        if not agent_config:
+            return {"success": False, "error": "Could not fetch agent structure"}
+
+        _base_tools = ToolLoader().get_all_tools(
+            agent_configuration=agent_config,
+            enabled_tools=agent_config.tools,
+            include_kb_tool=True,
+            include_openapi_tools=True,
+        )
+
+        mcp_tools = [_gen_prompt_tool(agent_config)]
+        mcp_tools.extend(convert_langchain_tools_to_mcp(_base_tools))
+
+        for tool in mcp_tools:
+            # Use add_tool method which expects a Tool object
+            app.add_tool(tool)
+            copilot_debug(f"Registered FastMCP tool: {tool.name}")
+
+        copilot_info(f"Successfully registered {len(mcp_tools)} agent tools")
+        return {"success": True, "tools_count": len(mcp_tools)}
+
+    except Exception as e:
+        copilot_error(f"Error listing agent tools: {e}")
+        return {"success": False, "error": f"Unexpected error: {str(e)}"}
+
+
+def _gen_prompt_tool(agent_config: AssistantSchema, identifier: Optional[str] = None) -> Tool:
+    # add a tool that retrieves the agent prompt
+    def _get_prompt_tool() -> dict:
+        """Tool to retrieve the agent structure."""
+        try:
+            return {
+                "success": True,
+                "agent_name": agent_config.name or identifier,
+                "agent_prompt": agent_config.system_prompt or "No system prompt configured",
+            }
+
+        except Exception as e:
+            copilot_error(f"Error getting agent structure: {e}")
+            return {"success": False, "error": f"Unexpected error: {str(e)}"}
+
+    get_prompt_tool = Tool.from_function(
+        fn=_get_prompt_tool,
+        name="get_agent_prompt",
+        description="Retrieve the agent's system prompt and configuration",
+        tags={"agent", "structure"},
+        enabled=True,
+    )
+    return get_prompt_tool
+
+
+def initialize_agent_from_etendo(identifier: str):
+    """
+    Initialize agent configuration from Etendo Classic during MCP startup.
+
+    Args:
+        app: FastMCP application instance
+    """
+    try:
+        if not identifier:
+            copilot_error(ERROR_NO_AGENT_ID + " for initialization")
+            return
+
+        etendo_token = extract_etendo_token_from_mcp_context()
+        if not etendo_token:
+            copilot_error(ERROR_NO_TOKEN + " for initialization")
+            return
+
+        copilot_info(f"Initializing agent {identifier} from Etendo Classic")
+        success = setup_agent_from_etendo(identifier, etendo_token)
+
+        if success:
+            copilot_info(f"Agent {identifier} successfully initialized from Etendo Classic")
+        else:
+            copilot_error(f"Failed to initialize agent {identifier} from Etendo Classic")
+
+    except Exception as e:
+        copilot_error(f"Error during agent initialization: {e}")

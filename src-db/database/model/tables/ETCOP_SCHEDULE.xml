@@ -65,6 +65,6 @@
       <foreign-key foreignTable="AD_PROCESS_REQUEST" name="ETCOP_SCH_REQ_FK">
         <reference local="AD_PROCESS_REQUEST_ID" foreign="AD_PROCESS_REQUEST_ID"/>
       </foreign-key>
-      <check name="ETCOP_APP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETCOP_SCH_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>

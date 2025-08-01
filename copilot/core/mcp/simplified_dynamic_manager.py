@@ -29,11 +29,12 @@ class SimplifiedDynamicMCPManager:
 
     def _run_server_in_thread(self, host: str, port: int):
         """Run the simplified dynamic MCP server in a separate thread with its own event loop."""
-        # Create a new event loop for this thread
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-
+        self.loop = None
         try:
+            # Create a new event loop for this thread
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+
             logger.info(f"Starting Simplified Dynamic MCP server on {host}:{port}")
             print(f"\033[94m 🚀 Starting Simplified Dynamic MCP server on {host}:{port} \033[00m")
 
@@ -67,7 +68,7 @@ class SimplifiedDynamicMCPManager:
 
         # Get port from environment if not provided
         if port is None:
-            port = int(os.getenv("COPILOT_PORT_MCP", "5007"))
+            port = int(os.getenv("COPILOT_PORT_MCP", "5006"))
 
         try:
             # Start server in daemon thread
@@ -114,14 +115,18 @@ def get_simplified_dynamic_mcp_manager() -> SimplifiedDynamicMCPManager:
     return _simplified_dynamic_mcp_manager
 
 
-def start_simplified_dynamic_mcp_server() -> bool:
+def start_simplified_dynamic_mcp_server(host: str = "0.0.0.0", port: Optional[int] = None) -> bool:
     """Start simplified dynamic MCP server using environment configuration.
+
+    Args:
+        host: Host to bind the server to (default: "0.0.0.0")
+        port: Port to bind the server to (default: None, uses environment config)
 
     Returns:
         bool: True if server started successfully, False otherwise.
     """
     manager = get_simplified_dynamic_mcp_manager()
-    return manager.start()
+    return manager.start(host=host, port=port)
 
 
 def stop_simplified_dynamic_mcp_server():

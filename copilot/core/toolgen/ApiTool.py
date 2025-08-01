@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 import aiohttp
 import requests
 from copilot.core import etendo_utils, utils
+from copilot.core.etendo_utils import normalize_etendo_token
 from copilot.core.utils import copilot_debug
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field, create_model
@@ -213,7 +214,7 @@ class ApiTool(BaseTool, BaseModel):
         from copilot.core import etendo_utils
 
         token = etendo_utils.get_etendo_token()
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = normalize_etendo_token(token)
         url = f"{self.base_url}/{self.path}"
         for param_name, param_value in path_params.items():
             url = url.replace(f"{{{param_name}}}", str(param_value))
@@ -247,7 +248,7 @@ class ApiTool(BaseTool, BaseModel):
         from copilot.core import etendo_utils
 
         token = etendo_utils.get_etendo_token()
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = normalize_etendo_token(token)
 
         url = f"{self.base_url}/{self.path}"
         for param_name, param_value in path_params.items():
@@ -292,6 +293,8 @@ def generate_tools_from_openapi(openapi_spec: Dict[str, Any]) -> List[ApiTool]:
                 description = description[:1021] + "..."
             if len(tool_name) > 64:
                 tool_name = tool_name[:60] + "_" + str(len(tools) + 1)
+            # remove _sws_com_etendoerp_etendorx_datasource
+            tool_name = tool_name.replace("_sws_com_etendoerp_etendorx_datasource", "_etendo")
 
             parameters = operation.get("parameters", [])
             if path.endswith("/{id}"):

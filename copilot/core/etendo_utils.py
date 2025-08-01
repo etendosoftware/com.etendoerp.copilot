@@ -5,6 +5,52 @@ from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import copilot_debug, copilot_debug_curl, read_optional_env_var
 
 APPLICATION_JSON = "application/json"
+BEARER_PREFIX = "Bearer "
+
+
+def normalize_etendo_token(token: str) -> str:
+    """
+    Normalizes an Etendo token by ensuring it has the 'Bearer ' prefix.
+
+    This function centralizes the logic that was repeated throughout the project
+    for handling Etendo tokens that may or may not have the Bearer prefix.
+
+    Args:
+        token (str): The token that may or may not have the Bearer prefix
+
+    Returns:
+        str: The token with the Bearer prefix
+
+    Examples:
+        >>> normalize_etendo_token("abc123")
+        "Bearer abc123"
+        >>> normalize_etendo_token("Bearer abc123")
+        "Bearer abc123"
+    """
+    if not token:
+        return token
+
+    token = token.strip()
+    if not token:
+        return token
+
+    return token if token.startswith(BEARER_PREFIX) else f"{BEARER_PREFIX}{token}"
+
+
+def validate_etendo_token(token: str) -> bool:
+    """
+    Validates that an Etendo token is properly formatted with Bearer prefix.
+
+    Args:
+        token (str): The token to validate
+
+    Returns:
+        bool: True if the token is valid (has Bearer prefix), False otherwise
+    """
+    if not token:
+        return False
+
+    return token.strip().startswith(BEARER_PREFIX)
 
 
 def get_etendo_token():
@@ -48,23 +94,17 @@ def get_extra_info():
     return {}
 
 
-def _get_headers(access_token):
+def build_headers(access_token: str) -> dict:
     """
-    This method generates headers for an HTTP request.
+    Builds headers for an HTTP request with the given access token.
 
-    Parameters:
-    access_token (str, optional): The access token to be included in the headers. If provided, an 'Authorization' field
-     is added to the headers with the value 'Bearer {access_token}'.
+    Args:
+        access_token (str): The access token to include in the Authorization header.
 
     Returns:
-    dict: A dictionary representing the headers. If an access token is provided, the dictionary includes an
-     'Authorization' field.
+        dict: A dictionary representing the headers with the normalized Authorization field.
     """
-    headers = {}
-
-    if access_token:
-        headers["Authorization"] = f"Bearer {access_token}"
-    return headers
+    return {"Authorization": normalize_etendo_token(access_token)}
 
 
 def call_etendo(method: str, url: str, endpoint: str, body_params, access_token: str):
@@ -87,12 +127,12 @@ def call_etendo(method: str, url: str, endpoint: str, body_params, access_token:
     """
     import requests
 
-    headers = _get_headers(access_token)
+    headers = build_headers(access_token)
     import json
 
     json_data = json.dumps(body_params)
     full_url = url + endpoint
-    copilot_debug(f"Calling Webhook(POST): {full_url}")
+    copilot_debug(f"Calling Etendo Classic Endpoint(POST): {full_url}")
     if method.upper() == "GET":
         result = requests.get(url=full_url, headers=headers)
     elif method.upper() == "POST":
@@ -166,7 +206,7 @@ def call_webhook(access_token, body_params, url, webhook_name):
     """
     import requests
 
-    headers = _get_headers(access_token)
+    headers = build_headers(access_token)
     endpoint = "/webhooks/?name=" + webhook_name
     import json
 
