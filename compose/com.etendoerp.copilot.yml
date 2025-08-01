@@ -4,6 +4,7 @@ services:
     ports:
       - "${COPILOT_PORT}:${COPILOT_PORT}"
       - "${COPILOT_PORT_DEBUG}:${COPILOT_PORT_DEBUG}"
+      - "${COPILOT_PORT_MCP}:${COPILOT_PORT_MCP}"
     env_file: ".env"
     volumes:
       - ../copilot:/app/
