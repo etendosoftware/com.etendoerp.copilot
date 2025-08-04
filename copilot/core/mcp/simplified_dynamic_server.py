@@ -36,7 +36,7 @@ from fastmcp.server.auth import BearerAuthProvider
 logger = logging.getLogger(__name__)
 
 # Constant for MCP instance time-to-live in minutes
-MCP_INSTANCE_TTL_MINUTES = 10
+MCP_INSTANCE_TTL_MINUTES = 1
 
 
 def get_bearer_provider():
@@ -207,7 +207,7 @@ class DynamicMCPInstance:
 
             # Use the FastMCP app that was already configured with tools in __init__
             # No need to create a new one or register tools again
-
+            copilot_debug("Starting MCP: Step 1")
             # Create uvicorn config and server
             config = uvicorn.Config(
                 app=self.mcp.http_app(),
@@ -215,24 +215,24 @@ class DynamicMCPInstance:
                 port=self.port,
                 log_level="error",  # Use error to minimize logs
             )
-
+            copilot_debug("Starting MCP: Step 2")
             self.uvicorn_server = uvicorn.Server(config)
-
+            copilot_debug("Starting MCP: Step 3")
             # Store creation timestamp
             self.created_at = time.time()
-
+            copilot_debug(f"Starting MCP: Step 4 - Created at {self.created_at}")
             # Start server in background task
             self.server_task = asyncio.create_task(self.uvicorn_server.serve())
-
+            copilot_debug("Starting MCP: Step 5 - Server task created")
             # Give it a moment to start
             await asyncio.sleep(0.5)
-
+            copilot_debug("Starting MCP: Step 6 - Sleep completed")
             # Start TTL monitor
             self.ttl_task = asyncio.create_task(self._ttl_monitor())
-
+            copilot_debug("Starting MCP: Step 7 - TTL monitor started")
             # Update initial activity
             self.update_activity()
-
+            copilot_debug("Starting MCP: Step 8 - Activity updated")
             copilot_info(
                 f"🎯 MCP server for '{self.identifier}' successfully started on port {self.port} "
                 f"(TTL: {MCP_INSTANCE_TTL_MINUTES} minutes)"
