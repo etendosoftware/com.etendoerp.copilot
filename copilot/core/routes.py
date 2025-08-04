@@ -39,7 +39,6 @@ from copilot.core.vectordb_utils import (
     handle_zip_file,
     index_file,
 )
-from etendo_utils import validate_etendo_token
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from langchain_community.vectorstores import Chroma
 from starlette.responses import StreamingResponse
@@ -494,6 +493,7 @@ def transcript_file(file: UploadFile = File(...)):
 def check_copilot_host(authorization: str = Header(None)):
     try:
         etendo_host_docker = etendo_utils.get_etendo_host()
+        from .etendo_utils import validate_etendo_token
 
         if not authorization or not validate_etendo_token(authorization):
             raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
