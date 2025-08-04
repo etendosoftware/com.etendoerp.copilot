@@ -39,7 +39,7 @@ from copilot.core.vectordb_utils import (
     handle_zip_file,
     index_file,
 )
-from core.etendo_utils import validate_etendo_token
+from etendo_utils import validate_etendo_token
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from langchain_community.vectorstores import Chroma
 from starlette.responses import StreamingResponse
