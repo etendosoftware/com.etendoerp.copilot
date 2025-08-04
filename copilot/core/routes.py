@@ -17,11 +17,10 @@ from pathlib import Path
 import chromadb
 import requests
 from copilot.core import etendo_utils, utils
-from copilot.core.agent import AgentEnum, AgentResponse, copilot_agents
+from copilot.core.agent import AgentEnum, AgentResponse
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
-from copilot.core.etendo_utils import validate_etendo_token
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import (
@@ -40,6 +39,7 @@ from copilot.core.vectordb_utils import (
     handle_zip_file,
     index_file,
 )
+from core.etendo_utils import validate_etendo_token
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from langchain_community.vectorstores import Chroma
 from starlette.responses import StreamingResponse
@@ -52,6 +52,9 @@ current_agent = None
 
 
 def select_copilot_agent(copilot_type: str):
+    from copilot.core.agent import _get_agent_executors
+
+    copilot_agents = _get_agent_executors()
     if copilot_type not in copilot_agents:
         raise UnsupportedAgent()
     return copilot_agents[copilot_type]

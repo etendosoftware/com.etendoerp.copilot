@@ -74,7 +74,7 @@ class DynamicMCPInstance:
 
         copilot_info(f"✅ Tools configured for MCP instance '{self.identifier}'")
 
-    def _find_free_port(self, start_port: int = 5007) -> int:
+    def _find_free_port(self, start_port: int = 5008) -> int:
         """Find a free port starting from start_port, reusing available ports when possible."""
         # First check if server has any available ports to reuse
         if self.server_ref and self.server_ref.available_ports:

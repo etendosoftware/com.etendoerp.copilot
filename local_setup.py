@@ -33,14 +33,11 @@ for root, _dirs, files in os.walk(parent_dir):
                     print(f"Processing dependencies for tool: {tool}")
                     if isinstance(dep, dict):
                         # install the dependency
-                        for k, v in dep.items():
+                        for k, _v in dep.items():
                             if "|" in k:
                                 k = k.split("|")[0]
 
-                            if v == "*":
-                                cmd = f"uv pip install {k}"
-                            else:
-                                cmd = f"uv pip install {k}{v}"
+                            cmd = f"uv pip install {k}"
                             print(f"Installing {k} with command: {cmd}")
                             result = os.system(cmd)
                             if result != 0:
