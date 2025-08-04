@@ -27,9 +27,12 @@ COPY ./uv.lock /app/uv.lock
 COPY ./requirements.txt /app/requirements.txt
 COPY ./pyproject.toml /app/pyproject.toml
 COPY README.md /app/README.md
+COPY ./local_setup.py /app/local_setup.py
 
 # Install Python dependencies
 RUN ["sh", "-c", ". /venv/.venv/bin/activate && uv pip install -r requirements.txt "]
+# Install tools dependencies
+RUN ["sh", "-c", ". /venv/.venv/bin/activate && python local_setup.py"]
 
 # Run: install dependencies with uv and launch the app
-CMD ["sh", "-c", ". /venv/.venv/bin/activate && uv sync && python run.py"]
+CMD ["sh", "-c", ". /venv/.venv/bin/activate && python run.py"]

@@ -394,6 +394,9 @@ task 'copilot.env.file' {
             writer.write("COPILOT_PORT=${copilotPort}\n")
             println "Writing COPILOT_PORT=${copilotPort}"
 
+            writer.write("COPILOT_PORT_MCP=${copilotPortMCP}\n")
+            println "Writing COPILOT_PORT_MCP=${copilotPortMCP}"
+
             writer.write("COPILOT_HOST=${copilotHost}\n")
             println "Writing COPILOT_HOST=${copilotHost}"
 
