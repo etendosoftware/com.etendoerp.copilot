@@ -31,8 +31,8 @@ COPY ./local_setup.py /app/local_setup.py
 
 # Install Python dependencies
 RUN ["sh", "-c", ". /venv/.venv/bin/activate && uv pip install -r requirements.txt "]
-# Install tools dependencies
-RUN ["sh", "-c", ". /venv/.venv/bin/activate && python local_setup.py"]
+# Install tools dependencies and empty tools_deps.toml after installation
+RUN ["sh", "-c", ". /venv/.venv/bin/activate && python local_setup.py --empty-tool-deps"]
 
 # Run: install dependencies with uv and launch the app
 CMD ["sh", "-c", ". /venv/.venv/bin/activate && python run.py"]
