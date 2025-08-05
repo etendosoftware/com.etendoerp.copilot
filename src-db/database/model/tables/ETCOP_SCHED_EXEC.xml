@@ -50,6 +50,6 @@
       <foreign-key foreignTable="ETCOP_SCHEDULE" name="ETCOP_SCHEX_SCH_FK">
         <reference local="ETCOP_SCHEDULE_ID" foreign="ETCOP_SCHEDULE_ID"/>
       </foreign-key>
-      <check name="ETCOP_APP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="ETCOP_SCHE_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
