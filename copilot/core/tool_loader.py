@@ -1,4 +1,5 @@
 import json
+import threading
 from pathlib import Path
 from typing import Dict, Final, List, Optional, TypeAlias
 
@@ -41,11 +42,13 @@ class ToolLoader:
     installed_deps = []  # Save tools that have already installed dependencies
     _tools_module = None  # Store the imported tools module
     _instance = None  # Singleton instance
+    _instance_lock = threading.Lock()  # Lock for thread-safe singleton
     _configured_tools = None  # Cache for loaded tools
 
     def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
+        with cls._instance_lock:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(
