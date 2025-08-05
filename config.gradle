@@ -1,0 +1,34 @@
+/**
+ * Interactive configuration for Etendo Copilot
+ * Configuration properties for AI-powered assistance integration
+ */
+
+// AI API Keys - At least one is required
+apiKeys {
+    openai {
+        name = "OPENAI_API_KEY"
+        description = "OpenAI API key for accessing GPT models (required if using OpenAI)"
+        value = ""
+        sensitive = true
+        required = true
+        group = "Copilot - Basic"
+    }
+    
+    anthropic {
+        name = "ANTHROPIC_API_KEY"
+        description = "Anthropic API key for accessing Claude models (required if using Anthropic)"
+        value = ""
+        sensitive = true
+        required = true
+        group = "Copilot - Basic"
+    }
+    
+    deepseek {
+        name = "DEEPSEEK_API_KEY"
+        description = "DeepSeek API key for accessing DeepSeek models (required if using DeepSeek)"
+        value = ""
+        sensitive = true
+        required = true
+        group = "Copilot - Basic"
+    }
+}
