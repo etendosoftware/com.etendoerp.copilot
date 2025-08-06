@@ -1,239 +1,857 @@
-aiofiles==24.1.0 ; python_version >= "3.10" and python_version < "4.0"
-aiohappyeyeballs==2.6.1 ; python_version >= "3.10" and python_version < "4.0"
-aiohttp==3.11.18 ; python_version >= "3.10" and python_version < "4.0"
-aiosignal==1.3.2 ; python_version >= "3.10" and python_version < "4.0"
-aiosqlite==0.21.0 ; python_version >= "3.10" and python_version < "4.0"
-annotated-types==0.7.0 ; python_version >= "3.10" and python_version < "4.0"
-anthropic==0.51.0 ; python_version >= "3.10" and python_version < "4.0"
-anyio==4.9.0 ; python_version >= "3.10" and python_version < "4.0"
-asgiref==3.8.1 ; python_version >= "3.10" and python_version < "4.0"
-astroid==3.3.9 ; python_version >= "3.10" and python_version < "4.0"
-asttokens==3.0.0 ; python_version >= "3.10" and python_version < "4.0"
-async-timeout==4.0.3 ; python_version == "3.10"
-attrs==25.3.0 ; python_version >= "3.10" and python_version < "4.0"
-backoff==2.2.1 ; python_version >= "3.10" and python_version < "4.0"
-backports-tarfile==1.2.0 ; python_version >= "3.10" and python_version < "3.12"
-bcrypt==4.3.0 ; python_version >= "3.10" and python_version < "4.0"
-black==25.1.0 ; python_version >= "3.10" and python_version < "4.0"
-build==1.2.2.post1 ; python_version >= "3.10" and python_version < "4.0"
-cachecontrol==0.14.3 ; python_version >= "3.10" and python_version < "4.0"
-cachetools==5.5.2 ; python_version >= "3.10" and python_version < "4.0"
-certifi==2025.4.26 ; python_version >= "3.10" and python_version < "4.0"
-cffi==1.17.1 ; python_version >= "3.10" and python_version < "4.0" and (sys_platform == "linux" or sys_platform == "darwin" or platform_python_implementation == "PyPy")
-cfgv==3.4.0 ; python_version >= "3.10" and python_version < "4.0"
-chardet==5.2.0 ; python_version >= "3.10" and python_version < "4.0"
-charset-normalizer==3.4.2 ; python_version >= "3.10" and python_version < "4.0"
-chroma-hnswlib==0.7.6 ; python_version >= "3.10" and python_version < "4.0"
-chromadb==0.6.3 ; python_version >= "3.10" and python_version < "4.0"
-cleo==2.1.0 ; python_version >= "3.10" and python_version < "4.0"
-click==8.1.8 ; python_version >= "3.10" and python_version < "4.0"
-colorama==0.4.6 ; python_version >= "3.10" and python_version < "4.0"
-coloredlogs==15.0.1 ; python_version >= "3.10" and python_version < "4.0"
-crashtest==0.4.1 ; python_version >= "3.10" and python_version < "4.0"
-cryptography==44.0.3 ; python_version >= "3.10" and python_version < "4.0" and sys_platform == "linux"
-curlify==2.2.1 ; python_version >= "3.10" and python_version < "4.0"
-dataclasses-json==0.6.7 ; python_version >= "3.10" and python_version < "4.0"
-debugpy==1.8.14 ; python_version >= "3.10" and python_version < "4.0"
-decorator==5.2.1 ; python_version >= "3.10" and python_version < "4.0"
-deprecated==1.2.18 ; python_version >= "3.10" and python_version < "4.0"
-dill==0.4.0 ; python_version >= "3.10" and python_version < "4.0"
-distlib==0.3.9 ; python_version >= "3.10" and python_version < "4.0"
-distro==1.9.0 ; python_version >= "3.10" and python_version < "4.0"
-dulwich==0.22.8 ; python_version >= "3.10" and python_version < "4.0"
-durationpy==0.9 ; python_version >= "3.10" and python_version < "4.0"
-dydantic==0.0.8 ; python_version >= "3.10" and python_version < "4.0"
-exceptiongroup==1.2.2 ; python_version == "3.10"
-executing==2.2.0 ; python_version >= "3.10" and python_version < "4.0"
-fastapi==0.115.12 ; python_version >= "3.10" and python_version < "4.0"
-fastjsonschema==2.21.1 ; python_version >= "3.10" and python_version < "4.0"
-filelock==3.18.0 ; python_version >= "3.10" and python_version < "4.0"
-filetype==1.2.0 ; python_version >= "3.10" and python_version < "4.0"
-findpython==0.6.3 ; python_version >= "3.10" and python_version < "4.0"
-flatbuffers==25.2.10 ; python_version >= "3.10" and python_version < "4.0"
-frontend==0.0.3 ; python_version >= "3.10" and python_version < "4.0"
-frozenlist==1.6.0 ; python_version >= "3.10" and python_version < "4.0"
-fsspec==2025.3.2 ; python_version >= "3.10" and python_version < "4.0"
-google-ai-generativelanguage==0.6.18 ; python_version >= "3.10" and python_version < "4.0"
-google-api-core==2.24.2 ; python_version >= "3.10" and python_version < "4.0"
-google-auth==2.40.1 ; python_version >= "3.10" and python_version < "4.0"
-googleapis-common-protos==1.70.0 ; python_version >= "3.10" and python_version < "4.0"
-grandalf==0.8 ; python_version >= "3.10" and python_version < "4.0"
-greenlet==3.2.1 ; python_version >= "3.10" and python_version <= "3.13" and (platform_machine == "aarch64" or platform_machine == "ppc64le" or platform_machine == "x86_64" or platform_machine == "amd64" or platform_machine == "AMD64" or platform_machine == "win32" or platform_machine == "WIN32")
-grpcio-status==1.71.0 ; python_version >= "3.10" and python_version < "4.0"
-grpcio==1.71.0 ; python_version >= "3.10" and python_version < "4.0"
-h11==0.16.0 ; python_version >= "3.10" and python_version < "4.0"
-hf-xet==1.1.0 ; python_version >= "3.10" and python_version < "4.0" and (platform_machine == "x86_64" or platform_machine == "amd64" or platform_machine == "arm64" or platform_machine == "aarch64")
-httpcore==1.0.9 ; python_version >= "3.10" and python_version < "4.0"
-httptools==0.6.4 ; python_version >= "3.10" and python_version < "4.0"
-httpx-sse==0.4.0 ; python_version >= "3.10" and python_version < "4.0"
-httpx==0.27.2 ; python_version >= "3.10" and python_version < "4.0"
-huggingface-hub==0.31.1 ; python_version >= "3.10" and python_version < "4.0"
-humanfriendly==10.0 ; python_version >= "3.10" and python_version < "4.0"
-identify==2.6.10 ; python_version >= "3.10" and python_version < "4.0"
-idna==3.10 ; python_version >= "3.10" and python_version < "4.0"
-importlib-metadata==8.6.1 ; python_version >= "3.10" and python_version < "4.0"
-importlib-resources==6.5.2 ; python_version >= "3.10" and python_version < "4.0"
-iniconfig==2.1.0 ; python_version >= "3.10" and python_version < "4.0"
-installer==0.7.0 ; python_version >= "3.10" and python_version < "4.0"
-ipython==8.36.0 ; python_version >= "3.10" and python_version < "4.0"
-isort==6.0.1 ; python_version >= "3.10" and python_version < "4.0"
-itsdangerous==2.2.0 ; python_version >= "3.10" and python_version < "4.0"
-jaraco-classes==3.4.0 ; python_version >= "3.10" and python_version < "4.0"
-jaraco-context==6.0.1 ; python_version >= "3.10" and python_version < "4.0"
-jaraco-functools==4.1.0 ; python_version >= "3.10" and python_version < "4.0"
-jedi==0.19.2 ; python_version >= "3.10" and python_version < "4.0"
-jeepney==0.9.0 ; python_version >= "3.10" and python_version < "4.0" and sys_platform == "linux"
-jiter==0.9.0 ; python_version >= "3.10" and python_version < "4.0"
-jsonpatch==1.33 ; python_version >= "3.10" and python_version < "4.0"
-jsonpointer==3.0.0 ; python_version >= "3.10" and python_version < "4.0"
-keyring==25.6.0 ; python_version >= "3.10" and python_version < "4.0"
-kubernetes==32.0.1 ; python_version >= "3.10" and python_version < "4.0"
-langchain-anthropic==0.3.13 ; python_version >= "3.10" and python_version < "4.0"
-langchain-chroma==0.2.3 ; python_version >= "3.10" and python_version < "4.0"
-langchain-community==0.3.23 ; python_version >= "3.10" and python_version < "4.0"
-langchain-core==0.3.59 ; python_version >= "3.10" and python_version < "4.0"
-langchain-deepseek==0.1.3 ; python_version >= "3.10" and python_version < "4.0"
-langchain-experimental==0.3.4 ; python_version >= "3.10" and python_version < "4.0"
-langchain-google-genai==2.1.4 ; python_version >= "3.10" and python_version < "4.0"
-langchain-ollama==0.3.2 ; python_version >= "3.10" and python_version < "4.0"
-langchain-openai==0.3.16 ; python_version >= "3.10" and python_version < "4.0"
-langchain-sandbox==0.0.4 ; python_version >= "3.10" and python_version < "4.0"
-langchain-text-splitters==0.3.8 ; python_version >= "3.10" and python_version < "4.0"
-langchain==0.3.25 ; python_version >= "3.10" and python_version < "4.0"
-langgraph-checkpoint-sqlite==2.0.7 ; python_version >= "3.10" and python_version < "4.0"
-langgraph-checkpoint==2.0.25 ; python_version >= "3.10" and python_version < "4.0"
-langgraph-codeact==0.1.3 ; python_version >= "3.10" and python_version < "4.0"
-langgraph-prebuilt==0.1.8 ; python_version >= "3.10" and python_version < "4.0"
-langgraph-sdk==0.1.66 ; python_version >= "3.10" and python_version < "4.0"
-langgraph-supervisor==0.0.21 ; python_version >= "3.10" and python_version < "4.0"
-langgraph==0.3.34 ; python_version >= "3.10" and python_version < "4.0"
-langmem==0.0.21 ; python_version >= "3.10" and python_version < "4.0"
-langsmith==0.3.42 ; python_version >= "3.10" and python_version < "4.0"
-markdown-it-py==3.0.0 ; python_version >= "3.10" and python_version < "4.0"
-marshmallow==3.26.1 ; python_version >= "3.10" and python_version < "4.0"
-matplotlib-inline==0.1.7 ; python_version >= "3.10" and python_version < "4.0"
-mccabe==0.7.0 ; python_version >= "3.10" and python_version < "4.0"
-mdurl==0.1.2 ; python_version >= "3.10" and python_version < "4.0"
-mmh3==5.1.0 ; python_version >= "3.10" and python_version < "4.0"
-monotonic==1.6 ; python_version >= "3.10" and python_version < "4.0"
-more-itertools==10.7.0 ; python_version >= "3.10" and python_version < "4.0"
-mpmath==1.3.0 ; python_version >= "3.10" and python_version < "4.0"
-msgpack==1.1.0 ; python_version >= "3.10" and python_version < "4.0"
-multidict==6.4.3 ; python_version >= "3.10" and python_version < "4.0"
-mypy-extensions==1.1.0 ; python_version >= "3.10" and python_version < "4.0"
-nest-asyncio==1.6.0 ; python_version >= "3.10" and python_version < "4.0"
-nodeenv==1.9.1 ; python_version >= "3.10" and python_version < "4.0"
-numpy==2.2.5 ; python_version >= "3.10" and python_version < "4.0"
-oauthlib==3.2.2 ; python_version >= "3.10" and python_version < "4.0"
-ollama==0.4.8 ; python_version >= "3.10" and python_version < "4.0"
-onnxruntime==1.21.1 ; python_version >= "3.10" and python_version < "4.0"
-openai==1.78.0 ; python_version >= "3.10" and python_version < "4.0"
-openevals==0.0.20 ; python_version >= "3.10" and python_version < "4.0"
-opentelemetry-api==1.32.1 ; python_version >= "3.10" and python_version < "4.0"
-opentelemetry-exporter-otlp-proto-common==1.32.1 ; python_version >= "3.10" and python_version < "4.0"
-opentelemetry-exporter-otlp-proto-grpc==1.32.1 ; python_version >= "3.10" and python_version < "4.0"
-opentelemetry-instrumentation-asgi==0.53b1 ; python_version >= "3.10" and python_version < "4.0"
-opentelemetry-instrumentation-fastapi==0.53b1 ; python_version >= "3.10" and python_version < "4.0"
-opentelemetry-instrumentation==0.53b1 ; python_version >= "3.10" and python_version < "4.0"
-opentelemetry-proto==1.32.1 ; python_version >= "3.10" and python_version < "4.0"
-opentelemetry-sdk==1.32.1 ; python_version >= "3.10" and python_version < "4.0"
-opentelemetry-semantic-conventions==0.53b1 ; python_version >= "3.10" and python_version < "4.0"
-opentelemetry-util-http==0.53b1 ; python_version >= "3.10" and python_version < "4.0"
-orjson==3.10.18 ; python_version >= "3.10" and python_version < "4.0"
-ormsgpack==1.9.1 ; python_version >= "3.10" and python_version < "4.0"
-overrides==7.7.0 ; python_version >= "3.10" and python_version < "4.0"
-packaging==24.2 ; python_version >= "3.10" and python_version < "4.0"
-pandas==2.2.3 ; python_version >= "3.10" and python_version < "4.0"
-parso==0.8.4 ; python_version >= "3.10" and python_version < "4.0"
-pathspec==0.12.1 ; python_version >= "3.10" and python_version < "4.0"
-pbs-installer==2025.4.9 ; python_version >= "3.10" and python_version < "4.0"
-pexpect==4.9.0 ; python_version >= "3.10" and python_version < "4.0" and sys_platform != "win32" and sys_platform != "emscripten"
-pip==25.1.1 ; python_version >= "3.10" and python_version < "4.0"
-pkginfo==1.12.1.2 ; python_version >= "3.10" and python_version < "4.0"
-platformdirs==4.3.8 ; python_version >= "3.10" and python_version < "4.0"
-pluggy==1.5.0 ; python_version >= "3.10" and python_version < "4.0"
-poetry-core==2.1.3 ; python_version >= "3.10" and python_version < "4.0"
-poetry-plugin-export==1.9.0 ; python_version >= "3.10" and python_version < "4.0"
-poetry==2.1.3 ; python_version >= "3.10" and python_version < "4.0"
-posthog==4.0.1 ; python_version >= "3.10" and python_version < "4.0"
-pre-commit==4.2.0 ; python_version >= "3.10" and python_version < "4.0"
-prompt-toolkit==3.0.51 ; python_version >= "3.10" and python_version < "4.0"
-propcache==0.3.1 ; python_version >= "3.10" and python_version < "4.0"
-proto-plus==1.26.1 ; python_version >= "3.10" and python_version < "4.0"
-protobuf==5.29.4 ; python_version >= "3.10" and python_version < "4.0"
-psycopg2-binary==2.9.10 ; python_version >= "3.10" and python_version < "4.0"
-ptyprocess==0.7.0 ; python_version >= "3.10" and python_version < "4.0" and sys_platform != "win32" and sys_platform != "emscripten"
-pure-eval==0.2.3 ; python_version >= "3.10" and python_version < "4.0"
-pyasn1-modules==0.4.2 ; python_version >= "3.10" and python_version < "4.0"
-pyasn1==0.6.1 ; python_version >= "3.10" and python_version < "4.0"
-pycparser==2.22 ; python_version >= "3.10" and python_version < "4.0" and (sys_platform == "linux" or sys_platform == "darwin" or platform_python_implementation == "PyPy")
-pydantic-core==2.33.2 ; python_version >= "3.10" and python_version < "4.0"
-pydantic-settings==2.9.1 ; python_version >= "3.10" and python_version < "4.0"
-pydantic==2.11.4 ; python_version >= "3.10" and python_version < "4.0"
-pyfiglet==1.0.2 ; python_version >= "3.10" and python_version < "4.0"
-pygments==2.19.1 ; python_version >= "3.10" and python_version < "4.0"
-pylint==3.3.7 ; python_version >= "3.10" and python_version < "4.0"
-pymupdf==1.25.5 ; python_version >= "3.10" and python_version < "4.0"
-pyparsing==3.2.3 ; python_version >= "3.10" and python_version < "4.0"
-pypika==0.48.9 ; python_version >= "3.10" and python_version < "4.0"
-pyproject-api==1.9.0 ; python_version >= "3.10" and python_version < "4.0"
-pyproject-hooks==1.2.0 ; python_version >= "3.10" and python_version < "4.0"
-pyreadline3==3.5.4 ; python_version >= "3.10" and python_version < "4.0" and sys_platform == "win32"
-pytest-mock==3.14.0 ; python_version >= "3.10" and python_version < "4.0"
-pytest==7.4.4 ; python_version >= "3.10" and python_version < "4.0"
-python-dateutil==2.9.0.post0 ; python_version >= "3.10" and python_version < "4.0"
-python-dotenv==1.1.0 ; python_version >= "3.10" and python_version < "4.0"
-python-multipart==0.0.20 ; python_version >= "3.10" and python_version < "4.0"
-pytz==2025.2 ; python_version >= "3.10" and python_version < "4.0"
-pywin32-ctypes==0.2.3 ; python_version >= "3.10" and python_version < "4.0" and sys_platform == "win32"
-pyyaml==6.0.2 ; python_version >= "3.10" and python_version < "4.0"
-rapidfuzz==3.13.0 ; python_version >= "3.10" and python_version < "4.0"
-regex==2024.11.6 ; python_version >= "3.10" and python_version < "4.0"
-requests-mock==1.12.1 ; python_version >= "3.10" and python_version < "4.0"
-requests-oauthlib==2.0.0 ; python_version >= "3.10" and python_version < "4.0"
-requests-toolbelt==1.0.0 ; python_version >= "3.10" and python_version < "4.0"
-requests==2.32.3 ; python_version >= "3.10" and python_version < "4.0"
-restrictedpython==8.0 ; python_version >= "3.10" and python_version <= "3.13"
-rich==14.0.0 ; python_version >= "3.10" and python_version < "4.0"
-rizaio==0.10.0 ; python_version >= "3.10" and python_version < "4.0"
-rsa==4.9.1 ; python_version >= "3.10" and python_version < "4.0"
-secretstorage==3.3.3 ; python_version >= "3.10" and python_version < "4.0" and sys_platform == "linux"
-setuptools==78.1.1 ; python_version >= "3.10" and python_version < "4.0"
-shellingham==1.5.4 ; python_version >= "3.10" and python_version < "4.0"
-six==1.17.0 ; python_version >= "3.10" and python_version < "4.0"
-sniffio==1.3.1 ; python_version >= "3.10" and python_version < "4.0"
-sqlalchemy==2.0.40 ; python_version >= "3.10" and python_version < "4.0"
-stack-data==0.6.3 ; python_version >= "3.10" and python_version < "4.0"
-starlette==0.46.2 ; python_version >= "3.10" and python_version < "4.0"
-sympy==1.14.0 ; python_version >= "3.10" and python_version < "4.0"
-tenacity==9.1.2 ; python_version >= "3.10" and python_version < "4.0"
-tiktoken==0.9.0 ; python_version >= "3.10" and python_version < "4.0"
-tokenizers==0.21.1 ; python_version >= "3.10" and python_version < "4.0"
-toml==0.10.2 ; python_version >= "3.10" and python_version < "4.0"
-tomli==2.2.1 ; python_version >= "3.10" and python_version < "4.0"
-tomlkit==0.13.2 ; python_version >= "3.10" and python_version < "4.0"
-tox==4.25.0 ; python_version >= "3.10" and python_version < "4.0"
-tqdm==4.67.1 ; python_version >= "3.10" and python_version < "4.0"
-traitlets==5.14.3 ; python_version >= "3.10" and python_version < "4.0"
-trove-classifiers==2025.5.9.12 ; python_version >= "3.10" and python_version < "4.0"
-trustcall==0.0.39 ; python_version >= "3.10" and python_version < "4.0"
-typer==0.15.3 ; python_version >= "3.10" and python_version < "4.0"
-typing-extensions==4.14.0 ; python_version >= "3.10" and python_version < "4.0"
-typing-inspect==0.9.0 ; python_version >= "3.10" and python_version < "4.0"
-typing-inspection==0.4.0 ; python_version >= "3.10" and python_version < "4.0"
-tzdata==2025.2 ; python_version >= "3.10" and python_version < "4.0"
-urllib3==2.4.0 ; python_version >= "3.10" and python_version < "4.0"
-uvicorn==0.34.2 ; python_version >= "3.10" and python_version < "4.0"
-uvloop==0.21.0 ; python_version >= "3.10" and python_version < "4.0" and platform_python_implementation != "PyPy" and sys_platform != "win32" and sys_platform != "cygwin"
-virtualenv==20.31.2 ; python_version >= "3.10" and python_version < "4.0"
-watchfiles==1.0.5 ; python_version >= "3.10" and python_version < "4.0"
-wcwidth==0.2.13 ; python_version >= "3.10" and python_version < "4.0"
-websocket-client==1.8.0 ; python_version >= "3.10" and python_version < "4.0"
-websockets==15.0.1 ; python_version >= "3.10" and python_version < "4.0"
-wrapt==1.17.2 ; python_version >= "3.10" and python_version < "4.0"
-xattr==1.1.4 ; python_version >= "3.10" and python_version < "4.0" and sys_platform == "darwin"
-xxhash==3.5.0 ; python_version >= "3.10" and python_version < "4.0"
-yarl==1.20.0 ; python_version >= "3.10" and python_version < "4.0"
-zipp==3.21.0 ; python_version >= "3.10" and python_version < "4.0"
-zstandard==0.23.0 ; python_version >= "3.10" and python_version < "4.0"
-langchain-mcp-adapters==0.1.9 ; python_version >= "3.10" and python_version < "4.0"
+# This file was autogenerated by uv via the following command:
+#    uv export --no-hashes --format=requirements-txt --output-file=requirements.txt
+aiofiles==24.1.0
+    # via frontend
+aiohappyeyeballs==2.6.1
+    # via aiohttp
+aiohttp==3.11.18
+    # via langchain-community
+aiosignal==1.3.2
+    # via aiohttp
+aiosqlite==0.21.0
+    # via
+    #   etendo-copilot-core
+    #   langgraph-checkpoint-sqlite
+annotated-types==0.7.0
+    # via pydantic
+anthropic==0.51.0
+    # via langchain-anthropic
+anyio==4.9.0
+    # via
+    #   anthropic
+    #   httpx
+    #   mcp
+    #   openai
+    #   rizaio
+    #   sse-starlette
+    #   starlette
+    #   watchfiles
+asgiref==3.8.1
+    # via opentelemetry-instrumentation-asgi
+astroid==3.3.9
+    # via pylint
+asttokens==3.0.0
+    # via stack-data
+async-timeout==4.0.3 ; python_full_version < '3.11'
+    # via
+    #   aiohttp
+    #   langchain
+attrs==25.3.0
+    # via
+    #   aiohttp
+    #   jsonschema
+    #   referencing
+backoff==2.2.1
+    # via posthog
+backports-tarfile==1.2.0 ; python_full_version < '3.12'
+    # via jaraco-context
+bcrypt==4.3.0
+    # via chromadb
+black==25.1.0
+    # via etendo-copilot-core
+build==1.2.2.post1
+    # via
+    #   chromadb
+    #   poetry
+cachecontrol==0.14.3
+    # via poetry
+cachetools==5.5.2
+    # via
+    #   google-auth
+    #   tox
+certifi==2025.4.26
+    # via
+    #   httpcore
+    #   httpx
+    #   kubernetes
+    #   requests
+cffi==1.17.1 ; platform_python_implementation == 'PyPy' or sys_platform == 'darwin' or sys_platform == 'linux'
+    # via
+    #   cryptography
+    #   xattr
+    #   zstandard
+cfgv==3.4.0
+    # via pre-commit
+chardet==5.2.0
+    # via tox
+charset-normalizer==3.4.2
+    # via requests
+chroma-hnswlib==0.7.6
+    # via chromadb
+chromadb==0.6.3
+    # via
+    #   etendo-copilot-core
+    #   langchain-chroma
+cleo==2.1.0
+    # via poetry
+click==8.1.8
+    # via
+    #   black
+    #   typer
+    #   uvicorn
+colorama==0.4.6
+    # via
+    #   build
+    #   click
+    #   etendo-copilot-core
+    #   ipython
+    #   pylint
+    #   pytest
+    #   tox
+    #   tqdm
+    #   uvicorn
+coloredlogs==15.0.1
+    # via onnxruntime
+coverage==7.8.0
+    # via pytest-cov
+crashtest==0.4.1
+    # via cleo
+cryptography==44.0.3 ; sys_platform == 'linux'
+    # via secretstorage
+curlify==2.2.1
+    # via etendo-copilot-core
+dataclasses-json==0.6.7
+    # via langchain-community
+debugpy==1.8.14
+    # via etendo-copilot-core
+decorator==5.2.1
+    # via ipython
+deprecated==1.2.18
+    # via
+    #   opentelemetry-api
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-semantic-conventions
+dill==0.4.0
+    # via pylint
+distlib==0.3.9
+    # via virtualenv
+distro==1.9.0
+    # via
+    #   anthropic
+    #   openai
+    #   posthog
+    #   rizaio
+dulwich==0.22.8
+    # via poetry
+durationpy==0.9
+    # via kubernetes
+dydantic==0.0.8
+    # via trustcall
+exceptiongroup==1.2.2 ; python_full_version < '3.11'
+    # via
+    #   anyio
+    #   ipython
+    #   pytest
+executing==2.2.0
+    # via stack-data
+fastapi==0.115.12
+    # via
+    #   chromadb
+    #   etendo-copilot-core
+fastjsonschema==2.21.1
+    # via poetry
+filelock==3.18.0
+    # via
+    #   cachecontrol
+    #   huggingface-hub
+    #   tox
+    #   virtualenv
+filetype==1.2.0
+    # via langchain-google-genai
+findpython==0.6.3
+    # via poetry
+flatbuffers==25.2.10
+    # via onnxruntime
+frontend==0.0.3
+    # via etendo-copilot-core
+frozenlist==1.6.0
+    # via
+    #   aiohttp
+    #   aiosignal
+fsspec==2025.3.2
+    # via huggingface-hub
+google-ai-generativelanguage==0.6.18
+    # via langchain-google-genai
+google-api-core==2.24.2
+    # via google-ai-generativelanguage
+google-auth==2.40.1
+    # via
+    #   google-ai-generativelanguage
+    #   google-api-core
+    #   kubernetes
+googleapis-common-protos==1.70.0
+    # via
+    #   google-api-core
+    #   grpcio-status
+    #   opentelemetry-exporter-otlp-proto-grpc
+grandalf==0.8
+    # via etendo-copilot-core
+greenlet==3.2.1 ; (python_full_version < '3.14' and platform_machine == 'AMD64') or (python_full_version < '3.14' and platform_machine == 'WIN32') or (python_full_version < '3.14' and platform_machine == 'aarch64') or (python_full_version < '3.14' and platform_machine == 'amd64') or (python_full_version < '3.14' and platform_machine == 'ppc64le') or (python_full_version < '3.14' and platform_machine == 'win32') or (python_full_version < '3.14' and platform_machine == 'x86_64')
+    # via sqlalchemy
+grpcio==1.71.0
+    # via
+    #   chromadb
+    #   google-api-core
+    #   grpcio-status
+    #   opentelemetry-exporter-otlp-proto-grpc
+grpcio-status==1.71.0
+    # via google-api-core
+h11==0.16.0
+    # via
+    #   httpcore
+    #   uvicorn
+hf-xet==1.1.0 ; platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
+    # via huggingface-hub
+httpcore==1.0.9
+    # via httpx
+httptools==0.6.4
+    # via uvicorn
+httpx==0.27.2
+    # via
+    #   anthropic
+    #   chromadb
+    #   langgraph-sdk
+    #   langsmith
+    #   mcp
+    #   ollama
+    #   openai
+    #   pbs-installer
+    #   rizaio
+httpx-sse==0.4.0
+    # via
+    #   langchain-community
+    #   mcp
+huggingface-hub==0.31.1
+    # via tokenizers
+humanfriendly==10.0
+    # via coloredlogs
+identify==2.6.10
+    # via pre-commit
+idna==3.10
+    # via
+    #   anyio
+    #   httpx
+    #   requests
+    #   yarl
+importlib-metadata==8.6.1
+    # via
+    #   build
+    #   keyring
+    #   opentelemetry-api
+importlib-resources==6.5.2
+    # via chromadb
+iniconfig==2.1.0
+    # via pytest
+installer==0.7.0
+    # via poetry
+ipython==8.36.0
+    # via etendo-copilot-core
+isort==6.0.1
+    # via pylint
+itsdangerous==2.2.0
+    # via frontend
+jaraco-classes==3.4.0
+    # via keyring
+jaraco-context==6.0.1
+    # via keyring
+jaraco-functools==4.1.0
+    # via keyring
+jedi==0.19.2
+    # via ipython
+jeepney==0.9.0 ; sys_platform == 'linux'
+    # via
+    #   keyring
+    #   secretstorage
+jiter==0.9.0
+    # via
+    #   anthropic
+    #   openai
+jsonpatch==1.33
+    # via
+    #   langchain-core
+    #   trustcall
+jsonpointer==3.0.0
+    # via jsonpatch
+jsonschema==4.25.0
+    # via mcp
+jsonschema-specifications==2025.4.1
+    # via jsonschema
+keyring==25.6.0
+    # via poetry
+kubernetes==32.0.1
+    # via chromadb
+langchain==0.3.25
+    # via
+    #   etendo-copilot-core
+    #   langchain-community
+    #   langmem
+    #   openevals
+langchain-anthropic==0.3.13
+    # via
+    #   etendo-copilot-core
+    #   langmem
+langchain-chroma==0.2.3
+    # via etendo-copilot-core
+langchain-community==0.3.23
+    # via
+    #   etendo-copilot-core
+    #   langchain-experimental
+langchain-core==0.3.59
+    # via
+    #   etendo-copilot-core
+    #   langchain
+    #   langchain-anthropic
+    #   langchain-chroma
+    #   langchain-community
+    #   langchain-deepseek
+    #   langchain-experimental
+    #   langchain-google-genai
+    #   langchain-mcp-adapters
+    #   langchain-ollama
+    #   langchain-openai
+    #   langchain-sandbox
+    #   langchain-text-splitters
+    #   langgraph
+    #   langgraph-checkpoint
+    #   langgraph-prebuilt
+    #   langgraph-supervisor
+    #   langmem
+langchain-deepseek==0.1.3
+    # via etendo-copilot-core
+langchain-experimental==0.3.4
+    # via etendo-copilot-core
+langchain-google-genai==2.1.4
+    # via etendo-copilot-core
+langchain-mcp-adapters==0.1.9
+    # via etendo-copilot-core
+langchain-ollama==0.3.2
+    # via etendo-copilot-core
+langchain-openai==0.3.16
+    # via
+    #   etendo-copilot-core
+    #   langchain-deepseek
+    #   langmem
+    #   openevals
+langchain-sandbox==0.0.4
+    # via etendo-copilot-core
+langchain-text-splitters==0.3.8
+    # via
+    #   etendo-copilot-core
+    #   langchain
+langgraph==0.3.34
+    # via
+    #   etendo-copilot-core
+    #   langgraph-codeact
+    #   langgraph-supervisor
+    #   langmem
+    #   trustcall
+langgraph-checkpoint==2.0.25
+    # via
+    #   etendo-copilot-core
+    #   langgraph
+    #   langgraph-checkpoint-sqlite
+    #   langgraph-prebuilt
+    #   langmem
+langgraph-checkpoint-sqlite==2.0.7
+    # via etendo-copilot-core
+langgraph-codeact==0.1.3
+    # via etendo-copilot-core
+langgraph-prebuilt==0.1.8
+    # via
+    #   langgraph
+    #   langgraph-supervisor
+langgraph-sdk==0.1.66
+    # via langgraph
+langgraph-supervisor==0.0.21
+    # via etendo-copilot-core
+langmem==0.0.21
+    # via etendo-copilot-core
+langsmith==0.3.42
+    # via
+    #   etendo-copilot-core
+    #   langchain
+    #   langchain-community
+    #   langchain-core
+    #   langmem
+    #   openevals
+markdown-it-py==3.0.0
+    # via rich
+marshmallow==3.26.1
+    # via dataclasses-json
+matplotlib-inline==0.1.7
+    # via ipython
+mccabe==0.7.0
+    # via pylint
+mcp==1.12.3
+    # via langchain-mcp-adapters
+mdurl==0.1.2
+    # via markdown-it-py
+mmh3==5.1.0
+    # via chromadb
+monotonic==1.6
+    # via etendo-copilot-core
+more-itertools==10.7.0
+    # via
+    #   jaraco-classes
+    #   jaraco-functools
+mpmath==1.3.0
+    # via sympy
+msgpack==1.1.0
+    # via cachecontrol
+multidict==6.4.3
+    # via
+    #   aiohttp
+    #   yarl
+mypy-extensions==1.1.0
+    # via
+    #   black
+    #   typing-inspect
+nest-asyncio==1.6.0
+    # via etendo-copilot-core
+nodeenv==1.9.1
+    # via pre-commit
+numpy==2.2.5
+    # via
+    #   chroma-hnswlib
+    #   chromadb
+    #   langchain-chroma
+    #   langchain-community
+    #   onnxruntime
+    #   pandas
+oauthlib==3.2.2
+    # via
+    #   kubernetes
+    #   requests-oauthlib
+ollama==0.4.8
+    # via langchain-ollama
+onnxruntime==1.21.1
+    # via chromadb
+openai==1.78.0
+    # via
+    #   etendo-copilot-core
+    #   langchain-openai
+openevals==0.0.20
+    # via etendo-copilot-core
+opentelemetry-api==1.32.1
+    # via
+    #   chromadb
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-instrumentation
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+    #   opentelemetry-sdk
+    #   opentelemetry-semantic-conventions
+opentelemetry-exporter-otlp-proto-common==1.32.1
+    # via opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-otlp-proto-grpc==1.32.1
+    # via chromadb
+opentelemetry-instrumentation==0.53b1
+    # via
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-asgi==0.53b1
+    # via opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-fastapi==0.53b1
+    # via chromadb
+opentelemetry-proto==1.32.1
+    # via
+    #   opentelemetry-exporter-otlp-proto-common
+    #   opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-sdk==1.32.1
+    # via
+    #   chromadb
+    #   opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-semantic-conventions==0.53b1
+    # via
+    #   opentelemetry-instrumentation
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+    #   opentelemetry-sdk
+opentelemetry-util-http==0.53b1
+    # via
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+orjson==3.10.18
+    # via
+    #   chromadb
+    #   langgraph-sdk
+    #   langsmith
+ormsgpack==1.9.1
+    # via langgraph-checkpoint
+overrides==7.7.0
+    # via chromadb
+packaging==24.2
+    # via
+    #   black
+    #   build
+    #   etendo-copilot-core
+    #   findpython
+    #   huggingface-hub
+    #   langchain-core
+    #   langsmith
+    #   marshmallow
+    #   onnxruntime
+    #   opentelemetry-instrumentation
+    #   poetry
+    #   pyproject-api
+    #   pytest
+    #   tox
+pandas==2.2.3
+    # via etendo-copilot-core
+parso==0.8.4
+    # via jedi
+pathspec==0.12.1
+    # via black
+pbs-installer==2025.4.9
+    # via poetry
+pexpect==4.9.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'
+    # via ipython
+pip==25.1.1
+    # via etendo-copilot-core
+pkginfo==1.12.1.2
+    # via poetry
+platformdirs==4.3.8
+    # via
+    #   black
+    #   poetry
+    #   pylint
+    #   tox
+    #   virtualenv
+pluggy==1.5.0
+    # via
+    #   pytest
+    #   tox
+poetry==2.1.3
+    # via poetry-plugin-export
+poetry-core==2.1.3
+    # via
+    #   etendo-copilot-core
+    #   poetry
+    #   poetry-plugin-export
+poetry-plugin-export==1.9.0
+    # via etendo-copilot-core
+posthog==4.0.1
+    # via chromadb
+pre-commit==4.2.0
+    # via etendo-copilot-core
+prompt-toolkit==3.0.51
+    # via ipython
+propcache==0.3.1
+    # via
+    #   aiohttp
+    #   yarl
+proto-plus==1.26.1
+    # via
+    #   google-ai-generativelanguage
+    #   google-api-core
+protobuf==5.29.4
+    # via
+    #   google-ai-generativelanguage
+    #   google-api-core
+    #   googleapis-common-protos
+    #   grpcio-status
+    #   onnxruntime
+    #   opentelemetry-proto
+    #   proto-plus
+psycopg2-binary==2.9.10
+    # via etendo-copilot-core
+ptyprocess==0.7.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'
+    # via pexpect
+pure-eval==0.2.3
+    # via stack-data
+pyasn1==0.6.1
+    # via
+    #   pyasn1-modules
+    #   rsa
+pyasn1-modules==0.4.2
+    # via google-auth
+pycparser==2.22 ; platform_python_implementation == 'PyPy' or sys_platform == 'darwin' or sys_platform == 'linux'
+    # via cffi
+pydantic==2.11.4
+    # via
+    #   anthropic
+    #   chromadb
+    #   dydantic
+    #   etendo-copilot-core
+    #   fastapi
+    #   langchain
+    #   langchain-anthropic
+    #   langchain-core
+    #   langchain-google-genai
+    #   langsmith
+    #   mcp
+    #   ollama
+    #   openai
+    #   pydantic-settings
+    #   rizaio
+pydantic-core==2.33.2
+    # via pydantic
+pydantic-settings==2.9.1
+    # via
+    #   langchain-community
+    #   mcp
+pyfiglet==1.0.2
+    # via etendo-copilot-core
+pygments==2.19.1
+    # via
+    #   ipython
+    #   rich
+pylint==3.3.7
+    # via etendo-copilot-core
+pymupdf==1.25.5
+    # via etendo-copilot-core
+pyparsing==3.2.3
+    # via grandalf
+pypika==0.48.9
+    # via chromadb
+pyproject-api==1.9.0
+    # via tox
+pyproject-hooks==1.2.0
+    # via
+    #   build
+    #   poetry
+pyreadline3==3.5.4 ; sys_platform == 'win32'
+    # via humanfriendly
+pytest==7.4.4
+    # via
+    #   pytest-asyncio
+    #   pytest-cov
+    #   pytest-mock
+pytest-asyncio==0.23.8
+pytest-cov==5.0.0
+pytest-mock==3.14.0
+    # via etendo-copilot-core
+python-dateutil==2.9.0.post0
+    # via
+    #   kubernetes
+    #   pandas
+    #   posthog
+python-dotenv==1.1.0
+    # via
+    #   etendo-copilot-core
+    #   pydantic-settings
+    #   uvicorn
+python-multipart==0.0.20
+    # via
+    #   etendo-copilot-core
+    #   mcp
+pytz==2025.2
+    # via pandas
+pywin32==311 ; sys_platform == 'win32'
+    # via mcp
+pywin32-ctypes==0.2.3 ; sys_platform == 'win32'
+    # via keyring
+pyyaml==6.0.2
+    # via
+    #   chromadb
+    #   huggingface-hub
+    #   kubernetes
+    #   langchain
+    #   langchain-community
+    #   langchain-core
+    #   pre-commit
+    #   uvicorn
+rapidfuzz==3.13.0
+    # via cleo
+referencing==0.36.2
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
+regex==2024.11.6
+    # via tiktoken
+requests==2.32.3
+    # via
+    #   cachecontrol
+    #   curlify
+    #   etendo-copilot-core
+    #   google-api-core
+    #   huggingface-hub
+    #   kubernetes
+    #   langchain
+    #   langchain-community
+    #   langsmith
+    #   poetry
+    #   posthog
+    #   requests-mock
+    #   requests-oauthlib
+    #   requests-toolbelt
+    #   tiktoken
+requests-mock==1.12.1
+    # via etendo-copilot-core
+requests-oauthlib==2.0.0
+    # via kubernetes
+requests-toolbelt==1.0.0
+    # via
+    #   langsmith
+    #   poetry
+restrictedpython==8.0 ; python_full_version < '3.14'
+    # via etendo-copilot-core
+rich==14.0.0
+    # via
+    #   chromadb
+    #   openevals
+    #   typer
+rizaio==0.10.0
+    # via etendo-copilot-core
+rpds-py==0.26.0
+    # via
+    #   jsonschema
+    #   referencing
+rsa==4.9.1
+    # via google-auth
+secretstorage==3.3.3 ; sys_platform == 'linux'
+    # via keyring
+setuptools==78.1.1
+    # via etendo-copilot-core
+shellingham==1.5.4
+    # via
+    #   poetry
+    #   typer
+six==1.17.0
+    # via
+    #   kubernetes
+    #   posthog
+    #   python-dateutil
+sniffio==1.3.1
+    # via
+    #   anthropic
+    #   anyio
+    #   httpx
+    #   openai
+    #   rizaio
+sqlalchemy==2.0.40
+    # via
+    #   langchain
+    #   langchain-community
+sse-starlette==3.0.2
+    # via mcp
+stack-data==0.6.3
+    # via ipython
+starlette==0.46.2
+    # via
+    #   fastapi
+    #   frontend
+    #   mcp
+sympy==1.14.0
+    # via onnxruntime
+tenacity==9.1.2
+    # via
+    #   chromadb
+    #   langchain-community
+    #   langchain-core
+tiktoken==0.9.0
+    # via langchain-openai
+tokenizers==0.21.1
+    # via chromadb
+toml==0.10.2
+    # via etendo-copilot-core
+tomli==2.2.1
+    # via
+    #   black
+    #   build
+    #   coverage
+    #   etendo-copilot-core
+    #   poetry
+    #   pylint
+    #   pyproject-api
+    #   pytest
+    #   tox
+tomlkit==0.13.2
+    # via
+    #   poetry
+    #   pylint
+tox==4.25.0
+    # via etendo-copilot-core
+tqdm==4.67.1
+    # via
+    #   chromadb
+    #   huggingface-hub
+    #   openai
+traitlets==5.14.3
+    # via
+    #   ipython
+    #   matplotlib-inline
+trove-classifiers==2025.5.9.12
+    # via poetry
+trustcall==0.0.39
+    # via langmem
+typer==0.15.3
+    # via chromadb
+typing-extensions==4.14.1
+    # via
+    #   aiosqlite
+    #   anthropic
+    #   anyio
+    #   asgiref
+    #   astroid
+    #   black
+    #   chromadb
+    #   fastapi
+    #   huggingface-hub
+    #   ipython
+    #   langchain-core
+    #   langchain-mcp-adapters
+    #   multidict
+    #   openai
+    #   opentelemetry-sdk
+    #   pydantic
+    #   pydantic-core
+    #   referencing
+    #   rich
+    #   rizaio
+    #   sqlalchemy
+    #   tox
+    #   typer
+    #   typing-inspect
+    #   typing-inspection
+    #   uvicorn
+typing-inspect==0.9.0
+    # via dataclasses-json
+typing-inspection==0.4.0
+    # via
+    #   pydantic
+    #   pydantic-settings
+tzdata==2025.2
+    # via pandas
+urllib3==2.4.0
+    # via
+    #   dulwich
+    #   kubernetes
+    #   requests
+uvicorn==0.34.2
+    # via
+    #   chromadb
+    #   etendo-copilot-core
+    #   frontend
+    #   mcp
+uvloop==0.21.0 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
+    # via uvicorn
+virtualenv==20.31.2
+    # via
+    #   poetry
+    #   pre-commit
+    #   tox
+watchfiles==1.0.5
+    # via uvicorn
+wcwidth==0.2.13
+    # via prompt-toolkit
+websocket-client==1.8.0
+    # via kubernetes
+websockets==15.0.1
+    # via uvicorn
+wrapt==1.17.2
+    # via
+    #   deprecated
+    #   opentelemetry-instrumentation
+xattr==1.1.4 ; sys_platform == 'darwin'
+    # via poetry
+xxhash==3.5.0
+    # via langgraph
+yarl==1.20.0
+    # via aiohttp
+zipp==3.21.0
+    # via importlib-metadata
+zstandard==0.23.0
+    # via
+    #   langsmith
+    #   pbs-installer
