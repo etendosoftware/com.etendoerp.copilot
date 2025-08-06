@@ -7,6 +7,8 @@ import static com.etendoerp.copilot.rest.RestServiceUtil.FILE;
 import static com.etendoerp.copilot.rest.RestServiceUtil.GET_ASSISTANTS;
 import static com.etendoerp.copilot.rest.RestServiceUtil.QUESTION;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
+import com.etendoerp.copilot.util.WebhookPermissionUtils;
+
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,7 +34,9 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.access.Role;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.util.CopilotConstants;
@@ -501,6 +505,7 @@ public class RestService {
       JSONObject json) throws IOException, JSONException {
     try {
       RestServiceUtil.handleQuestion(true, response, json);
+
     } catch (OBException e) {
       RestServiceUtil.setEventStreamMode(response);
       JSONObject errorEventJSON = RestServiceUtil.getErrorEventJSON(request, e);
@@ -526,6 +531,7 @@ public class RestService {
   public void processSyncRequest(HttpServletResponse response, JSONObject json) throws IOException, JSONException {
     try {
       var responseOriginal = RestServiceUtil.handleQuestion(false, response, json);
+
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
       response.getWriter().write(responseOriginal.toString());
     } catch (CopilotRestServiceException e) {
@@ -537,8 +543,6 @@ public class RestService {
       }
     }
   }
-
-
   private void handleAssistants(HttpServletResponse response) {
     try {
       var assistants = RestServiceUtil.handleAssistants();

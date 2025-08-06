@@ -64,6 +64,7 @@ import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.TrackingUtil;
+import com.etendoerp.copilot.util.WebhookPermissionUtils;
 
 public class RestServiceUtil {
 
@@ -767,25 +768,54 @@ public class RestServiceUtil {
       //send json of assistants
       JSONArray assistants = new JSONArray();
       OBContext context = OBContext.getOBContext();
+      Role role = context.getRole();
+
       List<CopilotApp> appList = new HashSet<>(OBDal.getInstance()
           .createCriteria(CopilotRoleApp.class)
-          .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, context.getRole()))
-          .list()).stream().map(CopilotRoleApp::getCopilotApp)
+          .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, role))
+          .list()).stream()
+          .map(CopilotRoleApp::getCopilotApp)
           .distinct()
           .collect(Collectors.toList());
-      appList.sort((app1, app2) -> getLastConversation(context.getUser(), app2)
-          .compareTo(getLastConversation(context.getUser(), app1)));
+
+      appList.sort((app1, app2) ->
+          getLastConversation(context.getUser(), app2)
+              .compareTo(getLastConversation(context.getUser(), app1))
+      );
+
       for (CopilotApp app : appList) {
         JSONObject assistantJson = new JSONObject();
         assistantJson.put(APP_ID, app.getId());
         assistantJson.put("name", app.getName());
         assistants.put(assistantJson);
       }
+
+      assignWebhookPermissionsSafely(appList, role);
+
       return assistants;
     } catch (Exception e) {
       throw new OBException(e);
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Assigns missing webhook permissions for each assistant in the list for the given role.
+   * <p>
+   * This method wraps each permission assignment in a try-catch block to avoid
+   * interrupting the main assistant loading flow in case of individual errors.
+   *
+   * @param appList The list of assistant applications to assign permissions for.
+   * @param role    The role to which the webhook permissions should be assigned.
+   */
+  private static void assignWebhookPermissionsSafely(List<CopilotApp> appList, Role role) {
+    for (CopilotApp app : appList) {
+      try {
+        WebhookPermissionUtils.assignMissingPermissions(role, app);
+      } catch (Exception e) {
+        log.error("Error assigning webhook permissions for app '{}': {}", app.getName(), e.getMessage(), e);
+      }
     }
   }
 

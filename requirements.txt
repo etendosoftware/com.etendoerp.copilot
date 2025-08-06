@@ -98,7 +98,7 @@ coloredlogs==15.0.1
     # via onnxruntime
 coverage==7.10.2
     # via pytest-cov
-cryptography==45.0.5
+cryptography==45.0.6
     # via authlib
 curlify==2.2.1
     # via etendo-copilot-core
@@ -193,7 +193,7 @@ h11==0.16.0
     # via
     #   httpcore
     #   uvicorn
-hf-xet==1.1.5 ; platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
+hf-xet==1.1.7 ; platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
     # via huggingface-hub
 httpcore==1.0.9
     # via httpx
@@ -285,6 +285,7 @@ langchain-core==0.3.72
     #   langchain-deepseek
     #   langchain-experimental
     #   langchain-google-genai
+    #   langchain-mcp-adapters
     #   langchain-ollama
     #   langchain-openai
     #   langchain-sandbox
@@ -299,6 +300,8 @@ langchain-deepseek==0.1.4
 langchain-experimental==0.3.4
     # via etendo-copilot-core
 langchain-google-genai==2.1.9
+    # via etendo-copilot-core
+langchain-mcp-adapters==0.1.9
     # via etendo-copilot-core
 langchain-ollama==0.3.6
     # via etendo-copilot-core
@@ -359,7 +362,9 @@ matplotlib-inline==0.1.7
 mccabe==0.7.0
     # via pylint
 mcp==1.12.3
-    # via fastmcp
+    # via
+    #   fastmcp
+    #   langchain-mcp-adapters
 mdurl==0.1.2
     # via markdown-it-py
 mmh3==5.2.0
@@ -400,11 +405,11 @@ oauthlib==3.3.1
     # via
     #   kubernetes
     #   requests-oauthlib
-ollama==0.5.1
+ollama==0.5.2
     # via langchain-ollama
 onnxruntime==1.22.1
     # via chromadb
-openai==1.99.0
+openai==1.99.1
     # via
     #   etendo-copilot-core
     #   langchain-openai
@@ -494,7 +499,7 @@ pluggy==1.6.0
     # via
     #   pytest
     #   tox
-posthog==6.3.3
+posthog==6.4.0
     # via chromadb
 pre-commit==4.2.0
     # via etendo-copilot-core
@@ -704,7 +709,7 @@ tenacity==9.1.2
     #   chromadb
     #   langchain-community
     #   langchain-core
-tiktoken==0.9.0
+tiktoken==0.10.0
     # via langchain-openai
 tokenizers==0.21.4
     # via chromadb
@@ -753,6 +758,7 @@ typing-extensions==4.14.1
     #   huggingface-hub
     #   ipython
     #   langchain-core
+    #   langchain-mcp-adapters
     #   multidict
     #   openai
     #   opentelemetry-api

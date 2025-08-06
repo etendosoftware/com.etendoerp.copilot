@@ -22,7 +22,7 @@ parent_dir = os.path.dirname(current_dir)
 # Revisar si la bandera --empty-tool-deps está presente
 empty_tool_deps = "--empty-tool-deps" in sys.argv
 
-# load the toml files in ../*Folder*/tools_deps.toml
+# load the toml files in ../Folder/tools_deps.toml
 for root, _dirs, files in os.walk(parent_dir):
     for file in files:
         if file.endswith("tools_deps.toml"):

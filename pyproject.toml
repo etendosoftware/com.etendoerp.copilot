@@ -62,6 +62,7 @@ dependencies = [
     "monotonic~=1.6",
     "fastmcp==2.10.6",
     "pytest-dotenv>=0.5.2",
+    "langchain-mcp-adapters>=0.1.9"
 ]
 
 [dependency-groups]
