@@ -49,6 +49,7 @@ class AssistantSchema(BaseModel):
     specs: Optional[list[AssistantSpecs]] = None
     code_execution: Optional[bool] = False
     mcp_servers: Optional[list[dict]] = None
+    ad_user_id: Optional[str] = None
 
 
 class QuestionSchema(AssistantSchema):
@@ -74,6 +75,7 @@ class GraphQuestionSchema(BaseModel):
     temperature: Optional[float] = None
     system_prompt: Optional[str] = None
     assistant_id: Optional[str] = None
+    ad_user_id: Optional[str] = None
     tools: Optional[list[ToolSchema]] = None
     name: Optional[str] = None
     model: Optional[str] = None

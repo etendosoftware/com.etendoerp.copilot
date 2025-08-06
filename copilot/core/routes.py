@@ -123,6 +123,7 @@ def load_thread_context(question):
     ThreadContext.set_data("extra_info", question.extra_info)
     ThreadContext.set_data("assistant_id", question.assistant_id)
     ThreadContext.set_data("conversation_id", conversation_id)
+    ThreadContext.set_data("ad_user_id", question.ad_user_id)
 
 
 def _execute_agent(copilot_agent, question: QuestionSchema):
