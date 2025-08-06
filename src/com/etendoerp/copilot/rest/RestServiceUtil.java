@@ -95,6 +95,7 @@ public class RestServiceUtil {
   public static final String PROP_TOOLS = "tools";
   public static final String PROP_KB_VECTORDB_ID = "kb_vectordb_id";
   public static final String PROP_KB_SEARCH_K = "kb_search_k";
+  public static final String PROP_AD_USER_ID = "ad_user_id";
 
   private RestServiceUtil() {
   }
@@ -438,6 +439,7 @@ public class RestServiceUtil {
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
     }
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_AD_USER_ID, OBContext.getOBContext().getUser().getId());
     question += getAppSourceContent(copilotApp.getETCOPAppSourceList(), CopilotConstants.FILE_BEHAVIOUR_QUESTION);
     CopilotUtils.checkQuestionPrompt(question);
     jsonRequestForCopilot.put(PROP_QUESTION, question);
