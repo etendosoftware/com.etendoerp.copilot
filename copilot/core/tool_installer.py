@@ -4,7 +4,7 @@ import subprocess
 from packaging import version
 from packaging.specifiers import Specifier
 
-from .exceptions import ApplicationError, ToolDependencyMismatch
+from .exceptions import ToolDependencyMismatch
 from .tool_dependencies import Dependencies, Dependency
 from .utils import SUCCESS_CODE, print_green, print_orange, print_yellow
 
@@ -88,14 +88,27 @@ def _is_package_imported(dependency: Dependency, verbose: bool = True) -> bool:
 def install_dependencies(dependencies: Dependencies):
     """Given a list of dependencies it will try to installed one by one in order."""
     for dependency in dependencies:
-        if not _is_package_installed(dependency=dependency):
-            _pip_install(package=dependency.fullname())
+        try:
+            if not _is_package_installed(dependency=dependency):
+                try:
+                    _pip_install(package=dependency.fullname())
+                except subprocess.CalledProcessError as e:
+                    print_orange(f"[ERROR] Failed to install {dependency.fullname()}: {e}")
+                    continue  # Skip to next dependency
 
-        # if package is installed but can't be imported, retry
-        if not _is_package_imported(dependency=dependency):
-            _pip_install(package=dependency.fullname())
+            # if package is installed but can't be imported, retry
+            if not _is_package_imported(dependency=dependency):
+                try:
+                    _pip_install(package=dependency.fullname())
+                except subprocess.CalledProcessError as e:
+                    print_orange(f"[ERROR] Failed to re-install {dependency.fullname()}: {e}")
+                    continue
 
-        if not _is_package_imported(dependency=dependency, verbose=False):
-            raise ApplicationError(
-                f"{dependency.fullname()} installation fails, please try manually and rerun copilot"
-            )
+            if not _is_package_imported(dependency=dependency, verbose=False):
+                print_orange(
+                    f"[ERROR] {dependency.fullname()} installation fails, please try manually and rerun copilot"
+                )
+                continue
+        except Exception as e:
+            print_orange(f"[ERROR] Unexpected error installing {dependency.fullname()}: {e}")
+            continue

@@ -82,6 +82,17 @@ def read_optional_env_var_int(env_var_name: str, default_value: int) -> int:
     return int(read_optional_env_var(env_var_name, str(default_value)))
 
 
+def read_optional_env_var_bool(env_var_name: str, default_value: bool) -> bool:
+    """Reads an optional environment variable and returns its value or the default one."""
+    value = read_optional_env_var(env_var_name, str(default_value)).lower()
+    if value in ["true", "1", "yes"]:
+        return True
+    elif value in ["false", "0", "no"]:
+        return False
+    else:
+        raise ValueError(f"Invalid boolean value for {env_var_name}: {value}")
+
+
 def copilot_debug(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
     if is_debug_enabled():
@@ -134,6 +145,15 @@ def copilot_warning(message: str):
 
 def is_docker():
     """Check if the process is running in a Docker container."""
+    # Check if the environment variable for dockerized version with com.etendoerp.docker
+    # module.
+    if read_optional_env_var_bool("docker_com.etendoerp.copilot", False):
+        return True
+    cwd = os.getcwd()
+    if cwd.startswith("/app/"):
+        copilot_debug(f"Current working directory is {cwd}, indicating a Docker environment.")
+        return True
+
     # Verify if the process is running in a container
     if os.path.exists("/.dockerenv"):
         return True

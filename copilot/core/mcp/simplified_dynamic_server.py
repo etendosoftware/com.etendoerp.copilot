@@ -14,7 +14,13 @@ from typing import Dict, Optional
 
 import httpx
 import uvicorn
-from copilot.core.mcp.tools import register_basic_tools, register_session_tools
+from copilot.core.etendo_utils import normalize_etendo_token
+from copilot.core.mcp.auth_utils import extract_etendo_token_from_request
+from copilot.core.mcp.tools import (
+    register_agent_tools,
+    register_basic_tools,
+)
+from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import (
     copilot_debug,
     copilot_error,
@@ -43,7 +49,7 @@ def get_bearer_provider():
 class DynamicMCPInstance:
     """A single MCP instance that can be created dynamically."""
 
-    def __init__(self, identifier: str, server_ref=None):
+    def __init__(self, identifier: str, etendo_token: str, server_ref=None):
         self.identifier = identifier
         self.created_at = time.time()
         self.last_activity = time.time()  # For activity tracking
@@ -56,19 +62,19 @@ class DynamicMCPInstance:
         self._should_stop = False  # Flag to control server stopping
 
         # Configure and register tools
-        self._setup_tools()
+        self._setup_tools(identifier, etendo_token)
 
         copilot_info(f"🔧 Setting up DynamicMCPInstance for identifier: {identifier}")
 
-    def _setup_tools(self):
+    def _setup_tools(self, identifier: str, etendo_token: str):
         """Configure tools for this MCP instance."""
         # Register basic tools (identifier extracted from request context)
         register_basic_tools(self.mcp)
-        register_session_tools(self.mcp)
+        register_agent_tools(self.mcp, identifier, etendo_token)
 
         copilot_info(f"✅ Tools configured for MCP instance '{self.identifier}'")
 
-    def _find_free_port(self, start_port: int = 5007) -> int:
+    def _find_free_port(self, start_port: int = 5008) -> int:
         """Find a free port starting from start_port, reusing available ports when possible."""
         # First check if server has any available ports to reuse
         if self.server_ref and self.server_ref.available_ports:
@@ -159,7 +165,7 @@ class DynamicMCPInstance:
                 await self.server_task
             except asyncio.CancelledError:
                 copilot_debug(f"Server task for '{self.identifier}' cancelled successfully")
-                # Don't re-raise here as we're in the TTL monitor
+                # Don't re-raise here as we're in the TTL monitor - this is intentional cleanup
             finally:
                 self.server_task = None
                 self.uvicorn_server = None
@@ -392,8 +398,18 @@ class SimplifiedDynamicMCPServer:
         if not identifier.replace("-", "").replace("_", "").isalnum():
             raise HTTPException(status_code=400, detail="Invalid identifier format")
 
+        # Extract and validate Etendo token from request
+        etendo_token = extract_etendo_token_from_request(request)
+        if not etendo_token:
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required. Please provide a valid Etendo token in headers.",
+            )
+        etendo_token_wb = normalize_etendo_token(etendo_token)
+        ThreadContext.set_data("extra_info", {"auth": {"ETENDO_TOKEN": etendo_token_wb}})
+
         # Create or get existing MCP instance
-        instance = await self._get_or_create_instance(identifier)
+        instance = await self._get_or_create_instance(identifier, etendo_token)
 
         # Update activity every time a request is received
         instance.update_activity()
@@ -401,11 +417,11 @@ class SimplifiedDynamicMCPServer:
         # Forward the request to the MCP instance
         return await self._proxy_request(request, instance, path)
 
-    async def _get_or_create_instance(self, identifier: str) -> DynamicMCPInstance:
+    async def _get_or_create_instance(self, identifier: str, etendo_token: str) -> DynamicMCPInstance:
         """Get existing instance or create new one."""
         if identifier not in self.instances:
             copilot_info(f"🆕 Creating new MCP instance for identifier: {identifier}")
-            instance = DynamicMCPInstance(identifier, server_ref=self)
+            instance = DynamicMCPInstance(identifier=identifier, etendo_token=etendo_token, server_ref=self)
             self.instances[identifier] = instance
 
             # Start the MCP server for this instance
