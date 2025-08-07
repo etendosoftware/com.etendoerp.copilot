@@ -29,7 +29,7 @@ from copilot.core.utils import (
 )
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from fastmcp import FastMCP
 from fastmcp.server.auth import BearerAuthProvider
 
@@ -474,11 +474,33 @@ class SimplifiedDynamicMCPServer:
                 response = await client.request(
                     method=method, url=target_url, headers=headers, params=query_params, content=body
                 )
+                # Clean headers and check if it's a streaming response
+                response_headers = dict(response.headers)
+                content_type = response_headers.get("content-type", "")
 
-                # Return the response
-                return Response(
-                    content=response.content, status_code=response.status_code, headers=dict(response.headers)
-                )
+                if (
+                    "text/event-stream" in content_type
+                    or response_headers.get("transfer-encoding") == "chunked"
+                ):
+                    # For streaming responses, remove content-length and use StreamingResponse
+                    response_headers.pop("content-length", None)
+
+                    def generate():
+                        yield response.content
+
+                    return StreamingResponse(
+                        generate(),
+                        status_code=response.status_code,
+                        headers=response_headers,
+                        media_type=content_type,
+                    )
+                else:
+                    # For regular responses, use normal Response
+                    return Response(
+                        content=response.content,
+                        status_code=response.status_code,
+                        headers=response_headers,
+                    )
 
         except httpx.ConnectError:
             # If connection fails, try to restart the instance
@@ -492,12 +514,34 @@ class SimplifiedDynamicMCPServer:
                     response = await client.request(
                         method=method, url=target_url, headers=headers, params=query_params, content=body
                     )
+                    # Clean headers and check if it's a streaming response
+                    response_headers = dict(response.headers)
+                    content_type = response_headers.get("content-type", "")
 
-                    return Response(
-                        content=response.content,
-                        status_code=response.status_code,
-                        headers=dict(response.headers),
-                    )
+                    if (
+                        "text/event-stream" in content_type
+                        or response_headers.get("transfer-encoding") == "chunked"
+                    ):
+                        # For streaming responses, remove content-length and use StreamingResponse
+                        response_headers.pop("content-length", None)
+
+                        def generate():
+                            yield response.content
+
+                        return StreamingResponse(
+                            generate(),
+                            status_code=response.status_code,
+                            headers=response_headers,
+                            media_type=content_type,
+                        )
+                    else:
+                        # For regular responses, use normal Response
+                        return Response(
+                            content=response.content,
+                            status_code=response.status_code,
+                            headers=response_headers,
+                        )
+
             except Exception as e:
                 logger.error(f"Failed to proxy request to {instance.identifier} after restart: {e}")
                 raise HTTPException(
