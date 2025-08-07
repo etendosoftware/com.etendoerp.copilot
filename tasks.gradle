@@ -419,6 +419,98 @@ task 'copilot.env.file' {
     }
 }
 
+task 'copilot.mcp.config' {
+    group = "copilot"
+    description = "Generates MCP configuration JSON for the Etendo Agent"
+
+    doLast {
+        def reader = new BufferedReader(new InputStreamReader(System.in))
+        def yellowText = "\u001B[33;1m"
+        def greenText = "\u001B[32;1m"
+        def blueText = "\u001B[34;1m"
+        def redText = "\u001B[31;1m"
+        def resetText = "\u001B[0m"
+
+        def etendoHost = project.findProperty('host')
+        def username = project.findProperty('username')
+        def password = project.findProperty('password')
+        def role = project.findProperty("role")
+        def agentId = project.findProperty("agentId")
+
+        // Get COPILOT_PORT_MCP property, default to 5006
+        def copilotPortMCP = project.hasProperty("COPILOT_PORT_MCP") ?
+            project.property("COPILOT_PORT_MCP").toString() : "5006"
+
+        // Request agent ID if not provided
+        if (agentId == null || agentId == "") {
+            project.logger.lifecycle("${blueText}🤖 Please provide the Agent ID:${resetText}")
+            agentId = reader.readLine()?.trim()
+            if (agentId == null || agentId == "") {
+                project.logger.lifecycle("${redText}🤖 Agent ID is required.${resetText}")
+                return
+            }
+        }
+
+        if (username == null || username == "") {
+            project.logger.lifecycle("${blueText}👮 Please provide the username:${resetText}")
+            username = reader.readLine()?.trim()
+        }
+        if (password == null || password == "") {
+            project.logger.lifecycle("${blueText}👮 Please provide the password:${resetText}")
+            password = reader.readLine()?.trim()
+            exec {
+                commandLine 'clear'
+            }
+        }
+        if (!etendoHost) {
+            project.logger.lifecycle("${redText}🤖 Host not provided, using default (http://localhost:8080/etendo).${resetText}")
+            etendoHost = "http://localhost:8080/etendo"
+        }
+
+        // Authenticate to get Bearer token
+        String login = JsonOutput.toJson([
+                "username": username,
+                "password": password
+        ] + (role != null && !role.isEmpty() ? ["role": role] : [:]))
+
+        String loginURL = "${etendoHost}/sws/login"
+
+        HttpClient hClient = HttpClient.newHttpClient()
+        HttpRequest hRequest = HttpRequest.newBuilder()
+                .uri(URI.create(loginURL))
+                .header("Content-Type", "application/json")
+                .method("POST", HttpRequest.BodyPublishers.ofString(login))
+                .build()
+
+        HttpResponse<String> hResponse = hClient.send(hRequest, HttpResponse.BodyHandlers.ofString())
+        String hResponseBody = hResponse.body()
+
+        def hResponseJson = new JsonSlurper().parseText(hResponseBody)
+        String bearerToken = hResponseJson.token
+        if (!bearerToken) {
+            project.logger.lifecycle("${redText}🤖 Failed to authenticate. No token received.${resetText}")
+            return
+        }
+
+        // Generate MCP configuration JSON
+        def mcpConfig = [
+            "etendoAgent": [
+                "type": "http",
+                "httpUrl": "https://localhost:${copilotPortMCP}/${agentId}/mcp/",
+                "note": "For Streamable HTTP connections, add this URL directly in your MCP Client",
+                "headers": [
+                    "etendo-token": "Bearer ${bearerToken}"
+                ]
+            ]
+        ]
+
+        String configJson = JsonOutput.prettyPrint(JsonOutput.toJson(mcpConfig))
+
+        project.logger.lifecycle("${greenText}🤖 MCP Configuration:${resetText}")
+        project.logger.lifecycle(configJson)
+    }
+}
+
 task 'copilot.variables.setup' {
     group = "configuration"
     description = "Detects and prints the suggested Copilot and Tomcat configuration variables."
