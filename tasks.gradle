@@ -508,12 +508,69 @@ task 'copilot.variables.setup' {
             etendoHostDocker = etendoHost
             copilotHost = "copilot"
         } else if (copilotMode == "docker" && tomcatMode != "docker") {
-            def gatewayIp = "172.17.0.1"
+            def defaultIp = "172.17.0.1"
+            def gatewayIp = null
+            def autoDetectionFailed = false
+
             try {
-                def process = ["sh", "-c", "docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'"].execute()
-                gatewayIp = process.text.trim()
+                def command = ["sh", "-c", "docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'"]
+                def process = command.execute()
+
+                //log the command
+                logger.info(
+                        "Executing command to get Docker bridge IP: ${command.join(' ')}"
+                )
+
+                // Capture output and error streams
+                def output = new StringBuilder()
+                def error = new StringBuilder()
+
+                process.consumeProcessOutput(output, error)
+
+                // Wait for the process to complete
+                def exitCode = process.waitFor()
+                logger.info("Process exit code: ${exitCode}")
+
+                def outputText = output.toString()
+                def errorText = error.toString()
+
+                logger.info("Raw process output: '${outputText}'")
+                logger.info("Process error output: '${errorText}'")
+
+                if (exitCode == 0 && outputText && !outputText.trim().isEmpty()) {
+                    gatewayIp = outputText.trim()
+                    logger.info("Successfully detected Docker bridge IP: '${gatewayIp}'")
+                } else {
+                    logger.warn("Command failed or returned empty output. Exit code: ${exitCode}, Error: ${errorText}")
+                    autoDetectionFailed = true
+                }
+
             } catch (Exception e) {
-                println "${yellow}⚠️ WARNING: Failed to get Docker bridge IP. Using default: 172.17.0.1${reset}"
+                logger.error("Exception occurred while getting Docker bridge IP: ${e.message}", e)
+                logger.error("Exception class: ${e.class.name}")
+                if (e.cause) {
+                    logger.error("Caused by: ${e.cause.message}")
+                }
+                autoDetectionFailed = true
+            }
+
+            // If auto-detection failed, ask user to run the command manually
+            if (autoDetectionFailed || !gatewayIp || gatewayIp.isEmpty()) {
+                println "${yellow}⚠️ WARNING: Failed to automatically detect Docker bridge IP.${reset}"
+                println "${yellow}Please run the following command manually to get the Docker bridge IP:${reset}"
+                println "${green}    docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'${reset}"
+                println ""
+                System.out.print("${yellow}💬 Please enter the Docker bridge IP result from the command above, or press Enter to use default (${defaultIp}): \n${reset}")
+                System.out.flush()
+
+                def userInput = reader.readLine()?.trim()
+                if (userInput && !userInput.isEmpty()) {
+                    gatewayIp = userInput
+                    logger.info("Using user-provided Docker bridge IP: ${gatewayIp}")
+                } else {
+                    gatewayIp = defaultIp
+                    logger.info("Using default Docker bridge IP: ${gatewayIp}")
+                }
             }
 
             etendoHost = "http://localhost:${tomcatPort}/${contextName}"
