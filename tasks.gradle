@@ -609,7 +609,7 @@ task 'copilot.mcp.config' {
         def mcpConfig = [
             "etendoAgent": [
                 "type": "http",
-                "httpUrl": "https://localhost:${copilotPortMCP}/${agentId}/mcp/",
+                "httpUrl": "http://localhost:${copilotPortMCP}/${agentId}/mcp",
                 "note": "For Streamable HTTP connections, add this URL directly in your MCP Client",
                 "headers": [
                     "etendo-token": "Bearer ${bearerToken}"
