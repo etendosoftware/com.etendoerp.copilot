@@ -582,13 +582,26 @@ task 'copilot.mcp.config' {
                 .method("POST", HttpRequest.BodyPublishers.ofString(login))
                 .build()
 
-        HttpResponse<String> hResponse = hClient.send(hRequest, HttpResponse.BodyHandlers.ofString())
-        String hResponseBody = hResponse.body()
+        HttpResponse<String> hResponse
+        String hResponseBody
+        try {
+            hResponse = hClient.send(hRequest, HttpResponse.BodyHandlers.ofString())
+            hResponseBody = hResponse.body()
+        } catch (Exception e) {
+            project.logger.lifecycle("${redText}🤖 ❌ Failed to connect to Etendo at ${etendoHost}${resetText}")
+            project.logger.lifecycle("${yellowText}💡 Please ensure:${resetText}")
+            project.logger.lifecycle("${yellowText}   1. You have run 'copilot.variables.setup' to configure the connection${resetText}")
+            project.logger.lifecycle("${yellowText}   2. Tomcat is running and accessible at the configured host${resetText}")
+            project.logger.lifecycle("${yellowText}   3. The host URL is correct: ${etendoHost}${resetText}")
+            project.logger.lifecycle("${redText}   Error details: ${e.message}${resetText}")
+            return
+        }
 
         def hResponseJson = new JsonSlurper().parseText(hResponseBody)
         String bearerToken = hResponseJson.token
         if (!bearerToken) {
             project.logger.lifecycle("${redText}🤖 Failed to authenticate. No token received.${resetText}")
+            project.logger.lifecycle("${yellowText}💡 Please verify your username and password are correct.${resetText}")
             return
         }
 
