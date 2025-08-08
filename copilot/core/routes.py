@@ -17,7 +17,7 @@ from pathlib import Path
 import chromadb
 import requests
 from copilot.core import etendo_utils, utils
-from copilot.core.agent import AgentEnum, AgentResponse, copilot_agents
+from copilot.core.agent import AgentEnum, AgentResponse
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.assistant_agent import AssistantAgent
 from copilot.core.agent.langgraph_agent import LanggraphAgent
@@ -51,6 +51,9 @@ current_agent = None
 
 
 def select_copilot_agent(copilot_type: str):
+    from copilot.core.agent import _get_agent_executors
+
+    copilot_agents = _get_agent_executors()
     if copilot_type not in copilot_agents:
         raise UnsupportedAgent()
     return copilot_agents[copilot_type]
@@ -490,8 +493,9 @@ def transcript_file(file: UploadFile = File(...)):
 def check_copilot_host(authorization: str = Header(None)):
     try:
         etendo_host_docker = etendo_utils.get_etendo_host()
+        from .etendo_utils import validate_etendo_token
 
-        if not authorization or not authorization.startswith("Bearer "):
+        if not authorization or not validate_etendo_token(authorization):
             raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
 
         if not etendo_host_docker:
