@@ -21,6 +21,28 @@
     <syncmodels>false</syncmodels>
     <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
+  <ETCOP_Openai_Model id="2661759407BA4BC7A285F2E63F5EEB69" identifier="openai - gpt-5-mini">
+    <id>2661759407BA4BC7A285F2E63F5EEB69</id>
+    <active>true</active>
+    <searchkey>gpt-5-mini</searchkey>
+    <name>gpt-5-mini</name>
+    <provider>openai</provider>
+    <maxTokens xsi:nil="true"/>
+    <default>false</default>
+    <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
+  </ETCOP_Openai_Model>
+  <ETCOP_Openai_Model id="27FEA127171D418D9628E391FD7B1B35" identifier="openai - gpt-5">
+    <id>27FEA127171D418D9628E391FD7B1B35</id>
+    <active>true</active>
+    <searchkey>gpt-5</searchkey>
+    <name>gpt-5</name>
+    <provider>openai</provider>
+    <maxTokens xsi:nil="true"/>
+    <default>false</default>
+    <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
+  </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="2DEEF5E46682493E8C609D16814A3E19" identifier="openai - gpt-4.1">
     <id>2DEEF5E46682493E8C609D16814A3E19</id>
     <active>true</active>
@@ -76,21 +98,18 @@
     <syncmodels>false</syncmodels>
     <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
-   <ETCOP_Openai_Model id="8EEB5F9577774196B9C3D4808D487F60" identifier="deepseek - deepseek-chat">
+  <ETCOP_Openai_Model id="8EEB5F9577774196B9C3D4808D487F60" identifier="deepseek - deepseek-chat">
     <id>8EEB5F9577774196B9C3D4808D487F60</id>
     <active>true</active>
-    <creationDate transient="true">2025-02-06T12:49:36.741Z</creationDate>
-    <createdBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
-    <updated transient="true">2025-02-07T10:37:15.983Z</updated>
-    <updatedBy transient="true" id="100" entity-name="ADUser" identifier="Admin"/>
     <searchkey>deepseek-chat</searchkey>
     <name>deepseek-chat</name>
     <provider>deepseek</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
-    <ETCOP_Openai_Model id="979B24A88E60465EACC04D73F5338CAF" identifier="openai - o1-mini">
+  <ETCOP_Openai_Model id="979B24A88E60465EACC04D73F5338CAF" identifier="openai - o1-mini">
     <id>979B24A88E60465EACC04D73F5338CAF</id>
     <active>true</active>
     <searchkey>o1-mini</searchkey>
@@ -112,7 +131,7 @@
     <syncmodels>false</syncmodels>
     <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
-  <ETCOP_Openai_Model id="B33E0814E9A54901ADCB2AA6FC79D8AE" identifier="anthropic -  claude-3-5-sonnet-latest">
+  <ETCOP_Openai_Model id="B33E0814E9A54901ADCB2AA6FC79D8AE" identifier="anthropic - claude-3-5-sonnet-latest">
     <id>B33E0814E9A54901ADCB2AA6FC79D8AE</id>
     <active>true</active>
     <searchkey>claude-3-5-sonnet-latest</searchkey>
@@ -139,6 +158,17 @@
     <active>true</active>
     <searchkey>gpt-4o-mini</searchkey>
     <name>gpt-4o-mini</name>
+    <provider>openai</provider>
+    <maxTokens xsi:nil="true"/>
+    <default>false</default>
+    <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
+  </ETCOP_Openai_Model>
+  <ETCOP_Openai_Model id="F29752E9E1BB427DBF77AC584B9E3FF6" identifier="openai - gpt-5-nano">
+    <id>F29752E9E1BB427DBF77AC584B9E3FF6</id>
+    <active>true</active>
+    <searchkey>gpt-5-nano</searchkey>
+    <name>gpt-5-nano</name>
     <provider>openai</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
