@@ -356,6 +356,106 @@ static def getDefaultOllamaHost(boolean copilotEnabled, boolean ollamaEnabled) {
     return copilotToOllama
 }
 
+// Check if host.docker.internal is available
+private boolean checkHostDockerInternalAvailability() {
+    try {
+        def checkCommand = ["sh", "-c", "docker run --rm --add-host=host.docker.internal:host-gateway alpine sh -c 'ping -c 1 -W 1 host.docker.internal > /dev/null 2>&1 && echo \"available\" || echo \"not_available\"'"]
+        def process = checkCommand.execute()
+
+        logger.info("Checking host.docker.internal availability: ${checkCommand.join(' ')}")
+
+        def output = new StringBuilder()
+        def error = new StringBuilder()
+
+        process.consumeProcessOutput(output, error)
+        def exitCode = process.waitFor()
+
+        def outputText = output.toString().trim()
+        logger.info("host.docker.internal check output: '${outputText}'")
+
+        if (exitCode == 0 && outputText.equals("available")) {
+            logger.info("host.docker.internal is available and will be used")
+            return true
+        } else {
+            logger.info("host.docker.internal is not available, falling back to bridge IP detection")
+            return false
+        }
+    } catch (Exception e) {
+        logger.warn("Failed to check host.docker.internal availability: ${e.message}")
+        return false
+    }
+}
+
+// Auto-detect Docker bridge IP
+private String detectDockerBridgeIP(String defaultIp, def reader, def yellow, def green, def reset) {
+    try {
+        def command = ["sh", "-c", "docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'"]
+        def process = command.execute()
+
+        logger.info("Executing command to get Docker bridge IP: ${command.join(' ')}")
+
+        def output = new StringBuilder()
+        def error = new StringBuilder()
+
+        process.consumeProcessOutput(output, error)
+        def exitCode = process.waitFor()
+
+        logger.info("Process exit code: ${exitCode}")
+
+        def outputText = output.toString()
+        def errorText = error.toString()
+
+        logger.info("Raw process output: '${outputText}'")
+        logger.info("Process error output: '${errorText}'")
+
+        if (exitCode == 0 && outputText && !outputText.trim().isEmpty()) {
+            def bridgeIp = outputText.trim()
+            logger.info("Successfully detected Docker bridge IP: '${bridgeIp}'")
+            return bridgeIp
+        } else {
+            logger.warn("Command failed or returned empty output. Exit code: ${exitCode}, Error: ${errorText}")
+            return promptUserForBridgeIP(defaultIp, reader, yellow, green, reset)
+        }
+    } catch (Exception e) {
+        logger.error("Exception occurred while getting Docker bridge IP: ${e.message}", e)
+        logger.error("Exception class: ${e.class.name}")
+        if (e.cause) {
+            logger.error("Caused by: ${e.cause.message}")
+        }
+        return promptUserForBridgeIP(defaultIp, reader, yellow, green, reset)
+    }
+}
+
+// Prompt user for bridge IP when auto-detection fails
+private String promptUserForBridgeIP(String defaultIp, def reader, def yellow, def green, def reset) {
+    println "${yellow}⚠️ WARNING: Failed to automatically detect Docker bridge IP.${reset}"
+    println "${yellow}Please run the following command manually to get the Docker bridge IP:${reset}"
+    println "${green}    docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'${reset}"
+    println ""
+    System.out.print("${yellow}💬 Please enter the Docker bridge IP result from the command above, or press Enter to use default (${defaultIp}): \n${reset}")
+    System.out.flush()
+
+    def userInput = reader.readLine()?.trim()
+    if (userInput && !userInput.isEmpty()) {
+        logger.info("Using user-provided Docker bridge IP: ${userInput}")
+        return userInput
+    } else {
+        logger.info("Using default Docker bridge IP: ${defaultIp}")
+        return defaultIp
+    }
+}
+
+// Get gateway IP for Docker communication
+private String getGatewayIpForDocker(String defaultIp, def reader, def yellow, def green, def reset) {
+    // First, check if host.docker.internal is available
+    if (checkHostDockerInternalAvailability()) {
+        return "host.docker.internal"
+    }
+
+    // If not available, detect Docker bridge IP
+    return detectDockerBridgeIP(defaultIp, reader, yellow, green, reset)
+}
+
 
 task 'copilot.env.file' {
     description = 'Generates the .env file for copilot'
@@ -601,69 +701,7 @@ task 'copilot.variables.setup' {
             copilotHost = "copilot"
         } else if (copilotMode == "docker" && tomcatMode != "docker") {
             def defaultIp = "172.17.0.1"
-            def gatewayIp = null
-            def autoDetectionFailed = false
-
-            try {
-                def command = ["sh", "-c", "docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'"]
-                def process = command.execute()
-
-                //log the command
-                logger.info(
-                        "Executing command to get Docker bridge IP: ${command.join(' ')}"
-                )
-
-                // Capture output and error streams
-                def output = new StringBuilder()
-                def error = new StringBuilder()
-
-                process.consumeProcessOutput(output, error)
-
-                // Wait for the process to complete
-                def exitCode = process.waitFor()
-                logger.info("Process exit code: ${exitCode}")
-
-                def outputText = output.toString()
-                def errorText = error.toString()
-
-                logger.info("Raw process output: '${outputText}'")
-                logger.info("Process error output: '${errorText}'")
-
-                if (exitCode == 0 && outputText && !outputText.trim().isEmpty()) {
-                    gatewayIp = outputText.trim()
-                    logger.info("Successfully detected Docker bridge IP: '${gatewayIp}'")
-                } else {
-                    logger.warn("Command failed or returned empty output. Exit code: ${exitCode}, Error: ${errorText}")
-                    autoDetectionFailed = true
-                }
-
-            } catch (Exception e) {
-                logger.error("Exception occurred while getting Docker bridge IP: ${e.message}", e)
-                logger.error("Exception class: ${e.class.name}")
-                if (e.cause) {
-                    logger.error("Caused by: ${e.cause.message}")
-                }
-                autoDetectionFailed = true
-            }
-
-            // If auto-detection failed, ask user to run the command manually
-            if (autoDetectionFailed || !gatewayIp || gatewayIp.isEmpty()) {
-                println "${yellow}⚠️ WARNING: Failed to automatically detect Docker bridge IP.${reset}"
-                println "${yellow}Please run the following command manually to get the Docker bridge IP:${reset}"
-                println "${green}    docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'${reset}"
-                println ""
-                System.out.print("${yellow}💬 Please enter the Docker bridge IP result from the command above, or press Enter to use default (${defaultIp}): \n${reset}")
-                System.out.flush()
-
-                def userInput = reader.readLine()?.trim()
-                if (userInput && !userInput.isEmpty()) {
-                    gatewayIp = userInput
-                    logger.info("Using user-provided Docker bridge IP: ${gatewayIp}")
-                } else {
-                    gatewayIp = defaultIp
-                    logger.info("Using default Docker bridge IP: ${gatewayIp}")
-                }
-            }
+            def gatewayIp = getGatewayIpForDocker(defaultIp, reader, yellow, green, reset)
 
             etendoHost = "http://localhost:${tomcatPort}/${contextName}"
             etendoHostDocker = "http://${gatewayIp}:${tomcatPort}/${contextName}"
