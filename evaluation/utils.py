@@ -16,7 +16,7 @@ from openai.types.chat import (
     ChatCompletionToolMessageParam,
     ChatCompletionUserMessageParam,
 )
-from openai.types.chat.chat_completion_message_tool_call_param import Function
+from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
 from evaluation.schemas import Conversation, Message
 
