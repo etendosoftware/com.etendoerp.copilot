@@ -1,6 +1,6 @@
-import json
+import asyncio
 import os
-from typing import AsyncGenerator, Final, Optional, Union
+from typing import AsyncGenerator, Final, Union
 
 import langchain_core.tools
 import langgraph_codeact
@@ -8,7 +8,6 @@ from copilot.core.agent.agent import (
     AgentResponse,
     AssistantResponse,
     CopilotAgent,
-    get_kb_tool,
 )
 from langchain.agents import (
     AgentExecutor,
@@ -21,11 +20,11 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import AddableDict
 from langchain_core.tools import StructuredTool
+from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
 from langgraph_codeact import create_default_prompt
 
 from .. import etendo_utils, utils
-from ..langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..threadcontext import ThreadContext
@@ -36,6 +35,38 @@ from .langgraph_agent import handle_events
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 tools_loaded = {}
+
+
+def convert_mcp_servers_config(mcp_servers_list: list) -> dict:
+    """
+    Convert MCP servers list from QuestionSchema to the format expected by MultiServerMCPClient.
+
+    Args:
+        mcp_servers_list (list): List of MCP server configurations from the question
+
+    Returns:
+        dict: Dictionary in the format expected by MultiServerMCPClient
+    """
+    if not mcp_servers_list:
+        return {}
+
+    mcp_config = {}
+    for server_config in mcp_servers_list:
+        server_name = server_config.get("name", f"server_{len(mcp_config)}")
+
+        if server_config.get("disabled", False):
+            continue
+
+        # Create a copy of the server config without the 'name' field
+        config_copy = {k: v for k, v in server_config.items() if k != "name"}
+
+        # Set default transport to stdio if not provided
+        if "transport" not in config_copy:
+            config_copy["transport"] = "stdio"
+
+        mcp_config[server_name] = config_copy
+
+    return mcp_config
 
 
 class CustomOutputParser(AgentOutputParser):
@@ -122,6 +153,33 @@ def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
     return agent_configuration.code_execution
 
 
+async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
+    """
+    Get MCP tools from configured MCP servers.
+
+    Args:
+        mcp_servers_config (dict): MCP servers configuration
+
+    Returns:
+        list: List of MCP tools from servers
+    """
+    if not mcp_servers_config:
+        return []
+
+    # Create new MCP client for each request (non-persistent)
+    try:
+        client = MultiServerMCPClient(mcp_servers_config)
+        # Get tools with timeout
+        tools = await asyncio.wait_for(client.get_tools(), timeout=45.0)
+
+        return tools
+
+    except Exception as e:
+        print(f"Failed to create MCP client: {e}")
+        print(f"Error type: {type(e).__name__}")
+        return []
+
+
 class MultimodelAgent(CopilotAgent):
     OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
     _memory: MemoryHandler = None
@@ -129,6 +187,26 @@ class MultimodelAgent(CopilotAgent):
     def __init__(self):
         super().__init__()
         self._memory = MemoryHandler()
+
+    def _create_code_act_agent(self, llm, enabled_tools: list, system_prompt: str):
+        """Create a CodeAct agent with the specified configuration."""
+        conv_tools = [
+            t if isinstance(t, StructuredTool) else langchain_core.tools.convert_runnable_to_tool(t)
+            for t in enabled_tools
+        ]
+        use_pydoide = utils.read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
+        eval_fn = (
+            create_pyodide_eval_fn("./sessions", ThreadContext.get_data("conversation_id"))
+            if use_pydoide
+            else CodeExecutor("original").execute
+        )
+
+        return langgraph_codeact.create_codeact(
+            model=llm,
+            tools=conv_tools,
+            eval_fn=eval_fn,
+            prompt=create_default_prompt(tools=conv_tools, base_prompt=system_prompt),
+        )
 
     def get_agent(
         self,
@@ -138,7 +216,7 @@ class MultimodelAgent(CopilotAgent):
         tools: list[ToolSchema] = None,
         system_prompt: str = None,
         temperature: float = 1,
-        kb_vectordb_id: Optional[str] = None,
+        mcp_tools: list = None,
     ):
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
@@ -149,19 +227,23 @@ class MultimodelAgent(CopilotAgent):
         self._assert_system_prompt_is_set()
         llm = get_llm(model, provider, temperature)
 
-        _enabled_tools = self.get_functions(tools)
-        kb_tool = get_kb_tool(agent_configuration)  # type: ignore
-        if kb_tool is not None:
-            _enabled_tools.append(kb_tool)
-            self._configured_tools.append(kb_tool)
-        if agent_configuration.specs is not None:
-            for spec in agent_configuration.specs:
-                if spec.type == "FLOW":
-                    api_spec = json.loads(spec.spec)
-                    openapi_tools = generate_tools_from_openapi(api_spec)
-                    _enabled_tools.extend(openapi_tools)
-                    self._configured_tools.extend(openapi_tools)
+        # Use the unified tool loader to get all tools
+        from ..tool_loader import ToolLoader
+
+        tool_loader = ToolLoader()
+        _enabled_tools = tool_loader.get_all_tools(
+            agent_configuration=agent_configuration,
+            enabled_tools=tools,
+            include_kb_tool=True,
+            include_openapi_tools=True,
+        )
+        if mcp_tools is not None:
+            _enabled_tools.extend(mcp_tools or [])
+
+        # Replace the instance configured tools with the complete list
+        self._configured_tools = _enabled_tools
         tools_loaded[agent_configuration.assistant_id] = _enabled_tools
+
         prompt_structure = [
             ("system", SYSTEM_PROMPT_PLACEHOLDER if system_prompt is None else system_prompt),
             MessagesPlaceholder(variable_name="messages"),
@@ -171,22 +253,7 @@ class MultimodelAgent(CopilotAgent):
         ChatPromptTemplate.from_messages(prompt_structure)
 
         if is_code_act_enabled(agent_configuration):
-            conv_tools = [
-                t if isinstance(t, StructuredTool) else langchain_core.tools.convert_runnable_to_tool(t)
-                for t in _enabled_tools
-            ]
-            use_pydoide = utils.read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
-            if use_pydoide:
-                eval_fn = create_pyodide_eval_fn("./sessions", ThreadContext.get_data("conversation_id"))
-            else:
-                eval_fn = CodeExecutor("original").execute
-
-            agent = langgraph_codeact.create_codeact(
-                model=llm,
-                tools=conv_tools,
-                eval_fn=eval_fn,
-                prompt=create_default_prompt(tools=conv_tools, base_prompt=system_prompt),
-            )
+            agent = self._create_code_act_agent(llm, _enabled_tools, system_prompt)
         else:
             agent = create_react_agent(
                 model=llm,
@@ -209,16 +276,6 @@ class MultimodelAgent(CopilotAgent):
         agent_exec.max_execution_time = None if max_exec_time == 0 else max_exec_time
         return agent_exec
 
-    def get_functions(self, tools):
-        _enabled_tools = []
-        if tools:
-            for tool in tools:
-                for t in self._configured_tools:
-                    if t.name == tool.function.name:
-                        _enabled_tools.append(t)
-                        break
-        return _enabled_tools
-
     def execute(self, question: QuestionSchema) -> AgentResponse:
         full_question = get_full_question(question)
         agent = self.get_agent(
@@ -228,7 +285,6 @@ class MultimodelAgent(CopilotAgent):
             tools=question.tools,
             system_prompt=question.system_prompt,
             temperature=question.temperature,
-            kb_vectordb_id=question.kb_vectordb_id,
         )
 
         # Process local files
@@ -262,6 +318,12 @@ class MultimodelAgent(CopilotAgent):
 
     async def aexecute(self, question: QuestionSchema) -> AsyncGenerator[AgentResponse, None]:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
+
+        mcp_servers_config = convert_mcp_servers_config(question.mcp_servers or [])
+        # Get MCP tools asynchronously
+        mcp_tools = await get_mcp_tools(mcp_servers_config)
+
+        # Use async agent creation to include MCP tools
         agent = self.get_agent(
             provider=question.provider,
             model=question.model,
@@ -269,15 +331,16 @@ class MultimodelAgent(CopilotAgent):
             tools=question.tools,
             system_prompt=question.system_prompt,
             temperature=question.temperature,
-            kb_vectordb_id=question.kb_vectordb_id,
+            mcp_tools=mcp_tools,
         )
+
         full_question = question.question
 
         # Process local files
         image_payloads, other_file_paths = process_local_files(question.local_file_ids)
 
         # Construct messages
-        messages = await self.get_messages_arrray(full_question, image_payloads, other_file_paths, question)
+        messages = await self.get_messages_array(full_question, image_payloads, other_file_paths, question)
 
         _input = {
             "content": full_question,
@@ -294,28 +357,35 @@ class MultimodelAgent(CopilotAgent):
                     if response is not None:
                         yield response
                 return
-            async for event in agent.astream_events(_input, version="v2"):
-                if copilot_stream_debug:
-                    yield AssistantResponse(response=str(event), conversation_id="", role="debug")
-                    continue
-                kind = event["event"]
-                if kind == "on_tool_start":
-                    yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
-                    continue
-                if (
-                    kind != "on_chain_end"
-                    or (type(event["data"]["output"]) == AddableDict)
-                    or (type(event["data"]["output"]) != AIMessage)
-                ):
-                    continue
-                output = event["data"]["output"]
-                output_ = output.content
-
-                # check if the output is a list
-                msg = await self.get_messages(output_)
-                yield AssistantResponse(response=str(msg), conversation_id=question.conversation_id)
+            async for response in self._process_regular_agent_events(
+                agent, _input, copilot_stream_debug, question.conversation_id
+            ):
+                yield response
         except Exception as e:
-            yield AssistantResponse(response=str(e), conversation_id=question.conversation_id,  role="error")
+            yield AssistantResponse(response=str(e), conversation_id=question.conversation_id, role="error")
+
+    async def _process_regular_agent_events(self, agent, _input, copilot_stream_debug, conversation_id):
+        """Process events for regular (non-code-act) agents."""
+        async for event in agent.astream_events(_input, version="v2"):
+            if copilot_stream_debug:
+                yield AssistantResponse(response=str(event), conversation_id="", role="debug")
+                continue
+            kind = event["event"]
+            if kind == "on_tool_start":
+                yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
+                continue
+            if (
+                kind != "on_chain_end"
+                or (type(event["data"]["output"]) == AddableDict)
+                or (type(event["data"]["output"]) != AIMessage)
+            ):
+                continue
+            output = event["data"]["output"]
+            output_ = output.content
+
+            # check if the output is a list
+            msg = await self.get_messages(output_)
+            yield AssistantResponse(response=str(msg), conversation_id=conversation_id)
 
     async def get_messages(self, output_):
         msg = str(output_)
@@ -325,7 +395,7 @@ class MultimodelAgent(CopilotAgent):
                 msg = str(o["text"])
         return msg
 
-    async def get_messages_arrray(self, full_question, image_payloads, other_file_paths, question):
+    async def get_messages_array(self, full_question, image_payloads, other_file_paths, question):
         messages = self._memory.get_memory(question.history, full_question)
         if image_payloads or other_file_paths:
             content = [{"type": "text", "text": full_question}]

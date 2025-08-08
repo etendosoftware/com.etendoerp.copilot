@@ -7,10 +7,7 @@ import time
 
 import pandas as pd
 import requests
-from copilot.core.agent import MultimodelAgent
-from copilot.core.agent.agent import get_kb_tool
 from copilot.core.etendo_utils import call_etendo, login_etendo
-from copilot.core.langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from langchain_core.utils.function_calling import convert_to_openai_function
 from langsmith import Client
 from openai.types.chat import (
@@ -19,7 +16,7 @@ from openai.types.chat import (
     ChatCompletionToolMessageParam,
     ChatCompletionUserMessageParam,
 )
-from openai.types.chat.chat_completion_message_tool_call_param import Function
+from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
 from evaluation.schemas import Conversation, Message
 
@@ -190,30 +187,17 @@ def get_tools_for_agent(agent_config):
             3. Tools generated from API specifications (`agent_config.specs`).
         - Knowledge base tools are also included if available.
     """
-    tools = []
-    # Retrieve pre-configured tools
-    configured_tools = MultimodelAgent().get_tools()
-    tools_from_strctr = agent_config.tools
+    # Use the unified tool loader to get all tools
+    from copilot.core.tool_loader import ToolLoader
 
-    # Add tools from the agent's structure
-    for tool in tools_from_strctr if tools_from_strctr is not None else []:
-        for t in configured_tools:
-            if t.name == tool.function.name:
-                tools.append(t)
-                break
+    tool_loader = ToolLoader()
 
-    # Add knowledge base tool if available
-    kb_tool = get_kb_tool(agent_config)
-    if kb_tool is not None:
-        tools.append(kb_tool)
-
-    # Add tools generated from API specifications
-    if agent_config.specs is not None:
-        for spec in agent_config.specs:
-            if spec.type == "FLOW":
-                api_spec = json.loads(spec.spec)
-                openapi_tools = generate_tools_from_openapi(api_spec)
-                tools.extend(openapi_tools)
+    tools = tool_loader.get_all_tools(
+        agent_configuration=agent_config,
+        enabled_tools=agent_config.tools,
+        include_kb_tool=True,
+        include_openapi_tools=True,
+    )
 
     return tools
 

@@ -62,23 +62,35 @@ def read_optional_env_var(env_var_name: str, default_value: str) -> str:
 
 
 def _read_env_var(env_var_name, default_value):
-    upper_env_var = env_var_name.replace('.', '_').upper()
+    upper_env_var = env_var_name.replace(".", "_").upper()
     value = os.getenv(upper_env_var)
-    if value is not None and value != '':
+    if value is not None and value != "":
         copilot_debug(f"Reading environment variable {upper_env_var} = {value}")
         return value
     value = os.getenv(env_var_name)
-    if value is not None and value != '':
+    if value is not None and value != "":
         copilot_debug(f"Reading alternative environment variable {env_var_name} = {value}")
         return value
     copilot_debug(
-        f"Environment variable {upper_env_var} / {env_var_name} is not set, using default value {default_value}")
+        f"Environment variable {upper_env_var} / {env_var_name} is not set, using default value {default_value}"
+    )
     return default_value
 
 
 def read_optional_env_var_int(env_var_name: str, default_value: int) -> int:
     """Reads an optional environment variable and returns its value or the default one."""
     return int(read_optional_env_var(env_var_name, str(default_value)))
+
+
+def read_optional_env_var_bool(env_var_name: str, default_value: bool) -> bool:
+    """Reads an optional environment variable and returns its value or the default one."""
+    value = read_optional_env_var(env_var_name, str(default_value)).lower()
+    if value in ["true", "1", "yes"]:
+        return True
+    elif value in ["false", "0", "no"]:
+        return False
+    else:
+        raise ValueError(f"Invalid boolean value for {env_var_name}: {value}")
 
 
 def copilot_debug(message: str):
@@ -121,8 +133,27 @@ def copilot_info(message: str):
         print_violet(message)
 
 
+def copilot_error(message: str):
+    """Prints an error message in red."""
+    print_red(f"Error: {message}")
+
+
+def copilot_warning(message: str):
+    """Prints a warning message in orange."""
+    print_orange(f"Warning: {message}")
+
+
 def is_docker():
     """Check if the process is running in a Docker container."""
+    # Check if the environment variable for dockerized version with com.etendoerp.docker
+    # module.
+    if read_optional_env_var_bool("docker_com.etendoerp.copilot", False):
+        return True
+    cwd = os.getcwd()
+    if cwd.startswith("/app/"):
+        copilot_debug(f"Current working directory is {cwd}, indicating a Docker environment.")
+        return True
+
     # Verify if the process is running in a container
     if os.path.exists("/.dockerenv"):
         return True

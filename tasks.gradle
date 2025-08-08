@@ -15,7 +15,6 @@ final String ARG_PROPERTY = "arg"
 final String COPILOT_PORT_PROPERTY = "COPILOT_PORT"
 final String OPENAI_API_KEY_PROPERTY = "OPENAI_API_KEY"
 final String COPILOT_DOCKER_REPO = "etendo_copilot_core"
-final String TOOLS_CONFIG_FILE = "tools_config.json"
 final String COPILOT_IMAGE_TAG = 'COPILOT_IMAGE_TAG'
 final String COPILOT_PULL_IMAGE = 'COPILOT_PULL_IMAGE'
 final String COPILOT_DOCKER_CONTAINER_NAME = 'COPILOT_DOCKER_CONTAINER_NAME'
@@ -236,6 +235,7 @@ task 'copilot.build' {
                 exclude "**/.git/**"
                 exclude "**/node_modules/**"
                 exclude "**/.venv/**"
+                exclude "**/venv/**"
                 eachFile { fileCopyDetails ->
                     counter++
                     project.logger.info("Copying Copilot files ${counter}: ${fileCopyDetails.file.path}")
@@ -245,28 +245,23 @@ task 'copilot.build' {
         }
 
         if (copilotExists) {
-            File toolsConfigFile = new File(project.buildDir, COPILOT + File.separator + TOOLS_CONFIG_FILE)
             String toolDependencyFileName = getToolsDependenciesFileName(project)
             File toolsDependenciesFileMain = new File(project.buildDir, COPILOT + File.separator + toolDependencyFileName)
-            def toolsConfigJson = new JsonSlurper().parseText(toolsConfigFile.readLines().join(" "))
 
-            // Get tools in SOURCES
+            // Get tools in SOURCES - simplified version without JSON generation
             if (moduleProject != null) {
                 moduleProject.subprojects.each { subproject ->
                     File toolsDir = new File(subproject.projectDir, "tools")
                     if (toolsDir.exists() && !subproject.name.equals(COPILOT_MODULE)) {
+                        // Copy tool files
                         project.copy {
                             from {
                                 toolsDir.path
                             }
                             into "${project.buildDir.path}${File.separator}copilot${File.separator}tools"
                         }
-                        toolsDir.listFiles().each { file ->
-                            toolsConfigJson.third_party_tools[file.name.replaceFirst(~/\.[^\.]+$/, '')] = true
-                        }
-                        def json_data = JsonOutput.toJson(toolsConfigJson)
-                        toolsConfigFile.write(JsonOutput.prettyPrint(json_data))
-                        //lets read the Dependencies file of the subproject and add it to the main one
+
+                        // Merge dependencies file if it exists
                         File toolsDependenciesFile = new File(subproject.projectDir, toolDependencyFileName)
                         if (toolsDependenciesFile.exists()) {
                             //add a line break
@@ -288,11 +283,7 @@ task 'copilot.build' {
                         }
                         into "${project.buildDir.path}${File.separator}copilot${File.separator}tools"
                     }
-                    jarModuleToolsDir.listFiles().each { file ->
-                        toolsConfigJson.third_party_tools[file.name.replaceFirst(~/\.[^\.]+$/, '')] = true
-                    }
-                    def json_data = JsonOutput.toJson(toolsConfigJson)
-                    toolsConfigFile.write(JsonOutput.prettyPrint(json_data))
+
                     //lets read the Dependencies file of the subproject and add it to the main one
                     File toolsDependenciesFile = new File(jarModule, toolDependencyFileName)
                     if (toolsDependenciesFile.exists()) {
@@ -365,6 +356,106 @@ static def getDefaultOllamaHost(boolean copilotEnabled, boolean ollamaEnabled) {
     return copilotToOllama
 }
 
+// Check if host.docker.internal is available
+private boolean checkHostDockerInternalAvailability() {
+    try {
+        def checkCommand = ["sh", "-c", "docker run --rm --add-host=host.docker.internal:host-gateway alpine sh -c 'ping -c 1 -W 1 host.docker.internal > /dev/null 2>&1 && echo \"available\" || echo \"not_available\"'"]
+        def process = checkCommand.execute()
+
+        logger.info("Checking host.docker.internal availability: ${checkCommand.join(' ')}")
+
+        def output = new StringBuilder()
+        def error = new StringBuilder()
+
+        process.consumeProcessOutput(output, error)
+        def exitCode = process.waitFor()
+
+        def outputText = output.toString().trim()
+        logger.info("host.docker.internal check output: '${outputText}'")
+
+        if (exitCode == 0 && outputText.equals("available")) {
+            logger.info("host.docker.internal is available and will be used")
+            return true
+        } else {
+            logger.info("host.docker.internal is not available, falling back to bridge IP detection")
+            return false
+        }
+    } catch (Exception e) {
+        logger.warn("Failed to check host.docker.internal availability: ${e.message}")
+        return false
+    }
+}
+
+// Auto-detect Docker bridge IP
+private String detectDockerBridgeIP(String defaultIp, def reader, def yellow, def green, def reset) {
+    try {
+        def command = ["sh", "-c", "docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'"]
+        def process = command.execute()
+
+        logger.info("Executing command to get Docker bridge IP: ${command.join(' ')}")
+
+        def output = new StringBuilder()
+        def error = new StringBuilder()
+
+        process.consumeProcessOutput(output, error)
+        def exitCode = process.waitFor()
+
+        logger.info("Process exit code: ${exitCode}")
+
+        def outputText = output.toString()
+        def errorText = error.toString()
+
+        logger.info("Raw process output: '${outputText}'")
+        logger.info("Process error output: '${errorText}'")
+
+        if (exitCode == 0 && outputText && !outputText.trim().isEmpty()) {
+            def bridgeIp = outputText.trim()
+            logger.info("Successfully detected Docker bridge IP: '${bridgeIp}'")
+            return bridgeIp
+        } else {
+            logger.warn("Command failed or returned empty output. Exit code: ${exitCode}, Error: ${errorText}")
+            return promptUserForBridgeIP(defaultIp, reader, yellow, green, reset)
+        }
+    } catch (Exception e) {
+        logger.error("Exception occurred while getting Docker bridge IP: ${e.message}", e)
+        logger.error("Exception class: ${e.class.name}")
+        if (e.cause) {
+            logger.error("Caused by: ${e.cause.message}")
+        }
+        return promptUserForBridgeIP(defaultIp, reader, yellow, green, reset)
+    }
+}
+
+// Prompt user for bridge IP when auto-detection fails
+private String promptUserForBridgeIP(String defaultIp, def reader, def yellow, def green, def reset) {
+    println "${yellow}⚠️ WARNING: Failed to automatically detect Docker bridge IP.${reset}"
+    println "${yellow}Please run the following command manually to get the Docker bridge IP:${reset}"
+    println "${green}    docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'${reset}"
+    println ""
+    System.out.print("${yellow}💬 Please enter the Docker bridge IP result from the command above, or press Enter to use default (${defaultIp}): \n${reset}")
+    System.out.flush()
+
+    def userInput = reader.readLine()?.trim()
+    if (userInput && !userInput.isEmpty()) {
+        logger.info("Using user-provided Docker bridge IP: ${userInput}")
+        return userInput
+    } else {
+        logger.info("Using default Docker bridge IP: ${defaultIp}")
+        return defaultIp
+    }
+}
+
+// Get gateway IP for Docker communication
+private String getGatewayIpForDocker(String defaultIp, def reader, def yellow, def green, def reset) {
+    // First, check if host.docker.internal is available
+    if (checkHostDockerInternalAvailability()) {
+        return "host.docker.internal"
+    }
+
+    // If not available, detect Docker bridge IP
+    return detectDockerBridgeIP(defaultIp, reader, yellow, green, reset)
+}
+
 
 task 'copilot.env.file' {
     description = 'Generates the .env file for copilot'
@@ -387,6 +478,7 @@ task 'copilot.env.file' {
         def etendoHostDocker = project.hasProperty("ETENDO_HOST_DOCKER") ? project.property("ETENDO_HOST_DOCKER").toString() : getDefaultEtendoHostDocker(tomcatEnabled, copilotEnabled, strTomcatPort)
         def copilotHost = project.hasProperty("COPILOT_HOST") ? project.property("COPILOT_HOST").toString() : getDefaultCopilotHost(tomcatEnabled, copilotEnabled)
         def copilotPort = project.hasProperty("COPILOT_PORT") ? project.property("COPILOT_PORT").toString() : "5005"
+        def copilotPortMCP = project.hasProperty("COPILOT_PORT_MCP") ? project.property("COPILOT_PORT_MCP").toString() : "5006"
         def copilotPortDebug = project.hasProperty("COPILOT_PORT_DEBUG") ? project.property("COPILOT_PORT_DEBUG").toString() : "5100"
         def copilotImageTag = project.hasProperty("COPILOT_IMAGE_TAG") ? project.property("COPILOT_IMAGE_TAG").toString() : "master"
         def copilotPullImage = project.hasProperty("COPILOT_PULL_IMAGE") ? project.property("COPILOT_PULL_IMAGE").toString() : "true"
@@ -401,6 +493,9 @@ task 'copilot.env.file' {
 
             writer.write("COPILOT_PORT=${copilotPort}\n")
             println "Writing COPILOT_PORT=${copilotPort}"
+
+            writer.write("COPILOT_PORT_MCP=${copilotPortMCP}\n")
+            println "Writing COPILOT_PORT_MCP=${copilotPortMCP}"
 
             writer.write("COPILOT_HOST=${copilotHost}\n")
             println "Writing COPILOT_HOST=${copilotHost}"
@@ -421,6 +516,111 @@ task 'copilot.env.file' {
             println "Writing COPILOT_OLLAMA_PORT=${copilotOllamaPort}"
 
         }
+    }
+}
+
+task 'copilot.mcp.config' {
+    group = "copilot"
+    description = "Generates MCP configuration JSON for the Etendo Agent"
+
+    doLast {
+        def reader = new BufferedReader(new InputStreamReader(System.in))
+        def yellowText = "\u001B[33;1m"
+        def greenText = "\u001B[32;1m"
+        def blueText = "\u001B[34;1m"
+        def redText = "\u001B[31;1m"
+        def resetText = "\u001B[0m"
+
+        def etendoHost = project.findProperty('host')
+        def username = project.findProperty('username')
+        def password = project.findProperty('password')
+        def role = project.findProperty("role")
+        def agentId = project.findProperty("agentId")
+
+        // Get COPILOT_PORT_MCP property, default to 5006
+        def copilotPortMCP = project.hasProperty("COPILOT_PORT_MCP") ?
+            project.property("COPILOT_PORT_MCP").toString() : "5006"
+
+        // Request agent ID if not provided
+        if (agentId == null || agentId == "") {
+            project.logger.lifecycle("${blueText}🤖 Please provide the Agent ID:${resetText}")
+            agentId = reader.readLine()?.trim()
+            if (agentId == null || agentId == "") {
+                project.logger.lifecycle("${redText}🤖 Agent ID is required.${resetText}")
+                return
+            }
+        }
+
+        if (username == null || username == "") {
+            project.logger.lifecycle("${blueText}👮 Please provide the username:${resetText}")
+            username = reader.readLine()?.trim()
+        }
+        if (password == null || password == "") {
+            project.logger.lifecycle("${blueText}👮 Please provide the password:${resetText}")
+            password = reader.readLine()?.trim()
+            exec {
+                commandLine 'clear'
+            }
+        }
+        if (!etendoHost) {
+            project.logger.lifecycle("${redText}🤖 Host not provided, using default (http://localhost:8080/etendo).${resetText}")
+            etendoHost = "http://localhost:8080/etendo"
+        }
+
+        // Authenticate to get Bearer token
+        String login = JsonOutput.toJson([
+                "username": username,
+                "password": password
+        ] + (role != null && !role.isEmpty() ? ["role": role] : [:]))
+
+        String loginURL = "${etendoHost}/sws/login"
+
+        HttpClient hClient = HttpClient.newHttpClient()
+        HttpRequest hRequest = HttpRequest.newBuilder()
+                .uri(URI.create(loginURL))
+                .header("Content-Type", "application/json")
+                .method("POST", HttpRequest.BodyPublishers.ofString(login))
+                .build()
+
+        HttpResponse<String> hResponse
+        String hResponseBody
+        try {
+            hResponse = hClient.send(hRequest, HttpResponse.BodyHandlers.ofString())
+            hResponseBody = hResponse.body()
+        } catch (Exception e) {
+            project.logger.lifecycle("${redText}🤖 ❌ Failed to connect to Etendo at ${etendoHost}${resetText}")
+            project.logger.lifecycle("${yellowText}💡 Please ensure:${resetText}")
+            project.logger.lifecycle("${yellowText}   1. You have run 'copilot.variables.setup' to configure the connection${resetText}")
+            project.logger.lifecycle("${yellowText}   2. Tomcat is running and accessible at the configured host${resetText}")
+            project.logger.lifecycle("${yellowText}   3. The host URL is correct: ${etendoHost}${resetText}")
+            project.logger.lifecycle("${redText}   Error details: ${e.message}${resetText}")
+            return
+        }
+
+        def hResponseJson = new JsonSlurper().parseText(hResponseBody)
+        String bearerToken = hResponseJson.token
+        if (!bearerToken) {
+            project.logger.lifecycle("${redText}🤖 Failed to authenticate. No token received.${resetText}")
+            project.logger.lifecycle("${yellowText}💡 Please verify your username and password are correct.${resetText}")
+            return
+        }
+
+        // Generate MCP configuration JSON
+        def mcpConfig = [
+            "etendoAgent": [
+                "type": "http",
+                "httpUrl": "http://localhost:${copilotPortMCP}/${agentId}/mcp",
+                "note": "For Streamable HTTP connections, add this URL directly in your MCP Client",
+                "headers": [
+                    "etendo-token": "Bearer ${bearerToken}"
+                ]
+            ]
+        ]
+
+        String configJson = JsonOutput.prettyPrint(JsonOutput.toJson(mcpConfig))
+
+        project.logger.lifecycle("${greenText}🤖 MCP Configuration:${resetText}")
+        project.logger.lifecycle(configJson)
     }
 }
 
@@ -501,6 +701,8 @@ task 'copilot.variables.setup' {
         // === COPILOT PORT ===
         def copilotPort = project.findProperty("copilotPort") ?: "5005"
 
+        // === COPILOT PORT FOR MCP SERVER ===
+        def copilotPortMCP = project.hasProperty("copilotPortMCP") ? project.property("copilotPortMCP").toString() : "5006"
         // === VARIABLE CONSTRUCTION ===
         def etendoHost
         def etendoHostDocker
@@ -511,13 +713,8 @@ task 'copilot.variables.setup' {
             etendoHostDocker = etendoHost
             copilotHost = "copilot"
         } else if (copilotMode == "docker" && tomcatMode != "docker") {
-            def gatewayIp = "172.17.0.1"
-            try {
-                def process = ["sh", "-c", "docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'"].execute()
-                gatewayIp = process.text.trim()
-            } catch (Exception e) {
-                println "${yellow}⚠️ WARNING: Failed to get Docker bridge IP. Using default: 172.17.0.1${reset}"
-            }
+            def defaultIp = "172.17.0.1"
+            def gatewayIp = getGatewayIpForDocker(defaultIp, reader, yellow, green, reset)
 
             etendoHost = "http://localhost:${tomcatPort}/${contextName}"
             etendoHostDocker = "http://${gatewayIp}:${tomcatPort}/${contextName}"
@@ -536,6 +733,7 @@ task 'copilot.variables.setup' {
         println "ETENDO_HOST_DOCKER=${etendoHostDocker}"
         println "COPILOT_HOST=${copilotHost}"
         println "COPILOT_PORT=${copilotPort}"
+        println "COPILOT_PORT_MCP=${copilotPortMCP}"
         println "-------------------------------------------"
         println ""
     }

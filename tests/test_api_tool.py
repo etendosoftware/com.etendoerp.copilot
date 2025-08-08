@@ -1,6 +1,6 @@
 from typing import Any, get_args, get_origin
 
-from copilot.core.langgraph.tool_utils.ApiTool import schema_to_pydantic_type
+from copilot.core.toolgen.ApiTool import schema_to_pydantic_type
 from pydantic import BaseModel
 
 
