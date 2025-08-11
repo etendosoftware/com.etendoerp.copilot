@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import TextMessage from 'etendo-ui-library/dist-web/components/text-message/TextMessage';
 import FileSearchInput from 'etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput';
 import { useAssistants } from './hooks/useAssistants';
+import { useConversations } from './hooks/useConversations';
+import { useMaximized } from './hooks/useMaximized';
 import { formatLabel, formatTimeNewDate, getMessageType } from './utils/functions';
 import botIcon from './assets/bot.svg';
 import responseSent from './assets/response-sent.svg';
@@ -10,6 +12,7 @@ import { IMessage } from './interfaces/IMessage';
 import { References } from './utils/references';
 import './App.css';
 import ContextTitlePreview from './components/ContextNamePreview';
+import ConversationsSidebar from './components/ConversationsSidebar';
 import { DropdownInput } from 'etendo-ui-library/dist-web/components';
 import { SparksIcon } from 'etendo-ui-library/dist-web/assets/images/icons';
 import { RestUtils, isDevelopment } from './utils/environment';
@@ -42,6 +45,20 @@ function App() {
   const { selectedOption, assistants, getAssistants, handleOptionSelected } =
     useAssistants();
 
+  const {
+    conversations,
+    isLoadingConversations,
+    currentConversationId,
+    loadConversationMessages,
+    selectConversation,
+    clearCurrentConversation,
+    generateTitleInBackground,
+    generatingTitles,
+    addNewConversationToList,
+  } = useConversations(selectedOption?.app_id || null);
+
+  const isMaximized = useMaximized();
+
   // Effect to handle the assistant_id parameter
   useEffect(() => {
     const assistant_id = params.get("assistant_id");
@@ -59,6 +76,44 @@ function App() {
   // References
   const messagesEndRef = useRef<any>(null);
   const inputRef = useRef<any>(null);
+
+  // Conversation handlers
+  const handleConversationSelect = async (conversationIdToSelect: string) => {
+    try {
+      if (currentConversationId && currentConversationId !== conversationIdToSelect) {
+        const currentConversation = conversations.find(conv => conv.id === currentConversationId);
+        if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual')) {
+          console.log('🎯 Generating title for current conversation before switching:', currentConversationId);
+          generateTitleInBackground(currentConversationId);
+        }
+      }
+
+      const conversationMessages = await loadConversationMessages(conversationIdToSelect);
+      setMessages(conversationMessages);
+      setConversationId(conversationIdToSelect);
+      selectConversation(conversationIdToSelect);
+    } catch (error) {
+      console.error('Error loading conversation messages:', error);
+    }
+  };
+
+  const handleNewConversation = () => {
+    if (currentConversationId) {
+      const currentConversation = conversations.find(conv => conv.id === currentConversationId);
+      if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual')) {
+        console.log('🎯 Generating title for current conversation before creating new one:', currentConversationId);
+        generateTitleInBackground(currentConversationId);
+      }
+    }
+
+    setMessages([]);
+    setConversationId(null);
+    clearCurrentConversation();
+    setContextTitle(null);
+    setContextValue(null);
+    setFiles(null);
+    setFileId(null);
+  };
 
   const handleNewMessage = async (role: string, message: IMessage) => {
     const currentContextTitle = contextTitle;
@@ -236,8 +291,24 @@ function App() {
           const data = JSON.parse(event.data);
           const answer = data?.answer;
 
+          console.log('📨 EventSource message received:', data);
+
           if (answer?.conversation_id) {
+            const isNewConversation = !conversationId;
+            console.log('🆔 Conversation ID received:', answer.conversation_id);
+            console.log('🆕 Is new conversation?', isNewConversation);
+            console.log('🔍 Current conversationId:', conversationId);
+
             setConversationId(answer.conversation_id);
+
+            if (isNewConversation) {
+              console.log('🎯 Adding new conversation to list:', answer.conversation_id);
+
+              addNewConversationToList(answer.conversation_id);
+
+              selectConversation(answer.conversation_id);
+
+            }
           }
 
           if (answer?.response) {
@@ -469,112 +540,154 @@ function App() {
 
   return (
     <div id={'iframe-container'} className="h-screen w-screen flex flex-col">
-      {/* Initial message and assistants selection */}
-      {assistants.length > 0 && (
-        <div
-          id={'iframe-selector'}
-          style={{
-            paddingTop: 8,
-            paddingRight: 12,
-            paddingLeft: 12,
-            paddingBottom: 8,
-          }}
-          className="w-full assistants-shadow border-b py-1 px-2 border-gray-600"
-        >
-          <div id={'assistant-title'}>
-            <SparksIcon style={{ height: 12, width: 12 }} />
-            <div id={'assistant-title-label'}>
-              {labels.ETCOP_Message_AssistantHeader}
-            </div>
-          </div>
-          <DropdownInput
-            value={selectedOption?.name}
-            staticData={assistants}
-            displayKey="name"
-            onSelect={(option: any) => {
-              handleOptionSelected(option);
-              setMessages([]);
-              setConversationId(null);
-            }}
-          />
-        </div>
-      )}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          flex: 1,
-          overflowX: 'hidden',
-        }}
-      >
-        {/* Chat display area */}
-        <div
-          className={`${file ? 'h-[428px]' : 'h-[452px]'} flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200`}
-        >
-          {messages.length === 0 && (
-            <div className="inline-flex mt-[12px] rounded-lg text-blue-900 font-medium">
-              {areLabelsLoaded &&
-                (noAssistants ? (
-                  <TextMessage
-                    type={ROLE_ERROR}
-                    text={`${labels.ETCOP_NoAssistant}`}
-                  />
-                ) : (
-                  <TextMessage
-                    title={`${labels.ETCOP_Welcome_Greeting}\n${labels.ETCOP_Welcome_Message}`}
-                    type={'left-user'}
-                    text={''}
-                  />
-                ))}
-            </div>
-          )}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Panel: Assistants Selector + Conversations Sidebar - Only in maximized mode */}
+        {isMaximized && selectedOption !== null && (
+          <div className={`${isMaximized ? 'w-72' : 'w-64'} flex flex-col border-r border-gray-300 bg-gray-50`}>
+            {/* Assistants Selector */}
+            {assistants.length > 0 && (
+              <div
+                id={'iframe-selector'}
+                style={{
+                  paddingTop: 8,
+                  paddingRight: 12,
+                  paddingLeft: 12,
+                  paddingBottom: 8,
+                }}
+                className="w-full assistants-shadow border-b py-1 px-2 border-gray-600"
+              >
+                <div id={'assistant-title'}>
+                  <SparksIcon style={{ height: 12, width: 12 }} />
+                  <div id={'assistant-title-label'}>
+                    {labels.ETCOP_Message_AssistantHeader}
+                  </div>
+                </div>
+                <DropdownInput
+                  value={selectedOption?.name}
+                  staticData={assistants}
+                  displayKey="name"
+                  onSelect={(option: any) => {
+                    handleOptionSelected(option);
+                    handleNewConversation(); // This will clear everything including conversation state
+                  }}
+                />
+              </div>
+            )}
 
-          {/* Displaying messages */}
-          {messages.map((message, index) => renderMessage(message, index))}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Message input area */}
-        <div
-          id={'iframe-input-container'}
-          style={{ marginBottom: 12 }}
-          className={`mx-[12px]`}
-          ref={inputRef}
-        >
-          {/* Conditionally render the context name title */}
-          {contextTitle && (
-            <ContextTitlePreview
-              contextTitle={contextTitle}
-              hasFile={files && files.length > 0}
-              onClearContext={() => {
-                setContextTitle(null);
-                setContextValue(null);
-              }}
+            {/* Conversations Sidebar */}
+            <ConversationsSidebar
+              conversations={conversations}
+              isLoading={isLoadingConversations}
+              currentConversationId={currentConversationId}
+              onConversationSelect={handleConversationSelect}
+              onNewConversation={handleNewConversation}
+              isVisible={true} // Always visible when in this layout
+              generatingTitles={generatingTitles}
             />
+          </div>
+        )}
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Top Assistants Selector for non-maximized mode */}
+          {assistants.length > 0 && !isMaximized && (
+            <div
+              id={'iframe-selector'}
+              style={{
+                paddingTop: 8,
+                paddingRight: 12,
+                paddingLeft: 12,
+                paddingBottom: 8,
+              }}
+              className="w-full assistants-shadow border-b py-1 px-2 border-gray-600"
+            >
+              <div id={'assistant-title'}>
+                <SparksIcon style={{ height: 12, width: 12 }} />
+                <div id={'assistant-title-label'}>
+                  {labels.ETCOP_Message_AssistantHeader}
+                </div>
+              </div>
+              <DropdownInput
+                value={selectedOption?.name}
+                staticData={assistants}
+                displayKey="name"
+                onSelect={(option: any) => {
+                  handleOptionSelected(option);
+                  handleNewConversation(); // This will clear everything including conversation state
+                }}
+              />
+            </div>
           )}
 
-          {/* Input area */}
-          <FileSearchInput
-            value={inputValue}
-            placeholder={labels.ETCOP_Message_Placeholder!}
-            onChangeText={text => setInputValue(text)}
-            onSubmit={handleSendMessage}
-            onSubmitEditing={handleSendMessage}
-            setFile={handleSetFiles}
-            uploadConfig={uploadConfig}
-            isDisabled={noAssistants}
-            isSendDisable={isBotLoading}
-            isAttachDisable={isBotLoading}
-            onFileUploaded={handleFileId}
-            onError={handleOnError}
-            multiline
-            numberOfLines={7}
-            multipleFilesText={
-              files && files.length > 0
-                ? formatLabel(labels.ETCOP_FilesUploaded!!, files.length)
-                : undefined
-            }
-          />
+          {/* Chat display area */}
+          <div
+            className={`${file ? 'h-[428px]' : 'h-[452px]'} flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200`}
+          >
+            {messages.length === 0 && (
+              <div className="inline-flex mt-[12px] rounded-lg text-blue-900 font-medium">
+                {areLabelsLoaded &&
+                  (noAssistants ? (
+                    <TextMessage
+                      type={ROLE_ERROR}
+                      text={`${labels.ETCOP_NoAssistant}`}
+                    />
+                  ) : (
+                    <TextMessage
+                      title={`${labels.ETCOP_Welcome_Greeting}\n${labels.ETCOP_Welcome_Message}`}
+                      type={'left-user'}
+                      text={''}
+                    />
+                  ))}
+              </div>
+            )}
+
+            {/* Displaying messages */}
+            {messages.map((message, index) => renderMessage(message, index))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Message input area */}
+          <div
+            id={'iframe-input-container'}
+            style={{ marginBottom: 12 }}
+            className={`mx-[12px]`}
+            ref={inputRef}
+          >
+            {/* Conditionally render the context name title */}
+            {contextTitle && (
+              <ContextTitlePreview
+                contextTitle={contextTitle}
+                hasFile={files && files.length > 0}
+                onClearContext={() => {
+                  setContextTitle(null);
+                  setContextValue(null);
+                }}
+              />
+            )}
+
+            {/* Input area */}
+            <FileSearchInput
+              value={inputValue}
+              placeholder={labels.ETCOP_Message_Placeholder!}
+              onChangeText={text => setInputValue(text)}
+              onSubmit={handleSendMessage}
+              onSubmitEditing={handleSendMessage}
+              setFile={handleSetFiles}
+              uploadConfig={uploadConfig}
+              isDisabled={noAssistants}
+              isSendDisable={isBotLoading}
+              isAttachDisable={isBotLoading}
+              onFileUploaded={handleFileId}
+              onError={handleOnError}
+              multiline
+              numberOfLines={7}
+              multipleFilesText={
+                files && files.length > 0
+                  ? formatLabel(labels.ETCOP_FilesUploaded!!, files.length)
+                  : undefined
+              }
+            />
+          </div>
         </div>
       </div>
     </div>
