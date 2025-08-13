@@ -124,7 +124,7 @@ def register_basic_tools(app):
             etendo_host = read_optional_env_var("ETENDO_HOST_DOCKER", "http://localhost:8080/etendo")
 
             # Make the HTTP request to Etendo
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=300.0) as client:
                 response = await client.post(
                     f"{etendo_host}/sws/copilot/question", json=payload, headers=headers
                 )
