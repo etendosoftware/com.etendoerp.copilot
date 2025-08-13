@@ -1,5 +1,10 @@
 package com.etendoerp.copilot.eventhandler;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.when;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,17 +19,7 @@ import org.openbravo.client.kernel.event.EntityPersistenceEvent;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 
 import com.etendoerp.copilot.data.CopilotApp;
-import com.etendoerp.copilot.util.CopilotConstants;
-
-import java.lang.reflect.Method;
-
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 
 /**
  * Assistant sync status handler test.
@@ -32,6 +27,7 @@ import static org.mockito.Mockito.when;
 public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
     private AssistantSyncStatusHandler assistantSyncStatusHandler;
     private MockedStatic<ModelProvider> mockedModelProvider;
+    private MockedStatic<CopilotAppInfoUtils> mockedCopilotAppInfoUtils;
 
     @Mock
     private EntityUpdateEvent mockUpdateEvent;
@@ -39,6 +35,8 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
     private Entity mockAppEntity;
     @Mock
     private Property mockSyncStatusProp;
+
+    private CopilotApp mockTargetApp;
 
     @Before
     public void setUp() throws Exception {
@@ -51,11 +49,16 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
 
         // Setup static mocks
         mockedModelProvider = mockStatic(ModelProvider.class);
+        mockedCopilotAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
 
         // Configure ModelProvider
         when(ModelProvider.getInstance()).thenReturn(mock(ModelProvider.class));
         when(ModelProvider.getInstance().getEntity(CopilotApp.ENTITY_NAME)).thenReturn(mockAppEntity);
-        when(mockAppEntity.getProperty(CopilotApp.PROPERTY_SYNCSTATUS)).thenReturn(mockSyncStatusProp);
+
+        // Prepare target instance for events
+        mockTargetApp = mock(CopilotApp.class);
+        when(mockUpdateEvent.getTargetInstance()).thenReturn(mockTargetApp);
+         // previously used CopilotApp property directly, now using CopilotAppInfoUtils
     }
 
     /**
@@ -64,6 +67,7 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
     @After
     public void tearDown() {
         if (mockedModelProvider != null) mockedModelProvider.close();
+        if (mockedCopilotAppInfoUtils != null) mockedCopilotAppInfoUtils.close();
     }
 
     /**
@@ -88,6 +92,10 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
         for (String property : properties) {
             // Reset mocks
             reset(mockUpdateEvent);
+            // reset clears previous stubs; restore target instance stub
+            when(mockUpdateEvent.getTargetInstance()).thenReturn(mockTargetApp);
+            // Reset static mock invocations to isolate each iteration
+            mockedCopilotAppInfoUtils.reset();
 
             // Given
             Property mockProperty = mock(Property.class);
@@ -98,11 +106,8 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
             // When
             assistantSyncStatusHandler.onUpdate(mockUpdateEvent);
 
-            // Then
-            verify(mockUpdateEvent).setCurrentState(
-                eq(mockSyncStatusProp), 
-                eq(CopilotConstants.PENDING_SYNCHRONIZATION_STATE)
-            );
+            // Then: CopilotAppInfoUtils.markAsPendingSynchronization must be invoked with the event target
+            mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(mockTargetApp));
         }
     }
 
@@ -128,6 +133,10 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
         for (String property : properties) {
             // Reset mocks
             reset(mockUpdateEvent);
+            // reset clears previous stubs; restore target instance stub
+            when(mockUpdateEvent.getTargetInstance()).thenReturn(mockTargetApp);
+            // Reset static mock invocations to isolate each iteration
+            mockedCopilotAppInfoUtils.reset();
 
             // Given
             Property mockProperty = mock(Property.class);
@@ -138,11 +147,8 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
             // When
             assistantSyncStatusHandler.onUpdate(mockUpdateEvent);
 
-            // Then
-            verify(mockUpdateEvent, never()).setCurrentState(
-                eq(mockSyncStatusProp), 
-                eq(CopilotConstants.PENDING_SYNCHRONIZATION_STATE)
-            );
+            // Then: CopilotAppInfoUtils.markAsPendingSynchronization should NOT be invoked
+            mockedCopilotAppInfoUtils.verifyNoInteractions();
         }
     }
 }
