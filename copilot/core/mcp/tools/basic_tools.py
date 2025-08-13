@@ -135,3 +135,36 @@ def register_basic_tools(app):
         except Exception as e:
             logger.error(f"Error in ask_agent tool: {e}")
             return {"success": False, "error": f"Unexpected error: {str(e)}", "status_code": None}
+
+
+def register_basic_tools_direct(app):
+    """Register basic utility tools with the MCP app (direct mode without ask_agent).
+
+    Args:
+        app: FastMCP application instance
+    """
+
+    @app.tool
+    def ping() -> str:
+        """A simple ping tool to test MCP connectivity."""
+        return "pong"
+
+    @app.tool
+    def hello_world() -> str:
+        """Say hello with instance information."""
+        identifier = get_identifier()
+        if identifier:
+            return f"Hello! You are connected to Etendo Copilot MCP Server (Instance: {identifier}) - Direct Mode!"
+        return "Hello! You are connected to Etendo Copilot MCP Server - Direct Mode!"
+
+    @app.tool
+    def server_info() -> dict:
+        """Get basic server information."""
+        return {
+            "name": "etendo-copilot-mcp",
+            "version": "0.1.0",
+            "description": "Etendo Copilot MCP Server with HTTP streaming - Direct Mode",
+            "transport": "http-streaming",
+            "status": "running",
+            "mode": "direct",
+        }

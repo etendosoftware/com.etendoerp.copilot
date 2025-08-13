@@ -16,7 +16,12 @@ from pathlib import Path
 
 import chromadb
 import requests
-from baseutils.logging_envvar import copilot_debug, copilot_info, read_optional_env_var
+from copilot.baseutils.logging_envvar import (
+    copilot_debug,
+    copilot_info,
+    is_docker,
+    read_optional_env_var,
+)
 from copilot.core import utils
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
@@ -75,9 +80,15 @@ def _response(response: AssistantResponse):
         json_value = json.dumps(
             {
                 "answer": {
-                    "response": response.output.response,
-                    "conversation_id": response.output.conversation_id,
-                    "role": response.output.role,
+                    "response": (
+                        response.response if hasattr(response, "response") else response.output.response
+                    ),
+                    "conversation_id": (
+                        response.conversation_id
+                        if hasattr(response, "conversation_id")
+                        else response.output.conversation_id
+                    ),
+                    "role": response.role if hasattr(response, "role") else response.output.role,
                 }
             }
         )
@@ -453,13 +464,13 @@ def purge_vectordb(body: VectorDBInputSchema):
 
 @core_router.get("/runningCheck")
 def running_check():
-    return {"answer": "docker" if utils.is_docker() else "pycharm"}
+    return {"answer": "docker" if is_docker() else "pycharm"}
 
 
 @core_router.post("/attachFile")
 def attach_file(file: UploadFile = File(...)):
     # save the file inside /tmp and return the path
-    if not utils.is_docker():
+    if not is_docker():
         prefix = os.getcwd()
     else:
         prefix = ""
