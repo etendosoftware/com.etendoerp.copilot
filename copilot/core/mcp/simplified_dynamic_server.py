@@ -78,11 +78,38 @@ class DynamicMCPInstance:
         if direct_mode:
             # Direct mode: only basic tools (without ask_agent) and agent tools
             register_basic_tools_direct(self.mcp)
-            register_agent_tools(self.mcp, identifier, etendo_token)
+            register_agent_tools(self.mcp, identifier, etendo_token, is_direct_mode=True)
             copilot_info(f"✅ Direct mode tools configured for MCP instance '{self.identifier}'")
         else:
             # Standard mode: basic tools (with ask_agent) only
             register_basic_tools(self.mcp)
+
+            # Additionally, register an agent-specific ask tool named with the agent name
+            # so that simple mode exposes ask_agent_<AgentName> with description from payload.
+            try:
+                from copilot.core.mcp.tools.agent_tools import (
+                    _make_ask_agent_tool,
+                    fetch_agent_structure_from_etendo,
+                )
+
+                agent_config = fetch_agent_structure_from_etendo(identifier, etendo_token)
+                if agent_config:
+                    try:
+                        ask_tool = _make_ask_agent_tool(agent_config, identifier)
+                        # add tool to FastMCP app
+                        self.mcp.add_tool(ask_tool)
+                        copilot_info(
+                            f"✅ Registered simple-mode agent-specific ask tool '{ask_tool.name}' for instance '{self.identifier}'"
+                        )
+                    except Exception as e:
+                        copilot_error(f"Failed to create/register agent ask tool for {identifier}: {e}")
+                else:
+                    copilot_debug(
+                        f"No agent configuration found for {identifier}; skipping agent-named ask tool"
+                    )
+            except Exception as e:
+                copilot_error(f"Error while attempting to register agent-named ask tool: {e}")
+
             copilot_info(f"✅ Standard mode tools configured for MCP instance '{self.identifier}'")
 
     def _find_free_port(self, start_port: int = 5008) -> int:

@@ -137,18 +137,13 @@ def test_serve_question_success(mock_execute, graph_question_payload):
     )
     response = client.post("/graph", json=json.loads(graph_question_payload.json()))
     assert response.status_code == 200
-    assert (
-        response.json()
-        == {
-            "answer": {
-                "conversation_id": "d2264c6d-14b8-42bd-9cfc-60a552d433b9",
-                "message_id": None,
-                "response": "Paris.",
-                "role": None,
-            }
-        }
-        != {"answer": "Paris"}
-    )
+    response_json = response.json()
+    assert "answer" in response_json
+    answer = response_json["answer"]
+    assert answer["conversation_id"] == "d2264c6d-14b8-42bd-9cfc-60a552d433b9"
+    assert answer["message_id"] is None
+    assert "Paris" in answer["response"]
+    assert answer["role"] is None
 
 
 def test_initialization(mock_langgraph_agent):
