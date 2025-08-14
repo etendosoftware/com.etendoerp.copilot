@@ -7,16 +7,21 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
-* Normalizes heterogeneous MCP configurations (names and structures) into a consistent schema
-* Supports the Python client:
-* transport ∈ { "stdio", "sse", "websocket", "streamable_http" }
-* and top-level:
-* - stdio: command, args[, env, cwd]
-* - http/sse/ws: url[, headers, timeoutMs]
+ * Normalizes heterogeneous MCP configurations (names and structures) into a consistent schema.
+ * Supported transports for the Python client: "stdio", "sse", "websocket", "streamable_http".
+ * Normalized top-level:
+ *   - stdio:      transport, command, args[, env, cwd]
+ *   - http/sse/ws: transport, url[, headers, timeoutMs]
  */
 public final class MCPConfigNormalizer {
 
@@ -24,10 +29,29 @@ public final class MCPConfigNormalizer {
 
   private MCPConfigNormalizer() {}
 
-    /**
-     * Converts a raw JSON (as saved in the window) into one or more normalized configurations.
-     * If the JSON comes from multiple servers (map/array), all are returned.
-     */
+  // ---- Keys / constants (avoid literal duplication for Sonar) ----
+  private static final String K_TRANSPORT = "transport";
+  private static final String K_STDIO     = "stdio";
+  private static final String K_SSE       = "sse";
+  private static final String K_WS        = "websocket";
+  private static final String K_HTTP      = "streamable_http";
+
+  private static final String K_COMMAND   = "command";
+  private static final String K_ARGS      = "args";
+  private static final String K_URL       = "url";
+  private static final String K_SERVERS   = "servers";
+
+  private static final String[] URL_KEYS       = {"url", "uri", "endpoint", "baseUrl", "serverUrl", "httpUrl"};
+  private static final String[] CMD_KEYS       = {"command", "cmd", "bin", "executable", "path"};
+  private static final String[] ARG_KEYS       = {"args", "argv", "arguments", "cmdArgs"};
+  private static final String[] ENV_KEYS       = {"env", "environment", "envVars"};
+  private static final String[] CWD_KEYS       = {"cwd", "workingDir", "workdir"};
+  private static final String[] TRANSPORT_KEYS = {"transport", "connection", "type", "protocol"};
+
+  /**
+   * Converts a raw JSON (as saved in the window) into one or more normalized configurations.
+   * If the JSON comes from multiple servers (map/array), all are returned.
+   */
   public static JSONArray normalizeToArray(JSONObject rawJson, String defaultName) {
     JSONArray out = new JSONArray();
     if (rawJson == null) return out;
@@ -61,159 +85,177 @@ public final class MCPConfigNormalizer {
     return out;
   }
 
-
+  // --------------------------------------------------------------
+  // Core normalization
+  // --------------------------------------------------------------
   private static JSONObject normalizeSingle(JSONObject src) throws JSONException {
     if (src == null) return null;
 
     JSONObject obj = peel(src, "mcp", "server");
 
+    // If it's already almost normalized, just promote nested fields and return
     if (looksNormalized(obj)) {
-      String t = normalizeTransport(obj.optString("transport", null));
-      if (t == null) {
-        log.debug("Invalid transport. Entry is skipped.");
-        return null;
-      }
-      obj.put("transport", t);
-      ensureTopLevelForTransport(obj, t);
-      return obj;
+      return promoteIfNormalized(obj); // may return null if invalid transport
     }
 
     String transport = detectTransport(obj);
-    if (transport == null) {
-      transport = "stdio";
-    }
-
-    JSONObject out = new JSONObject();
-    out.put("transport", transport);
+    if (transport == null) transport = K_STDIO;
 
     switch (transport) {
-      case "stdio": {
-        String command = null;
-        JSONArray args = null;
-
-        Object cmdRaw = obj.opt("command");
-        if (cmdRaw instanceof JSONObject) {
-          JSONObject c = (JSONObject) cmdRaw;
-          command = StringUtils.trimToNull(c.optString("path", null));
-          if (c.has("args")) args = coerceArray(c, "args", "argv");
-        }
-        if (StringUtils.isBlank(command)) {
-          command = firstNonEmpty(obj, "command", "cmd", "bin", "executable", "path");
-        }
-        if (args == null) {
-          args = coerceArray(obj, "args", "argv", "arguments", "cmdArgs");
-        }
-
-        if (StringUtils.isBlank(command)) {
-          log.debug("Invalid stdio config: 'command' is missing. It is omitted.");
-          return null;
-        }
-
-        out.put("command", command);
-        if (args != null) out.put("args", args);
-
-        JSONObject env = coerceObject(obj, "env", "environment", "envVars");
-        if (env != null) out.put("env", env);
-
-        String cwd = firstNonEmpty(obj, "cwd", "workingDir", "workdir");
-        if (StringUtils.isNotBlank(cwd)) out.put("cwd", cwd);
-        break;
-      }
-
-      case "streamable_http":
-      case "sse":
-      case "websocket": {
-        String url = firstNonEmpty(obj, "url", "uri", "endpoint", "baseUrl", "serverUrl", "httpUrl");
-        if (StringUtils.isBlank(url)) {
-          // host/port/path → url
-          String host = firstNonEmpty(obj, "host");
-          String port = firstNonEmpty(obj, "port");
-          String path = firstNonEmpty(obj, "path");
-          if (StringUtils.isNotBlank(host) && StringUtils.isNotBlank(port)) {
-            if (!StringUtils.startsWith(path, "/")) {
-              path = StringUtils.isBlank(path) ? "" : ("/" + path);
-            }
-            String scheme = transport.equals("websocket") ? "ws" : "http";
-            url = scheme + "://" + host + ":" + port + (path == null ? "" : path);
-          }
-        }
-        if (StringUtils.isBlank(url)) {
-          log.debug("Invalid config {}: 'url' is missing. Ignored.", transport);
-          return null;
-        }
-
-        out.put("url", url);
-
-        JSONObject headers = coerceObject(obj, "headers", "httpHeaders");
-        if (headers != null) out.put("headers", headers);
-
-        Integer timeout = coerceInt(obj, "timeout", "timeoutMs", "requestTimeoutMs");
-        if (timeout != null) out.put("timeoutMs", timeout);
-
-        break;
-      }
-
+      case K_STDIO:
+        return buildStdio(obj);
+      case K_HTTP:
+      case K_SSE:
+      case K_WS:
+        return buildRemote(obj, transport);
       default:
         log.debug("Unrecognized transport: {}", transport);
         return null;
     }
+  }
+
+  private static JSONObject promoteIfNormalized(JSONObject obj) throws JSONException {
+    String t = normalizeTransport(obj.optString(K_TRANSPORT, null));
+    if (t == null) {
+      log.debug("Invalid transport. Entry is skipped.");
+      return null;
+    }
+    obj.put(K_TRANSPORT, t);
+    ensureTopLevelForTransport(obj, t);
+    return obj;
+  }
+
+  // --------------------------------------------------------------
+  // Builders by transport
+  // --------------------------------------------------------------
+  private static JSONObject buildStdio(JSONObject obj) throws JSONException {
+    String command = firstNonEmpty(obj, CMD_KEYS);
+    JSONArray args = coerceArray(obj, ARG_KEYS);
+
+    // Support shape: { "command": { "path": "...", "args": [...] } }
+    if (StringUtils.isBlank(command)) {
+      Object cmdRaw = obj.opt(K_COMMAND);
+      if (cmdRaw instanceof JSONObject) {
+        JSONObject c = (JSONObject) cmdRaw;
+        command = StringUtils.trimToNull(c.optString("path", null));
+        if (args == null) args = coerceArray(c, "args", "argv");
+      }
+    }
+
+    if (StringUtils.isBlank(command)) {
+      log.debug("Invalid stdio config: '{}' is missing. Omitted.", K_COMMAND);
+      return null;
+    }
+
+    JSONObject out = new JSONObject()
+        .put(K_TRANSPORT, K_STDIO)
+        .put(K_COMMAND, command);
+
+    if (args != null) out.put(K_ARGS, args);
+
+    JSONObject env = coerceObject(obj, ENV_KEYS);
+    if (env != null) out.put("env", env);
+
+    String cwd = firstNonEmpty(obj, CWD_KEYS);
+    if (StringUtils.isNotBlank(cwd)) out.put("cwd", cwd);
 
     return out;
   }
 
+  private static JSONObject buildRemote(JSONObject obj, String transport) throws JSONException {
+    String url = firstNonEmpty(obj, URL_KEYS);
+    if (StringUtils.isBlank(url)) url = buildUrlFromHostPortPath(obj, transport);
+
+    if (StringUtils.isBlank(url)) {
+      log.debug("Invalid config {}: '{}' is missing. Ignored.", transport, K_URL);
+      return null;
+    }
+
+    JSONObject out = new JSONObject()
+        .put(K_TRANSPORT, transport)
+        .put(K_URL, url);
+
+    JSONObject headers = coerceObject(obj, "headers", "httpHeaders");
+    if (headers != null) out.put("headers", headers);
+
+    Integer timeout = coerceInt(obj, "timeout", "timeoutMs", "requestTimeoutMs");
+    if (timeout != null) out.put("timeoutMs", timeout);
+
+    return out;
+  }
+
+  private static String buildUrlFromHostPortPath(JSONObject obj, String transport) {
+    String host = firstNonEmpty(obj, "host");
+    String port = firstNonEmpty(obj, "port");
+    String path = firstNonEmpty(obj, "path");
+    if (StringUtils.isBlank(host) || StringUtils.isBlank(port)) return null;
+
+    if (StringUtils.isBlank(path)) path = "";
+    else if (!path.startsWith("/")) path = "/" + path;
+
+    String scheme = transport.equals(K_WS) ? "ws" : "http";
+    return scheme + "://" + host + ":" + port + path;
+  }
+
+  // --------------------------------------------------------------
+  // Heuristics & helpers
+  // --------------------------------------------------------------
   private static boolean looksNormalized(JSONObject obj) {
-    if (!obj.has("transport")) return false;
-    String t = normalizeTransport(obj.optString("transport", null));
+    if (!obj.has(K_TRANSPORT)) return false;
+    String t = normalizeTransport(obj.optString(K_TRANSPORT, null));
     if (t == null) return false;
 
-    if (t.equals("stdio")) return hasAny(obj, "command");
-    return hasAny(obj, "url");
+    if (t.equals(K_STDIO)) return hasAny(obj, K_COMMAND);
+    return hasAny(obj, K_URL);
   }
 
   private static void ensureTopLevelForTransport(JSONObject obj, String t) throws JSONException {
-    if (t.equals("stdio")) {
-      if (!obj.has("command")) {
-        JSONObject stdio = obj.optJSONObject("stdio");
-        if (stdio != null) {
-          String cmd = firstNonEmpty(stdio, "command", "path");
-          if (StringUtils.isNotBlank(cmd)) obj.put("command", cmd);
-          if (!obj.has("args")) {
-            JSONArray a = coerceArray(stdio, "args", "argv");
-            if (a != null) obj.put("args", a);
-          }
-        }
-      }
-    } else {
-      if (!obj.has("url")) {
-        String url = firstNonEmpty(obj,
-            "url", "uri", "endpoint", "baseUrl", "serverUrl", "httpUrl");
-        if (StringUtils.isNotBlank(url)) obj.put("url", url);
-      }
+    if (K_STDIO.equals(t)) ensureTopLevelStdio(obj);
+    else ensureTopLevelRemote(obj);
+  }
+
+  private static void ensureTopLevelStdio(JSONObject obj) throws JSONException {
+    if (obj.has(K_COMMAND)) return;
+    JSONObject stdio = obj.optJSONObject(K_STDIO);
+    if (stdio == null) return;
+
+    String cmd = firstNonEmpty(stdio, K_COMMAND, "path");
+    if (StringUtils.isNotBlank(cmd)) obj.put(K_COMMAND, cmd);
+
+    if (!obj.has(K_ARGS)) {
+      JSONArray a = coerceArray(stdio, "args", "argv");
+      if (a != null) obj.put(K_ARGS, a);
     }
   }
 
+  private static void ensureTopLevelRemote(JSONObject obj) throws JSONException {
+    if (obj.has(K_URL)) return;
+    String url = firstNonEmpty(obj, URL_KEYS);
+    if (StringUtils.isNotBlank(url)) obj.put(K_URL, url);
+  }
 
   private static String detectTransport(JSONObject obj) {
-    String raw = firstNonEmpty(obj, "transport", "connection", "type", "protocol");
+    String raw = firstNonEmpty(obj, TRANSPORT_KEYS);
     String t = normalizeTransport(raw);
     if (t != null) return t;
 
-    if (hasAny(obj, "command", "cmd", "bin", "executable", "path")) return "stdio";
+    // Content-based inference
+    if (hasAny(obj, CMD_KEYS)) return K_STDIO;
 
-    String url = firstNonEmpty(obj, "url", "uri", "endpoint", "baseUrl", "serverUrl", "httpUrl");
+    String url = firstNonEmpty(obj, URL_KEYS);
     if (StringUtils.isNotBlank(url)) {
       String u = url.trim().toLowerCase(Locale.ROOT);
-      if (u.startsWith("ws")) return "websocket";
-      if (u.contains("/sse")) return "sse";
-      return "streamable_http";
+      if (u.startsWith("ws")) return K_WS;
+      if (u.contains("/sse")) return K_SSE;
+      return K_HTTP;
     }
 
-    if (obj.has("websocket")) return "websocket";
-    if (obj.has("sse")) return "sse";
-    if (obj.has("http") || obj.has("streamable_http")) return "streamable_http";
-    if (obj.has("stdio")) return "stdio";
+    if (obj.has(K_WS)) return K_WS;
+    if (obj.has(K_SSE)) return K_SSE;
+    if (obj.has("http") || obj.has(K_HTTP)) return K_HTTP;
+    if (obj.has(K_STDIO)) return K_STDIO;
 
-    if (hasAny(obj, "host", "port")) return "streamable_http";
+    if (hasAny(obj, "host", "port")) return K_HTTP;
 
     return null;
   }
@@ -221,12 +263,10 @@ public final class MCPConfigNormalizer {
   private static String normalizeTransport(String t) {
     if (t == null) return null;
     String v = t.trim().toLowerCase(Locale.ROOT);
-    if (v.equals("ws") || v.equals("websocket")) return "websocket";
-    if (v.equals("sse")) return "sse";
-    if (v.equals("http") || v.equals("https") || v.equals("streamable_http") || v.equals("http_stream")) {
-      return "streamable_http";
-    }
-    if (v.equals("stdio")) return "stdio";
+    if (v.equals("ws") || v.equals(K_WS)) return K_WS;
+    if (v.equals(K_SSE)) return K_SSE;
+    if (v.equals("http") || v.equals("https") || v.equals(K_HTTP) || v.equals("http_stream")) return K_HTTP;
+    if (v.equals(K_STDIO)) return K_STDIO;
     return null;
   }
 
@@ -243,29 +283,49 @@ public final class MCPConfigNormalizer {
     return null;
   }
 
+  // coerceArray entrypoints (object + set of keys)
   private static JSONArray coerceArray(JSONObject obj, String... keys) {
     for (String k : keys) {
-      Object v = obj.opt(k);
-      if (v instanceof JSONArray) return (JSONArray) v;
-      if (v instanceof Collection) {
-        JSONArray a = new JSONArray();
-        for (Object it : (Collection<?>) v) a.put(it);
-        return a;
-      }
-      if (v instanceof String) {
-        String s = ((String) v).trim();
-        if (s.contains(" ")) {
-          JSONArray a = new JSONArray();
-          for (String p : splitArgs(s)) a.put(p);
-          return a;
-        } else if (!s.isEmpty()) {
-          JSONArray a = new JSONArray();
-          a.put(s);
-          return a;
-        }
-      }
+      JSONArray a = toJSONArray(obj.opt(k));
+      if (a != null) return a;
     }
     return null;
+  }
+
+  // coerceArray supporting an object that already points to the section
+  private static JSONArray coerceArray(JSONObject root, JSONObject section, String... keys) {
+    if (section == null) return null;
+    for (String k : keys) {
+      JSONArray a = toJSONArray(section.opt(k));
+      if (a != null) return a;
+    }
+    return null;
+  }
+
+  private static JSONArray toJSONArray(Object v) {
+    if (v instanceof JSONArray) return (JSONArray) v;
+    if (v instanceof Collection) return fromCollection((Collection<?>) v);
+    if (v instanceof String) return fromString((String) v);
+    return null;
+  }
+
+  private static JSONArray fromCollection(Collection<?> c) {
+    JSONArray a = new JSONArray();
+    for (Object it : c) a.put(it);
+    return a;
+  }
+
+  private static JSONArray fromString(String s) {
+    String trimmed = s.trim();
+    if (trimmed.isEmpty()) return null;
+    if (trimmed.contains(" ")) {
+      JSONArray a = new JSONArray();
+      for (String p : splitArgs(trimmed)) a.put(p);
+      return a;
+    }
+    JSONArray a = new JSONArray();
+    a.put(trimmed);
+    return a;
   }
 
   private static List<String> splitArgs(String s) {
@@ -288,7 +348,7 @@ public final class MCPConfigNormalizer {
       Object v = obj.opt(k);
       if (v instanceof Number) return ((Number) v).intValue();
       if (v instanceof String && StringUtils.isNumeric((String) v)) {
-        try { return Integer.parseInt((String) v); } catch (NumberFormatException ignore) {}
+        try { return Integer.parseInt((String) v); } catch (NumberFormatException ignore) { /* noop */ }
       }
     }
     return null;
@@ -303,72 +363,54 @@ public final class MCPConfigNormalizer {
     return out;
   }
 
+  // --------------------------------------------------------------
+  // Candidate extraction (array/map helpers)
+  // --------------------------------------------------------------
   private static List<NamedObject> extractCandidates(JSONObject raw) {
     List<NamedObject> list = new ArrayList<>();
 
-    JSONObject mcpServers = raw.optJSONObject("mcpServers");
-    if (mcpServers != null) {
-      for (Iterator<String> it = mcpServers.keys(); it.hasNext();) {
-        String key = it.next();
-        JSONObject obj = mcpServers.optJSONObject(key);
-        if (obj != null) list.add(new NamedObject(key, obj));
-      }
-      return list;
-    }
+    // VS / Cursor / Windsurf
+    addChildrenFromMap(raw.optJSONObject("mcpServers"), list);
 
+    // "mcp.servers" (array or map)
     JSONObject mcp = raw.optJSONObject("mcp");
     if (mcp != null) {
-      JSONArray arr = mcp.optJSONArray("servers");
-      if (arr != null) {
-        for (int i = 0; i < arr.length(); i++) {
-          JSONObject it = arr.optJSONObject(i);
-          if (it != null) list.add(new NamedObject(null, it));
-        }
-        return list;
-      }
-
-      JSONObject map = mcp.optJSONObject("servers");
-      if (map != null) {
-        for (Iterator<String> it = map.keys(); it.hasNext();) {
-          String key = it.next();
-          JSONObject obj = map.optJSONObject(key);
-          if (obj != null) list.add(new NamedObject(key, obj));
-        }
-        return list;
-      }
+      addChildrenFromArray(mcp, K_SERVERS, list);
+      addChildrenFromMap(mcp.optJSONObject(K_SERVERS), list);
     }
 
-    JSONArray sArr = raw.optJSONArray("servers");
-    if (sArr != null) {
-      for (int i = 0; i < sArr.length(); i++) {
-        JSONObject it = sArr.optJSONObject(i);
-        if (it != null) list.add(new NamedObject(null, it));
-      }
-      return list;
-    }
-    JSONObject sMap = raw.optJSONObject("servers");
-    if (sMap != null) {
-      for (Iterator<String> it = sMap.keys(); it.hasNext();) {
-        String key = it.next();
-        JSONObject obj = sMap.optJSONObject(key);
-        if (obj != null) list.add(new NamedObject(key, obj));
-      }
-      return list;
-    }
+    // "servers" at root (array or map)
+    addChildrenFromArray(raw, K_SERVERS, list);
+    addChildrenFromMap(raw.optJSONObject(K_SERVERS), list);
 
-    JSONObject zed = raw.optJSONObject("context_servers");
-    if (zed != null) {
-      for (Iterator<String> it = zed.keys(); it.hasNext();) {
-        String key = it.next();
-        JSONObject obj = zed.optJSONObject(key);
-        if (obj != null) list.add(new NamedObject(key, obj));
-      }
-      return list;
-    }
+    // Zed
+    addChildrenFromMap(raw.optJSONObject("context_servers"), list);
 
     return list;
   }
 
+  private static void addChildrenFromArray(JSONObject parent, String key, List<NamedObject> out) {
+    if (parent == null) return;
+    JSONArray arr = parent.optJSONArray(key);
+    if (arr == null) return;
+    for (int i = 0; i < arr.length(); i++) {
+      JSONObject it = arr.optJSONObject(i);
+      if (it != null) out.add(new NamedObject(null, it));
+    }
+  }
+
+  private static void addChildrenFromMap(JSONObject map, List<NamedObject> out) {
+    if (map == null) return;
+    for (Iterator<String> it = map.keys(); it.hasNext();) {
+      String key = it.next();
+      JSONObject obj = map.optJSONObject(key);
+      if (obj != null) out.add(new NamedObject(key, obj));
+    }
+  }
+
+  // --------------------------------------------------------------
+  // Small wrapper to keep sub-names when expanding maps
+  // --------------------------------------------------------------
   private static class NamedObject {
     final String nameOverride;
     final JSONObject obj;
