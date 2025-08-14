@@ -55,7 +55,7 @@ public final class MCPConfigNormalizer {
 
         out.put(normalized);
       } catch (Exception e) {
-        log.warn("Could not normalize an MCP configuration.", e);
+        log.error("Could not normalize an MCP configuration.", e);
       }
     }
     return out;
@@ -70,7 +70,7 @@ public final class MCPConfigNormalizer {
     if (looksNormalized(obj)) {
       String t = normalizeTransport(obj.optString("transport", null));
       if (t == null) {
-        log.warn("Invalid transport. Entry is skipped.");
+        log.debug("Invalid transport. Entry is skipped.");
         return null;
       }
       obj.put("transport", t);
@@ -105,7 +105,7 @@ public final class MCPConfigNormalizer {
         }
 
         if (StringUtils.isBlank(command)) {
-          log.warn("Invalid stdio config: 'command' is missing. It is omitted.");
+          log.debug("Invalid stdio config: 'command' is missing. It is omitted.");
           return null;
         }
 
@@ -138,7 +138,7 @@ public final class MCPConfigNormalizer {
           }
         }
         if (StringUtils.isBlank(url)) {
-          log.warn("Invalid config {}: 'url' is missing. Ignored.", transport);
+          log.debug("Invalid config {}: 'url' is missing. Ignored.", transport);
           return null;
         }
 
@@ -154,7 +154,7 @@ public final class MCPConfigNormalizer {
       }
 
       default:
-        log.warn("Unrecognized transport: {}", transport);
+        log.debug("Unrecognized transport: {}", transport);
         return null;
     }
 
