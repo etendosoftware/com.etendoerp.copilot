@@ -4,7 +4,7 @@ from typing import AsyncGenerator, Final, Union
 
 import langchain_core.tools
 import langgraph_codeact
-from baseutils.logging_envvar import read_optional_env_var
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from copilot.core.agent.agent import (
     AgentResponse,
     AssistantResponse,
@@ -196,7 +196,7 @@ class MultimodelAgent(CopilotAgent):
             t if isinstance(t, StructuredTool) else langchain_core.tools.convert_runnable_to_tool(t)
             for t in enabled_tools
         ]
-        use_pydoide = utils.read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
+        use_pydoide = read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
         eval_fn = (
             create_pyodide_eval_fn("./sessions", ThreadContext.get_data("conversation_id"))
             if use_pydoide

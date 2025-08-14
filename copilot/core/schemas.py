@@ -50,6 +50,7 @@ class AssistantSchema(BaseModel):
     code_execution: Optional[bool] = False
     mcp_servers: Optional[list[dict]] = None
     ad_user_id: Optional[str] = None
+    assistants: Optional[list["AssistantSchema"]] = None  # For supervisors - team members
 
 
 class QuestionSchema(AssistantSchema):
