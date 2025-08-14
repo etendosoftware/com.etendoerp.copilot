@@ -29,10 +29,6 @@ public class CopilotSetup extends ModuleScript {
           "update etcop_file set skip_splitting = 'N' where skip_splitting is null;");
       ps.executeUpdate();
 
-      // Update the etcop_app table to set sync_status to 'PS' where it is null
-      PreparedStatement ps2 = cp.getPreparedStatement(
-          "UPDATE etcop_app SET sync_status = 'PS' WHERE sync_status IS NULL;");
-      ps2.executeUpdate();
       //Remove custom preferences for old model/provider configuration:
       PreparedStatement ps3 = cp.getPreparedStatement(
           "DELETE FROM ad_preference WHERE ad_client_id <>'0' AND property IN ('ETCOP_DefaultProvider', " +

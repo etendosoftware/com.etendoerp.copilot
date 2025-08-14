@@ -32,6 +32,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.data.CopilotTool;
 import com.etendoerp.copilot.rest.RestServiceUtil;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 
 public class SyncGraphImg extends BaseProcessActionHandler {
   private static final Logger log = LogManager.getLogger(SyncGraphImg.class);
@@ -73,8 +74,7 @@ public class SyncGraphImg extends BaseProcessActionHandler {
           String htmlTemplate = String.format(
               "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Imagen en base64</title>\n</head>\n\n<body>\n    <img src=\"data:image/jpeg;base64,%s\" \n    \n  style=\"max-width: 100%%; height: auto;\"\n    \n     />\n</body>\n\n</html>",
               imgBase64);
-          app.setGraphImg(htmlTemplate);
-          OBDal.getInstance().save(app);
+          CopilotAppInfoUtils.setGraphImg(app, htmlTemplate);
           syncCount++;
         }
       }

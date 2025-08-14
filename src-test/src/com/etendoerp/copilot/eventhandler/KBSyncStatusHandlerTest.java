@@ -26,6 +26,7 @@ import org.openbravo.dal.service.OBDal;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 
@@ -71,10 +72,11 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
     private CopilotApp copilotApp;
     @Mock
     private Property property;
-    
+
     private MockedStatic<OBDal> mockedOBDal;
     private MockedStatic<CopilotUtils> mockedCopilotUtils;
     private MockedStatic<ModelProvider> mockedModelProvider;
+    private MockedStatic<CopilotAppInfoUtils> mockedCopilotAppInfoUtils;
 
     @Before
     public void setUp() throws Exception {
@@ -84,12 +86,13 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
                 return true;
             }
         };
-        
+
         // Setup static mocks
         mockedOBDal = mockStatic(OBDal.class);
         mockedCopilotUtils = mockStatic(CopilotUtils.class);
         mockedModelProvider = mockStatic(ModelProvider.class);
-        
+        mockedCopilotAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
+
         // Configure common mock behavior
         mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
         when(obDal.createCriteria(CopilotAppSource.class)).thenReturn(criteria);
@@ -114,6 +117,9 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         if (mockedModelProvider != null) {
             mockedModelProvider.close();
         }
+        if (mockedCopilotAppInfoUtils != null) {
+            mockedCopilotAppInfoUtils.close();
+        }
         if (mocks != null) {
             mocks.close();
         }
@@ -129,13 +135,13 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         when(fileEntity.getProperty(CopilotFile.PROPERTY_NAME)).thenReturn(property);
         when(updateEvent.getPreviousState(property)).thenReturn("oldName");
         when(updateEvent.getCurrentState(property)).thenReturn("newName");
-        
+
         // When
         handler.onUpdate(updateEvent);
-        
+
         // Then
-        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(obDal).save(copilotApp);
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
+        verify(obDal, never()).save(copilotApp);
     }
 
     /**
@@ -148,12 +154,12 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         when(fileEntity.getProperty(anyString())).thenReturn(property);
         when(updateEvent.getPreviousState(property)).thenReturn("sameName");
         when(updateEvent.getCurrentState(property)).thenReturn("sameName");
-        
+
         // When
         handler.onUpdate(updateEvent);
-        
+
         // Then
-        verify(copilotApp, never()).setSyncStatus(anyString());
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp), never());
         verify(obDal, never()).save(any(CopilotApp.class));
     }
 
@@ -164,13 +170,13 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
     public void testOnDeleteSuccess() {
         // Given
         when(deleteEvent.getTargetInstance()).thenReturn(copilotFile);
-        
+
         // When
         handler.onDelete(deleteEvent);
-        
+
         // Then
-        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(obDal).save(copilotApp);
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
+        verify(obDal, never()).save(copilotApp);
     }
 
     /**
@@ -180,12 +186,12 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
     public void testOnSaveNoAction() {
         // Given
         when(newEvent.getTargetInstance()).thenReturn(copilotFile);
-        
+
         // When
         handler.onSave(newEvent);
-        
+
         // Then
-        verify(copilotApp, never()).setSyncStatus(anyString());
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp), never());
         verify(obDal, never()).save(any(CopilotApp.class));
     }
 
@@ -197,7 +203,7 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         // Given
         when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
         when(fileEntity.getProperty(anyString())).thenReturn(property);
-        
+
         // Mock different values for different properties
         when(updateEvent.getPreviousState(property))
             .thenReturn("old")
@@ -207,13 +213,13 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
             .thenReturn("new")
             .thenReturn(false)
             .thenReturn("newDesc");
-        
+
         // When
         handler.onUpdate(updateEvent);
-        
+
         // Then
-        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(obDal).save(copilotApp);
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
+        verify(obDal, never()).save(copilotApp);
     }
 
     /**
@@ -227,14 +233,14 @@ public class KBSyncStatusHandlerTest extends WeldBaseTest {
         CopilotApp etcopApp2 = mock(CopilotApp.class);
         when(appSource2.getEtcopApp()).thenReturn(etcopApp2);
         when(criteria.list()).thenReturn(Arrays.asList(appSource, appSource2));
-        
+
         // When
         handler.onDelete(deleteEvent);
-        
+
         // Then
-        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(etcopApp2).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(obDal).save(copilotApp);
-        verify(obDal).save(etcopApp2);
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(etcopApp2));
+        verify(obDal, never()).save(copilotApp);
+        verify(obDal, never()).save(etcopApp2);
     }
 }

@@ -988,7 +988,7 @@ public class CopilotUtils {
         memberData.put("description", teamMember.getDescription());
 
         if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_OPENAI)) {
-          String assistantId = teamMember.getOpenaiIdAssistant();
+          String assistantId = teamMember.getOpenaiAssistantID();
           if (StringUtils.isEmpty(assistantId)) {
             throw new OBException(
                 String.format(OBMessageUtils.messageBD("ETCOP_ErrTeamMembNotSync"), teamMember.getName()));
@@ -1120,7 +1120,7 @@ public class CopilotUtils {
       }
     }
     jsonRequestForCopilot.put("specs", appSpecs);
-    
+
     // Add MCP configurations
     JSONArray mcpConfigurations = MCPUtils.getMCPConfigurations(copilotApp);
     if (mcpConfigurations.length() > 0) {
