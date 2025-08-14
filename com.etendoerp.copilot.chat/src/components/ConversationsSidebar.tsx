@@ -48,9 +48,9 @@ const ConversationsSidebar: React.FC<ConversationsSidebarProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50">
+    <div className="flex-1 flex flex-col bg-gray-50 h-full">
       {/* Header */}
-      <div className="p-3 border-b border-gray-300">
+      <div className="flex-shrink-0 p-3 border-b border-gray-300">
         <button
           onClick={onNewConversation}
           className="w-full px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition-colors"
@@ -60,7 +60,7 @@ const ConversationsSidebar: React.FC<ConversationsSidebarProps> = ({
       </div>
 
       {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {isLoading && (
           <div className="p-3 text-gray-500 text-sm">Cargando conversaciones...</div>
         )}

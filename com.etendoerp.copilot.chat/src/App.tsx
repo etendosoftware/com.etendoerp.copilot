@@ -80,9 +80,10 @@ function App() {
   // Conversation handlers
   const handleConversationSelect = async (conversationIdToSelect: string) => {
     try {
+      // Generate title for current conversation before switching if it needs one
       if (currentConversationId && currentConversationId !== conversationIdToSelect) {
         const currentConversation = conversations.find(conv => conv.id === currentConversationId);
-        if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual')) {
+        if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual' || currentConversation.title === 'Current conversation')) {
           console.log('🎯 Generating title for current conversation before switching:', currentConversationId);
           generateTitleInBackground(currentConversationId);
         }
@@ -98,9 +99,10 @@ function App() {
   };
 
   const handleNewConversation = () => {
+    // Generate title for current conversation before creating new one if it needs one
     if (currentConversationId) {
       const currentConversation = conversations.find(conv => conv.id === currentConversationId);
-      if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual')) {
+      if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual' || currentConversation.title === 'Current conversation')) {
         console.log('🎯 Generating title for current conversation before creating new one:', currentConversationId);
         generateTitleInBackground(currentConversationId);
       }
@@ -149,17 +151,33 @@ function App() {
 
       // Replace the last message if the role is the same
       const lastMessage = prevMessages[prevMessages.length - 1];
+      let updatedMessages: any[];
+
       if (
         lastMessage &&
         (lastMessage.sender === ROLE_TOOL || lastMessage.sender === ROLE_NODE || lastMessage.sender === ROLE_WAIT) &&
         (role === lastMessage.sender || role === ROLE_BOT || lastMessage.sender === ROLE_WAIT)
       ) {
         // Replace the last message if the role is the same
-        return [...prevMessages.slice(0, -1), newMessage];
+        updatedMessages = [...prevMessages.slice(0, -1), newMessage];
       } else {
         // Add a new message if the role is different
-        return [...prevMessages, newMessage];
+        updatedMessages = [...prevMessages, newMessage];
       }
+
+      // Check if we should generate title after adding a bot message
+      if (role === ROLE_BOT && conversationId && updatedMessages.length >= 4) {
+        const currentConversation = conversations.find(conv => conv.id === conversationId);
+        if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual' || currentConversation.title === 'Current conversation')) {
+          console.log('🎯 Generating title after reaching 4+ messages:', conversationId, 'Message count:', updatedMessages.length);
+          // Use setTimeout to avoid calling setState during render
+          setTimeout(() => {
+            generateTitleInBackground(conversationId);
+          }, 100);
+        }
+      }
+
+      return updatedMessages;
     });
 
     if (role === ROLE_USER && currentContextTitle) {

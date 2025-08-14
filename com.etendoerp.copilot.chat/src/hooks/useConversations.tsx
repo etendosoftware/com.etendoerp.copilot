@@ -24,7 +24,7 @@ export const useConversations = (selectedAppId: string | null) => {
         setConversations(conversationsData);
 
         const conversationsWithoutTitle = conversationsData.filter(conversation =>
-          !conversation.title || conversation.title.trim() === ''
+          !conversation.title || conversation.title.trim() === '' || conversation.title === 'Current conversation' || conversation.title === 'Conversación actual'
         );
 
         console.log(`🎯 Found ${conversationsWithoutTitle.length} conversations without title`);
@@ -194,7 +194,7 @@ export const useConversations = (selectedAppId: string | null) => {
 
     if (currentConversationId && currentConversationId !== conversationId) {
       const previousConversation = conversations.find(conv => conv.id === currentConversationId);
-      if (previousConversation && (!previousConversation.title || previousConversation.title === 'Conversación actual')) {
+      if (previousConversation && (!previousConversation.title || previousConversation.title === 'Conversación actual' || previousConversation.title === 'Current conversation')) {
         console.log('🎯 Generating title for previous conversation:', currentConversationId);
         generateTitleInBackground(currentConversationId);
       }
