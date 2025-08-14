@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       emptyOutDir: true,
-      outDir: "../com.etendoerp.copilot.dist",
+      outDir: "../web/com.etendoerp.copilot.dist",
       rollupOptions: {
         external: [
           "react-native-document-picker",
