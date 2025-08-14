@@ -47,6 +47,7 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotModel;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
@@ -89,6 +90,7 @@ public class SyncAssistantTest extends WeldBaseTest {
   private MockedStatic<OBContext> mockedOBContext;
   private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
   private MockedStatic<WeldUtils> mockedWeldUtils;
+  private MockedStatic<CopilotAppInfoUtils> mockedCopilotAppInfoUtils;
 
   private static final String TEST_APP_ID = "testAppId";
   private static final String RECORD_IDS = "recordIds";
@@ -107,6 +109,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     mockedOBContext = mockStatic(OBContext.class);
     mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
     mockedWeldUtils = mockStatic(WeldUtils.class);
+    mockedCopilotAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
 
     // Configure OBDal mock
     mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
@@ -118,6 +121,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     List<CopilotAppSource> sources = new ArrayList<>();
     sources.add(mockAppSource);
     when(mockApp.getETCOPAppSourceList()).thenReturn(sources);
+    when(mockAppSource.getBehaviour()).thenReturn(CopilotConstants.FILE_BEHAVIOUR_KB);
 
     when(mockAppSource.getFile()).thenReturn(mockFile);
     when(mockFile.getName()).thenReturn("testFile.txt");
@@ -189,6 +193,9 @@ public class SyncAssistantTest extends WeldBaseTest {
     if (mockedWeldUtils != null) {
       mockedWeldUtils.close();
     }
+    if (mockedCopilotAppInfoUtils != null) {
+      mockedCopilotAppInfoUtils.close();
+    }
   }
 
   /**
@@ -215,6 +222,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     List<CopilotRoleApp> roleApps = new ArrayList<>();
     when(roleCriteria.list()).thenReturn(roleApps);
 
+    when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_OPENAI);
     when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
     when(criteria.uniqueResult()).thenReturn(mockApp);
 
@@ -232,7 +240,7 @@ public class SyncAssistantTest extends WeldBaseTest {
 
       // Then
       assertNotNull(RESULT_NOT_NULL, result);
-      verify(mockApp).setSyncStatus(CopilotConstants.SYNCHRONIZED_STATE);
+      mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsSynchronized(mockApp));
     }
   }
 
@@ -305,6 +313,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     List<CopilotRoleApp> roleApps = new ArrayList<>();
     when(roleCriteria.list()).thenReturn(roleApps);
 
+    when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_OPENAI);
     when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
     when(criteria.uniqueResult()).thenReturn(mockApp);
 

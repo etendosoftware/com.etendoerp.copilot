@@ -21,6 +21,7 @@ import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.data.CopilotTool;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 
 /**
  * Handles synchronization status updates for the Copilot application when certain
@@ -101,8 +102,7 @@ public class ToolSyncStatusHandler extends EntityPersistenceEventObserver {
     appToolsCrit.add(Restrictions.eq(CopilotAppTool.PROPERTY_COPILOTTOOL, currentTool));
     List<CopilotAppTool> appToolList = appToolsCrit.list();
     for (CopilotAppTool appTool : appToolList) {
-      appTool.getCopilotApp().setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-      OBDal.getInstance().save(appTool.getCopilotApp());
+      CopilotAppInfoUtils.markAsPendingSynchronization(appTool.getCopilotApp());
       CopilotUtils.logIfDebug("The sync status of " + appTool.getCopilotApp().getName() + " changed to PS");
     }
   }

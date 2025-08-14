@@ -35,16 +35,17 @@ import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.rest.RestServiceUtil;
-import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 /**
  * Sync graph img test.
  */
 public class SyncGraphImgTest extends WeldBaseTest {
 
+    public static final String HTML_EXAMPLE = "<!DOCTYPE html>%n<html>%n%n<head>%n    <title>Imagen en base64</title>%n</head>%n%n<body>%n    <img src=\"data:image/jpeg;base64,%s\" %n    %n  style=\"max-width: 100%%; height: auto;\"%n    \n     />\n</body>\n\n</html>";
     /**
      * The Expected exception.
      */
@@ -62,12 +63,13 @@ public class SyncGraphImgTest extends WeldBaseTest {
     private MockedStatic<OBDal> mockedOBDal;
     private MockedStatic<OBPropertiesProvider> mockedPropertiesProvider;
     private MockedStatic<RestServiceUtil> mockedRestServiceUtil;
+    private MockedStatic<com.etendoerp.copilot.util.CopilotAppInfoUtils> mockedCopilotAppInfoUtils;
     private MockedStatic<OBMessageUtils> mockedMessageUtils;
 
     private static final String TEST_MSG = "Test Message";
     private static final String RECORD_1 = "record1";
     private static final String RECORD_IDS = "recordIds";
-    
+
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
@@ -77,6 +79,7 @@ public class SyncGraphImgTest extends WeldBaseTest {
         mockedOBDal = mockStatic(OBDal.class);
         mockedPropertiesProvider = mockStatic(OBPropertiesProvider.class);
         mockedRestServiceUtil = mockStatic(RestServiceUtil.class);
+        mockedCopilotAppInfoUtils = mockStatic(com.etendoerp.copilot.util.CopilotAppInfoUtils.class);
         mockedMessageUtils = mockStatic(OBMessageUtils.class);
 
         // Configure OBDal mock
@@ -107,6 +110,9 @@ public class SyncGraphImgTest extends WeldBaseTest {
         }
         if (mockedRestServiceUtil != null) {
             mockedRestServiceUtil.close();
+        }
+        if (mockedCopilotAppInfoUtils != null) {
+            mockedCopilotAppInfoUtils.close();
         }
         if (mockedMessageUtils != null) {
             mockedMessageUtils.close();
@@ -164,10 +170,11 @@ public class SyncGraphImgTest extends WeldBaseTest {
 
         // Then
         assertNotNull(result);
-        verify(mockCopilotApp).setGraphImg(argThat(arg -> 
-            arg.contains("data:image/jpeg;base64,base64EncodedImage")));
-        verify(OBDal.getInstance()).save(mockCopilotApp);
-        verify(OBDal.getInstance()).flush();
+        // Verify AppInfo util was called to save the image
+        String expectedData = String.format(
+            HTML_EXAMPLE,
+            "base64EncodedImage");
+        mockedCopilotAppInfoUtils.verify(() -> com.etendoerp.copilot.util.CopilotAppInfoUtils.setGraphImg(mockCopilotApp, expectedData));
     }
 
     /**
@@ -233,12 +240,15 @@ public class SyncGraphImgTest extends WeldBaseTest {
 
         // Then
         assertNotNull(result);
-        verify(mockApp1).setGraphImg(argThat(arg -> 
-            arg.contains("data:image/jpeg;base64,base64Image1")));
-        verify(mockApp2).setGraphImg(argThat(arg -> 
-            arg.contains("data:image/jpeg;base64,base64Image2")));
-        verify(OBDal.getInstance()).save(mockApp1);
-        verify(OBDal.getInstance()).save(mockApp2);
-        verify(OBDal.getInstance()).flush();
+        // Verify AppInfo util was called for both apps
+        String expectedData1 = String.format(
+            HTML_EXAMPLE,
+            "base64Image1");
+        String expectedData2 = String.format(
+            HTML_EXAMPLE,
+            "base64Image2");
+        mockedCopilotAppInfoUtils.verify(() -> com.etendoerp.copilot.util.CopilotAppInfoUtils.setGraphImg(mockApp1, expectedData1));
+        mockedCopilotAppInfoUtils.verify(() -> com.etendoerp.copilot.util.CopilotAppInfoUtils.setGraphImg(mockApp2, expectedData2));
+        // No direct OBDal.save interactions expected because CopilotAppInfoUtils handles persistence
     }
 }

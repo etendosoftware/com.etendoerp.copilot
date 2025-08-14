@@ -19,6 +19,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 
 /**
  * This class handles the synchronization status updates for CopilotAppSource entities.
@@ -107,8 +108,7 @@ public class AssistantKBSyncStatusHandler extends EntityPersistenceEventObserver
    */
   private static void changeAssistantStatus(CopilotAppSource currentAppSource) {
     CopilotApp currentAssistant = currentAppSource.getEtcopApp();
-    currentAssistant.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-    OBDal.getInstance().save(currentAssistant);
+    CopilotAppInfoUtils.markAsPendingSynchronization(currentAssistant);
   }
 
   /**
