@@ -41,16 +41,25 @@ public final class MCPConfigNormalizer {
   private static final String K_URL       = "url";
   private static final String K_SERVERS   = "servers";
 
-  private static final String[] URL_KEYS       = {"url", "uri", "endpoint", "baseUrl", "serverUrl", "httpUrl"};
-  private static final String[] CMD_KEYS       = {"command", "cmd", "bin", "executable", "path"};
+  private static final String[] URL_KEYS       = { K_URL, "uri", "endpoint", "baseUrl", "serverUrl", "httpUrl" };
+  private static final String[] CMD_KEYS       = { K_COMMAND, "cmd", "bin", "executable", "path" };
   private static final String[] ARG_KEYS       = {"args", "argv", "arguments", "cmdArgs"};
   private static final String[] ENV_KEYS       = {"env", "environment", "envVars"};
   private static final String[] CWD_KEYS       = {"cwd", "workingDir", "workdir"};
-  private static final String[] TRANSPORT_KEYS = {"transport", "connection", "type", "protocol"};
+  private static final String[] TRANSPORT_KEYS = { K_TRANSPORT, "connection", "type", "protocol" };
+  private static final String SLASH = "/";
+
 
   /**
-   * Converts a raw JSON (as saved in the window) into one or more normalized configurations.
-   * If the JSON comes from multiple servers (map/array), all are returned.
+   * Converts a raw JSON (as saved in the window) into one or more
+   * normalized configurations.
+   *
+   * <p>If the JSON contains multiple servers (map or array), expands them and returns all of them.</p>
+   *
+   * @param rawJson Raw JSON as saved in the window.
+   * @param defaultName Base server name (from DB). If there are subkeys,
+   * it is composed as "defaultName::subkey".
+   * @return JSONArray with the normalized MCP configurations (can be empty).
    */
   public static JSONArray normalizeToArray(JSONObject rawJson, String defaultName) {
     JSONArray out = new JSONArray();
@@ -132,7 +141,6 @@ public final class MCPConfigNormalizer {
     String command = firstNonEmpty(obj, CMD_KEYS);
     JSONArray args = coerceArray(obj, ARG_KEYS);
 
-    // Support shape: { "command": { "path": "...", "args": [...] } }
     if (StringUtils.isBlank(command)) {
       Object cmdRaw = obj.opt(K_COMMAND);
       if (cmdRaw instanceof JSONObject) {
@@ -191,7 +199,7 @@ public final class MCPConfigNormalizer {
     if (StringUtils.isBlank(host) || StringUtils.isBlank(port)) return null;
 
     if (StringUtils.isBlank(path)) path = "";
-    else if (!path.startsWith("/")) path = "/" + path;
+    else if (!path.startsWith(SLASH)) path = SLASH + path;
 
     String scheme = transport.equals(K_WS) ? "ws" : "http";
     return scheme + "://" + host + ":" + port + path;
@@ -287,16 +295,6 @@ public final class MCPConfigNormalizer {
   private static JSONArray coerceArray(JSONObject obj, String... keys) {
     for (String k : keys) {
       JSONArray a = toJSONArray(obj.opt(k));
-      if (a != null) return a;
-    }
-    return null;
-  }
-
-  // coerceArray supporting an object that already points to the section
-  private static JSONArray coerceArray(JSONObject root, JSONObject section, String... keys) {
-    if (section == null) return null;
-    for (String k : keys) {
-      JSONArray a = toJSONArray(section.opt(k));
       if (a != null) return a;
     }
     return null;
