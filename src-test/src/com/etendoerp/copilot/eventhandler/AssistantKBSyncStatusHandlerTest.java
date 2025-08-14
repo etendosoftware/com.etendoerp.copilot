@@ -27,6 +27,7 @@ import org.openbravo.dal.service.OBDal;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 
@@ -41,6 +42,7 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
     private MockedStatic<ModelProvider> mockedModelProvider;
     private MockedStatic<OBDal> mockedOBDal;
     private MockedStatic<CopilotUtils> mockedCopilotUtils;
+    private MockedStatic<CopilotAppInfoUtils> mockedCopilotAppInfoUtils;
     private AutoCloseable mocks;
 
     @Mock
@@ -80,6 +82,7 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
 
         mockedCopilotUtils = mockStatic(CopilotUtils.class);
+        mockedCopilotAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
 
         // Setup common mock behavior
         when(copilotAppSource.getEntity()).thenReturn(copilotAppSourceEntity);
@@ -103,6 +106,9 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         if (mockedCopilotUtils != null) {
             mockedCopilotUtils.close();
         }
+        if (mockedCopilotAppInfoUtils != null) {
+            mockedCopilotAppInfoUtils.close();
+        }
         if (mocks != null) {
             mocks.close();
         }
@@ -122,8 +128,8 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         handler.onUpdate(updateEvent);
 
         // Then
-        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(obDal).save(copilotApp);
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
+        verify(obDal, never()).save(copilotApp);
         mockedCopilotUtils.verify(() -> CopilotUtils.logIfDebug(anyString()));
     }
 
@@ -141,7 +147,7 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         handler.onUpdate(updateEvent);
 
         // Then
-        verify(copilotApp, never()).setSyncStatus(anyString());
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp), never());
         verify(obDal, never()).save(any(CopilotApp.class));
     }
 
@@ -164,7 +170,7 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
 
         // Then
         // Verify that setSyncStatus is called with the correct parameter
-        verify(copilotApp, atLeastOnce()).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp), atLeastOnce());
     }
 
     /**
@@ -180,8 +186,8 @@ public class AssistantKBSyncStatusHandlerTest extends WeldBaseTest {
         handler.onDelete(deleteEvent);
 
         // Then
-        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(obDal).save(copilotApp);
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
+        verify(obDal, never()).save(copilotApp);
         mockedCopilotUtils.verify(() -> CopilotUtils.logIfDebug(anyString()));
     }
 }

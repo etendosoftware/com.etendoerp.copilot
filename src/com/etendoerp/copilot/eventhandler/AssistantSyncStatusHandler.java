@@ -14,6 +14,7 @@ import org.openbravo.client.kernel.event.EntityPersistenceEventObserver;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 
@@ -51,9 +52,9 @@ public class AssistantSyncStatusHandler extends EntityPersistenceEventObserver {
       return;
     }
     final Entity appEntity = ModelProvider.getInstance().getEntity(CopilotApp.ENTITY_NAME);
-    final Property syncStatusProp = appEntity.getProperty(CopilotApp.PROPERTY_SYNCSTATUS);
     if (checkPropertiesChanged(event, appEntity)) {
-      event.setCurrentState(syncStatusProp, CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
+      CopilotAppInfoUtils.markAsPendingSynchronization((CopilotApp) event.getTargetInstance());
+
       CopilotUtils.logIfDebug("An important property was changed and the sync status changed to PS");
     }
   }

@@ -15,6 +15,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.TeamMember;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 
 /**
  * Handles synchronization status updates for the Copilot application whenever
@@ -101,7 +102,6 @@ public class AssistantTMSyncStatusHandler extends EntityPersistenceEventObserver
    */
   private static void changeAssistantStatus(TeamMember currentTeamMember) {
     CopilotApp currentAssistant = currentTeamMember.getCopilotApp();
-    currentAssistant.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-    OBDal.getInstance().save(currentAssistant);
+    CopilotAppInfoUtils.markAsPendingSynchronization(currentAssistant);
   }
 }

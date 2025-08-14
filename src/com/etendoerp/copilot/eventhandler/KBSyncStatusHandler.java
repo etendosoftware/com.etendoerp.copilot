@@ -21,6 +21,7 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotTool;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 
 /**
  * Handles synchronization status updates for the Knowledge Base (KB) in response to entity events.
@@ -99,8 +100,7 @@ public class KBSyncStatusHandler extends EntityPersistenceEventObserver {
     appSourceCrit.add(Restrictions.eq(CopilotAppSource.PROPERTY_FILE, currentFile));
     List<CopilotAppSource> appSourceList = appSourceCrit.list();
     for (CopilotAppSource appSource : appSourceList) {
-      appSource.getEtcopApp().setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-      OBDal.getInstance().save(appSource.getEtcopApp());
+      CopilotAppInfoUtils.markAsPendingSynchronization(appSource.getEtcopApp());
       CopilotUtils.logIfDebug("The sync status of " + appSource.getEtcopApp().getName() + " changed to PS");
     }
   }
