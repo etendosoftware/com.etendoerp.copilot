@@ -166,7 +166,7 @@ function App() {
       }
 
       // Check if we should generate title after adding a bot message
-      if (role === ROLE_BOT && conversationId && updatedMessages.length >= 4) {
+      if (role === ROLE_BOT && conversationId && updatedMessages.length >= 6) {
         const currentConversation = conversations.find(conv => conv.id === conversationId);
         if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual' || currentConversation.title === 'Current conversation')) {
           console.log('🎯 Generating title after reaching 4+ messages:', conversationId, 'Message count:', updatedMessages.length);
@@ -192,12 +192,27 @@ function App() {
         timestamp: formatTimeNewDate(new Date()),
       });
     }
+
+    // Scroll to bottom after any message, the function itself will decide whether to scroll
     scrollToBottom();
   };
 
   // Function to scroll bottom
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!messagesEndRef.current) return;
+
+    // Only scroll to bottom if there are enough messages to warrant scrolling
+    // This prevents hiding the initial greeting message when there are just a few messages
+    if (messages.length <= 1) {
+      // For first message or no messages, don't scroll
+      return;
+    } else if (messages.length <= 3) {
+      // For the first few messages, scroll more gently to keep initial message visible
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    } else {
+      // For many messages, scroll to bottom normally
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   // Fetch labels data
@@ -246,6 +261,7 @@ function App() {
 
       await handleNewMessage(ROLE_USER, userMessage);
       setStatusIcon(botIcon);
+      // Scroll to bottom after sending message
       setTimeout(() => scrollToBottom(), 100);
 
       // Prepare request body
@@ -469,6 +485,7 @@ function App() {
       sender: ROLE_ERROR,
       timestamp: formatTimeNewDate(new Date()),
     });
+    // Always scroll to show error messages
     scrollToBottom();
   };
 
@@ -493,6 +510,7 @@ function App() {
       timestamp: formatTimeNewDate(new Date()),
     });
     setFile(null);
+    // Scroll to bottom - the function will decide if it's appropriate
     scrollToBottom();
   };
 
@@ -639,10 +657,10 @@ function App() {
 
           {/* Chat display area */}
           <div
-            className={`${file ? 'h-[428px]' : 'h-[452px]'} flex-1 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200`}
+            className={`flex-1 min-h-0 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200`}
           >
             {messages.length === 0 && (
-              <div className="inline-flex mt-[12px] rounded-lg text-blue-900 font-medium">
+              <div className="inline-flex mt-[12px] mb-[20px] rounded-lg text-blue-900 font-medium">
                 {areLabelsLoaded &&
                   (noAssistants ? (
                     <TextMessage
@@ -660,7 +678,9 @@ function App() {
             )}
 
             {/* Displaying messages */}
-            {messages.map((message, index) => renderMessage(message, index))}
+            <div className="space-y-2">
+              {messages.map((message, index) => renderMessage(message, index))}
+            </div>
             <div ref={messagesEndRef} />
           </div>
 
