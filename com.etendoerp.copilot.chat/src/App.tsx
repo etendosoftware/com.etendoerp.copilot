@@ -430,6 +430,7 @@ function App() {
           </div>
         );
       case ROLE_BOT:
+      case 'assistant': // Handle legacy assistant role for backward compatibility
         return (
           <div key={index} className={containerClass}>
             <TextMessage

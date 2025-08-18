@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { IConversation, IMessage } from '../interfaces';
 import { RestUtils } from '../utils/environment';
 import { References } from '../utils/references';
+import { ROLE_USER, ROLE_BOT } from '../utils/constants';
 
 export const useConversations = (selectedAppId: string | null) => {
   const [conversations, setConversations] = useState<IConversation[]>([]);
@@ -158,7 +159,7 @@ export const useConversations = (selectedAppId: string | null) => {
         // Transform the messages from backend format to frontend format
         return messagesData.map((msg: any) => ({
           text: msg.content,
-          sender: msg.role?.toLowerCase() === 'user' ? 'user' : 'assistant',
+          sender: msg.role?.toLowerCase() === 'user' ? ROLE_USER : ROLE_BOT,
           timestamp: msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString(),
         }));
       } else {
