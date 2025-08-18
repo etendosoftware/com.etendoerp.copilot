@@ -30,14 +30,39 @@ export const useConversations = (selectedAppId: string | null) => {
 
         console.log(`🎯 Found ${conversationsWithoutTitle.length} conversations without title`);
 
-        const conversationsToProcess = conversationsWithoutTitle.slice(0, 3);
+        // Process in batches to avoid flooding the backend. Adjust batchSize and delay between batches as needed.
+        const batchSize = 3;
+        const batchDelayMs = 2000;
 
-        conversationsToProcess.forEach((conversation, index) => {
-          console.log(`🎯 Generating title for conversation ${index + 1}/${conversationsToProcess.length}:`, conversation.id);
-          setTimeout(() => {
-            generateTitleInBackground(conversation.id);
-          }, index * 1000);
-        });
+        // Process batches sequentially, generating titles concurrently within each batch
+        for (let i = 0; i < conversationsWithoutTitle.length; i += batchSize) {
+          const batch = conversationsWithoutTitle.slice(i, i + batchSize);
+          console.log(`🎯 Processing batch ${Math.floor(i / batchSize) + 1} with ${batch.length} conversations`);
+
+          // Immediately update the UI to show 'Generating...' for batch items
+          setConversations(prev =>
+            prev.map(conv =>
+              batch.find(b => b.id === conv.id)
+                ? { ...conv, title: 'Generating...' }
+                : conv
+            )
+          );
+
+          // Start generating titles in background without awaiting so UI is not blocked
+          batch.forEach((conversation, index) => {
+            console.log(`🎯 Scheduling background generation for conversation ${i + index + 1}/${conversationsWithoutTitle.length}:`, conversation.id);
+            // fire and forget; generateTitleInBackground handles duplicate prevention
+            generateTitleInBackground(conversation.id).catch(err => {
+              console.error('❌ Error generating title for', conversation.id, err);
+            });
+          });
+
+          // Wait before starting the next batch to avoid overloading the backend
+          if (i + batchSize < conversationsWithoutTitle.length) {
+            console.log(`⏳ Waiting ${batchDelayMs}ms before next batch`);
+            await new Promise(resolve => setTimeout(resolve, batchDelayMs));
+          }
+        }
       } else {
         console.error('Failed to load conversations');
         setConversations([]);
