@@ -201,18 +201,16 @@ function App() {
   const scrollToBottom = () => {
     if (!messagesEndRef.current) return;
 
-    // Only scroll to bottom if there are enough messages to warrant scrolling
-    // This prevents hiding the initial greeting message when there are just a few messages
-    if (messages.length <= 1) {
-      // For first message or no messages, don't scroll
-      return;
-    } else if (messages.length <= 3) {
-      // For the first few messages, scroll more gently to keep initial message visible
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    } else {
-      // For many messages, scroll to bottom normally
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Ensure DOM has updated before scrolling to avoid layout jumps
+    requestAnimationFrame(() => {
+      try {
+        // Always scroll to the end of the chat container
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      } catch (e) {
+        // Fallback to default behavior if smooth scrolling isn't supported
+        messagesEndRef.current.scrollIntoView();
+      }
+    });
   };
 
   // Fetch labels data
@@ -576,7 +574,16 @@ function App() {
 
   // Effect to position focus on input
   useEffect(() => {
-    inputRef.current.focus();
+    // Avoid focusing the wrapper div directly (that can cause the page/chat to jump).
+    // Instead, find the actual input/textarea inside the container and focus it.
+    if (inputRef.current) {
+      const container = inputRef.current as HTMLElement;
+      const innerInput: HTMLInputElement | HTMLTextAreaElement | null =
+        container.querySelector('textarea, input');
+      if (innerInput && typeof innerInput.focus === 'function') {
+        innerInput.focus();
+      }
+    }
   }, [assistants]);
 
   let url = '';
