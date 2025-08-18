@@ -6,7 +6,6 @@ import static com.etendoerp.copilot.rest.RestServiceUtil.AQUESTION;
 import static com.etendoerp.copilot.rest.RestServiceUtil.FILE;
 import static com.etendoerp.copilot.rest.RestServiceUtil.GET_ASSISTANTS;
 import static com.etendoerp.copilot.rest.RestServiceUtil.QUESTION;
-import static com.etendoerp.copilot.rest.RestServiceUtil.extractRequestBody;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
 
 import java.io.BufferedReader;
@@ -65,7 +64,7 @@ public class RestService {
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         response.getWriter().write(RestServiceUtil.getJSONLabels().toString());
       } else if (StringUtils.equalsIgnoreCase(path, "/structure")) {
-        JSONObject params = extractRequestBody(request);
+        JSONObject params = RequestUtils.extractRequestBody(request);
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         JSONObject structure = handleStructure(params);
         response.getWriter().write(structure.toString());
@@ -320,7 +319,7 @@ public class RestService {
   public void handleQuestion(HttpServletRequest request, HttpServletResponse response)
       throws IOException, JSONException {
     // Get the parameters from the JSON or request
-    JSONObject json = extractRequestBody(request);
+    JSONObject json = RequestUtils.extractRequestBody(request);
 
     // Read cached question if necessary
     addCachedQuestionIfPresent(request, json);

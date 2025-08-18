@@ -20,6 +20,62 @@ import { EventSourcePolyfill } from 'event-source-polyfill';
 import { ROLE_BOT, ROLE_ERROR, ROLE_NODE, ROLE_TOOL, ROLE_USER, ROLE_WAIT } from './utils/constants';
 import { getMessageContainerClasses } from './utils/styles';
 
+// Constants for conversation titles
+const CURRENT_CONVERSATION_TITLES = ['Conversación actual', 'Current conversation'];
+
+// StatusIcon component to avoid duplication
+const StatusIcon = ({ statusIcon, responseSent }: { statusIcon: string, responseSent: string }) => (
+  <img
+    src={statusIcon}
+    alt="Status Icon"
+    className={
+      statusIcon === responseSent ? 'w-5 h-5 mr-1' : 'w-8 h-8 slow-bounce'
+    }
+  />
+);
+
+// AssistantSelector component to avoid duplication
+const AssistantSelector = ({
+  labels,
+  selectedOption,
+  assistants,
+  handleOptionSelected,
+  handleNewConversation
+}: {
+  labels: any;
+  selectedOption: any;
+  assistants: any[];
+  handleOptionSelected: (option: any) => void;
+  handleNewConversation: () => void;
+}) => (
+  <div
+    id={'iframe-selector'}
+    style={{
+      paddingTop: 8,
+      paddingRight: 12,
+      paddingLeft: 12,
+      paddingBottom: 8,
+    }}
+    className="w-full assistants-shadow border-b py-1 px-2 border-gray-600"
+  >
+    <div id={'assistant-title'}>
+      <SparksIcon style={{ height: 12, width: 12 }} />
+      <div id={'assistant-title-label'}>
+        {labels.ETCOP_Message_AssistantHeader}
+      </div>
+    </div>
+    <DropdownInput
+      value={selectedOption?.name}
+      staticData={assistants}
+      displayKey="name"
+      onSelect={(option: any) => {
+        handleOptionSelected(option);
+        handleNewConversation(); // This will clear everything including conversation state
+      }}
+    />
+  </div>
+);
+
 function App() {
   // Search for localization
   const search = window.location.search;
@@ -55,33 +111,35 @@ function App() {
     generateTitleInBackground,
     generatingTitles,
     addNewConversationToList,
+    conversationsWithUnreadMessages,
+    markConversationAsUnread,
+    selectConversationAndMarkAsRead,
   } = useConversations(selectedOption?.app_id || null);
 
   const isMaximized = useMaximized();
 
   // Effect to handle the assistant_id parameter
   useEffect(() => {
-    const assistant_id = params.get("assistant_id");
-    if (assistant_id && assistants.length) {
-      const assistant = assistants.find(assistant => assistant.app_id === assistant_id);
-      if (assistant) {
-        handleOptionSelected(assistant);
-      }
-    }
+    handleAssistantSelection();
   }, [assistants, params]);
 
   // Constants
-  const noAssistants = assistants?.length === 0 ? true : false;
+  const noAssistants = assistants?.length === 0;
 
   // References
   const messagesEndRef = useRef<any>(null);
   const inputRef = useRef<any>(null);
+  const currentConversationIdRef = useRef<string | null>(conversationId);
+
+  // Update ref whenever conversationId changes
+  useEffect(() => {
+    currentConversationIdRef.current = conversationId;
+  }, [conversationId]);
 
   // Helper functions
   const shouldGenerateTitle = (conversation: any) => {
     return conversation && (!conversation.title ||
-      conversation.title === 'Conversación actual' ||
-      conversation.title === 'Current conversation');
+      CURRENT_CONVERSATION_TITLES.includes(conversation.title));
   };
 
   const handleTitleGeneration = (conversationId: string, reason: string) => {
@@ -96,6 +154,29 @@ function App() {
     setTimeout(() => scrollToBottom(), delay);
   };
 
+  const handleAssistantSelection = () => {
+    const assistant_id = params.get("assistant_id");
+    if (assistant_id && assistants.length) {
+      const assistant = assistants.find(assistant => assistant.app_id === assistant_id);
+      if (assistant) {
+        handleOptionSelected(assistant);
+      }
+    }
+  };
+
+  const handleAutomaticTitleGeneration = (currentConversationId: string | null, updatedMessages: any[]) => {
+    if (currentConversationId && updatedMessages.length >= 6) {
+      const currentConversation = conversations.find(conv => conv.id === currentConversationId);
+      if (shouldGenerateTitle(currentConversation)) {
+        console.log('🎯 Generating title after reaching 4+ messages:', currentConversationId, 'Message count:', updatedMessages.length);
+        // Use setTimeout to avoid calling setState during render
+        setTimeout(() => {
+          generateTitleInBackground(currentConversationId);
+        }, 100);
+      }
+    }
+  };
+
   // Conversation handlers
   const handleConversationSelect = async (conversationIdToSelect: string) => {
     try {
@@ -107,7 +188,7 @@ function App() {
       const conversationMessages = await loadConversationMessages(conversationIdToSelect);
       setMessages(conversationMessages);
       setConversationId(conversationIdToSelect);
-      selectConversation(conversationIdToSelect);
+      selectConversationAndMarkAsRead(conversationIdToSelect);
     } catch (error) {
       console.error('Error loading conversation messages:', error);
     }
@@ -143,21 +224,16 @@ function App() {
     }
 
     setMessages((prevMessages: any) => {
-      // Get files or context title
-      let fileNames: { name: string }[] = [];
-      if (files && files.length > 0) {
-        fileNames = files.map((file) => ({ name: (file as File).name }));
-      } else if (contextTitle) {
-        fileNames = [{ name: contextTitle }];
-      }
+      // Get files for display (used only for UI display)
+      const displayFiles = (files && files.length > 0) ? files.map((file) => ({ name: (file as File).name })) : undefined;
 
       const newMessage = {
         message_id: message.message_id,
         text: _text,
         sender: role,
         timestamp: formatTimeNewDate(new Date()),
-        files: (files && files.length > 0) ? files.map((file) => ({ name: (file as File).name })) : undefined,
-        context: currentContextTitle ? currentContextTitle : undefined,
+        files: displayFiles,
+        context: currentContextTitle || undefined,
       };
 
       // Replace the last message if the role is the same
@@ -177,15 +253,8 @@ function App() {
       }
 
       // Check if we should generate title after adding a bot message
-      if (role === ROLE_BOT && conversationId && updatedMessages.length >= 6) {
-        const currentConversation = conversations.find(conv => conv.id === conversationId);
-        if (shouldGenerateTitle(currentConversation)) {
-          console.log('🎯 Generating title after reaching 4+ messages:', conversationId, 'Message count:', updatedMessages.length);
-          // Use setTimeout to avoid calling setState during render
-          setTimeout(() => {
-            generateTitleInBackground(conversationId);
-          }, 100);
-        }
+      if (role === ROLE_BOT) {
+        handleAutomaticTitleGeneration(conversationId, updatedMessages);
       }
 
       return updatedMessages;
@@ -194,14 +263,6 @@ function App() {
     if (role === ROLE_USER && currentContextTitle) {
       setContextTitle(null);
       setContextValue(null);
-    }
-
-    if (role === ROLE_USER) {
-      await handleNewMessage(ROLE_WAIT, {
-        text: 'Processing...',
-        sender: ROLE_WAIT,
-        timestamp: formatTimeNewDate(new Date()),
-      });
     }
 
     // Scroll to bottom after any message, the function itself will decide whether to scroll
@@ -269,6 +330,14 @@ function App() {
       }
 
       await handleNewMessage(ROLE_USER, userMessage);
+
+      // Add processing message after user message
+      await handleNewMessage(ROLE_WAIT, {
+        text: 'Processing...',
+        sender: ROLE_WAIT,
+        timestamp: formatTimeNewDate(new Date()),
+      });
+
       setStatusIcon(botIcon);
       // Scroll to bottom after sending message
       scrollToBottomWithDelay();
@@ -356,6 +425,9 @@ function App() {
             // Auto-open the new conversation immediately
             setConversationId(answer.conversation_id);
             selectConversation(answer.conversation_id);
+
+            // Update the ref immediately for the new conversation
+            currentConversationIdRef.current = answer.conversation_id;
           }
 
           // Route responses by target conversation ID
@@ -367,12 +439,20 @@ function App() {
               // Determine which conversation this message belongs to
               const messageConversationId = answer.conversation_id || conversationId;
 
-              // Only show the message if it belongs to the currently open conversation
-              if (messageConversationId === conversationId) {
+              // Get the current conversation ID at the time this message is processed
+              const currentActiveConversationId = currentConversationIdRef.current;
+
+              // SIMPLE RULE: Only show the message if it belongs to the currently active conversation
+              // No special cases, no exceptions. If user is not in the right conversation, don't show it.
+              if (messageConversationId && messageConversationId === currentActiveConversationId) {
                 console.log('✅ Showing message in current conversation:', messageConversationId);
                 await handleNewMessage(answer.role ? answer.role : ROLE_BOT, answer);
               } else {
-                console.log('🚫 Message belongs to different conversation - NOT showing in UI:', messageConversationId, 'current:', conversationId);
+                console.log('🚫 Message belongs to different conversation - NOT showing in UI:', messageConversationId, 'current:', currentActiveConversationId);
+                // Mark the conversation as having unread messages
+                if (messageConversationId) {
+                  markConversationAsUnread(messageConversationId);
+                }
                 // Don't show messages that belong to other conversations
                 // When the user switches to that conversation, they will be loaded from the backend
               }
@@ -431,13 +511,7 @@ function App() {
         return (
           <div key={index} className={containerClass}>
             <div className="flex items-center">
-              <img
-                src={statusIcon}
-                alt="Status Icon"
-                className={
-                  statusIcon === responseSent ? 'w-5 h-5 mr-1' : 'w-8 h-8 slow-bounce'
-                }
-              />
+              <StatusIcon statusIcon={statusIcon} responseSent={responseSent} />
               <span className="text-sm ml-1 font-normal text-gray-700">
                 {message.text || '...'}
               </span>
@@ -471,13 +545,7 @@ function App() {
         return (
           <div key={index} className={containerClass}>
             <div className="flex items-center">
-              <img
-                src={statusIcon}
-                alt="Status Icon"
-                className={
-                  statusIcon === responseSent ? 'w-5 h-5 mr-1' : 'w-8 h-8 slow-bounce'
-                }
-              />
+              <StatusIcon statusIcon={statusIcon} responseSent={responseSent} />
               <span className="text-sm ml-1 font-normal">
                 {message.text || '...'}
               </span>
@@ -617,32 +685,13 @@ function App() {
           <div className={`${isMaximized ? 'w-72' : 'w-64'} flex flex-col border-r border-gray-300 bg-gray-50`}>
             {/* Assistants Selector */}
             {assistants.length > 0 && (
-              <div
-                id={'iframe-selector'}
-                style={{
-                  paddingTop: 8,
-                  paddingRight: 12,
-                  paddingLeft: 12,
-                  paddingBottom: 8,
-                }}
-                className="w-full assistants-shadow border-b py-1 px-2 border-gray-600"
-              >
-                <div id={'assistant-title'}>
-                  <SparksIcon style={{ height: 12, width: 12 }} />
-                  <div id={'assistant-title-label'}>
-                    {labels.ETCOP_Message_AssistantHeader}
-                  </div>
-                </div>
-                <DropdownInput
-                  value={selectedOption?.name}
-                  staticData={assistants}
-                  displayKey="name"
-                  onSelect={(option: any) => {
-                    handleOptionSelected(option);
-                    handleNewConversation(); // This will clear everything including conversation state
-                  }}
-                />
-              </div>
+              <AssistantSelector
+                labels={labels}
+                selectedOption={selectedOption}
+                assistants={assistants}
+                handleOptionSelected={handleOptionSelected}
+                handleNewConversation={handleNewConversation}
+              />
             )}
 
             {/* Conversations Sidebar */}
@@ -654,6 +703,7 @@ function App() {
               onNewConversation={handleNewConversation}
               isVisible={true} // Always visible when in this layout
               generatingTitles={generatingTitles}
+              conversationsWithUnreadMessages={conversationsWithUnreadMessages}
             />
           </div>
         )}
@@ -662,32 +712,13 @@ function App() {
         <div className="flex-1 flex flex-col">
           {/* Top Assistants Selector for non-maximized mode */}
           {assistants.length > 0 && !isMaximized && (
-            <div
-              id={'iframe-selector'}
-              style={{
-                paddingTop: 8,
-                paddingRight: 12,
-                paddingLeft: 12,
-                paddingBottom: 8,
-              }}
-              className="w-full assistants-shadow border-b py-1 px-2 border-gray-600"
-            >
-              <div id={'assistant-title'}>
-                <SparksIcon style={{ height: 12, width: 12 }} />
-                <div id={'assistant-title-label'}>
-                  {labels.ETCOP_Message_AssistantHeader}
-                </div>
-              </div>
-              <DropdownInput
-                value={selectedOption?.name}
-                staticData={assistants}
-                displayKey="name"
-                onSelect={(option: any) => {
-                  handleOptionSelected(option);
-                  handleNewConversation(); // This will clear everything including conversation state
-                }}
-              />
-            </div>
+            <AssistantSelector
+              labels={labels}
+              selectedOption={selectedOption}
+              assistants={assistants}
+              handleOptionSelected={handleOptionSelected}
+              handleNewConversation={handleNewConversation}
+            />
           )}
 
           {/* Chat display area */}

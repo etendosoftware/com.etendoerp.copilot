@@ -9,6 +9,7 @@ export const useConversations = (selectedAppId: string | null) => {
   const [isLoadingConversations, setIsLoadingConversations] = useState<boolean>(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [generatingTitles, setGeneratingTitles] = useState<Set<string>>(new Set());
+  const [conversationsWithUnreadMessages, setConversationsWithUnreadMessages] = useState<Set<string>>(new Set());
 
   const loadConversations = async () => {
     if (!selectedAppId) return;
@@ -233,6 +234,24 @@ export const useConversations = (selectedAppId: string | null) => {
     setCurrentConversationId(null);
   };
 
+  const markConversationAsUnread = (conversationId: string) => {
+    setConversationsWithUnreadMessages(prev => new Set(prev).add(conversationId));
+  };
+
+  const markConversationAsRead = (conversationId: string) => {
+    setConversationsWithUnreadMessages(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(conversationId);
+      return newSet;
+    });
+  };
+
+  // When selecting a conversation, mark it as read
+  const selectConversationAndMarkAsRead = (conversationId: string) => {
+    selectConversation(conversationId);
+    markConversationAsRead(conversationId);
+  };
+
   useEffect(() => {
     loadConversations();
   }, [selectedAppId]);
@@ -248,5 +267,9 @@ export const useConversations = (selectedAppId: string | null) => {
     generateTitleInBackground,
     generatingTitles,
     addNewConversationToList,
+    conversationsWithUnreadMessages,
+    markConversationAsUnread,
+    markConversationAsRead,
+    selectConversationAndMarkAsRead,
   };
 };

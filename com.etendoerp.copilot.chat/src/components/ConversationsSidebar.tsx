@@ -8,8 +8,8 @@ interface ConversationsSidebarProps {
   onConversationSelect: (conversationId: string) => void;
   onNewConversation: () => void;
   isVisible: boolean;
-    generatingTitles?: Set<string>;
-
+  generatingTitles?: Set<string>;
+  conversationsWithUnreadMessages?: Set<string>;
 }
 
 const ConversationsSidebar: React.FC<ConversationsSidebarProps> = ({
@@ -20,19 +20,23 @@ const ConversationsSidebar: React.FC<ConversationsSidebarProps> = ({
   onNewConversation,
   isVisible,
   generatingTitles,
+  conversationsWithUnreadMessages,
 }) => {
   if (!isVisible) return null;
 
   const getConversationTitle = (conversation: IConversation) => {
+    const hasUnreadMessages = conversationsWithUnreadMessages?.has(conversation.id);
+    const fontWeight = hasUnreadMessages ? 'font-bold' : '';
+
     if (generatingTitles?.has(conversation.id)) {
-      return <span className="text-black italic">Generando...</span>;
+      return <span className={`text-black italic ${fontWeight}`}>Generando...</span>;
     }
 
     if (conversation.title && conversation.title.trim() !== '') {
-      return conversation.title;
+      return <span className={fontWeight}>{conversation.title}</span>;
     }
 
-    return <span className="text-gray-400 italic">Sin título</span>;
+    return <span className={`text-gray-400 italic ${fontWeight}`}>Sin título</span>;
   };
 
   const getTooltipTitle = (conversation: IConversation) => {

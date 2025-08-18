@@ -1,5 +1,6 @@
 package com.etendoerp.copilot.util;
 
+import static com.etendoerp.copilot.rest.RequestUtils.extractRequestBody;
 import static com.etendoerp.copilot.rest.RestServiceUtil.APPLICATION_JSON_CHARSET_UTF_8;
 import static com.etendoerp.copilot.rest.RestServiceUtil.APP_ID;
 import static com.etendoerp.copilot.rest.RestServiceUtil.PROP_RESPONSE;
@@ -31,6 +32,18 @@ import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 
+/**
+ * ConversationUtils
+ *
+ * <p>Utility class that exposes static helper methods to manage conversations used by the
+ * Copilot application. It provides methods to fetch conversations and messages, generate
+ * conversation titles by delegating to the title generator service, and handle HTTP
+ * endpoints that respond with JSON. Methods in this class interact with the database and
+ * external services and therefore should be executed under an appropriate Openbravo
+ * context (for example, using {@code OBContext.setAdminMode()} / {@code OBContext.restorePreviousMode()}).
+ *
+ * <p>This class is not instantiable and exposes only static methods.
+ */
 public class ConversationUtils {
   public static final Logger log4j = LogManager.getLogger(ConversationUtils.class);
   private static final String TITLE_GENERATOR_ID = "1844CE5E2BCB404DAAC470216B7D6495";
@@ -64,7 +77,7 @@ public class ConversationUtils {
       String conversationId = request.getParameter(CopilotConstants.PROP_CONVERSATION_ID);
 
       // Extract additional parameters from the JSON body if available
-      JSONObject json = RestServiceUtil.extractRequestBody(request);
+      JSONObject json = extractRequestBody(request);
       if (json.has(CopilotConstants.PROP_CONVERSATION_ID)) {
         conversationId = json.getString(CopilotConstants.PROP_CONVERSATION_ID);
       }

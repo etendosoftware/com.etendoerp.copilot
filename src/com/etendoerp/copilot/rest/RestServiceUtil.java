@@ -86,6 +86,9 @@ public class RestServiceUtil {
   public static final String PROP_TYPE = "type";
   public static final String PROP_HISTORY = "history";
   public static final String PROP_CODE_EXECUTION = "code_execution";
+  // Constant for response/answer JSON key used across this class
+  public static final String PROP_ANSWER = "answer";
+  public static final String PROP_ERROR = "error";
   public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
   public static final String APPLICATION_JSON_CHARSET_UTF_8 = "application/json;charset=UTF-8";
   public static final String FILE = "/file";
@@ -226,7 +229,7 @@ public class RestServiceUtil {
     var jsonResponseStr = response.body();
     logIfDebug("Response from Copilot: " + jsonResponseStr);
     JSONObject jsonObject = new JSONObject(jsonResponseStr);
-    return jsonObject.optString("answer");
+    return jsonObject.optString(PROP_ANSWER);
   }
 
 
@@ -364,10 +367,8 @@ public class RestServiceUtil {
       }
       String currentLine;
       while ((currentLine = readerFromCopilot.readLine()) != null) {
-        if (asyncRequest) {
-          if (currentLine.startsWith("data:")) {
-            sendEventToFront(writerToFront, currentLine, false);
-          }
+        if (asyncRequest && currentLine.startsWith("data:")) {
+          sendEventToFront(writerToFront, currentLine, false);
         }
         lastLine = currentLine;
       }
@@ -379,10 +380,8 @@ public class RestServiceUtil {
 
       var jsonLastLine = StringUtils.isNotEmpty(lastLine) ? new JSONObject(
           asyncRequest ? lastLine.substring(5) : lastLine) : null;
-      if (jsonLastLine != null && jsonLastLine.has("answer") && jsonLastLine.getJSONObject("answer").has(
-          "role") && (StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"),
-          "null") || StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "error"))) {
-        return jsonLastLine.getJSONObject("answer");
+      if (isAnswerWithNullOrErrorRole(jsonLastLine)) {
+        return jsonLastLine.getJSONObject(PROP_ANSWER);
       }
       return new JSONObject();
     } catch (JSONException | IOException e) {
@@ -393,6 +392,28 @@ public class RestServiceUtil {
       } catch (Exception e) {
       }
     }
+  }
+
+  /**
+   * Checks whether the provided JSON object represents an answer with a role indicating
+   * a non-successful state. Specifically, it returns true when the JSON contains an
+   * 'answer' object and that object's 'role' field equals either the string "null"
+   * or the configured error role constant {@link #PROP_ERROR} (case-insensitive).
+   *
+   * @param jsonLastLine
+   *     the JSON object to inspect (may be null)
+   * @return true when an 'answer.role' of "null" or PROP_ERROR is present; false otherwise
+   */
+  private static boolean isAnswerWithNullOrErrorRole(JSONObject jsonLastLine) throws JSONException {
+    if (jsonLastLine == null || !jsonLastLine.has(PROP_ANSWER)) {
+      return false;
+    }
+    JSONObject answer = jsonLastLine.getJSONObject(PROP_ANSWER);
+    if (!answer.has("role")) {
+      return false;
+    }
+    String role = answer.optString("role");
+    return StringUtils.equalsIgnoreCase(role, "null") || StringUtils.equalsIgnoreCase(role, PROP_ERROR);
   }
 
   /**
@@ -483,14 +504,14 @@ public class RestServiceUtil {
       TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question,
           copilotApp);
       boolean isError = finalResponseAsync.has("role") && StringUtils.equalsIgnoreCase(
-          finalResponseAsync.optString("role"), "error");
+          finalResponseAsync.optString("role"), PROP_ERROR);
       TrackingUtil.getInstance().trackResponse(finalResponseAsync.optString(PROP_CONVERSATION_ID),
           finalResponseAsync.optString(PROP_RESPONSE), copilotApp, isError);
       return null;
     }
     JSONObject responseOriginal = new JSONObject();
     responseOriginal.put(APP_ID, copilotApp.getId());
-    if (!finalResponseAsync.has("answer")) {
+    if (!finalResponseAsync.has(PROP_ANSWER)) {
       String message = "";
       if (finalResponseAsync.has("detail")) {
         JSONArray detail = finalResponseAsync.getJSONArray("detail");
@@ -503,8 +524,8 @@ public class RestServiceUtil {
       }
     }
     String response = null;
-    if (finalResponseAsync.has("answer")) {
-      JSONObject answer = (JSONObject) finalResponseAsync.get("answer");
+    if (finalResponseAsync.has(PROP_ANSWER)) {
+      JSONObject answer = (JSONObject) finalResponseAsync.get(PROP_ANSWER);
       handleErrorMessagesIfExists(answer);
       conversationId = answer.optString(PROP_CONVERSATION_ID);
       if (StringUtils.isNotEmpty(conversationId)) {
@@ -572,7 +593,7 @@ public class RestServiceUtil {
    * Generates the assistant structure for the given CopilotApp.
    * <p>
    * This method is an overloaded version that does not require a conversation ID.
-   * It determines the type of assistant and builds the appropriate request structure.
+   * It determines the type of the assistant and builds the appropriate request structure.
    *
    * @param copilotApp
    *     the CopilotApp instance for which the assistant structure is generated
@@ -712,8 +733,8 @@ public class RestServiceUtil {
    * @throws JSONException
    */
   private static void handleErrorMessagesIfExists(JSONObject answer) throws JSONException {
-    if (answer.has("error")) {
-      JSONObject errorJson = answer.getJSONObject("error");
+    if (answer.has(PROP_ERROR)) {
+      JSONObject errorJson = answer.getJSONObject(PROP_ERROR);
       String message = errorJson.getString("message");
       if (errorJson.has("code")) {
         throw new CopilotRestServiceException(message, errorJson.getInt("code"));
@@ -877,7 +898,7 @@ public class RestServiceUtil {
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
-    if (!responseJsonFromCopilot.has("answer")) {
+    if (!responseJsonFromCopilot.has(PROP_ANSWER)) {
       String message = "";
       if (responseJsonFromCopilot.has("detail")) {
         JSONArray detail = responseJsonFromCopilot.getJSONArray("detail");
@@ -887,7 +908,7 @@ public class RestServiceUtil {
       }
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
     }
-    JSONObject answer = (JSONObject) responseJsonFromCopilot.get("answer");
+    JSONObject answer = (JSONObject) responseJsonFromCopilot.get(PROP_ANSWER);
     handleErrorMessagesIfExists(answer);
     return answer.getString("response");
   }
@@ -906,8 +927,8 @@ public class RestServiceUtil {
    *     If an error occurs during the creation of the JSON object.
    */
   public static JSONObject getErrorEventJSON(HttpServletRequest request, OBException e) throws JSONException {
-    return new JSONObject().put("answer", new JSONObject().put("response", e.getMessage()).put("conversation_id",
-        request.getParameter("conversation_id")).put("role", "error"));
+    return new JSONObject().put(PROP_ANSWER, new JSONObject().put("response", e.getMessage()).put(PROP_CONVERSATION_ID,
+        request.getParameter(PROP_CONVERSATION_ID)).put("role", PROP_ERROR));
   }
 
   /**
@@ -961,170 +982,5 @@ public class RestServiceUtil {
     writerToFront.flush();
   }
 
-  /**
-   * Adds a parameter to the provided JSON object if it exists in the HTTP request.
-   * <p>
-   * This method checks if the specified parameter exists in the HTTP request.
-   * If the parameter is found, it is added to the JSON object.
-   *
-   * @param json
-   *     the {@link JSONObject} to which the parameter will be added
-   * @param request
-   *     the {@link HttpServletRequest} object containing client request information
-   * @param paramName
-   *     the name of the parameter to be added
-   * @throws JSONException
-   *     if there is an error in adding the parameter to the JSON object
-   */
-  private static void addParameterIfExists(JSONObject json, HttpServletRequest request,
-      String paramName) throws JSONException {
-    addParameterIfExists(json, request, paramName, false);
-  }
 
-
-  /**
-   * Converts an array of strings to a JSON array.
-   * <p>
-   * This method takes an array of strings and converts it into a JSON array.
-   * If the input array is null, an empty JSON array is returned.
-   *
-   * @param paramMultipleValues
-   *     an array of strings to be converted to a JSON array
-   * @return a {@link JSONArray} containing the values from the input array
-   */
-  private static JSONArray StringArrayToJsonArray(String[] paramMultipleValues) {
-    if (paramMultipleValues == null) {
-      return new JSONArray();
-    }
-    JSONArray jsonArray = new JSONArray();
-    for (String value : paramMultipleValues) {
-      jsonArray.put(value);
-    }
-    return jsonArray;
-  }
-
-  /**
-   * Adds a parameter to the provided JSON object if it exists in the HTTP request.
-   * <p>
-   * This method checks if the specified parameter exists in the HTTP request.
-   * If the parameter is found and is not an array, it is added to the JSON object.
-   * If the parameter is an array and has multiple values, all values are added to the JSON object.
-   *
-   * @param json
-   *     the {@link JSONObject} to which the parameter will be added
-   * @param request
-   *     the {@link HttpServletRequest} object containing client request information
-   * @param paramName
-   *     the name of the parameter to be added
-   * @param isArray
-   *     a boolean indicating whether the parameter is expected to be an array
-   * @throws JSONException
-   *     if there is an error in adding the parameter to the JSON object
-   */
-  private static void addParameterIfExists(JSONObject json, HttpServletRequest request, String paramName,
-      boolean isArray) throws JSONException {
-
-    if (!isArray) {
-      String paramValue = request.getParameter(paramName);
-      if (paramValue != null) {
-        json.put(paramName, paramValue);
-      }
-      return;
-    }
-
-    String[] paramMultipleValues = request.getParameterValues(paramName);
-    if (paramMultipleValues != null) {
-      json.put(paramName, StringArrayToJsonArray(paramMultipleValues));
-    }
-  }
-
-  /**
-   * Retrieves parameters from the incoming HTTP request and
-   * constructs a JSON object containing those parameters.
-   * This method checks for the existence of specific parameters
-   * defined in {@link CopilotConstants} and adds them to the JSON object.
-   *
-   * @param request
-   *     the {@link HttpServletRequest} object containing client request information
-   * @return a {@link JSONObject} containing the retrieved parameters
-   * @throws JSONException
-   *     if there is an error in constructing the JSON object
-   */
-  public static JSONObject retrieveParametersAsJson(HttpServletRequest request) throws JSONException {
-    JSONObject json = new JSONObject();
-
-    addParameterIfExists(json, request, CopilotConstants.PROP_QUESTION);
-    addParameterIfExists(json, request, CopilotConstants.PROP_APP_ID);
-    addParameterIfExists(json, request, CopilotConstants.PROP_CONVERSATION_ID);
-    addParameterIfExists(json, request, CopilotConstants.PROP_FILE, true);
-
-    return json;
-  }
-
-  /**
-   * Checks if the incoming HTTP request is a POST request and has a readable body.
-   * <p>
-   * This method verifies whether the HTTP request method is "POST" and ensures that
-   * the request contains a readable body by checking if the reader is not null.
-   *
-   * @param request
-   *     the {@link HttpServletRequest} object containing client request information
-   * @return true if the request method is "POST" and the request body is readable, false otherwise
-   * @throws IOException
-   *     if an input or output error occurs while accessing the request body
-   */
-  private static boolean isPostRequest(HttpServletRequest request) throws IOException {
-    return StringUtils.equalsIgnoreCase(request.getMethod(), "POST") && request.getReader() != null;
-  }
-
-  /**
-   * Parses the JSON body from an HTTP request.
-   * <p>
-   * This method reads the body of the provided {@link HttpServletRequest}, concatenates its lines,
-   * and attempts to convert the resulting string into a {@link JSONObject}.
-   * If an {@link IOException} or {@link JSONException} occurs during this process,
-   * an empty {@link JSONObject} is returned.
-   *
-   * @param request
-   *     the {@link HttpServletRequest} object containing the JSON body to be parsed
-   * @return a {@link JSONObject} representing the parsed JSON body, or an empty {@link JSONObject} if an error occurs
-   */
-  private static JSONObject parseJsonFromRequest(HttpServletRequest request) {
-    try {
-      String body = request.getReader().lines().reduce("", String::concat);
-      return new JSONObject(body);
-    } catch (IOException | JSONException e) {
-      return new JSONObject();
-    }
-  }
-
-  /**
-   * Extracts the JSON body or parameters from an HTTP request.
-   * <p>
-   * This method first checks if the request is a POST request with a readable body.
-   * If so, it attempts to parse the JSON body from the request. If the JSON body is empty,
-   * it retrieves parameters from the request and constructs a JSON object from them.
-   * <p>
-   * This ensures that either the JSON body or the request parameters are returned as a JSON object.
-   *
-   * @param request
-   *     the {@link HttpServletRequest} object containing client request information
-   * @return a {@link JSONObject} representing the parsed JSON body or request parameters
-   * @throws IOException
-   *     if an input or output error occurs while accessing the request body
-   * @throws JSONException
-   *     if an error occurs while constructing the JSON object
-   */
-  public static JSONObject extractRequestBody(HttpServletRequest request) throws IOException, JSONException {
-    JSONObject json = new JSONObject();
-
-    if (isPostRequest(request)) {
-      json = parseJsonFromRequest(request);
-    }
-    if (json.length() == 0) {
-      json = retrieveParametersAsJson(request);
-    }
-
-    return json;
-  }
 }
