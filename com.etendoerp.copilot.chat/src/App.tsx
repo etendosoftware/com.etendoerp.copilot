@@ -327,30 +327,46 @@ function App() {
 
           console.log('📨 EventSource message received:', data);
 
-          if (answer?.conversation_id) {
-            const isNewConversation = !conversationId;
-            console.log('🆔 Conversation ID received:', answer.conversation_id);
-            console.log('🆕 Is new conversation?', isNewConversation);
-            console.log('🔍 Current conversationId:', conversationId);
+          if (!answer) return;
 
+          // Determine target conversation ID for this message
+          const targetConversationId = answer.conversation_id ?? conversationId;
+          const isNewConversation = !!answer.conversation_id && !conversationId;
+
+          console.log('� Target conversation ID:', targetConversationId);
+          console.log('🔍 Current conversationId:', conversationId);
+          console.log('🆕 Is new conversation?', isNewConversation);
+
+          // Handle new conversation creation and auto-open
+          if (answer.conversation_id && isNewConversation) {
+            console.log('🎯 Adding new conversation to list and auto-opening:', answer.conversation_id);
+
+            // Add to conversation list first
+            addNewConversationToList(answer.conversation_id);
+
+            // Auto-open the new conversation immediately
             setConversationId(answer.conversation_id);
-
-            if (isNewConversation) {
-              console.log('🎯 Adding new conversation to list:', answer.conversation_id);
-
-              addNewConversationToList(answer.conversation_id);
-
-              selectConversation(answer.conversation_id);
-
-            }
+            selectConversation(answer.conversation_id);
           }
 
+          // Route responses by target conversation ID
           if (answer?.response) {
             if (answer.role === 'debug') {
               // Don't delete
               console.log('Debug message', answer.response);
             } else {
-              await handleNewMessage(answer.role ? answer.role : ROLE_BOT, answer);
+              // Determine which conversation this message belongs to
+              const messageConversationId = answer.conversation_id || conversationId;
+
+              // Only show the message if it belongs to the currently open conversation
+              if (messageConversationId === conversationId) {
+                console.log('✅ Showing message in current conversation:', messageConversationId);
+                await handleNewMessage(answer.role ? answer.role : ROLE_BOT, answer);
+              } else {
+                console.log('🚫 Message belongs to different conversation - NOT showing in UI:', messageConversationId, 'current:', conversationId);
+                // Don't show messages that belong to other conversations
+                // When the user switches to that conversation, they will be loaded from the backend
+              }
             }
           }
         };
