@@ -301,6 +301,99 @@ function App() {
     }
   };
 
+  // Helper to prepare question with context
+  const prepareQuestionWithContext = (originalQuestion: string): string => {
+    if (!contextValue) return originalQuestion;
+    const contextValueString = JSON.stringify(contextValue, null, 2);
+    return `<Context>${contextValueString}</Context>\n<Question>${originalQuestion}</Question>`;
+  };
+
+  // Helper to create user message
+  const createUserMessage = (originalQuestion: string): IMessage => {
+    const userMessage: IMessage = {
+      text: originalQuestion,
+      sender: ROLE_USER,
+      timestamp: formatTimeNewDate(new Date()),
+    };
+
+    if (file) {
+      userMessage.file = file.name;
+    }
+
+    return userMessage;
+  };
+
+  // Helper to build request body
+  const buildRequestBody = async (finalQuestion: string) => {
+    const requestBody: any = {
+      question: finalQuestion,
+      app_id: selectedOption?.app_id,
+    };
+
+    if (conversationId) {
+      requestBody.conversation_id = conversationId;
+    }
+
+    if (fileId) {
+      requestBody.file = fileId;
+    }
+
+    // Handle long questions by caching
+    if (encodeURIComponent(finalQuestion).length > 7000) {
+      await cacheQuestion(finalQuestion);
+      delete requestBody.question;
+    }
+
+    return requestBody;
+  };
+
+  // Helper to cache long questions
+  const cacheQuestion = async (finalQuestion: string) => {
+    const cacheQuestionBody = { question: finalQuestion };
+    const cacheQuestionRequest = {
+      method: References.method.POST,
+      body: JSON.stringify(cacheQuestionBody),
+      headers: { 'Content-Type': 'application/json' },
+    };
+
+    await RestUtils.fetch(`${References.url.CACHE_QUESTION}`, cacheQuestionRequest);
+  };
+
+  // Helper to handle new conversation creation
+  const handleNewConversationCreation = (answer: any) => {
+    const isNewConversation = !!answer.conversation_id && !conversationId;
+
+    if (answer.conversation_id && isNewConversation) {
+      console.log('🎯 Adding new conversation to list and auto-opening:', answer.conversation_id);
+
+      addNewConversationToList(answer.conversation_id);
+      setConversationId(answer.conversation_id);
+      selectConversation(answer.conversation_id);
+      currentConversationIdRef.current = answer.conversation_id;
+    }
+  };
+
+  // Helper to route messages to correct conversation
+  const routeMessageToConversation = async (answer: any) => {
+    if (answer.role === 'debug') {
+      console.log('Debug message', answer.response);
+      return;
+    }
+
+    const messageConversationId = answer.conversation_id || conversationId;
+    const currentActiveConversationId = currentConversationIdRef.current;
+
+    if (messageConversationId && messageConversationId === currentActiveConversationId) {
+      console.log('✅ Showing message in current conversation:', messageConversationId);
+      await handleNewMessage(answer.role ? answer.role : ROLE_BOT, answer);
+    } else {
+      console.log('🚫 Message belongs to different conversation - NOT showing in UI:', messageConversationId, 'current:', currentActiveConversationId);
+      if (messageConversationId) {
+        markConversationAsUnread(messageConversationId);
+      }
+    }
+  };
+
   // Function to handle sending a message
   const handleSendMessage = async () => {
     setIsBotLoading(true);
@@ -312,26 +405,10 @@ function App() {
       setInputValue('');
       if (!originalQuestion) return;
 
-      let finalQuestion = originalQuestion;
-      if (contextValue) {
-        const contextValueString = JSON.stringify(contextValue, null, 2);
-        finalQuestion = `<Context>${contextValueString}</Context>\n<Question>${originalQuestion}</Question>`;
-      }
-
-      // Add user message
-      const userMessage: IMessage = {
-        text: originalQuestion,
-        sender: ROLE_USER,
-        timestamp: formatTimeNewDate(new Date()),
-      };
-
-      if (file) {
-        userMessage.file = file.name;
-      }
+      const finalQuestion = prepareQuestionWithContext(originalQuestion);
+      const userMessage = createUserMessage(originalQuestion);
 
       await handleNewMessage(ROLE_USER, userMessage);
-
-      // Add processing message after user message
       await handleNewMessage(ROLE_WAIT, {
         text: 'Processing...',
         sender: ROLE_WAIT,
@@ -339,46 +416,10 @@ function App() {
       });
 
       setStatusIcon(botIcon);
-      // Scroll to bottom after sending message
       scrollToBottomWithDelay();
 
-      // Prepare request body
-      const requestBody: any = {
-        question: finalQuestion,
-        app_id: selectedOption?.app_id,
-      };
-
-      if (conversationId) {
-        requestBody.conversation_id = conversationId;
-      }
-
-      if (fileId) {
-        requestBody.file = fileId;
-      }
-
-      if (encodeURIComponent(finalQuestion).length > 7000) {
-        const cacheQuestionBody = {
-          question: finalQuestion,
-        };
-
-        const cacheQuestionRequest = {
-          method: References.method.POST,
-          body: JSON.stringify(cacheQuestionBody),
-          headers: { 'Content-Type': 'application/json' },
-        };
-
-        const cacheQuestionResponse = await RestUtils.fetch(
-          `${References.url.CACHE_QUESTION}`,
-          cacheQuestionRequest,
-        );
-
-        const cacheQuestionData = await cacheQuestionResponse.json();
-        if (cacheQuestionData) {
-          delete requestBody.question;
-        }
-      }
-
       try {
+        const requestBody = await buildRequestBody(finalQuestion);
         const params = Object.keys(requestBody)
           .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(requestBody[key])}`)
           .join('&');
@@ -387,15 +428,12 @@ function App() {
           ? `${References.DEV}${References.url.SEND_AQUESTION}?${params}`
           : `${References.PROD}${References.url.SEND_AQUESTION}?${params}`;
 
-        let headers = {};
-        if (isDevelopment()) {
-          headers = {
-            Authorization: 'Basic ' + btoa('admin:admin'),
-          };
-        }
+        const headers: { [name: string]: string } = isDevelopment()
+          ? { Authorization: 'Basic ' + btoa('admin:admin') }
+          : {};
 
         const eventSource = new EventSourcePolyfill(eventSourceUrl, {
-          headers: headers,
+          headers,
           heartbeatTimeout: 12000000,
         });
 
@@ -404,59 +442,12 @@ function App() {
           const answer = data?.answer;
 
           console.log('📨 EventSource message received:', data);
-
           if (!answer) return;
 
-          // Determine target conversation ID for this message
-          const targetConversationId = answer.conversation_id ?? conversationId;
-          const isNewConversation = !!answer.conversation_id && !conversationId;
+          handleNewConversationCreation(answer);
 
-          console.log('� Target conversation ID:', targetConversationId);
-          console.log('🔍 Current conversationId:', conversationId);
-          console.log('🆕 Is new conversation?', isNewConversation);
-
-          // Handle new conversation creation and auto-open
-          if (answer.conversation_id && isNewConversation) {
-            console.log('🎯 Adding new conversation to list and auto-opening:', answer.conversation_id);
-
-            // Add to conversation list first
-            addNewConversationToList(answer.conversation_id);
-
-            // Auto-open the new conversation immediately
-            setConversationId(answer.conversation_id);
-            selectConversation(answer.conversation_id);
-
-            // Update the ref immediately for the new conversation
-            currentConversationIdRef.current = answer.conversation_id;
-          }
-
-          // Route responses by target conversation ID
           if (answer?.response) {
-            if (answer.role === 'debug') {
-              // Don't delete
-              console.log('Debug message', answer.response);
-            } else {
-              // Determine which conversation this message belongs to
-              const messageConversationId = answer.conversation_id || conversationId;
-
-              // Get the current conversation ID at the time this message is processed
-              const currentActiveConversationId = currentConversationIdRef.current;
-
-              // SIMPLE RULE: Only show the message if it belongs to the currently active conversation
-              // No special cases, no exceptions. If user is not in the right conversation, don't show it.
-              if (messageConversationId && messageConversationId === currentActiveConversationId) {
-                console.log('✅ Showing message in current conversation:', messageConversationId);
-                await handleNewMessage(answer.role ? answer.role : ROLE_BOT, answer);
-              } else {
-                console.log('🚫 Message belongs to different conversation - NOT showing in UI:', messageConversationId, 'current:', currentActiveConversationId);
-                // Mark the conversation as having unread messages
-                if (messageConversationId) {
-                  markConversationAsUnread(messageConversationId);
-                }
-                // Don't show messages that belong to other conversations
-                // When the user switches to that conversation, they will be loaded from the backend
-              }
-            }
+            await routeMessageToConversation(answer);
           }
         };
 
@@ -497,8 +488,8 @@ function App() {
             context={message.context}
             files={message.files}
             multipleFilesText={
-              message.files
-                ? formatLabel(labels.ETCOP_FilesUploaded!!, message.files.length)
+              message.files && labels.ETCOP_FilesUploaded
+                ? formatLabel(labels.ETCOP_FilesUploaded, message.files.length)
                 : undefined
             }
           />
@@ -585,7 +576,7 @@ function App() {
 
   // Handles ID received from file uploaded in the server
   const handleFileId = (uploadedFile: any) => {
-    setFileId(Object.values(uploadedFile) as string[]);
+    setFileId(Object.values(uploadedFile));
   };
 
   // Manage error
@@ -786,8 +777,8 @@ function App() {
               multiline
               numberOfLines={7}
               multipleFilesText={
-                files && files.length > 0
-                  ? formatLabel(labels.ETCOP_FilesUploaded!!, files.length)
+                files && files.length > 0 && labels.ETCOP_FilesUploaded
+                  ? formatLabel(labels.ETCOP_FilesUploaded, files.length)
                   : undefined
               }
             />

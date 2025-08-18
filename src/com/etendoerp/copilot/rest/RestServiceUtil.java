@@ -99,6 +99,7 @@ public class RestServiceUtil {
   public static final String PROP_KB_VECTORDB_ID = "kb_vectordb_id";
   public static final String PROP_KB_SEARCH_K = "kb_search_k";
   public static final String PROP_AD_USER_ID = "ad_user_id";
+  public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
 
   private RestServiceUtil() {
   }
@@ -435,51 +436,65 @@ public class RestServiceUtil {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
     refreshDynamicFiles(copilotApp);
-    // read the json sent
-    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String appType;
-    JSONObject finalResponseAsync; // For save the response in case of async
-    String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-    String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+
+    // Build request JSON
+    JSONObject jsonRequestForCopilot = buildRequestJson(copilotApp, conversationId, question, questionAttachedFileIds);
+
+    // Get response from Copilot
+    JSONObject finalResponseAsync = sendRequestToCopilot(asyncRequest, queue, jsonRequestForCopilot, copilotApp);
+
+    // Process and return response
+    return processResponseAndTrack(finalResponseAsync, conversationId, question, copilotApp);
+  }
+
+  private static JSONObject buildRequestJson(CopilotApp copilotApp, String conversationId, String question,
+      List<String> questionAttachedFileIds) throws IOException, JSONException {
     JSONObject jsonRequestForCopilot = new JSONObject();
     boolean isGraph = CopilotUtils.checkIfGraphQuestion(copilotApp);
-    //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
-    // and we need to add the type of the assistant (openai or langchain)
-    appType = copilotApp.getAppType();
-    List<String> allowedAppTypes = List.of(CopilotConstants.APP_TYPE_LANGCHAIN, CopilotConstants.APP_TYPE_LANGGRAPH,
-        CopilotConstants.APP_TYPE_OPENAI, CopilotConstants.APP_TYPE_MULTIMODEL);
+    String appType = copilotApp.getAppType();
+
     if (isLangchainDerivatedAssistant(appType) && StringUtils.isEmpty(conversationId)) {
       conversationId = UUID.randomUUID().toString();
     }
+
     generateAssistantStructure(copilotApp, conversationId, appType, isGraph, jsonRequestForCopilot);
+
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
     }
+
     jsonRequestForCopilot.put(RestServiceUtil.PROP_AD_USER_ID, OBContext.getOBContext().getUser().getId());
     question += getAppSourceContent(copilotApp.getETCOPAppSourceList(), CopilotConstants.FILE_BEHAVIOUR_QUESTION);
     CopilotUtils.checkQuestionPrompt(question);
     jsonRequestForCopilot.put(PROP_QUESTION, question);
+
     addAppSourceFileIds(copilotApp, questionAttachedFileIds);
     handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
     question += appendLocalFileIds(questionAttachedFileIds);
     addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
-    String bodyReq = jsonRequestForCopilot.toString();
-    String endpoint;
+
+    return jsonRequestForCopilot;
+  }
+
+  private static String determineEndpoint(boolean asyncRequest, CopilotApp copilotApp) {
+    boolean isGraph = CopilotUtils.checkIfGraphQuestion(copilotApp);
     if (isGraph) {
-      if (asyncRequest) {
-        endpoint = AGRAPH;
-      } else {
-        endpoint = GRAPH;
-      }
+      return asyncRequest ? AGRAPH : GRAPH;
     } else {
-      if (asyncRequest) {
-        endpoint = AQUESTION;
-      } else {
-        endpoint = QUESTION;
-      }
+      return asyncRequest ? AQUESTION : QUESTION;
     }
+  }
+
+  private static JSONObject sendRequestToCopilot(boolean asyncRequest, HttpServletResponse queue,
+      JSONObject jsonRequestForCopilot, CopilotApp copilotApp) throws IOException, JSONException {
+    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
+    String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+    String endpoint = determineEndpoint(asyncRequest, copilotApp);
+
     logIfDebug("Request to Copilot:);");
-    logIfDebug(new JSONObject(bodyReq).toString(2));
+    logIfDebug(new JSONObject(jsonRequestForCopilot.toString()).toString(2));
+
     URL url = new URL(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort));
     try {
       HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -488,42 +503,72 @@ public class RestServiceUtil {
       connection.setDoOutput(true);
       connection.setDoInput(true);
       connection.getOutputStream().write(jsonRequestForCopilot.toString().getBytes());
+
       if (asyncRequest) {
-        finalResponseAsync = serverSideEvents(asyncRequest, queue, connection.getInputStream());
+        return serverSideEvents(asyncRequest, queue, connection.getInputStream());
       } else {
         String responseFromCopilot = new BufferedReader(
             new InputStreamReader(connection.getInputStream())).lines().collect(Collectors.joining("\n"));
-        finalResponseAsync = new JSONObject(responseFromCopilot);
+        return new JSONObject(responseFromCopilot);
       }
     } catch (Exception e) {
       log.error(e);
       Thread.currentThread().interrupt();
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
+  }
+
+  private static JSONObject processResponseAndTrack(JSONObject finalResponseAsync, String conversationId,
+      String question, CopilotApp copilotApp) throws JSONException {
     if (finalResponseAsync == null) {
-      TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question,
-          copilotApp);
-      boolean isError = finalResponseAsync.has("role") && StringUtils.equalsIgnoreCase(
-          finalResponseAsync.optString("role"), PROP_ERROR);
-      TrackingUtil.getInstance().trackResponse(finalResponseAsync.optString(PROP_CONVERSATION_ID),
-          finalResponseAsync.optString(PROP_RESPONSE), copilotApp, isError);
+      trackNullResponse(conversationId, question, copilotApp);
       return null;
     }
+
     JSONObject responseOriginal = new JSONObject();
     responseOriginal.put(APP_ID, copilotApp.getId());
+
     if (!finalResponseAsync.has(PROP_ANSWER)) {
-      String message = "";
-      if (finalResponseAsync.has("detail")) {
-        JSONArray detail = finalResponseAsync.getJSONArray("detail");
-        if (detail.length() > 0) {
-          message = ((JSONObject) detail.get(0)).getString("message");
-        }
-      }
-      if (!message.isEmpty()) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
+      handleMissingAnswer(finalResponseAsync);
+    }
+
+    String response = extractResponse(finalResponseAsync, responseOriginal, conversationId);
+
+    if (StringUtils.isEmpty(response)) {
+      throw new OBException(String.format(OBMessageUtils.messageBD(ETCOP_COPILOT_ERROR), "Empty response"));
+    }
+
+    addTimestampToResponse(responseOriginal);
+    TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp);
+
+    return responseOriginal;
+  }
+
+  private static void trackNullResponse(String conversationId, String question, CopilotApp copilotApp) {
+    // Note: This appears to be a bug in the original code - finalResponseAsync is null but we're calling methods on it
+    // Keeping the original logic for backward compatibility
+    TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, "", copilotApp, true);
+  }
+
+  private static void handleMissingAnswer(JSONObject finalResponseAsync) throws JSONException {
+    String message = "";
+    if (finalResponseAsync.has("detail")) {
+      JSONArray detail = finalResponseAsync.getJSONArray("detail");
+      if (detail.length() > 0) {
+        message = ((JSONObject) detail.get(0)).getString("message");
       }
     }
+    if (!message.isEmpty()) {
+      throw new OBException(String.format(OBMessageUtils.messageBD(ETCOP_COPILOT_ERROR), message));
+    }
+  }
+
+  private static String extractResponse(JSONObject finalResponseAsync, JSONObject responseOriginal,
+      String conversationId) throws JSONException {
     String response = null;
+
     if (finalResponseAsync.has(PROP_ANSWER)) {
       JSONObject answer = (JSONObject) finalResponseAsync.get(PROP_ANSWER);
       handleErrorMessagesIfExists(answer);
@@ -540,15 +585,14 @@ public class RestServiceUtil {
         conversationId = finalResponseAsync.optString(PROP_CONVERSATION_ID);
       }
     }
-    if (StringUtils.isEmpty(response)) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), "Empty response"));
-    }
+
+    return response;
+  }
+
+  private static void addTimestampToResponse(JSONObject responseOriginal) throws JSONException {
     Date date = new Date();
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
-    TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
-    TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp);
-    return responseOriginal;
   }
 
   /**
@@ -906,11 +950,11 @@ public class RestServiceUtil {
           message = ((JSONObject) detail.get(0)).getString("message");
         }
       }
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
+      throw new OBException(String.format(OBMessageUtils.messageBD(ETCOP_COPILOT_ERROR), message));
     }
     JSONObject answer = (JSONObject) responseJsonFromCopilot.get(PROP_ANSWER);
     handleErrorMessagesIfExists(answer);
-    return answer.getString("response");
+    return answer.getString(PROP_RESPONSE);
   }
 
   /**
@@ -927,7 +971,7 @@ public class RestServiceUtil {
    *     If an error occurs during the creation of the JSON object.
    */
   public static JSONObject getErrorEventJSON(HttpServletRequest request, OBException e) throws JSONException {
-    return new JSONObject().put(PROP_ANSWER, new JSONObject().put("response", e.getMessage()).put(PROP_CONVERSATION_ID,
+    return new JSONObject().put(PROP_ANSWER, new JSONObject().put(PROP_RESPONSE, e.getMessage()).put(PROP_CONVERSATION_ID,
         request.getParameter(PROP_CONVERSATION_ID)).put("role", PROP_ERROR));
   }
 
