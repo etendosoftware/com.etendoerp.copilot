@@ -77,16 +77,31 @@ function App() {
   const messagesEndRef = useRef<any>(null);
   const inputRef = useRef<any>(null);
 
+  // Helper functions
+  const shouldGenerateTitle = (conversation: any) => {
+    return conversation && (!conversation.title ||
+      conversation.title === 'Conversación actual' ||
+      conversation.title === 'Current conversation');
+  };
+
+  const handleTitleGeneration = (conversationId: string, reason: string) => {
+    const conversation = conversations.find(conv => conv.id === conversationId);
+    if (shouldGenerateTitle(conversation)) {
+      console.log(`🎯 ${reason}:`, conversationId);
+      generateTitleInBackground(conversationId);
+    }
+  };
+
+  const scrollToBottomWithDelay = (delay = 100) => {
+    setTimeout(() => scrollToBottom(), delay);
+  };
+
   // Conversation handlers
   const handleConversationSelect = async (conversationIdToSelect: string) => {
     try {
       // Generate title for current conversation before switching if it needs one
       if (currentConversationId && currentConversationId !== conversationIdToSelect) {
-        const currentConversation = conversations.find(conv => conv.id === currentConversationId);
-        if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual' || currentConversation.title === 'Current conversation')) {
-          console.log('🎯 Generating title for current conversation before switching:', currentConversationId);
-          generateTitleInBackground(currentConversationId);
-        }
+        handleTitleGeneration(currentConversationId, 'Generating title for current conversation before switching');
       }
 
       const conversationMessages = await loadConversationMessages(conversationIdToSelect);
@@ -101,11 +116,7 @@ function App() {
   const handleNewConversation = () => {
     // Generate title for current conversation before creating new one if it needs one
     if (currentConversationId) {
-      const currentConversation = conversations.find(conv => conv.id === currentConversationId);
-      if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual' || currentConversation.title === 'Current conversation')) {
-        console.log('🎯 Generating title for current conversation before creating new one:', currentConversationId);
-        generateTitleInBackground(currentConversationId);
-      }
+      handleTitleGeneration(currentConversationId, 'Generating title for current conversation before creating new one');
     }
 
     setMessages([]);
@@ -168,7 +179,7 @@ function App() {
       // Check if we should generate title after adding a bot message
       if (role === ROLE_BOT && conversationId && updatedMessages.length >= 6) {
         const currentConversation = conversations.find(conv => conv.id === conversationId);
-        if (currentConversation && (!currentConversation.title || currentConversation.title === 'Conversación actual' || currentConversation.title === 'Current conversation')) {
+        if (shouldGenerateTitle(currentConversation)) {
           console.log('🎯 Generating title after reaching 4+ messages:', conversationId, 'Message count:', updatedMessages.length);
           // Use setTimeout to avoid calling setState during render
           setTimeout(() => {
@@ -260,7 +271,7 @@ function App() {
       await handleNewMessage(ROLE_USER, userMessage);
       setStatusIcon(botIcon);
       // Scroll to bottom after sending message
-      setTimeout(() => scrollToBottom(), 100);
+      scrollToBottomWithDelay();
 
       // Prepare request body
       const requestBody: any = {
@@ -380,7 +391,7 @@ function App() {
           if (eventSource.readyState === EventSourcePolyfill.CLOSED) {
             setIsBotLoading(false);
             eventSource.close();
-            setTimeout(() => scrollToBottom(), 100);
+            scrollToBottomWithDelay();
             clearInterval(intervalTimeOut);
           }
         }, 1000);
@@ -534,8 +545,8 @@ function App() {
     let intervalId: NodeJS.Timeout;
 
     if (isBotLoading && statusIcon !== responseSent) {
-      const randomDelay = Math.random() * (10000 - 5000) + 5000;
-      intervalId = setTimeout(() => { }, randomDelay);
+      const delay = 7500;
+      intervalId = setTimeout(() => { }, delay);
     }
 
     return () => {
