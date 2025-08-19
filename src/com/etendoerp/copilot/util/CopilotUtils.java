@@ -21,7 +21,6 @@ import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -379,10 +378,7 @@ public class CopilotUtils {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
     }
 
-    // Update synchronization metadata
-    fileToSync.setLastSync(new Date());
-    fileToSync.setUpdated(new Date());
-    OBDal.getInstance().save(fileToSync);
+
     OBDal.getInstance().flush();
   }
 
