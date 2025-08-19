@@ -544,7 +544,7 @@ def _make_ask_agent_tool(agent_config: AssistantSchema, identifier: str) -> Tool
                 }
 
             payload = {"question": question, "app_id": identifier}
-            if conversation_id:
+            if conversation_id and conversation_id != "null" and conversation_id != "":
                 payload["conversation_id"] = conversation_id
 
             etendo_host = get_etendo_host()
