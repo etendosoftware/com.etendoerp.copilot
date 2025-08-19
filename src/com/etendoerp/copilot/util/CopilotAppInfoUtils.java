@@ -60,18 +60,7 @@ public class CopilotAppInfoUtils {
 
     try {
       OBContext.setAdminMode(false);
-      AppInfo appInfo = getAppInfo(copilotApp);
-
-      if (appInfo == null) {
-        // Create new AppInfo record
-        appInfo = OBProvider.getInstance().get(AppInfo.class);
-        appInfo.setAgent(copilotApp);
-        appInfo.setClient(copilotApp.getClient());
-        // Use the same organization as the CopilotApp
-        appInfo.setOrganization(copilotApp.getOrganization());
-        appInfo.setActive(true);
-        appInfo.setNewOBObject(true);
-      }
+      AppInfo appInfo = getOrCreateAppInfo(copilotApp);
 
       // Update the sync status
       appInfo.setSyncStatus(syncStatus);
@@ -99,6 +88,37 @@ public class CopilotAppInfoUtils {
     criteria.setMaxResults(1);
 
     return (AppInfo) criteria.uniqueResult();
+  }
+
+  /**
+   * Gets the AppInfo record for a given CopilotApp, creating one if it doesn't exist.
+   * This method automatically handles the creation of AppInfo records when they don't exist.
+   *
+   * @param copilotApp
+   *     the CopilotApp entity to find or create the AppInfo for
+   * @return the AppInfo record (existing or newly created), or null if copilotApp is null
+   */
+  public static AppInfo getOrCreateAppInfo(CopilotApp copilotApp) {
+    if (copilotApp == null) {
+      return null;
+    }
+
+    AppInfo appInfo = getAppInfo(copilotApp);
+
+    if (appInfo == null) {
+      // Create new AppInfo record
+      appInfo = OBProvider.getInstance().get(AppInfo.class);
+      appInfo.setAgent(copilotApp);
+      appInfo.setClient(copilotApp.getClient());
+      // Use the same organization as the CopilotApp
+      appInfo.setOrganization(copilotApp.getOrganization());
+      appInfo.setActive(true);
+      appInfo.setNewOBObject(true);
+      // Set default sync status
+      appInfo.setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
+    }
+
+    return appInfo;
   }
 
   /**
@@ -190,17 +210,7 @@ public class CopilotAppInfoUtils {
 
     try {
       OBContext.setAdminMode(false);
-      AppInfo appInfo = getAppInfo(copilotApp);
-
-      if (appInfo == null) {
-        // Create new AppInfo record
-        appInfo = OBProvider.getInstance().get(AppInfo.class);
-        appInfo.setAgent(copilotApp);
-        appInfo.setClient(copilotApp.getClient());
-        // Use the same organization as the CopilotApp
-        appInfo.setOrganization(copilotApp.getOrganization());
-        appInfo.setActive(true);
-      }
+      AppInfo appInfo = getOrCreateAppInfo(copilotApp);
 
       // Update the graph image
       appInfo.setGraphPreview(graphImg);
