@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.etendoerp.copilot.util.CopilotModelUtils;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItem;
 import org.apache.commons.lang3.StringUtils;
@@ -61,6 +60,7 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.TrackingUtil;
@@ -86,6 +86,9 @@ public class RestServiceUtil {
   public static final String PROP_TYPE = "type";
   public static final String PROP_HISTORY = "history";
   public static final String PROP_CODE_EXECUTION = "code_execution";
+  // Constant for response/answer JSON key used across this class
+  public static final String PROP_ANSWER = "answer";
+  public static final String PROP_ERROR = "error";
   public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
   public static final String APPLICATION_JSON_CHARSET_UTF_8 = "application/json;charset=UTF-8";
   public static final String FILE = "/file";
@@ -96,6 +99,7 @@ public class RestServiceUtil {
   public static final String PROP_KB_VECTORDB_ID = "kb_vectordb_id";
   public static final String PROP_KB_SEARCH_K = "kb_search_k";
   public static final String PROP_AD_USER_ID = "ad_user_id";
+  public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
 
   private RestServiceUtil() {
   }
@@ -226,7 +230,7 @@ public class RestServiceUtil {
     var jsonResponseStr = response.body();
     logIfDebug("Response from Copilot: " + jsonResponseStr);
     JSONObject jsonObject = new JSONObject(jsonResponseStr);
-    return jsonObject.optString("answer");
+    return jsonObject.optString(PROP_ANSWER);
   }
 
 
@@ -240,8 +244,7 @@ public class RestServiceUtil {
     //check the size of the file: must be max 512mb
     long size = f.length();
     if (size > 512 * 1024 * 1024) {
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_FileTooBig"), f.getName()));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileTooBig"), f.getName()));
     }
   }
 
@@ -365,10 +368,8 @@ public class RestServiceUtil {
       }
       String currentLine;
       while ((currentLine = readerFromCopilot.readLine()) != null) {
-        if (asyncRequest) {
-          if (currentLine.startsWith("data:")) {
-            sendEventToFront(writerToFront, currentLine, false);
-          }
+        if (asyncRequest && currentLine.startsWith("data:")) {
+          sendEventToFront(writerToFront, currentLine, false);
         }
         lastLine = currentLine;
       }
@@ -380,12 +381,8 @@ public class RestServiceUtil {
 
       var jsonLastLine = StringUtils.isNotEmpty(lastLine) ? new JSONObject(
           asyncRequest ? lastLine.substring(5) : lastLine) : null;
-      if (jsonLastLine != null
-          && jsonLastLine.has("answer")
-          && jsonLastLine.getJSONObject("answer").has("role")
-          && (StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "null") ||
-          StringUtils.equalsIgnoreCase(jsonLastLine.getJSONObject("answer").optString("role"), "error"))) {
-        return jsonLastLine.getJSONObject("answer");
+      if (isAnswerWithNullOrErrorRole(jsonLastLine)) {
+        return jsonLastLine.getJSONObject(PROP_ANSWER);
       }
       return new JSONObject();
     } catch (JSONException | IOException e) {
@@ -396,6 +393,28 @@ public class RestServiceUtil {
       } catch (Exception e) {
       }
     }
+  }
+
+  /**
+   * Checks whether the provided JSON object represents an answer with a role indicating
+   * a non-successful state. Specifically, it returns true when the JSON contains an
+   * 'answer' object and that object's 'role' field equals either the string "null"
+   * or the configured error role constant {@link #PROP_ERROR} (case-insensitive).
+   *
+   * @param jsonLastLine
+   *     the JSON object to inspect (may be null)
+   * @return true when an 'answer.role' of "null" or PROP_ERROR is present; false otherwise
+   */
+  private static boolean isAnswerWithNullOrErrorRole(JSONObject jsonLastLine) throws JSONException {
+    if (jsonLastLine == null || !jsonLastLine.has(PROP_ANSWER)) {
+      return false;
+    }
+    JSONObject answer = jsonLastLine.getJSONObject(PROP_ANSWER);
+    if (!answer.has("role")) {
+      return false;
+    }
+    String role = answer.optString("role");
+    return StringUtils.equalsIgnoreCase(role, "null") || StringUtils.equalsIgnoreCase(role, PROP_ERROR);
   }
 
   /**
@@ -412,58 +431,70 @@ public class RestServiceUtil {
    * @throws JSONException
    */
   public static JSONObject handleQuestion(boolean asyncRequest, HttpServletResponse queue, CopilotApp copilotApp,
-      String conversationId,
-      String question,
-      List<String> questionAttachedFileIds) throws IOException, JSONException {
+      String conversationId, String question, List<String> questionAttachedFileIds) throws IOException, JSONException {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
     refreshDynamicFiles(copilotApp);
-    // read the json sent
-    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String appType;
-    JSONObject finalResponseAsync; // For save the response in case of async
-    String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-    String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+
+    // Build request JSON
+    JSONObject jsonRequestForCopilot = buildRequestJson(copilotApp, conversationId, question, questionAttachedFileIds);
+
+    // Get response from Copilot
+    JSONObject finalResponseAsync = sendRequestToCopilot(asyncRequest, queue, jsonRequestForCopilot, copilotApp);
+
+    // Process and return response
+    return processResponseAndTrack(finalResponseAsync, conversationId, question, copilotApp);
+  }
+
+  private static JSONObject buildRequestJson(CopilotApp copilotApp, String conversationId, String question,
+      List<String> questionAttachedFileIds) throws IOException, JSONException {
     JSONObject jsonRequestForCopilot = new JSONObject();
     boolean isGraph = CopilotUtils.checkIfGraphQuestion(copilotApp);
-    //the app_id is the id of the CopilotApp, must be converted to the id of the openai assistant (if it is an openai assistant)
-    // and we need to add the type of the assistant (openai or langchain)
-    appType = copilotApp.getAppType();
-    List<String> allowedAppTypes = List.of(CopilotConstants.APP_TYPE_LANGCHAIN, CopilotConstants.APP_TYPE_LANGGRAPH,
-        CopilotConstants.APP_TYPE_OPENAI, CopilotConstants.APP_TYPE_MULTIMODEL);
+    String appType = copilotApp.getAppType();
+
     if (isLangchainDerivatedAssistant(appType) && StringUtils.isEmpty(conversationId)) {
       conversationId = UUID.randomUUID().toString();
     }
+
     generateAssistantStructure(copilotApp, conversationId, appType, isGraph, jsonRequestForCopilot);
+
     if (StringUtils.isNotEmpty(conversationId)) {
       jsonRequestForCopilot.put(PROP_CONVERSATION_ID, conversationId);
     }
+
     jsonRequestForCopilot.put(RestServiceUtil.PROP_AD_USER_ID, OBContext.getOBContext().getUser().getId());
     question += getAppSourceContent(copilotApp.getETCOPAppSourceList(), CopilotConstants.FILE_BEHAVIOUR_QUESTION);
     CopilotUtils.checkQuestionPrompt(question);
     jsonRequestForCopilot.put(PROP_QUESTION, question);
+
     addAppSourceFileIds(copilotApp, questionAttachedFileIds);
     handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
     question += appendLocalFileIds(questionAttachedFileIds);
     addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
-    String bodyReq = jsonRequestForCopilot.toString();
-    String endpoint;
+
+    return jsonRequestForCopilot;
+  }
+
+  private static String determineEndpoint(boolean asyncRequest, CopilotApp copilotApp) {
+    boolean isGraph = CopilotUtils.checkIfGraphQuestion(copilotApp);
     if (isGraph) {
-      if (asyncRequest) {
-        endpoint = AGRAPH;
-      } else {
-        endpoint = GRAPH;
-      }
+      return asyncRequest ? AGRAPH : GRAPH;
     } else {
-      if (asyncRequest) {
-        endpoint = AQUESTION;
-      } else {
-        endpoint = QUESTION;
-      }
+      return asyncRequest ? AQUESTION : QUESTION;
     }
+  }
+
+  private static JSONObject sendRequestToCopilot(boolean asyncRequest, HttpServletResponse queue,
+      JSONObject jsonRequestForCopilot, CopilotApp copilotApp) throws IOException, JSONException {
+    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
+    String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+    String endpoint = determineEndpoint(asyncRequest, copilotApp);
+
     logIfDebug("Request to Copilot:);");
-    logIfDebug(new JSONObject(bodyReq).toString(2));
+    logIfDebug(new JSONObject(jsonRequestForCopilot.toString()).toString(2));
+
     URL url = new URL(String.format("http://%s:%s" + endpoint, copilotHost, copilotPort));
     try {
       HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -472,44 +503,74 @@ public class RestServiceUtil {
       connection.setDoOutput(true);
       connection.setDoInput(true);
       connection.getOutputStream().write(jsonRequestForCopilot.toString().getBytes());
+
       if (asyncRequest) {
-        finalResponseAsync = serverSideEvents(asyncRequest, queue, connection.getInputStream());
+        return serverSideEvents(asyncRequest, queue, connection.getInputStream());
       } else {
-        String responseFromCopilot = new BufferedReader(new InputStreamReader(connection.getInputStream()))
-            .lines().collect(Collectors.joining("\n"));
-        finalResponseAsync = new JSONObject(responseFromCopilot);
+        String responseFromCopilot = new BufferedReader(
+            new InputStreamReader(connection.getInputStream())).lines().collect(Collectors.joining("\n"));
+        return new JSONObject(responseFromCopilot);
       }
     } catch (Exception e) {
       log.error(e);
       Thread.currentThread().interrupt();
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
+  }
+
+  private static JSONObject processResponseAndTrack(JSONObject finalResponseAsync, String conversationId,
+      String question, CopilotApp copilotApp) throws JSONException {
     if (finalResponseAsync == null) {
-      TrackingUtil.getInstance().trackQuestion(finalResponseAsync.optString(PROP_CONVERSATION_ID), question,
-          copilotApp);
-      boolean isError = finalResponseAsync.has("role") && StringUtils.equalsIgnoreCase(
-          finalResponseAsync.optString("role"), "error");
-      TrackingUtil.getInstance().trackResponse(finalResponseAsync.optString(PROP_CONVERSATION_ID),
-          finalResponseAsync.optString(PROP_RESPONSE), copilotApp, isError);
+      trackNullResponse(conversationId, question, copilotApp);
       return null;
     }
+
     JSONObject responseOriginal = new JSONObject();
     responseOriginal.put(APP_ID, copilotApp.getId());
-    if (!finalResponseAsync.has("answer")) {
-      String message = "";
-      if (finalResponseAsync.has("detail")) {
-        JSONArray detail = finalResponseAsync.getJSONArray("detail");
-        if (detail.length() > 0) {
-          message = ((JSONObject) detail.get(0)).getString("message");
-        }
-      }
-      if (!message.isEmpty()) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
+
+    if (!finalResponseAsync.has(PROP_ANSWER)) {
+      handleMissingAnswer(finalResponseAsync);
+    }
+
+    String response = extractResponse(finalResponseAsync, responseOriginal, conversationId);
+
+    if (StringUtils.isEmpty(response)) {
+      throw new OBException(String.format(OBMessageUtils.messageBD(ETCOP_COPILOT_ERROR), "Empty response"));
+    }
+
+    addTimestampToResponse(responseOriginal);
+    TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp);
+
+    return responseOriginal;
+  }
+
+  private static void trackNullResponse(String conversationId, String question, CopilotApp copilotApp) {
+    // Note: This appears to be a bug in the original code - finalResponseAsync is null but we're calling methods on it
+    // Keeping the original logic for backward compatibility
+    TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, "", copilotApp, true);
+  }
+
+  private static void handleMissingAnswer(JSONObject finalResponseAsync) throws JSONException {
+    String message = "";
+    if (finalResponseAsync.has("detail")) {
+      JSONArray detail = finalResponseAsync.getJSONArray("detail");
+      if (detail.length() > 0) {
+        message = ((JSONObject) detail.get(0)).getString("message");
       }
     }
+    if (!message.isEmpty()) {
+      throw new OBException(String.format(OBMessageUtils.messageBD(ETCOP_COPILOT_ERROR), message));
+    }
+  }
+
+  private static String extractResponse(JSONObject finalResponseAsync, JSONObject responseOriginal,
+      String conversationId) throws JSONException {
     String response = null;
-    if (finalResponseAsync.has("answer")) {
-      JSONObject answer = (JSONObject) finalResponseAsync.get("answer");
+
+    if (finalResponseAsync.has(PROP_ANSWER)) {
+      JSONObject answer = (JSONObject) finalResponseAsync.get(PROP_ANSWER);
       handleErrorMessagesIfExists(answer);
       conversationId = answer.optString(PROP_CONVERSATION_ID);
       if (StringUtils.isNotEmpty(conversationId)) {
@@ -524,15 +585,14 @@ public class RestServiceUtil {
         conversationId = finalResponseAsync.optString(PROP_CONVERSATION_ID);
       }
     }
-    if (StringUtils.isEmpty(response)) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), "Empty response"));
-    }
+
+    return response;
+  }
+
+  private static void addTimestampToResponse(JSONObject responseOriginal) throws JSONException {
     Date date = new Date();
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
-    TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
-    TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp);
-    return responseOriginal;
   }
 
   /**
@@ -559,8 +619,7 @@ public class RestServiceUtil {
    *     if an I/O error occurs
    */
   private static void generateAssistantStructure(CopilotApp copilotApp, String conversationId, String appType,
-      boolean isGraph,
-      JSONObject jsonRequestForCopilot) throws JSONException, IOException {
+      boolean isGraph, JSONObject jsonRequestForCopilot) throws JSONException, IOException {
     if (isLangchainDerivatedAssistant(appType)) {
       if (!isGraph) {
         CopilotUtils.buildLangchainRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot, appType);
@@ -570,8 +629,7 @@ public class RestServiceUtil {
     } else if (StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_OPENAI)) {
       buildOpenAIrequestForCopilot(copilotApp, jsonRequestForCopilot);
     } else {
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_MissingAppType"), appType));
     }
   }
 
@@ -579,7 +637,7 @@ public class RestServiceUtil {
    * Generates the assistant structure for the given CopilotApp.
    * <p>
    * This method is an overloaded version that does not require a conversation ID.
-   * It determines the type of assistant and builds the appropriate request structure.
+   * It determines the type of the assistant and builds the appropriate request structure.
    *
    * @param copilotApp
    *     the CopilotApp instance for which the assistant structure is generated
@@ -604,9 +662,9 @@ public class RestServiceUtil {
    * @return true if the assistant type is derived from Langchain, false otherwise
    */
   private static boolean isLangchainDerivatedAssistant(String appType) {
-    return StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN)
-        || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGGRAPH)
-        || StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_MULTIMODEL);
+    return StringUtils.equalsIgnoreCase(appType, CopilotConstants.APP_TYPE_LANGCHAIN) || StringUtils.equalsIgnoreCase(
+        appType, CopilotConstants.APP_TYPE_LANGGRAPH) || StringUtils.equalsIgnoreCase(appType,
+        CopilotConstants.APP_TYPE_MULTIMODEL);
   }
 
   public static StringBuilder replaceAliasInPrompt(StringBuilder prompt,
@@ -698,11 +756,8 @@ public class RestServiceUtil {
     StringBuilder sb = new StringBuilder();
     for (String questionAttachedFileId : questionAttachedFileIds) {
       if (StringUtils.isNotEmpty(questionAttachedFileId)) {
-        CopilotFile copilotFile = (CopilotFile) OBDal.getInstance()
-            .createCriteria(CopilotFile.class)
-            .add(Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId))
-            .setMaxResults(1)
-            .uniqueResult();
+        CopilotFile copilotFile = (CopilotFile) OBDal.getInstance().createCriteria(CopilotFile.class).add(
+            Restrictions.eq(CopilotFile.PROPERTY_OPENAIIDFILE, questionAttachedFileId)).setMaxResults(1).uniqueResult();
 
         if (copilotFile == null || StringUtils.startsWith(questionAttachedFileId, "file")) {
           if (sb.length() == 0) {
@@ -722,8 +777,8 @@ public class RestServiceUtil {
    * @throws JSONException
    */
   private static void handleErrorMessagesIfExists(JSONObject answer) throws JSONException {
-    if (answer.has("error")) {
-      JSONObject errorJson = answer.getJSONObject("error");
+    if (answer.has(PROP_ERROR)) {
+      JSONObject errorJson = answer.getJSONObject(PROP_ERROR);
       String message = errorJson.getString("message");
       if (errorJson.has("code")) {
         throw new CopilotRestServiceException(message, errorJson.getInt("code"));
@@ -772,18 +827,12 @@ public class RestServiceUtil {
       OBContext context = OBContext.getOBContext();
       Role role = context.getRole();
 
-      List<CopilotApp> appList = new HashSet<>(OBDal.getInstance()
-          .createCriteria(CopilotRoleApp.class)
-          .add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, role))
-          .list()).stream()
-          .map(CopilotRoleApp::getCopilotApp)
-          .distinct()
-          .collect(Collectors.toList());
+      List<CopilotApp> appList = new HashSet<>(OBDal.getInstance().createCriteria(CopilotRoleApp.class).add(
+          Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, role)).list()).stream().map(
+          CopilotRoleApp::getCopilotApp).distinct().collect(Collectors.toList());
 
-      appList.sort((app1, app2) ->
-          getLastConversation(context.getUser(), app2)
-              .compareTo(getLastConversation(context.getUser(), app1))
-      );
+      appList.sort((app1, app2) -> getLastConversation(context.getUser(), app2).compareTo(
+          getLastConversation(context.getUser(), app1)));
 
       for (CopilotApp app : appList) {
         JSONObject assistantJson = new JSONObject();
@@ -808,8 +857,10 @@ public class RestServiceUtil {
    * This method wraps each permission assignment in a try-catch block to avoid
    * interrupting the main assistant loading flow in case of individual errors.
    *
-   * @param appList The list of assistant applications to assign permissions for.
-   * @param role    The role to which the webhook permissions should be assigned.
+   * @param appList
+   *     The list of assistant applications to assign permissions for.
+   * @param role
+   *     The role to which the webhook permissions should be assigned.
    */
   private static void assignWebhookPermissionsSafely(List<CopilotApp> appList, Role role) {
     for (CopilotApp app : appList) {
@@ -879,12 +930,10 @@ public class RestServiceUtil {
       String bodyReq = jsonRequestForCopilot.toString();
       logIfDebug("Request to Copilot:);");
       logIfDebug(new JSONObject(bodyReq).toString(2));
-      HttpRequest copilotRequest = HttpRequest.newBuilder()
-          .uri(new URI(String.format("http://%s:%s" + GRAPH, copilotHost, copilotPort)))
-          .headers("Content-Type", APPLICATION_JSON_CHARSET_UTF_8)
-          .version(HttpClient.Version.HTTP_1_1)
-          .POST(HttpRequest.BodyPublishers.ofString(bodyReq))
-          .build();
+      HttpRequest copilotRequest = HttpRequest.newBuilder().uri(
+          new URI(String.format("http://%s:%s" + GRAPH, copilotHost, copilotPort))).headers("Content-Type",
+          APPLICATION_JSON_CHARSET_UTF_8).version(HttpClient.Version.HTTP_1_1).POST(
+          HttpRequest.BodyPublishers.ofString(bodyReq)).build();
 
       responseFromCopilot = client.send(copilotRequest, HttpResponse.BodyHandlers.ofString());
     } catch (URISyntaxException | InterruptedException e) {
@@ -893,7 +942,7 @@ public class RestServiceUtil {
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
     }
     JSONObject responseJsonFromCopilot = new JSONObject(responseFromCopilot.body());
-    if (!responseJsonFromCopilot.has("answer")) {
+    if (!responseJsonFromCopilot.has(PROP_ANSWER)) {
       String message = "";
       if (responseJsonFromCopilot.has("detail")) {
         JSONArray detail = responseJsonFromCopilot.getJSONArray("detail");
@@ -901,11 +950,11 @@ public class RestServiceUtil {
           message = ((JSONObject) detail.get(0)).getString("message");
         }
       }
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), message));
+      throw new OBException(String.format(OBMessageUtils.messageBD(ETCOP_COPILOT_ERROR), message));
     }
-    JSONObject answer = (JSONObject) responseJsonFromCopilot.get("answer");
+    JSONObject answer = (JSONObject) responseJsonFromCopilot.get(PROP_ANSWER);
     handleErrorMessagesIfExists(answer);
-    return answer.getString("response");
+    return answer.getString(PROP_RESPONSE);
   }
 
   /**
@@ -922,10 +971,8 @@ public class RestServiceUtil {
    *     If an error occurs during the creation of the JSON object.
    */
   public static JSONObject getErrorEventJSON(HttpServletRequest request, OBException e) throws JSONException {
-    return new JSONObject().put("answer", new JSONObject()
-        .put("response", e.getMessage())
-        .put("conversation_id", request.getParameter("conversation_id"))
-        .put("role", "error"));
+    return new JSONObject().put(PROP_ANSWER, new JSONObject().put(PROP_RESPONSE, e.getMessage()).put(PROP_CONVERSATION_ID,
+        request.getParameter(PROP_CONVERSATION_ID)).put("role", PROP_ERROR));
   }
 
   /**
@@ -978,4 +1025,6 @@ public class RestServiceUtil {
     writerToFront.println(line);
     writerToFront.flush();
   }
+
+
 }

@@ -14,5 +14,8 @@ export const References = {
         SEND_AQUESTION: 'aquestion',
         CACHE_QUESTION: 'cacheQuestion',
         GET_ASSISTANTS: 'assistants',
+        GET_CONVERSATIONS: 'conversations',
+        GET_CONVERSATION_MESSAGES: 'conversationMessages',
+        GENERATE_TITLE: 'generateTitleConversation',
     }
 };

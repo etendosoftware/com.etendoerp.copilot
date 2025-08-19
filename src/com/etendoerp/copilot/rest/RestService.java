@@ -7,8 +7,6 @@ import static com.etendoerp.copilot.rest.RestServiceUtil.FILE;
 import static com.etendoerp.copilot.rest.RestServiceUtil.GET_ASSISTANTS;
 import static com.etendoerp.copilot.rest.RestServiceUtil.QUESTION;
 import static com.etendoerp.copilot.util.OpenAIUtils.logIfDebug;
-import com.etendoerp.copilot.util.WebhookPermissionUtils;
-
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -29,16 +27,14 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
-import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.model.ad.access.Role;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.util.ConversationUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 
@@ -54,6 +50,10 @@ public class RestService {
       OBContext.setAdminMode();
       if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
         handleAssistants(response);
+      } else if (StringUtils.equalsIgnoreCase(path, "/conversations")) {
+        ConversationUtils.handleConversations(request, response);
+      } else if (StringUtils.equalsIgnoreCase(path, "/conversationMessages")) {
+        ConversationUtils.handleConversationMessages(request, response);
       } else if (StringUtils.equalsIgnoreCase(path, AQUESTION)) {
         try {
           handleQuestion(request, response);
@@ -64,7 +64,7 @@ public class RestService {
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         response.getWriter().write(RestServiceUtil.getJSONLabels().toString());
       } else if (StringUtils.equalsIgnoreCase(path, "/structure")) {
-        JSONObject params = extractRequestBody(request);
+        JSONObject params = RequestUtils.extractRequestBody(request);
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         JSONObject structure = handleStructure(params);
         response.getWriter().write(structure.toString());
@@ -135,6 +135,8 @@ public class RestService {
         handleCacheQuestion(request, response);
       } else if (StringUtils.equalsIgnoreCase(path, "/configCheck")) {
         checkEtendoHost(response);
+      } else if (StringUtils.equalsIgnoreCase(path, "/generateTitleConversation")) {
+        ConversationUtils.handleGetTitleConversation(request, response);
       } else {
         //if not a valid path, throw an error status
         response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
@@ -317,7 +319,7 @@ public class RestService {
   public void handleQuestion(HttpServletRequest request, HttpServletResponse response)
       throws IOException, JSONException {
     // Get the parameters from the JSON or request
-    JSONObject json = extractRequestBody(request);
+    JSONObject json = RequestUtils.extractRequestBody(request);
 
     // Read cached question if necessary
     addCachedQuestionIfPresent(request, json);
@@ -333,131 +335,6 @@ public class RestService {
     }
   }
 
-  private JSONObject extractRequestBody(HttpServletRequest request) throws IOException, JSONException {
-    JSONObject json = new JSONObject();
-
-    if (isPostRequest(request)) {
-      json = parseJsonFromRequest(request);
-    }
-    if (json.length() == 0) {
-      json = retrieveParametersAsJson(request);
-    }
-
-    return json;
-  }
-
-  private boolean isPostRequest(HttpServletRequest request) throws IOException {
-    return StringUtils.equalsIgnoreCase(request.getMethod(), "POST") && request.getReader() != null;
-  }
-
-  private JSONObject parseJsonFromRequest(HttpServletRequest request) {
-    try {
-      String body = request.getReader().lines().reduce("", String::concat);
-      return new JSONObject(body);
-    } catch (IOException | JSONException e) {
-      return new JSONObject();
-    }
-  }
-
-  /**
-   * Retrieves parameters from the incoming HTTP request and
-   * constructs a JSON object containing those parameters.
-   * This method checks for the existence of specific parameters
-   * defined in {@link CopilotConstants} and adds them to the JSON object.
-   *
-   * @param request
-   *     the {@link HttpServletRequest} object containing client request information
-   * @return a {@link JSONObject} containing the retrieved parameters
-   * @throws JSONException
-   *     if there is an error in constructing the JSON object
-   */
-  public JSONObject retrieveParametersAsJson(HttpServletRequest request) throws JSONException {
-    JSONObject json = new JSONObject();
-
-    addParameterIfExists(json, request, CopilotConstants.PROP_QUESTION);
-    addParameterIfExists(json, request, CopilotConstants.PROP_APP_ID);
-    addParameterIfExists(json, request, CopilotConstants.PROP_CONVERSATION_ID);
-    addParameterIfExists(json, request, CopilotConstants.PROP_FILE, true);
-
-    return json;
-  }
-
-  /**
-   * Adds a parameter to the provided JSON object if it exists in the HTTP request.
-   * <p>
-   * This method checks if the specified parameter exists in the HTTP request.
-   * If the parameter is found and is not an array, it is added to the JSON object.
-   * If the parameter is an array and has multiple values, all values are added to the JSON object.
-   *
-   * @param json
-   *     the {@link JSONObject} to which the parameter will be added
-   * @param request
-   *     the {@link HttpServletRequest} object containing client request information
-   * @param paramName
-   *     the name of the parameter to be added
-   * @param isArray
-   *     a boolean indicating whether the parameter is expected to be an array
-   * @throws JSONException
-   *     if there is an error in adding the parameter to the JSON object
-   */
-  private void addParameterIfExists(JSONObject json, HttpServletRequest request,
-      String paramName, boolean isArray) throws JSONException {
-
-    if (!isArray) {
-      String paramValue = request.getParameter(paramName);
-      if (paramValue != null) {
-        json.put(paramName, paramValue);
-      }
-      return;
-    }
-
-    String[] paramMultipleValues = request.getParameterValues(paramName);
-    if (paramMultipleValues != null) {
-      json.put(paramName, StringArrayToJsonArray(paramMultipleValues));
-    }
-  }
-
-  /**
-   * Adds a parameter to the provided JSON object if it exists in the HTTP request.
-   * <p>
-   * This method checks if the specified parameter exists in the HTTP request.
-   * If the parameter is found, it is added to the JSON object.
-   *
-   * @param json
-   *     the {@link JSONObject} to which the parameter will be added
-   * @param request
-   *     the {@link HttpServletRequest} object containing client request information
-   * @param paramName
-   *     the name of the parameter to be added
-   * @throws JSONException
-   *     if there is an error in adding the parameter to the JSON object
-   */
-  private void addParameterIfExists(JSONObject json, HttpServletRequest request,
-      String paramName) throws JSONException {
-    addParameterIfExists(json, request, paramName, false);
-  }
-
-
-  /**
-   * Converts an array of strings to a JSON array.
-   * <p>
-   * This method takes an array of strings and converts it into a JSON array.
-   * If the input array is null, an empty JSON array is returned.
-   *
-   * @param paramMultipleValues
-   *     an array of strings to be converted to a JSON array
-   * @return a {@link JSONArray} containing the values from the input array
-   */
-  private JSONArray StringArrayToJsonArray(String[] paramMultipleValues) {
-    if (paramMultipleValues == null) {
-      return new JSONArray();
-    }
-    JSONArray jsonArray = new JSONArray();
-    for (String value : paramMultipleValues) {
-      jsonArray.put(value);
-    }
-    return jsonArray;
-  }
 
   /**
    * Adds a cached question to the provided JSON object if the question
@@ -543,11 +420,25 @@ public class RestService {
       }
     }
   }
-  private void handleAssistants(HttpServletResponse response) {
+
+  /**
+   * Handles the retrieval of assistant data and writes it to the HTTP response.
+   * <p>
+   * This method invokes a utility function to fetch assistant data, writes the
+   * data to the response, and sets an internal server error status if an exception occurs.
+   *
+   * @param response
+   *     the {@link HttpServletResponse} object used to return the response to the client
+   */
+  public void handleAssistants(HttpServletResponse response) {
     try {
+      // Fetch the assistant data using a utility method
       var assistants = RestServiceUtil.handleAssistants();
+
+      // Write the assistant data to the response
       response.getWriter().write(assistants.toString());
     } catch (Exception e) {
+      // Set the response status to INTERNAL_SERVER_ERROR in case of an exception
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
   }
