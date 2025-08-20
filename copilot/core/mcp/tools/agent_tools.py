@@ -210,7 +210,7 @@ async def _execute_langchain_tool(langchain_tool: BaseTool, kwargs: dict):
         return langchain_tool(**kwargs)
 
 
-def has_KWARGS(tool):
+def has_kwargs(tool):
     sig = inspect.signature(tool._run)
     # Reject functions with *args or **kwargs
     for param in sig.parameters.values():
@@ -234,7 +234,7 @@ def _convert_single_tool_to_mcp(tool: BaseTool) -> Tool:
         elif isinstance(tool, BaseTool):
             copilot_debug(f"Tool {tool.name} is a BaseTool ")
             # check if has kwargs or variable arguments
-            if not has_KWARGS(tool):
+            if not has_kwargs(tool):
                 toolfn_conv = tool._run
             else:
                 toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=False)

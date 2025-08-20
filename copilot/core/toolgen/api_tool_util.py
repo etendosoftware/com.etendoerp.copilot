@@ -50,7 +50,7 @@ def do_request(
     requests.Response: The response object from the request.
 
     Raises:
-    Exception: If the HTTP method is not supported.
+    ValueError: If the HTTP method is not supported.
     """
     if not url:
         return {"error": "url is required"}
@@ -106,6 +106,6 @@ def do_request(
         copilot_debug("--------")
 
     else:
-        raise Exception(f"Method {method} not supported")
+        raise ValueError(f"Method {method} not supported")
 
     return {"status_code": api_response.status_code, "content": api_response.content.decode("utf-8")}
