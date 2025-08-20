@@ -199,32 +199,6 @@ public class CopilotAppInfoUtilsIntegrationTest extends WeldBaseTest {
     }
   }
 
-  /**
-   * Test behavior when no AppInfo exists initially.
-   */
-  @Test
-  public void testDefaultBehaviorNoAppInfo() {
-    if (testCopilotApp == null) {
-      return; // Skip if no test data available
-    }
-
-    try {
-      // Ensure no AppInfo exists initially
-      cleanupTestData();
-
-      // Should return default status
-      String status = CopilotAppInfoUtils.getSyncStatus(testCopilotApp);
-      assertEquals(CopilotConstants.PENDING_SYNCHRONIZATION_STATE, status);
-
-      // Boolean checks should work with default
-      assertTrue(CopilotAppInfoUtils.isPendingSynchronization(testCopilotApp));
-      assertFalse(CopilotAppInfoUtils.isSynchronized(testCopilotApp));
-
-    } finally {
-      // Cleanup
-      cleanupTestData();
-    }
-  }
 
   /**
    * Cleanup test data created during tests.

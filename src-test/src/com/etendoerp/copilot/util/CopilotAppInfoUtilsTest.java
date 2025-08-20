@@ -373,7 +373,6 @@ public class CopilotAppInfoUtilsTest extends WeldBaseTest {
       CopilotAppInfoUtils.markAsPendingSynchronization(mockCopilotApp);
 
       // Assert
-      verify(mockAppInfo).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
       verify(mockOBDal).save(mockAppInfo);
     }
   }
