@@ -96,3 +96,17 @@ class SplitterConfig(BaseModel):
     skip_splitting: Optional[bool] = False
     max_chunk_size: Optional[int] = None
     chunk_overlap: Optional[int] = None
+
+
+# Resolve forward references for self-referential types.
+# Prefer `model_rebuild()` (Pydantic v2+). Fall back to `update_forward_refs()` for v1.
+try:
+    if hasattr(AssistantSchema, "model_rebuild"):
+        # Pydantic v2
+        AssistantSchema.model_rebuild()
+    elif hasattr(AssistantSchema, "update_forward_refs"):
+        # Pydantic v1
+        AssistantSchema.update_forward_refs()
+except Exception:
+    # If update fails, continue; the schema may still be usable in many contexts.
+    pass
