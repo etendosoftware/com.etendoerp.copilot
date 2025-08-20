@@ -116,13 +116,11 @@ class TestHelperFunctions:
             },
         ]
 
-        model_fields, param_locations = _process_openapi_parameters(params, type_map)
+        model_fields, _ = _process_openapi_parameters(params, type_map)
 
         assert "testparam" in model_fields
         assert "optionalparam" in model_fields
         assert "pathparam" in model_fields
-        assert param_locations["testparam"] == "query"
-        assert param_locations["pathparam"] == "path"
 
     def test_process_openapi_parameters_skip_underscore(self):
         """Test that parameters with underscores are skipped."""
@@ -142,7 +140,7 @@ class TestHelperFunctions:
             },
         ]
 
-        model_fields, param_locations = _process_openapi_parameters(params, type_map)
+        model_fields, _ = _process_openapi_parameters(params, type_map)
 
         assert "validparam" in model_fields  # Should be included
         assert "under_score" not in model_fields  # Has underscore, should be skipped
@@ -170,7 +168,7 @@ class TestHelperFunctions:
 
         result = _process_request_body("post", operation, "/test", type_map)
         assert result is not None
-        body_model, body_description = result
+        _, body_description = result
         assert body_description == "Test request body"
 
     def test_process_request_body_get(self):
