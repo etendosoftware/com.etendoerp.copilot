@@ -1,6 +1,6 @@
 import logging
 
-from baseutils.logging_envvar import read_optional_env_var_int
+from copilot.baseutils.logging_envvar import read_optional_env_var_int
 from copilot.core.schemas import AssistantGraph
 from langchain_core.messages import HumanMessage
 

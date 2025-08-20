@@ -22,7 +22,9 @@ from copilot.baseutils.logging_envvar import (
     is_docker,
     read_optional_env_var,
 )
-from copilot.core import utils
+from copilot.core.agent import AssistantAgent
+from copilot.core.agent.agent import AgentEnum, AgentResponse, AssistantResponse
+from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import (
@@ -33,6 +35,7 @@ from copilot.core.schemas import (
 )
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.tool_loader import ToolLoader
+from copilot.core.utils import etendo_utils
 from copilot.core.vectordb_utils import (
     LANGCHAIN_DEFAULT_COLLECTION_NAME,
     get_chroma_settings,
@@ -41,10 +44,6 @@ from copilot.core.vectordb_utils import (
     handle_zip_file,
     index_file,
 )
-from core.agent import AssistantAgent
-from core.agent.agent import AgentEnum, AgentResponse, AssistantResponse
-from core.agent.langgraph_agent import LanggraphAgent
-from core.utils import etendo_utils
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from langchain_community.vectorstores import Chroma
 from starlette.responses import StreamingResponse
@@ -484,7 +483,7 @@ def attach_file(file: UploadFile = File(...)):
 @core_router.post("/transcription")
 def transcript_file(file: UploadFile = File(...)):
     # save the file inside /tmp and return the path
-    if not utils.is_docker():
+    if not is_docker():
         prefix = "/tmp"
     else:
         prefix = ""

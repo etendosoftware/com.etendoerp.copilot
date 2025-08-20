@@ -2,7 +2,7 @@ import operator
 from abc import abstractmethod
 from typing import Annotated, Final, Sequence, TypedDict
 
-from baseutils.logging_envvar import read_optional_env_var
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder

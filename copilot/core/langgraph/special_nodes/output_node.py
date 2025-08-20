@@ -1,6 +1,6 @@
 from typing import Final
 
-from baseutils.logging_envvar import read_optional_env_var
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from copilot.core.langgraph.members_util import MembersUtil
 from copilot.core.schemas import AssistantSchema
 

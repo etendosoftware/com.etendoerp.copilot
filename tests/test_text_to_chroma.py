@@ -5,7 +5,7 @@ import zipfile
 
 import httpx
 import pytest
-from baseutils.logging_envvar import copilot_debug
+from copilot.baseutils.logging_envvar import copilot_debug
 from copilot.core.routes import core_router
 from dotenv import load_dotenv
 from fastapi import FastAPI

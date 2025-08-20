@@ -1,7 +1,7 @@
 import os
 from typing import AsyncGenerator, Dict, Final
 
-from baseutils.logging_envvar import read_optional_env_var
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from langchain.agents import AgentExecutor
 from langchain.agents.openai_assistant.base import OpenAIAssistantAction
 from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable

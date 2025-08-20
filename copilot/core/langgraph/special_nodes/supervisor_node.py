@@ -1,6 +1,6 @@
 from typing import Final
 
-from baseutils.logging_envvar import read_optional_env_var
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from langchain_openai import ChatOpenAI
 
 

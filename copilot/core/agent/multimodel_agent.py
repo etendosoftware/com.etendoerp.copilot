@@ -4,7 +4,11 @@ from typing import AsyncGenerator, Final, Union
 
 import langchain_core.tools
 import langgraph_codeact
-from copilot.baseutils.logging_envvar import read_optional_env_var
+from copilot.baseutils.logging_envvar import (
+    read_optional_env_var,
+    read_optional_env_var_float,
+    read_optional_env_var_int,
+)
 from copilot.core.agent.agent import (
     AgentResponse,
     AssistantResponse,
@@ -25,7 +29,6 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
 from langgraph_codeact import create_default_prompt
 
-from .. import utils
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..threadcontext import ThreadContext
@@ -273,8 +276,8 @@ class MultimodelAgent(CopilotAgent):
             handle_parsing_errors=True,
             debug=True,
         )
-        agent_exec.max_iterations = utils.read_optional_env_var_int("COPILOT_MAX_ITERATIONS", 100)
-        max_exec_time = utils.read_optional_env_var_float("COPILOT_EXECUTION_TIMEOUT", 0)
+        agent_exec.max_iterations = read_optional_env_var_int("COPILOT_MAX_ITERATIONS", 100)
+        max_exec_time = read_optional_env_var_float("COPILOT_EXECUTION_TIMEOUT", 0)
         agent_exec.max_execution_time = None if max_exec_time == 0 else max_exec_time
         return agent_exec
 

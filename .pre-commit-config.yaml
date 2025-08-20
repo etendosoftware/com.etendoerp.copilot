@@ -62,3 +62,11 @@ repos:
         name: Build UI
         entry: bash -c 'cd com.etendoerp.copilot.chat/ && yarn install && yarn build'
         files: ^com\.etendoerp\.copilot\.chat/
+
+  - repo: local
+    hooks:
+      - id: pylint-copilot
+        name: Run pylint (errors only) on `copilot` package
+        entry: pylint -E copilot --fail-on E
+        language: system
+        pass_filenames: false

@@ -2,7 +2,7 @@ import abc
 import uuid
 from typing import Any, Dict, List, Optional, TypedDict, Union
 
-from baseutils.logging_envvar import copilot_debug, copilot_info
+from copilot.baseutils.logging_envvar import copilot_debug, copilot_info
 from langchain.tools import BaseTool
 from langchain_core.messages import ToolCall, ToolMessage
 from langchain_core.runnables import RunnableConfig

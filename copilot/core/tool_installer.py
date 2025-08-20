@@ -1,7 +1,7 @@
 import importlib
 import subprocess
 
-from baseutils.logging_envvar import (
+from copilot.baseutils.logging_envvar import (
     SUCCESS_CODE,
     print_green,
     print_orange,

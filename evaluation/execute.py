@@ -9,7 +9,7 @@ from copy import deepcopy
 from typing import List
 
 from copilot.core.schemas import AssistantSchema
-from core.utils.etendo_utils import get_etendo_host
+from copilot.core.utils.etendo_utils import get_etendo_host
 from dotenv import load_dotenv
 from langsmith import Client, wrappers
 from openai import OpenAI

@@ -1,7 +1,7 @@
 import uuid
 from typing import AsyncGenerator
 
-from baseutils.logging_envvar import (
+from copilot.baseutils.logging_envvar import (
     copilot_debug,
     copilot_debug_event,
     read_optional_env_var,

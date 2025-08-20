@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
 import requests
-from baseutils.logging_envvar import copilot_debug, read_optional_env_var
+from copilot.baseutils.logging_envvar import copilot_debug, read_optional_env_var
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field, create_model
 
@@ -209,8 +209,8 @@ class ApiTool(BaseTool, BaseModel):
         path_params = {p["name"]: kwargs[f"path_{p['name']}"] for p in self.parameters if p["in"] == "path"}
         query_params = self.extract_parameters(kwargs, "query")
         headers = self.extract_parameters(kwargs, "header")
-        from core.utils import etendo_utils
-        from core.utils.etendo_utils import normalize_etendo_token
+        from copilot.core.utils import etendo_utils
+        from copilot.core.utils.etendo_utils import normalize_etendo_token
 
         token = etendo_utils.get_etendo_token()
         headers["Authorization"] = normalize_etendo_token(token)
@@ -244,8 +244,8 @@ class ApiTool(BaseTool, BaseModel):
         path_params = {p["name"]: kwargs[f"path_{p['name']}"] for p in self.parameters if p["in"] == "path"}
         query_params = self.extract_parameters(kwargs, "query")
         headers = self.extract_parameters(kwargs, "header")
-        from core.utils import etendo_utils
-        from core.utils.etendo_utils import normalize_etendo_token
+        from copilot.core.utils import etendo_utils
+        from copilot.core.utils.etendo_utils import normalize_etendo_token
 
         token = etendo_utils.get_etendo_token()
         headers["Authorization"] = normalize_etendo_token(token)
@@ -283,7 +283,7 @@ class ApiTool(BaseTool, BaseModel):
 def generate_tools_from_openapi(openapi_spec: Dict[str, Any]) -> List[ApiTool]:
     tools = []
     paths = openapi_spec.get("paths", {})
-    from core.utils import etendo_utils
+    from copilot.core.utils import etendo_utils
 
     base_url = etendo_utils.get_etendo_host()
 

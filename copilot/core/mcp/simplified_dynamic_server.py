@@ -14,7 +14,7 @@ from typing import Dict, Optional
 
 import httpx
 import uvicorn
-from baseutils.logging_envvar import (
+from copilot.baseutils.logging_envvar import (
     copilot_debug,
     copilot_error,
     copilot_info,
@@ -27,24 +27,16 @@ from copilot.core.mcp.tools import (
     register_basic_tools_direct,
 )
 from copilot.core.threadcontext import ThreadContext
-from core.utils.etendo_utils import normalize_etendo_token
+from copilot.core.utils.etendo_utils import normalize_etendo_token
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from fastmcp import FastMCP
-from fastmcp.server.auth import BearerAuthProvider
 
 logger = logging.getLogger(__name__)
 
 # Constant for MCP instance time-to-live in minutes
 MCP_INSTANCE_TTL_MINUTES = 10
-
-
-def get_bearer_provider():
-    return BearerAuthProvider(
-        issuer="sws",
-        audience="my-mcp-server",
-    )
 
 
 class DynamicMCPInstance:

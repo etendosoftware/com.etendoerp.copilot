@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, Final, List, Optional, TypeAlias
 
 import toml
-from baseutils.logging_envvar import (
+from copilot.baseutils.logging_envvar import (
     copilot_info,
     print_green,
     print_yellow,
@@ -282,7 +282,7 @@ class ToolLoader:
             if spec.type == "FLOW":
                 try:
                     api_spec = json.loads(spec.spec)
-                    if utils.read_optional_env_var("COPILOT_OLD_OPENAPI_TOOLS", "false").lower() == "true":
+                    if read_optional_env_var("COPILOT_OLD_OPENAPI_TOOLS", "false").lower() == "true":
                         # Use old OpenAPI tool generation logic
                         openapi_tools = generate_tools_from_openapi_old(api_spec)
                     else:

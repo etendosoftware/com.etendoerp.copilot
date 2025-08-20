@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Final, Optional
 
-from baseutils.logging_envvar import read_optional_env_var
+from copilot.baseutils.logging_envvar import read_optional_env_var
 
 from .. import tool_installer
 from ..exceptions import (

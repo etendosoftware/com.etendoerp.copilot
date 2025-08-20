@@ -11,12 +11,12 @@ import re
 from typing import List, Optional, Type
 
 import httpx
-from baseutils.logging_envvar import copilot_debug, copilot_error, copilot_info
+from copilot.baseutils.logging_envvar import copilot_debug, copilot_error, copilot_info
 from copilot.core.mcp.auth_utils import extract_etendo_token_from_mcp_context
 from copilot.core.schemas import AssistantSchema
 from copilot.core.tool_loader import ToolLoader
 from copilot.core.tool_wrapper import ToolWrapper
-from core.utils.etendo_utils import (
+from copilot.core.utils.etendo_utils import (
     call_etendo,
     get_etendo_host,
     get_etendo_token,

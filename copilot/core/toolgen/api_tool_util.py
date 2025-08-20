@@ -1,6 +1,6 @@
 import curlify
 import requests
-from baseutils.logging_envvar import copilot_debug
+from copilot.baseutils.logging_envvar import copilot_debug
 
 
 def token_not_none(headers, token, url, endpoint):
@@ -8,7 +8,7 @@ def token_not_none(headers, token, url, endpoint):
     If the token is "ETENDO_TOKEN", it retrieves the token from the etendo_utils module.
     If the token is None or empty, but its recognized as a Etendo Classic request, add the token from etendo_utils.
     """
-    from core.utils import etendo_utils
+    from copilot.core.utils import etendo_utils
 
     if token and token == "ETENDO_TOKEN":
         token = etendo_utils.get_etendo_token()
@@ -68,7 +68,7 @@ def do_request(
             final_endpoint = final_endpoint.replace(f"{{{key}}}", str(value))
 
     if body_params and "@BASE64" in str(body_params):
-        from core.toolgen.openapi_tool_gen import replace_base64_filepaths
+        from copilot.core.toolgen.openapi_tool_gen import replace_base64_filepaths
 
         body_params = replace_base64_filepaths(body_params)
 

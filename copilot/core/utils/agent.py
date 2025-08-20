@@ -1,6 +1,6 @@
 import os
 
-from core.schemas import QuestionSchema
+from copilot.core.schemas import QuestionSchema
 
 
 def get_full_question(question: QuestionSchema) -> str:

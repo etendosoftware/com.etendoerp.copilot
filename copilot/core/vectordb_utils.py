@@ -7,8 +7,8 @@ import zipfile
 
 import chromadb
 import pymupdf
-from baseutils.logging_envvar import copilot_debug
 from chromadb import Settings
+from copilot.baseutils.logging_envvar import copilot_debug
 from copilot.core.schemas import SplitterConfig
 from langchain.text_splitter import CharacterTextSplitter, MarkdownTextSplitter
 from langchain_core.documents import Document

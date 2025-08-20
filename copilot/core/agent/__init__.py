@@ -1,4 +1,4 @@
-from baseutils.logging_envvar import print_green
+from copilot.baseutils.logging_envvar import print_green
 
 from .agent import AgentEnum, AgentResponse
 from .assistant_agent import AssistantAgent
