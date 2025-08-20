@@ -1,0 +1,169 @@
+/**
+ * Interactive configuration for Etendo Copilot Module
+ * This configuration file provides guided setup for all Copilot-related properties
+ * used by the copilot.variables.setup task and the broader Copilot functionality.
+ */
+
+
+
+// Network and Host Configuration
+network {
+    etendoHost {
+        description = "URL where Copilot sends requests to communicate with the Etendo system"
+        value = "http://localhost:8080/etendo"
+        sensitive = false
+        required = true
+        group = "Network Configuration"
+        name = "ETENDO_HOST"
+    }
+
+    etendoHostDocker {
+        description = "Etendo host URL used when Copilot runs in Docker and Etendo is not accessible from a domain"
+        value = "http://tomcat:8080/etendo"
+        sensitive = false
+        required = true
+        group = "Network Configuration"
+        name = "ETENDO_HOST_DOCKER"
+    }
+
+    copilotHost {
+        description = "Host for Copilot service (localhost for local, copilot for docker)"
+        value = "localhost"
+        sensitive = false
+        required = true
+        group = "Network Configuration"
+        name = "COPILOT_HOST"
+    }
+
+    copilotPort {
+        description = "Port used by Copilot service for external communication"
+        value = "5005"
+        sensitive = false
+        required = true
+        group = "Network Configuration"
+        name = "COPILOT_PORT"
+    }
+
+    copilotPortMCP {
+        description = "Port used by Copilot MCP server for model context protocol"
+        value = "5006"
+        sensitive = false
+        required = false
+        group = "Network Configuration"
+        name = "COPILOT_PORT_MCP"
+    }
+}
+
+// Docker Configuration
+docker {
+    imageTag {
+        description = "Docker image tag for Copilot container"
+        value = "latest"
+        sensitive = false
+        required = false
+        group = "Docker Configuration"
+        name = "COPILOT_IMAGE_TAG"
+    }
+}
+
+// Development and Debug Configuration
+development {
+    debugPort {
+        description = "Port for debugging Copilot (when debug mode is enabled)"
+        value = "5100"
+        sensitive = false
+        required = false
+        group = "Development Configuration"
+        name = "COPILOT_PORT_DEBUG"
+    }
+
+
+    debugMode {
+        description = "Enable debug mode for Copilot development"
+        value = "false"
+        sensitive = false
+        required = false
+        group = "Development Configuration"
+        name = "COPILOT_DEBUG"
+    }
+
+}
+// API Keys
+api_keys{
+    openai {
+        description = "API key for OpenAI services used by Copilot"
+        value = ""
+        sensitive = true
+        required = true
+        group = "API Keys"
+        name = "OPENAI_API_KEY"
+    }
+
+    anthropic {
+        description = "API key for Anthropic Claude services used by Copilot"
+        value = ""
+        sensitive = true
+        required = false
+        group = "API Keys"
+        name = "ANTHROPIC_API_KEY"
+    }
+
+    google {
+        description = "API key for Google services used by Copilot"
+        value = ""
+        sensitive = true
+        required = false
+        group = "API Keys"
+        name = "GOOGLE_API_KEY"
+    }
+}
+
+// LangSmith Configuration
+langsmith {
+    apiKey {
+        description = "API key for LangSmith tracing and monitoring services"
+        value = ""
+        sensitive = true
+        required = false
+        group = "LangSmith Configuration"
+        name = "LANGSMITH_API_KEY"
+    }
+
+    tracing {
+        description = "Enable LangSmith tracing for debugging and monitoring"
+        value = "false"
+        sensitive = false
+        required = false
+        group = "LangSmith Configuration"
+        name = "LANGSMITH_TRACING"
+    }
+
+    project {
+        description = "LangSmith project name for organizing traces and experiments"
+        value = ""
+        sensitive = false
+        required = false
+        group = "LangSmith Configuration"
+        name = "LANGSMITH_PROJECT"
+    }
+}
+
+// Authentication and Security
+security {
+
+}
+
+// Feature Configuration
+features {
+
+}
+
+// Database Configuration (for Copilot-specific data)
+database {
+
+}
+
+// Performance and Resource Configuration
+performance {
+
+}
