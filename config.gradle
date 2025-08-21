@@ -16,7 +16,6 @@ network {
         group = "Network Configuration"
         name = "ETENDO_HOST"
     }
-
     etendoHostDocker {
         description = "Etendo host URL used when Copilot runs in Docker and Etendo is not accessible from a domain"
         value = "http://tomcat:8080/etendo"
@@ -25,7 +24,6 @@ network {
         group = "Network Configuration"
         name = "ETENDO_HOST_DOCKER"
     }
-
     copilotHost {
         description = "Host for Copilot service (localhost for local, copilot for docker)"
         value = "localhost"
@@ -34,7 +32,6 @@ network {
         group = "Network Configuration"
         name = "COPILOT_HOST"
     }
-
     copilotPort {
         description = "Port used by Copilot service for external communication"
         value = "5005"
@@ -43,7 +40,6 @@ network {
         group = "Network Configuration"
         name = "COPILOT_PORT"
     }
-
     copilotPortMCP {
         description = "Port used by Copilot MCP server for model context protocol"
         value = "5006"
@@ -76,8 +72,6 @@ development {
         group = "Development Configuration"
         name = "COPILOT_PORT_DEBUG"
     }
-
-
     debugMode {
         description = "Enable debug mode for Copilot development"
         value = "false"
@@ -86,10 +80,9 @@ development {
         group = "Development Configuration"
         name = "COPILOT_DEBUG"
     }
-
 }
 // API Keys
-api_keys{
+api_keys {
     openai {
         description = "API key for OpenAI services used by Copilot"
         value = ""
@@ -98,7 +91,6 @@ api_keys{
         group = "API Keys"
         name = "OPENAI_API_KEY"
     }
-
     anthropic {
         description = "API key for Anthropic Claude services used by Copilot"
         value = ""
@@ -107,7 +99,6 @@ api_keys{
         group = "API Keys"
         name = "ANTHROPIC_API_KEY"
     }
-
     google {
         description = "API key for Google services used by Copilot"
         value = ""
@@ -128,7 +119,6 @@ langsmith {
         group = "LangSmith Configuration"
         name = "LANGSMITH_API_KEY"
     }
-
     tracing {
         description = "Enable LangSmith tracing for debugging and monitoring"
         value = "false"
@@ -137,7 +127,6 @@ langsmith {
         group = "LangSmith Configuration"
         name = "LANGSMITH_TRACING"
     }
-
     project {
         description = "LangSmith project name for organizing traces and experiments"
         value = ""
