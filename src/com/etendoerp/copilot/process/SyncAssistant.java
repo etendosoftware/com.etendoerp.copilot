@@ -37,6 +37,7 @@ import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.openapi.data.OpenApiFlowPoint;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
@@ -187,7 +188,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
     Set<CopilotAppSource> appSourcesToRefresh = new HashSet<>();
     for (CopilotApp app : appList) {
       List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
-      app.setSyncStatus(CopilotConstants.SYNCHRONIZED_STATE);
+      CopilotAppInfoUtils.markAsSynchronized(app);
       appSourcesToRefresh.addAll(appSources);
     }
 
