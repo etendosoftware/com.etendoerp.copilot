@@ -30,6 +30,7 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.Message;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 
 /**
@@ -245,6 +246,9 @@ public class ConversationUtils {
         conv -> {
           try {
             JSONObject convJson = new JSONObject();
+            if (StringUtils.isEmpty(conv.getExternalID())) {
+              return;
+            }
             convJson.put("id", conv.getExternalID());
             String title = conv.getTitle();
             if (!StringUtils.isEmpty(title)) {
@@ -292,9 +296,9 @@ public class ConversationUtils {
       body.put(APP_ID, TITLE_GENERATOR_ID);
       StringBuilder sb = new StringBuilder();
       List<com.etendoerp.copilot.data.Message> msgList = conversation.getETCOPMessageList();
-      msgList.stream().sorted(Comparator.comparing(com.etendoerp.copilot.data.Message::getCreationDate)).
-          forEach(
-              msg -> sb.append(String.format("%s: %s \n", msg.getRole(), msg.getMessage()))
+      msgList.stream().sorted(Comparator.comparing(com.etendoerp.copilot.data.Message::getCreationDate))
+          .forEach(
+              msg -> sb.append(String.format("%s: %s %n", msg.getRole(), msg.getMessage()))
           );
       body.put(PROP_QUESTION, sb.toString());
       var responseQuest = RestServiceUtil.handleQuestion(false, null, body);
@@ -330,7 +334,8 @@ public class ConversationUtils {
       Conversation conversation = getConversationByIDorExtRef(conversationId);
 
       // Fetch and sort the messages of the conversation by their line number
-      List<com.etendoerp.copilot.data.Message> msgs = conversation.getETCOPMessageList().stream()
+      List<Message> etcopMessageList = conversation.getETCOPMessageList();
+      List<com.etendoerp.copilot.data.Message> msgs = etcopMessageList.stream()
           .sorted(Comparator.comparing(com.etendoerp.copilot.data.Message::getLineno))
           .collect(Collectors.toList());
 

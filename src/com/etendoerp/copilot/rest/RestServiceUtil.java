@@ -291,7 +291,7 @@ public class RestServiceUtil {
    */
   public static JSONObject handleQuestion(boolean isAsyncRequest, HttpServletResponse queue,
       JSONObject jsonRequest) throws JSONException, IOException {
-    String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID);
+    String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID, null);
     String appId = jsonRequest.getString(APP_ID);
     String question = jsonRequest.getString(PROP_QUESTION);
     List<String> filesReceived = getFilesReceived(jsonRequest);
@@ -440,6 +440,9 @@ public class RestServiceUtil {
     // Build request JSON
     JSONObject jsonRequestForCopilot = buildRequestJson(copilotApp, conversationId, question, questionAttachedFileIds);
 
+    if (StringUtils.isEmpty(conversationId) && jsonRequestForCopilot.has(PROP_CONVERSATION_ID)) {
+      conversationId = jsonRequestForCopilot.getString(PROP_CONVERSATION_ID);
+    }
     // Get response from Copilot
     JSONObject finalResponseAsync = sendRequestToCopilot(asyncRequest, queue, jsonRequestForCopilot, copilotApp);
 
@@ -971,8 +974,9 @@ public class RestServiceUtil {
    *     If an error occurs during the creation of the JSON object.
    */
   public static JSONObject getErrorEventJSON(HttpServletRequest request, OBException e) throws JSONException {
-    return new JSONObject().put(PROP_ANSWER, new JSONObject().put(PROP_RESPONSE, e.getMessage()).put(PROP_CONVERSATION_ID,
-        request.getParameter(PROP_CONVERSATION_ID)).put("role", PROP_ERROR));
+    return new JSONObject().put(PROP_ANSWER,
+        new JSONObject().put(PROP_RESPONSE, e.getMessage()).put(PROP_CONVERSATION_ID,
+            request.getParameter(PROP_CONVERSATION_ID)).put("role", PROP_ERROR));
   }
 
   /**

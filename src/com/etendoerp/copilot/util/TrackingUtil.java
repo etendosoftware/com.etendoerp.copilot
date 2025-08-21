@@ -60,12 +60,12 @@ public class TrackingUtil {
     Message message = new Message();
     Conversation conversation = getConversation(conversationId, app);
     conversation.setLastMsg(new Date());
-    message.setConversationID(conversation);
+    message.setConversation(conversation);
     message.setMessage(question);
     message.setRole(messageRole);
 
     OBCriteria<Message> messCrit = OBDal.getInstance().createCriteria(Message.class);
-    messCrit.add(Restrictions.eq(Message.PROPERTY_CONVERSATIONID, conversation));
+    messCrit.add(Restrictions.eq(Message.PROPERTY_CONVERSATION, conversation));
     messCrit.setProjection(Projections.max(Message.PROPERTY_LINENO));
     Long maxLineNo = (Long) messCrit.uniqueResult();
     if (maxLineNo == null) {
@@ -95,7 +95,7 @@ public class TrackingUtil {
   public static JSONArray getHistory(String conversationId) throws JSONException {
     List<Message> messages = OBDal.getInstance()
         .createQuery(Message.class,
-            "as m where m.conversationID.externalID = :conversationId order by m.creationDate asc")
+            "as m where m.conversation.externalID = :conversationId order by m.creationDate asc")
         .setNamedParameter("conversationId", conversationId)
         .list();
     JSONArray history = new JSONArray();
