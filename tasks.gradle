@@ -521,9 +521,20 @@ task 'copilot.env.file' {
 
 task 'copilot.mcp.config' {
     group = "copilot"
-    description = "Generates MCP configuration JSON for the Etendo Agent"
+    description = "Generates MCP configuration JSON for the Etendo Agent with mode selection (simple/direct)"
 
     doLast {
+        /*
+         * MCP Configuration Generator with Mode Selection
+         *
+         * Usage examples:
+         * Interactive mode: ./gradlew copilot.mcp.config
+         * Automated mode: ./gradlew copilot.mcp.config -Phost=<url> -Pusername=<user> -Ppassword=<pass> -PagentId=<id> -Pmode=<simple|direct>
+         *
+         * Connection modes:
+         * - simple: Exposes a single tool to talk to the Copilot agent (URL: /{agentId}/mcp)
+         * - direct: Exposes all agent tools for direct execution + prompt reader tool (URL: /{agentId}/direct/mcp)
+         */
         def reader = new BufferedReader(new InputStreamReader(System.in))
         def yellowText = "\u001B[33;1m"
         def greenText = "\u001B[32;1m"
@@ -531,6 +542,8 @@ task 'copilot.mcp.config' {
         def redText = "\u001B[31;1m"
         def resetText = "\u001B[0m"
 
+        // Parameters can be passed via command line:
+        // -Phost=<etendo_host> -Pusername=<user> -Ppassword=<pass> -PagentId=<id> -Pmode=<simple|direct>
         def etendoHost = project.findProperty('host')
         def username = project.findProperty('username')
         def password = project.findProperty('password')
@@ -550,6 +563,41 @@ task 'copilot.mcp.config' {
                 return
             }
         }
+
+        // Ask for connection mode
+        def connectionMode = project.findProperty("mode")
+        if (connectionMode == null || connectionMode == "") {
+            project.logger.lifecycle("${blueText}🔧 Select connection mode:${resetText}")
+            project.logger.lifecycle("${yellowText}  1. Simple mode - Exposes a single tool to talk to the Copilot agent (recommended)${resetText}")
+            project.logger.lifecycle("${yellowText}  2. Direct mode - Exposes all agent tools for direct execution + prompt reader${resetText}")
+            project.logger.lifecycle("${blueText}Please enter mode (1 for simple, 2 for direct) [default: 1]:${resetText}")
+            def modeInput = reader.readLine()?.trim()
+
+            if (modeInput == null || modeInput == "" || modeInput == "1") {
+                connectionMode = "simple"
+            } else if (modeInput == "2") {
+                connectionMode = "direct"
+            } else {
+                project.logger.lifecycle("${yellowText}⚠️ Invalid mode selected, using simple mode${resetText}")
+                connectionMode = "simple"
+            }
+        } else {
+            // Normalize and validate mode parameter
+            connectionMode = connectionMode.toString().toLowerCase()
+            // Support both "simple" and "normal" (for backwards compatibility)
+            if (connectionMode == "normal") {
+                connectionMode = "simple"
+                project.logger.lifecycle("${yellowText}ℹ️ Mode 'normal' is now called 'simple', using simple mode${resetText}")
+            }
+            if (connectionMode != "simple" && connectionMode != "direct") {
+                project.logger.lifecycle("${yellowText}⚠️ Invalid mode parameter '${connectionMode}', using simple mode${resetText}")
+                connectionMode = "simple"
+            }
+        }
+
+        def isDirectMode = (connectionMode == "direct")
+        def modeUrlPath = isDirectMode ? "/direct" : ""
+        def modeDescription = isDirectMode ? "Direct mode (direct tool execution + prompt reader)" : "Simple mode (talk to Copilot agent)"
 
         if (username == null || username == "") {
             project.logger.lifecycle("${blueText}👮 Please provide the username:${resetText}")
@@ -609,8 +657,9 @@ task 'copilot.mcp.config' {
         def mcpConfig = [
             "etendoAgent": [
                 "type": "http",
-                "httpUrl": "http://localhost:${copilotPortMCP}/${agentId}/mcp",
+                "httpUrl": "http://localhost:${copilotPortMCP}/${agentId}${modeUrlPath}/mcp",
                 "note": "For Streamable HTTP connections, add this URL directly in your MCP Client",
+                "mode": modeDescription,
                 "headers": [
                     "etendo-token": "Bearer ${bearerToken}"
                 ]
@@ -619,8 +668,21 @@ task 'copilot.mcp.config' {
 
         String configJson = JsonOutput.prettyPrint(JsonOutput.toJson(mcpConfig))
 
-        project.logger.lifecycle("${greenText}🤖 MCP Configuration:${resetText}")
+        project.logger.lifecycle("${greenText}🤖 MCP Configuration (${modeDescription}):${resetText}")
         project.logger.lifecycle(configJson)
+
+        if (isDirectMode) {
+            project.logger.lifecycle("${yellowText}💡 Direct mode features:${resetText}")
+            project.logger.lifecycle("${yellowText}   • Direct access to all agent-specific tools for execution from MCP client${resetText}")
+            project.logger.lifecycle("${yellowText}   • get_agent_prompt tool to read the agent's system prompt and understand how it works${resetText}")
+            project.logger.lifecycle("${yellowText}   • Basic tools (ping, hello_world, server_info)${resetText}")
+            project.logger.lifecycle("${yellowText}   • NO ask_agent tool (you execute tools directly)${resetText}")
+        } else {
+            project.logger.lifecycle("${yellowText}💡 Simple mode features:${resetText}")
+            project.logger.lifecycle("${yellowText}   • ask_agent tool to talk to the Copilot agent using natural language${resetText}")
+            project.logger.lifecycle("${yellowText}   • Basic tools (ping, hello_world, server_info)${resetText}")
+            project.logger.lifecycle("${yellowText}   • Simplified interface - just talk to the agent, it handles the tools${resetText}")
+        }
     }
 }
 

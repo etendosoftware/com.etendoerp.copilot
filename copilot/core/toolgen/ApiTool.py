@@ -3,9 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
 import requests
-from copilot.core import etendo_utils, utils
-from copilot.core.etendo_utils import normalize_etendo_token
-from copilot.core.utils import copilot_debug
+from copilot.baseutils.logging_envvar import copilot_debug, read_optional_env_var
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field, create_model
 
@@ -97,7 +95,7 @@ def read_schema_type(schema):
 
 
 def summarize(method, url, text):
-    simple_mode = utils.read_optional_env_var("COPILOT_SIMPLE_MODE", "false").lower() == "true"
+    simple_mode = read_optional_env_var("COPILOT_SIMPLE_MODE", "false").lower() == "true"
     if (method.upper() in ["POST", "PUT"]) and "com.etendoerp.etendorx.datasource" in url and simple_mode:
         try:
             # lest resume the json
@@ -211,7 +209,8 @@ class ApiTool(BaseTool, BaseModel):
         path_params = {p["name"]: kwargs[f"path_{p['name']}"] for p in self.parameters if p["in"] == "path"}
         query_params = self.extract_parameters(kwargs, "query")
         headers = self.extract_parameters(kwargs, "header")
-        from copilot.core import etendo_utils
+        from copilot.core.utils import etendo_utils
+        from copilot.core.utils.etendo_utils import normalize_etendo_token
 
         token = etendo_utils.get_etendo_token()
         headers["Authorization"] = normalize_etendo_token(token)
@@ -245,7 +244,8 @@ class ApiTool(BaseTool, BaseModel):
         path_params = {p["name"]: kwargs[f"path_{p['name']}"] for p in self.parameters if p["in"] == "path"}
         query_params = self.extract_parameters(kwargs, "query")
         headers = self.extract_parameters(kwargs, "header")
-        from copilot.core import etendo_utils
+        from copilot.core.utils import etendo_utils
+        from copilot.core.utils.etendo_utils import normalize_etendo_token
 
         token = etendo_utils.get_etendo_token()
         headers["Authorization"] = normalize_etendo_token(token)
@@ -283,6 +283,8 @@ class ApiTool(BaseTool, BaseModel):
 def generate_tools_from_openapi(openapi_spec: Dict[str, Any]) -> List[ApiTool]:
     tools = []
     paths = openapi_spec.get("paths", {})
+    from copilot.core.utils import etendo_utils
+
     base_url = etendo_utils.get_etendo_host()
 
     for path, methods in paths.items():

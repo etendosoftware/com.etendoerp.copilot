@@ -6,12 +6,8 @@ including connectivity testing and server information.
 """
 
 import logging
-from typing import Optional
 
-import httpx
-from copilot.core.etendo_utils import normalize_etendo_token, validate_etendo_token
 from copilot.core.mcp.auth_utils import extract_etendo_token_from_mcp_context
-from copilot.core.utils import read_optional_env_var
 
 logger = logging.getLogger(__name__)
 
@@ -55,14 +51,6 @@ def register_basic_tools(app):
         """A simple ping tool to test MCP connectivity."""
         return "pong"
 
-    @app.tool
-    def hello_world() -> str:
-        """Say hello with instance information."""
-        identifier = get_identifier()
-        if identifier:
-            return f"Hello! You are connected to Etendo Copilot MCP Server (Instance: {identifier})!"
-        return "Hello! You are connected to Etendo Copilot MCP Server!"
-
     def get_etendo_token():
         """Get Etendo token from MCP request context using the generalized auth utility."""
         return extract_etendo_token_from_mcp_context()
@@ -78,60 +66,27 @@ def register_basic_tools(app):
             "status": "running",
         }
 
+
+def register_basic_tools_direct(app):
+    """Register basic utility tools with the MCP app (direct mode without ask_agent).
+
+    Args:
+        app: FastMCP application instance
+    """
+
     @app.tool
-    async def ask_agent(question: str, conversation_id: Optional[str] = None) -> dict:
-        """Ask a question to the Etendo Copilot agent.
+    def ping() -> str:
+        """A simple ping tool to test MCP connectivity."""
+        return "pong"
 
-        Args:
-            question: The question to ask the agent
-            conversation_id: Optional conversation ID to maintain context
-
-        Returns:
-            dict: Response from the Etendo agent
-        """
-        try:
-            etendo_token = get_etendo_token()
-            if not etendo_token:
-                return {
-                    "success": False,
-                    "error": "No authentication token found in request headers. Authentication required.",
-                    "status_code": 401,
-                }
-
-            # Normalize the token first, then validate
-            normalized_token = normalize_etendo_token(etendo_token)
-            if not validate_etendo_token(normalized_token):
-                return {
-                    "success": False,
-                    "error": "Invalid Bearer token format. Authentication required.",
-                    "status_code": 401,
-                }
-
-            # Prepare the request payload
-            payload = {"question": question, "app_id": get_identifier()}
-
-            if conversation_id:
-                payload["conversation_id"] = conversation_id
-
-            # Prepare headers with Bearer token authentication from MCP request
-            headers = {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Authorization": normalized_token,  # Use the normalized token
-            }
-
-            # Get Etendo host from environment variable
-            etendo_host = read_optional_env_var("ETENDO_HOST_DOCKER", "http://localhost:8080/etendo")
-
-            # Make the HTTP request to Etendo
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{etendo_host}/sws/copilot/question", json=payload, headers=headers
-                )
-
-                # Check if the response is successful
-                return get_response(response)
-
-        except Exception as e:
-            logger.error(f"Error in ask_agent tool: {e}")
-            return {"success": False, "error": f"Unexpected error: {str(e)}", "status_code": None}
+    @app.tool
+    def server_info() -> dict:
+        """Get basic server information."""
+        return {
+            "name": "etendo-copilot-mcp",
+            "version": "0.1.0",
+            "description": "Etendo Copilot MCP Server with HTTP streaming - Direct Mode",
+            "transport": "http-streaming",
+            "status": "running",
+            "mode": "direct",
+        }

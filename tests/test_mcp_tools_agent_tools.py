@@ -662,6 +662,41 @@ class TestRegisterAgentTools:
         assert result["success"] is False
         assert "Unexpected error" in result["error"]
 
+    @patch("copilot.core.mcp.tools.agent_tools.convert_langchain_tools_to_mcp")
+    @patch("copilot.core.mcp.tools.agent_tools._make_team_ask_agent_tools")
+    @patch("copilot.core.mcp.tools.agent_tools._is_supervisor")
+    @patch("copilot.core.mcp.tools.agent_tools.ToolLoader")
+    @patch("copilot.core.mcp.tools.agent_tools.fetch_agent_structure_from_etendo")
+    def test_register_agent_tools_supervisor_direct_mode(
+        self, mock_fetch, mock_tool_loader, mock_is_supervisor, mock_make_team_tools, mock_convert
+    ):
+        """Test registering agent tools for supervisor in direct mode."""
+        # Mock supervisor config
+        supervisor_config = MagicMock()
+        supervisor_config.tools = []
+        supervisor_config.name = "Test Supervisor"
+
+        mock_fetch.return_value = supervisor_config
+        mock_tool_loader_instance = MagicMock()
+        mock_tool_loader_instance.get_all_tools.return_value = []
+        mock_tool_loader.return_value = mock_tool_loader_instance
+        mock_is_supervisor.return_value = True
+
+        # Mock team ask tools
+        mock_team_tools = [MagicMock(), MagicMock()]
+        mock_make_team_tools.return_value = mock_team_tools
+        mock_convert.return_value = []
+
+        mock_app = MagicMock()
+
+        result = register_agent_tools(mock_app, "supervisor_agent", "test_token", is_direct_mode=True)
+
+        assert result["success"] is True
+        mock_is_supervisor.assert_called_once_with(supervisor_config)
+        mock_make_team_tools.assert_called_once_with(supervisor_config)
+        # Should register only team ask tools (no supervisor prompt tool)
+        assert mock_app.add_tool.call_count == len(mock_team_tools)
+
 
 class TestInitializeAgentFromEtendo:
     """Tests for initialize_agent_from_etendo function."""

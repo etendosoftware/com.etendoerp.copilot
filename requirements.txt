@@ -14,7 +14,7 @@ aiosqlite==0.21.0
     #   langgraph-checkpoint-sqlite
 annotated-types==0.7.0
     # via pydantic
-anthropic==0.61.0
+anthropic==0.64.0
     # via langchain-anthropic
 anyio==4.10.0
     # via
@@ -70,7 +70,7 @@ cfgv==3.4.0
     # via pre-commit
 chardet==5.2.0
     # via tox
-charset-normalizer==3.4.2
+charset-normalizer==3.4.3
     # via requests
 chroma-hnswlib==0.7.6
     # via chromadb
@@ -96,7 +96,7 @@ colorama==0.4.6
     #   uvicorn
 coloredlogs==15.0.1
     # via onnxruntime
-coverage==7.10.2
+coverage==7.10.3
     # via pytest-cov
 cryptography==45.0.6
     # via authlib
@@ -144,7 +144,7 @@ fastapi==0.115.14
     # via
     #   chromadb
     #   etendo-copilot-core
-fastmcp==2.10.6
+fastmcp==2.11.3
     # via etendo-copilot-core
 filelock==3.18.0
     # via
@@ -214,11 +214,11 @@ httpx-sse==0.4.1
     # via
     #   langchain-community
     #   mcp
-huggingface-hub==0.34.3
+huggingface-hub==0.34.4
     # via tokenizers
 humanfriendly==10.0
     # via coloredlogs
-identify==2.6.12
+identify==2.6.13
     # via pre-commit
 idna==3.10
     # via
@@ -237,6 +237,8 @@ iniconfig==2.1.0
     # via pytest
 ipython==8.37.0
     # via etendo-copilot-core
+isodate==0.7.2
+    # via openapi-core
 isort==6.0.1
     # via pylint
 itsdangerous==2.2.0
@@ -254,9 +256,19 @@ jsonpatch==1.33
 jsonpointer==3.0.0
     # via jsonpatch
 jsonschema==4.25.0
-    # via mcp
+    # via
+    #   mcp
+    #   openapi-core
+    #   openapi-schema-validator
+    #   openapi-spec-validator
+jsonschema-path==0.3.4
+    # via
+    #   openapi-core
+    #   openapi-spec-validator
 jsonschema-specifications==2025.4.1
-    # via jsonschema
+    # via
+    #   jsonschema
+    #   openapi-schema-validator
 kubernetes==33.1.0
     # via chromadb
 langchain==0.3.27
@@ -305,7 +317,7 @@ langchain-mcp-adapters==0.1.9
     # via etendo-copilot-core
 langchain-ollama==0.3.6
     # via etendo-copilot-core
-langchain-openai==0.3.28
+langchain-openai==0.3.30
     # via
     #   etendo-copilot-core
     #   langchain-deepseek
@@ -353,15 +365,19 @@ langsmith==0.3.45
     #   langchain-core
     #   langmem
     #   openevals
-markdown-it-py==3.0.0
+lazy-object-proxy==1.11.0
+    # via openapi-spec-validator
+markdown-it-py==4.0.0
     # via rich
+markupsafe==3.0.2
+    # via werkzeug
 marshmallow==3.26.1
     # via dataclasses-json
 matplotlib-inline==0.1.7
     # via ipython
 mccabe==0.7.0
     # via pylint
-mcp==1.12.4
+mcp==1.13.0
     # via
     #   fastmcp
     #   langchain-mcp-adapters
@@ -371,9 +387,11 @@ mmh3==5.2.0
     # via chromadb
 monotonic==1.6
     # via etendo-copilot-core
+more-itertools==10.7.0
+    # via openapi-core
 mpmath==1.3.0
     # via sympy
-multidict==6.6.3
+multidict==6.6.4
     # via
     #   aiohttp
     #   yarl
@@ -409,12 +427,20 @@ ollama==0.5.3
     # via langchain-ollama
 onnxruntime==1.22.1
     # via chromadb
-openai==1.99.3
+openai==1.99.9
     # via
     #   etendo-copilot-core
     #   langchain-openai
+openapi-core==0.19.5
+    # via fastmcp
 openapi-pydantic==0.5.1
     # via fastmcp
+openapi-schema-validator==0.6.3
+    # via
+    #   openapi-core
+    #   openapi-spec-validator
+openapi-spec-validator==0.7.2
+    # via openapi-core
 openevals==0.0.20
     # via etendo-copilot-core
 opentelemetry-api==1.36.0
@@ -456,7 +482,7 @@ opentelemetry-util-http==0.57b0
     # via
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
-orjson==3.11.1
+orjson==3.11.2
     # via
     #   chromadb
     #   langgraph-sdk
@@ -481,8 +507,12 @@ packaging==24.2
     #   tox
 pandas==2.3.1
     # via etendo-copilot-core
+parse==1.20.2
+    # via openapi-core
 parso==0.8.4
     # via jedi
+pathable==0.4.4
+    # via jsonschema-path
 pathspec==0.12.1
     # via black
 pexpect==4.9.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'
@@ -499,9 +529,9 @@ pluggy==1.6.0
     # via
     #   pytest
     #   tox
-posthog==6.4.1
+posthog==6.5.0
     # via chromadb
-pre-commit==4.2.0
+pre-commit==4.3.0
     # via etendo-copilot-core
 prompt-toolkit==3.0.51
     # via ipython
@@ -567,7 +597,7 @@ pygments==2.19.2
     # via
     #   ipython
     #   rich
-pylint==3.3.7
+pylint==3.3.8
     # via etendo-copilot-core
 pymupdf==1.26.3
     # via etendo-copilot-core
@@ -619,6 +649,7 @@ pyyaml==6.0.2
     # via
     #   chromadb
     #   huggingface-hub
+    #   jsonschema-path
     #   kubernetes
     #   langchain
     #   langchain-community
@@ -628,6 +659,7 @@ pyyaml==6.0.2
 referencing==0.36.2
     # via
     #   jsonschema
+    #   jsonschema-path
     #   jsonschema-specifications
 regex==2025.7.34
     # via tiktoken
@@ -637,6 +669,7 @@ requests==2.32.4
     #   etendo-copilot-core
     #   google-api-core
     #   huggingface-hub
+    #   jsonschema-path
     #   kubernetes
     #   langchain
     #   langchain-community
@@ -654,6 +687,8 @@ requests-toolbelt==1.0.0
     # via langsmith
 restrictedpython==8.0 ; python_full_version < '3.14'
     # via etendo-copilot-core
+rfc3339-validator==0.1.4
+    # via openapi-schema-validator
 rich==14.1.0
     # via
     #   chromadb
@@ -681,13 +716,14 @@ six==1.17.0
     #   kubernetes
     #   posthog
     #   python-dateutil
+    #   rfc3339-validator
 sniffio==1.3.1
     # via
     #   anthropic
     #   anyio
     #   openai
     #   rizaio
-sqlalchemy==2.0.42
+sqlalchemy==2.0.43
     # via
     #   langchain
     #   langchain-community
@@ -709,7 +745,7 @@ tenacity==9.1.2
     #   chromadb
     #   langchain-community
     #   langchain-core
-tiktoken==0.10.0
+tiktoken==0.11.0
     # via langchain-openai
 tokenizers==0.21.4
     # via chromadb
@@ -761,6 +797,7 @@ typing-extensions==4.14.1
     #   langchain-mcp-adapters
     #   multidict
     #   openai
+    #   openapi-core
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-sdk
@@ -776,6 +813,7 @@ typing-extensions==4.14.1
     #   typing-inspect
     #   typing-inspection
     #   uvicorn
+    #   virtualenv
 typing-inspect==0.9.0
     # via dataclasses-json
 typing-inspection==0.4.1
@@ -796,7 +834,7 @@ uvicorn==0.34.3
     #   mcp
 uvloop==0.21.0 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
     # via uvicorn
-virtualenv==20.33.1
+virtualenv==20.34.0
     # via
     #   pre-commit
     #   tox
@@ -808,7 +846,9 @@ websocket-client==1.8.0
     # via kubernetes
 websockets==15.0.1
     # via uvicorn
-wrapt==1.17.2
+werkzeug==3.1.1
+    # via openapi-core
+wrapt==1.17.3
     # via opentelemetry-instrumentation
 xxhash==3.5.0
     # via langgraph
