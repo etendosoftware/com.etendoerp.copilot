@@ -128,7 +128,7 @@ public class OpenAIUtils {
    */
   private static JSONObject upsertAssistant(CopilotApp app, String openaiApiKey)
       throws JSONException, IOException {
-    String openaiIdAssistant = app.getOpenaiIdAssistant();
+    String openaiIdAssistant = app.getOpenaiAssistantID();
     if (StringUtils.isNotEmpty(openaiIdAssistant)) {
       if (!existsAssistant(openaiIdAssistant)) {
         openaiIdAssistant = null;
@@ -168,8 +168,8 @@ public class OpenAIUtils {
           String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
               response.getJSONObject(ERROR).getString(MESSAGE)));
     }
-    if (!StringUtils.equals(app.getOpenaiIdAssistant(), response.getString("id"))) {
-      app.setOpenaiIdAssistant(response.getString("id"));
+    if (!StringUtils.equals(app.getOpenaiAssistantID(), response.getString("id"))) {
+      app.setOpenaiAssistantID(response.getString("id"));
       OBDal.getInstance().save(app);
       OBDal.getInstance().flush();
     }
