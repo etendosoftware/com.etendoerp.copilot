@@ -7,8 +7,8 @@ and runs both the main FastAPI server and the dynamic MCP server in parallel.
 import os
 
 import uvicorn
-from baseutils.logging_envvar import is_docker
 from copilot import app
+from copilot.baseutils.logging_envvar import is_docker
 from copilot.core.mcp.simplified_dynamic_utils import (
     start_simplified_dynamic_mcp_with_cleanup,
 )
