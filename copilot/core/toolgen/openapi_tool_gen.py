@@ -134,6 +134,22 @@ def _process_openapi_parameters(
     return model_fields, param_locations, param_mapping
 
 
+def _get_property_type(prop_data: Dict) -> str:
+    """Extract the actual type from property data, handling anyOf structures."""
+    # Direct type
+    if "type" in prop_data:
+        return prop_data["type"]
+    
+    # anyOf structure (common in OpenAPI with nullable fields)
+    if "anyOf" in prop_data:
+        for any_of_item in prop_data["anyOf"]:
+            if any_of_item.get("type") != "null":
+                return any_of_item.get("type", "string")
+    
+    # Default fallback
+    return "string"
+
+
 def _process_request_body(method: str, operation: Dict, path: str, type_map: Dict) -> Optional[tuple]:
     """Process request body for POST/PUT methods and return body model and field info."""
     if method not in ["post", "put"]:
@@ -150,16 +166,27 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
     body_model_fields = {}
 
     for prop_name, prop_data in schema_dict["properties"].items():
-        prop_type_str = prop_data.get("type", "string")
+        prop_type_str = _get_property_type(prop_data)
         prop_description = prop_data.get("description", "")
 
+        # Check if field has anyOf with null (making it optional)
+        is_nullable = False
+        if "anyOf" in prop_data:
+            is_nullable = any(item.get("type") == "null" for item in prop_data["anyOf"])
+
+        # Determine if field is required
+        is_required = prop_name in schema_dict.get("required", [])
+        
         # Create the Field with the correct property description
         field_type, _ = type_map.get(prop_type_str, (Any, Field(description="")))
-        field_meta = Field(description=prop_description)
-
-        if prop_name in schema_dict.get("required", []):
+        
+        if is_required and not is_nullable:
+            # Truly required field
+            field_meta = Field(description=prop_description)
             body_model_fields[prop_name] = (field_type, field_meta)
         else:
+            # Optional field (either not in required list or is nullable)
+            field_meta = Field(description=prop_description, default=None)
             body_model_fields[prop_name] = (Optional[field_type], field_meta)
 
     body_model = create_model(body_model_name, **body_model_fields)
