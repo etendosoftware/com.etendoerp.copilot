@@ -4,7 +4,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from copilot.core.tool_wrapper import CopilotTool
-from copilot.core.utils.etendo_utils import get_etendo_token
+from copilot.core.utils.etendo_utils import get_etendo_host, get_etendo_token
 from pydantic import BaseModel, Field, create_model
 
 from .api_tool_util import do_request
@@ -139,13 +139,13 @@ def _get_property_type(prop_data: Dict) -> str:
     # Direct type
     if "type" in prop_data:
         return prop_data["type"]
-    
+
     # anyOf structure (common in OpenAPI with nullable fields)
     if "anyOf" in prop_data:
         for any_of_item in prop_data["anyOf"]:
             if any_of_item.get("type") != "null":
                 return any_of_item.get("type", "string")
-    
+
     # Default fallback
     return "string"
 
@@ -176,10 +176,10 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
 
         # Determine if field is required
         is_required = prop_name in schema_dict.get("required", [])
-        
+
         # Create the Field with the correct property description
         field_type, _ = type_map.get(prop_type_str, (Any, Field(description="")))
-        
+
         if is_required and not is_nullable:
             # Truly required field
             field_meta = Field(description=prop_description)
@@ -216,6 +216,7 @@ def _generate_function_code(
     param_names: List[str],
     param_locations: Dict,
     param_mapping: Dict = None,
+    is_etendo_classic: bool = False,
 ) -> str:
     """Generate the dynamic function code for the tool."""
     param_names_str = ", ".join(param_names)
@@ -247,6 +248,12 @@ def _generate_function_code(
             + "}"
         )
 
+    # Handle token logic
+    if is_etendo_classic:
+        token_logic = 'auth_token = "ETENDO_TOKEN"'
+    else:
+        token_logic = 'auth_token = token if "token" in locals() and token is not None else None'
+
     return f"""
 def _run_dynamic(self, {param_names_str}):
     body_params = None
@@ -255,11 +262,8 @@ def _run_dynamic(self, {param_names_str}):
         if isinstance(body_params, BaseModel):
             body_params = body_params.model_dump()
 
-    # The token now comes as a function parameter
-    auth_token = token if 'token' in locals() and token is not None else None
-    #print(f"Using auth_token: {{auth_token}}")
-    #if auth_token is 'ETENDO_TOKEN':
-    #    auth_token = get_etendo_token()
+    # Handle authentication token
+    {token_logic}
     path_params = {path_params_str}
     query_params = {query_params_str}
 
@@ -319,11 +323,23 @@ def _process_single_operation(
         body_model, body_description = body_info
         model_fields["body"] = (body_model, Field(description=body_description))
 
-    # Add token parameter
-    model_fields["token"] = (
-        Optional[str],
-        Field(description="Authentication token for API access", default=None),
+    # Check if this is an Etendo classic endpoint
+    etendo_host_docker = get_etendo_host()
+    is_etendo_classic = url == etendo_host_docker
+
+    # Debug logging
+    logger.debug(
+        f"URL comparison: url='{url}' vs etendo_host='{etendo_host_docker}' -> is_classic={is_etendo_classic}"
     )
+
+    # Add token parameter only if NOT Etendo classic
+    if not is_etendo_classic:
+        model_fields["token"] = (
+            Optional[str],
+            Field(description="Authentication token for API access", default=None),
+        )
+    else:
+        logger.debug("Skipping token parameter for Etendo classic endpoint")
 
     # Generate tool name and schema
     tool_name_base = _generate_tool_name(operation, path)
@@ -331,7 +347,9 @@ def _process_single_operation(
 
     # Generate function code
     param_names = list(tool_args_schema.model_fields.keys())
-    function_code = _generate_function_code(method, url, path, param_names, param_locations, param_mapping)
+    function_code = _generate_function_code(
+        method, url, path, param_names, param_locations, param_mapping, is_etendo_classic
+    )
 
     # Execute function code
     namespace = {"do_request": do_request, "BaseModel": BaseModel, "get_etendo_token": get_etendo_token}
@@ -342,6 +360,12 @@ def _process_single_operation(
     tool_name_raw = f"{method.upper()}{tool_name_base.title()}"
     tool_name = sanitize_tool_name(tool_name_raw)
     tool_description = operation.get("summary", "No description provided")
+
+    # Log appropriate message based on endpoint type
+    if is_etendo_classic:
+        logger.info("Etendo classic endpoint detected")
+        logger.info(f"  - URL: {url}")
+        logger.info(f"  - Endpoint: {path}")
 
     # Log information
     logger.info(f"Generating OpenAPI tool: {tool_name}")
