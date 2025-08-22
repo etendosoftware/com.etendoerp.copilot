@@ -109,7 +109,7 @@ const ConversationsSidebar: React.FC<ConversationsSidebarProps> = ({
               onKeyDown={(e) => e.key === 'Enter' && onConversationSelect(conversation.id)}
               title={getTooltipTitle(conversation)}
               className={`w-full text-left p-3 border-b border-gray-200 hover:bg-gray-100 transition-colors ${
-                currentConversationId === conversation.id ? 'bg-blue-100 border-l-4 border-l-blue-600' : ''
+                currentConversationId === conversation.id ? 'bg-blue-100 border-l-4 border-l-blue-900' : ''
               }`}
             >
               <div className="text-sm font-medium text-gray-900 truncate">

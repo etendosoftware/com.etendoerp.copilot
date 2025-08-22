@@ -521,11 +521,11 @@ task 'copilot.env.file' {
 
 task 'copilot.mcp.config' {
     group = "copilot"
-    description = "Generates MCP configuration JSON for the Etendo Agent with mode selection (simple/direct)"
+    description = "Generates MCP configuration JSON for Etendo Agents with mode selection (simple/direct) and agent type guidance"
 
     doLast {
         /*
-         * MCP Configuration Generator with Mode Selection
+         * MCP Configuration Generator with Mode Selection and Agent Type Support
          *
          * Usage examples:
          * Interactive mode: ./gradlew copilot.mcp.config
@@ -534,6 +534,10 @@ task 'copilot.mcp.config' {
          * Connection modes:
          * - simple: Exposes a single tool to talk to the Copilot agent (URL: /{agentId}/mcp)
          * - direct: Exposes all agent tools for direct execution + prompt reader tool (URL: /{agentId}/direct/mcp)
+         *
+         * Agent types supported:
+         * - Multi-Model Agent: Single intelligent agent with configurable tools and knowledge base
+         * - LangGraph Agent: Supervisor agent that coordinates a team of specialized sub-agents
          */
         def reader = new BufferedReader(new InputStreamReader(System.in))
         def yellowText = "\u001B[33;1m"
@@ -569,7 +573,11 @@ task 'copilot.mcp.config' {
         if (connectionMode == null || connectionMode == "") {
             project.logger.lifecycle("${blueText}🔧 Select connection mode:${resetText}")
             project.logger.lifecycle("${yellowText}  1. Simple mode - Exposes a single tool to talk to the Copilot agent (recommended)${resetText}")
+            project.logger.lifecycle("${yellowText}     • Multi-Model Agent: Delivers ask_agent tool to communicate with the agent${resetText}")
+            project.logger.lifecycle("${yellowText}     • LangGraph Agent: Delivers ask_agent_supervisor tool to talk with the supervisor${resetText}")
             project.logger.lifecycle("${yellowText}  2. Direct mode - Exposes all agent tools for direct execution + prompt reader${resetText}")
+            project.logger.lifecycle("${yellowText}     • Multi-Model Agent: Delivers all agent tools + get_agent_prompt (adopt agent personality)${resetText}")
+            project.logger.lifecycle("${yellowText}     • LangGraph Agent: Delivers ask_agent tools for each team member + get_agent_prompt${resetText}")
             project.logger.lifecycle("${blueText}Please enter mode (1 for simple, 2 for direct) [default: 1]:${resetText}")
             def modeInput = reader.readLine()?.trim()
 
@@ -677,11 +685,17 @@ task 'copilot.mcp.config' {
             project.logger.lifecycle("${yellowText}   • get_agent_prompt tool to read the agent's system prompt and understand how it works${resetText}")
             project.logger.lifecycle("${yellowText}   • Basic tools (ping, hello_world, server_info)${resetText}")
             project.logger.lifecycle("${yellowText}   • NO ask_agent tool (you execute tools directly)${resetText}")
+            project.logger.lifecycle("${blueText}📋 What MCP delivers by agent type:${resetText}")
+            project.logger.lifecycle("${yellowText}   • Multi-Model Agent: All agent tools + get_agent_prompt (adopt agent personality and use its tools)${resetText}")
+            project.logger.lifecycle("${yellowText}   • LangGraph Agent: ask_agent tools for each team member + get_agent_prompt (direct team access)${resetText}")
         } else {
             project.logger.lifecycle("${yellowText}💡 Simple mode features:${resetText}")
             project.logger.lifecycle("${yellowText}   • ask_agent tool to talk to the Copilot agent using natural language${resetText}")
             project.logger.lifecycle("${yellowText}   • Basic tools (ping, hello_world, server_info)${resetText}")
             project.logger.lifecycle("${yellowText}   • Simplified interface - just talk to the agent, it handles the tools${resetText}")
+            project.logger.lifecycle("${blueText}📋 What MCP delivers by agent type:${resetText}")
+            project.logger.lifecycle("${yellowText}   • Multi-Model Agent: ask_agent tool to communicate with the agent${resetText}")
+            project.logger.lifecycle("${yellowText}   • LangGraph Agent: ask_agent_supervisor tool to talk with the supervisor${resetText}")
         }
     }
 }
