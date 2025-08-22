@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { IConversation, IMessage } from '../interfaces';
+import { ILabels } from '../interfaces/ILabels';
 import { RestUtils } from '../utils/environment';
 import { References } from '../utils/references';
 import { ROLE_USER, ROLE_BOT } from '../utils/constants';
 
-export const useConversations = (selectedAppId: string | null) => {
+export const useConversations = (selectedAppId: string | null, labels?: ILabels) => {
   const [conversations, setConversations] = useState<IConversation[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState<boolean>(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
@@ -25,8 +26,9 @@ export const useConversations = (selectedAppId: string | null) => {
         const conversationsData: IConversation[] = await response.json();
         setConversations(conversationsData);
 
+        const currentConversationLabel = labels?.ETCOP_CurrentConversation ?? 'Current conversation';
         const conversationsWithoutTitle = conversationsData.filter(conversation =>
-          !conversation.title || conversation.title.trim() === '' || conversation.title === 'Current conversation' || conversation.title === 'Conversación actual'
+          !conversation.title || conversation.title.trim() === '' || conversation.title === currentConversationLabel || conversation.title === 'Current conversation' || conversation.title === 'Conversación actual'
         );
 
         console.log(`🎯 Found ${conversationsWithoutTitle.length} conversations without title`);
@@ -207,7 +209,7 @@ export const useConversations = (selectedAppId: string | null) => {
         console.log('✅ Conversation added to list, total conversations:', prev.length + 1);
         return [{
           id: conversationId,
-          title: 'Current conversation',
+          title: labels?.ETCOP_CurrentConversation ?? 'Current conversation',
           created_at: new Date().toISOString()
         }, ...prev];
       }
@@ -221,7 +223,8 @@ export const useConversations = (selectedAppId: string | null) => {
 
     if (currentConversationId && currentConversationId !== conversationId) {
       const previousConversation = conversations.find(conv => conv.id === currentConversationId);
-      if (previousConversation && (!previousConversation.title || previousConversation.title === 'Conversación actual' || previousConversation.title === 'Current conversation')) {
+      const currentConversationLabel = labels?.ETCOP_CurrentConversation ?? 'Current conversation';
+      if (previousConversation && (!previousConversation.title || previousConversation.title === 'Conversación actual' || previousConversation.title === 'Current conversation' || previousConversation.title === currentConversationLabel)) {
         console.log('🎯 Generating title for previous conversation:', currentConversationId);
         generateTitleInBackground(currentConversationId);
       }
