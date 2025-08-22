@@ -495,9 +495,9 @@ class SimplifiedDynamicMCPServer:
         # Build the target URL
         target_url = f"{instance.get_url()}"
         # Add /mcp
-        target_url += "/mcp/"
+        target_url += "/mcp"
         if path:
-            target_url += f"{path}"
+            target_url += f"/{path}"
 
         copilot_debug(
             f"🔀 Proxying {request.method} /{instance.identifier}/mcp{('/' + path) if path else ''} -> {target_url}"
