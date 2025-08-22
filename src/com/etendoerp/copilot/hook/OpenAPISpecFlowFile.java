@@ -29,7 +29,6 @@ import org.openbravo.model.ad.utility.Attachment;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.openapi.OpenAPIController;
 import com.etendoerp.openapi.data.OpenApiFlow;
-import com.google.gson.JsonObject;
 
 /**
  *
@@ -96,7 +95,7 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
    */
   private Path getOpenAPIFile(OpenApiFlow flow, String fileName) throws OBException {
     try {
-      String openAPISpec = new OpenAPIController().getOpenAPIJson(null, flow.getName(), getEtendoHostDocker());
+      String openAPISpec = new OpenAPIController().getOpenAPIJson(null, flow.getName(), getEtendoHostDocker(), true);
       openAPISpec = addInfoForCopilot(openAPISpec);
       return Files.writeString(Files.createTempFile(fileName, ".json"), openAPISpec);
     } catch (Exception e) {

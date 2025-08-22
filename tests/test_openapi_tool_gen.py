@@ -116,7 +116,7 @@ class TestHelperFunctions:
             },
         ]
 
-        model_fields, _ = _process_openapi_parameters(params, type_map)
+        model_fields, _, _ = _process_openapi_parameters(params, type_map)
 
         assert "testparam" in model_fields
         assert "optionalparam" in model_fields
@@ -133,17 +133,17 @@ class TestHelperFunctions:
                 "description": "Valid parameter",
             },
             {
-                "name": "under_score",
+                "name": "_under_score",
                 "in": "query",
                 "schema": {"type": "string"},
                 "description": "Parameter with underscore",
             },
         ]
 
-        model_fields, _ = _process_openapi_parameters(params, type_map)
+        model_fields, _, _ = _process_openapi_parameters(params, type_map)
 
         assert "validparam" in model_fields  # Should be included
-        assert "under_score" not in model_fields  # Has underscore, should be skipped
+        assert "_under_score" not in model_fields  # Has underscore, should be skipped
 
     def test_process_request_body_post(self):
         """Test processing of request body for POST method."""
@@ -363,9 +363,10 @@ class TestGenerateToolsFromOpenapi:
             ],
         }
 
-        with patch("copilot.core.toolgen.openapi_tool_gen.exec") as mock_exec, patch(
-            "copilot.core.toolgen.openapi_tool_gen._create_tool_instance"
-        ) as mock_create_tool:
+        with (
+            patch("copilot.core.toolgen.openapi_tool_gen.exec") as mock_exec,
+            patch("copilot.core.toolgen.openapi_tool_gen._create_tool_instance") as mock_create_tool,
+        ):
             # Mock the exec function to simulate successful function creation
             mock_namespace = {"_run_dynamic": Mock()}
             mock_exec.side_effect = lambda code, global_ns, local_ns: local_ns.update(mock_namespace)

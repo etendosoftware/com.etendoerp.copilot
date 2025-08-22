@@ -4,12 +4,16 @@ import re
 from typing import Any, Dict, List, Optional
 
 from copilot.core.tool_wrapper import CopilotTool
-from copilot.core.utils.etendo_utils import get_etendo_token
+from copilot.core.utils.etendo_utils import get_etendo_host, get_etendo_token
 from pydantic import BaseModel, Field, create_model
 
 from .api_tool_util import do_request
 
 logger = logging.getLogger(__name__)
+
+# Constants
+ETENDO_HEADLESS_PATH_PREFIX = "/sws/com.etendoerp.etendorx.datasource"
+ETENDO_HEADLESS_PAGINATION_PARAMS = {"_startRow": "startRow", "_endRow": "endRow"}
 
 
 def replace_base64_filepaths(body_params):
@@ -65,18 +69,57 @@ def _get_type_mapping():
     }
 
 
-def _process_openapi_parameters(openapi_params: List[Dict], type_map: Dict) -> tuple:
+def _is_etendo_headless_get(method: str, path: str) -> bool:
+    """Check if this is an Etendo Headless GET endpoint."""
+    return method.lower() == "get" and path.startswith(ETENDO_HEADLESS_PATH_PREFIX)
+
+
+def _process_etendo_headless_param(original_name: str, param: Dict) -> tuple:
+    """Process Etendo Headless pagination parameters."""
+    if original_name in ETENDO_HEADLESS_PAGINATION_PARAMS:
+        name = ETENDO_HEADLESS_PAGINATION_PARAMS[original_name]
+        logger.info(f"Etendo Headless: Converting parameter '{original_name}' to '{name}'")
+
+        # Ensure pagination params are strings and add descriptive text
+        param_description = param.get("description", "")
+        if name == "startRow":
+            param_description = param_description or "Starting row number for pagination (e.g., '0')"
+        elif name == "endRow":
+            param_description = param_description or "Ending row number for pagination (e.g., '10')"
+
+        return name, "string", param_description
+    return None, None, None
+
+
+def _process_openapi_parameters(
+    openapi_params: List[Dict], type_map: Dict, path: str = "", method: str = ""
+) -> tuple:
     """Process OpenAPI parameters and return model fields and parameter locations."""
     model_fields = {}
     param_locations = {}
+    param_mapping = {}  # Track parameter name mappings for Etendo Headless
+
+    is_etendo_headless = _is_etendo_headless_get(method, path)
 
     for param in openapi_params:
-        name = param["name"]
-        if "_" in name:
-            continue  # Skip parameters with underscores in their names
-
+        original_name = param["name"]
+        name = original_name
         param_type_str = param.get("schema", {}).get("type", "string")
         param_description = param.get("description", "")
+
+        # Handle Etendo Headless pagination parameters
+        if is_etendo_headless:
+            etendo_name, etendo_type, etendo_desc = _process_etendo_headless_param(original_name, param)
+            if etendo_name:
+                name = etendo_name
+                param_type_str = etendo_type
+                param_description = etendo_desc
+                param_mapping[name] = original_name
+            elif original_name.startswith("_"):
+                continue  # Skip other underscore parameters for Etendo Headless
+        elif name.startswith("_"):
+            continue  # Skip parameters that start with underscore (private/internal parameters)
+
         param_locations[name] = param["in"]
 
         # Create the Field with the correct parameter description
@@ -88,7 +131,23 @@ def _process_openapi_parameters(openapi_params: List[Dict], type_map: Dict) -> t
         else:
             model_fields[name] = (Optional[field_type], field_meta)
 
-    return model_fields, param_locations
+    return model_fields, param_locations, param_mapping
+
+
+def _get_property_type(prop_data: Dict) -> str:
+    """Extract the actual type from property data, handling anyOf structures."""
+    # Direct type
+    if "type" in prop_data:
+        return prop_data["type"]
+
+    # anyOf structure (common in OpenAPI with nullable fields)
+    if "anyOf" in prop_data:
+        for any_of_item in prop_data["anyOf"]:
+            if any_of_item.get("type") != "null":
+                return any_of_item.get("type", "string")
+
+    # Default fallback
+    return "string"
 
 
 def _process_request_body(method: str, operation: Dict, path: str, type_map: Dict) -> Optional[tuple]:
@@ -107,16 +166,27 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
     body_model_fields = {}
 
     for prop_name, prop_data in schema_dict["properties"].items():
-        prop_type_str = prop_data.get("type", "string")
+        prop_type_str = _get_property_type(prop_data)
         prop_description = prop_data.get("description", "")
+
+        # Check if field has anyOf with null (making it optional)
+        is_nullable = False
+        if "anyOf" in prop_data:
+            is_nullable = any(item.get("type") == "null" for item in prop_data["anyOf"])
+
+        # Determine if field is required
+        is_required = prop_name in schema_dict.get("required", [])
 
         # Create the Field with the correct property description
         field_type, _ = type_map.get(prop_type_str, (Any, Field(description="")))
-        field_meta = Field(description=prop_description)
 
-        if prop_name in schema_dict.get("required", []):
+        if is_required and not is_nullable:
+            # Truly required field
+            field_meta = Field(description=prop_description)
             body_model_fields[prop_name] = (field_type, field_meta)
         else:
+            # Optional field (either not in required list or is nullable)
+            field_meta = Field(description=prop_description, default=None)
             body_model_fields[prop_name] = (Optional[field_type], field_meta)
 
     body_model = create_model(body_model_name, **body_model_fields)
@@ -128,8 +198,8 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
 def _generate_tool_name(operation: Dict, path: str) -> str:
     """Generate a tool name base from operation or path."""
     path_for_name = path
-    if "/sws/com.etendoerp.etendorx.datasource" in path:
-        path_for_name = path.replace("/sws/com.etendoerp.etendorx.datasource", "")
+    if ETENDO_HEADLESS_PATH_PREFIX in path:
+        path_for_name = path.replace(ETENDO_HEADLESS_PATH_PREFIX, "")
 
     if "operationId" in operation:
         return operation["operationId"]
@@ -140,19 +210,49 @@ def _generate_tool_name(operation: Dict, path: str) -> str:
 
 
 def _generate_function_code(
-    method: str, url: str, path: str, param_names: List[str], param_locations: Dict
+    method: str,
+    url: str,
+    path: str,
+    param_names: List[str],
+    param_locations: Dict,
+    param_mapping: Dict = None,
+    is_etendo_classic: bool = False,
 ) -> str:
     """Generate the dynamic function code for the tool."""
     param_names_str = ", ".join(param_names)
 
-    path_params_str = (
-        "{" + ", ".join([f"'{name}': {name}" for name, loc in param_locations.items() if loc == "path"]) + "}"
-    )
-    query_params_str = (
-        "{"
-        + ", ".join([f"'{name}': {name}" for name, loc in param_locations.items() if loc == "query"])
-        + "}"
-    )
+    # Handle parameter mapping for Etendo Headless
+    if param_mapping:
+        path_params_mapping = []
+        query_params_mapping = []
+
+        for name, loc in param_locations.items():
+            # Check if this parameter needs mapping
+            original_name = param_mapping.get(name, name)
+            if loc == "path":
+                path_params_mapping.append(f"'{original_name}': {name}")
+            elif loc == "query":
+                query_params_mapping.append(f"'{original_name}': {name}")
+
+        path_params_str = "{" + ", ".join(path_params_mapping) + "}"
+        query_params_str = "{" + ", ".join(query_params_mapping) + "}"
+    else:
+        path_params_str = (
+            "{"
+            + ", ".join([f"'{name}': {name}" for name, loc in param_locations.items() if loc == "path"])
+            + "}"
+        )
+        query_params_str = (
+            "{"
+            + ", ".join([f"'{name}': {name}" for name, loc in param_locations.items() if loc == "query"])
+            + "}"
+        )
+
+    # Handle token logic
+    if is_etendo_classic:
+        token_logic = 'auth_token = "ETENDO_TOKEN"'
+    else:
+        token_logic = 'auth_token = token if "token" in locals() and token is not None else None'
 
     return f"""
 def _run_dynamic(self, {param_names_str}):
@@ -162,11 +262,8 @@ def _run_dynamic(self, {param_names_str}):
         if isinstance(body_params, BaseModel):
             body_params = body_params.model_dump()
 
-    # The token now comes as a function parameter
-    auth_token = token if 'token' in locals() and token is not None else None
-    #print(f"Using auth_token: {{auth_token}}")
-    #if auth_token is 'ETENDO_TOKEN':
-    #    auth_token = get_etendo_token()
+    # Handle authentication token
+    {token_logic}
     path_params = {path_params_str}
     query_params = {query_params_str}
 
@@ -216,7 +313,9 @@ def _process_single_operation(
     """Process a single OpenAPI operation and return a tool instance."""
     # Process parameters
     openapi_params = operation.get("parameters", [])
-    model_fields, param_locations = _process_openapi_parameters(openapi_params, type_map)
+    model_fields, param_locations, param_mapping = _process_openapi_parameters(
+        openapi_params, type_map, path, method
+    )
 
     # Process request body for POST/PUT
     body_info = _process_request_body(method, operation, path, type_map)
@@ -224,11 +323,23 @@ def _process_single_operation(
         body_model, body_description = body_info
         model_fields["body"] = (body_model, Field(description=body_description))
 
-    # Add token parameter
-    model_fields["token"] = (
-        Optional[str],
-        Field(description="Authentication token for API access", default=None),
+    # Check if this is an Etendo classic endpoint
+    etendo_host_docker = get_etendo_host()
+    is_etendo_classic = url == etendo_host_docker
+
+    # Debug logging
+    logger.debug(
+        f"URL comparison: url='{url}' vs etendo_host='{etendo_host_docker}' -> is_classic={is_etendo_classic}"
     )
+
+    # Add token parameter only if NOT Etendo classic
+    if not is_etendo_classic:
+        model_fields["token"] = (
+            Optional[str],
+            Field(description="Authentication token for API access", default=None),
+        )
+    else:
+        logger.debug("Skipping token parameter for Etendo classic endpoint")
 
     # Generate tool name and schema
     tool_name_base = _generate_tool_name(operation, path)
@@ -236,7 +347,9 @@ def _process_single_operation(
 
     # Generate function code
     param_names = list(tool_args_schema.model_fields.keys())
-    function_code = _generate_function_code(method, url, path, param_names, param_locations)
+    function_code = _generate_function_code(
+        method, url, path, param_names, param_locations, param_mapping, is_etendo_classic
+    )
 
     # Execute function code
     namespace = {"do_request": do_request, "BaseModel": BaseModel, "get_etendo_token": get_etendo_token}
@@ -248,12 +361,20 @@ def _process_single_operation(
     tool_name = sanitize_tool_name(tool_name_raw)
     tool_description = operation.get("summary", "No description provided")
 
+    # Log appropriate message based on endpoint type
+    if is_etendo_classic:
+        logger.info("Etendo classic endpoint detected")
+        logger.info(f"  - URL: {url}")
+        logger.info(f"  - Endpoint: {path}")
+
     # Log information
     logger.info(f"Generating OpenAPI tool: {tool_name}")
     logger.info(f"  - Method: {method.upper()}")
     logger.info(f"  - Path: {path}")
     logger.info(f"  - Description: {tool_description}")
     logger.info(f"  - Parameters: {param_names}")
+    if param_mapping:
+        logger.info(f"  - Parameter mapping: {param_mapping}")
 
     tool_instance = _create_tool_instance(
         tool_name, tool_description, tool_args_schema, generated_run_func, tool_class
