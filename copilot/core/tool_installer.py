@@ -1,12 +1,17 @@
 import importlib
 import subprocess
 
+from copilot.baseutils.logging_envvar import (
+    SUCCESS_CODE,
+    print_green,
+    print_orange,
+    print_yellow,
+)
 from packaging import version
 from packaging.specifiers import Specifier
 
 from .exceptions import ToolDependencyMismatch
 from .tool_dependencies import Dependencies, Dependency
-from .utils import SUCCESS_CODE, print_green, print_orange, print_yellow
 
 
 def _pip_uninstall(package: str):

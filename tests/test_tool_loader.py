@@ -10,6 +10,7 @@ from copilot.core.exceptions import (
     ToolDependenciesFileNotFound,
 )
 from copilot.core.tool_loader import ToolLoader
+from copilot.core.tool_wrapper import CopilotTool
 
 
 @pytest.fixture
@@ -176,7 +177,7 @@ def test_load_all_tools_automatically(set_fake_openai_api_key):
     from copilot.core.tool_wrapper import ToolWrapper
 
     for tool in tools:
-        assert isinstance(tool, ToolWrapper)
+        assert isinstance(tool, ToolWrapper) or isinstance(tool, CopilotTool)
         assert hasattr(tool, "name")
         assert hasattr(tool, "description")
 

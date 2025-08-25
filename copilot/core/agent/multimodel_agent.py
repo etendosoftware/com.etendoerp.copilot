@@ -4,6 +4,11 @@ from typing import AsyncGenerator, Final, Union
 
 import langchain_core.tools
 import langgraph_codeact
+from copilot.baseutils.logging_envvar import (
+    read_optional_env_var,
+    read_optional_env_var_float,
+    read_optional_env_var_int,
+)
 from copilot.core.agent.agent import (
     AgentResponse,
     AssistantResponse,
@@ -24,11 +29,11 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
 from langgraph_codeact import create_default_prompt
 
-from .. import etendo_utils, utils
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..threadcontext import ThreadContext
-from ..utils import get_full_question
+from ..utils import etendo_utils
+from ..utils.agent import get_full_question
 from .agent_utils import process_local_files
 from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
 from .langgraph_agent import handle_events
@@ -181,7 +186,7 @@ async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
 
 
 class MultimodelAgent(CopilotAgent):
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
+    OPENAI_MODEL: Final[str] = read_optional_env_var("OPENAI_MODEL", "gpt-4o")
     _memory: MemoryHandler = None
 
     def __init__(self):
@@ -194,7 +199,7 @@ class MultimodelAgent(CopilotAgent):
             t if isinstance(t, StructuredTool) else langchain_core.tools.convert_runnable_to_tool(t)
             for t in enabled_tools
         ]
-        use_pydoide = utils.read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
+        use_pydoide = read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
         eval_fn = (
             create_pyodide_eval_fn("./sessions", ThreadContext.get_data("conversation_id"))
             if use_pydoide
@@ -271,8 +276,8 @@ class MultimodelAgent(CopilotAgent):
             handle_parsing_errors=True,
             debug=True,
         )
-        agent_exec.max_iterations = utils.read_optional_env_var_int("COPILOT_MAX_ITERATIONS", 100)
-        max_exec_time = utils.read_optional_env_var_float("COPILOT_EXECUTION_TIMEOUT", 0)
+        agent_exec.max_iterations = read_optional_env_var_int("COPILOT_MAX_ITERATIONS", 100)
+        max_exec_time = read_optional_env_var_float("COPILOT_EXECUTION_TIMEOUT", 0)
         agent_exec.max_execution_time = None if max_exec_time == 0 else max_exec_time
         return agent_exec
 

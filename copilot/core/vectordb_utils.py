@@ -8,8 +8,8 @@ import zipfile
 import chromadb
 import pymupdf
 from chromadb import Settings
+from copilot.baseutils.logging_envvar import copilot_debug
 from copilot.core.schemas import SplitterConfig
-from copilot.core.utils import copilot_debug
 from langchain.text_splitter import CharacterTextSplitter, MarkdownTextSplitter
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings

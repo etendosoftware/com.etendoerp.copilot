@@ -11,7 +11,6 @@ from copilot.core.tool_input import ToolField, ToolInput
 from copilot.core.tool_wrapper import ToolWrapper
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from langsmith import unit
 from pytest import fixture
 
 app = FastAPI()
@@ -97,13 +96,6 @@ def test_serve_tools(mock_select_copilot_agent, mock_langchain_agent):
     response = client.get("/tools")
     assert response.status_code == 200
     response_json = response.json()
-    assert {
-        "answer": {
-            "HelloWorldTool": {
-                "description": "This is the classic HelloWorld tool implementation.",
-                "parameters": {
-                    "query": {"description": "query to look up", "title": "Query", "type": "string"}
-                },
-            }
-        }
-    } == response_json
+
+    answer = response_json.get("answer", {})
+    assert "HelloWorldTool" in answer

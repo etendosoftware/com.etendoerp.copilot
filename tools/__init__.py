@@ -4,7 +4,7 @@ import importlib
 import os
 from typing import Final
 
-from copilot.core.tool_wrapper import ToolWrapper
+from copilot.core.tool_wrapper import CopilotTool, ToolWrapper
 
 INIT_FILE_NAME: Final[str] = "__init__.py"
 PYTHON_EXTENSION: Final[str] = ".py"
@@ -21,5 +21,9 @@ for filename in os.listdir(package_dir):
 
         # iterates through module attributes to find classes
         for name, obj in vars(module).items():
-            if isinstance(obj, type) and name != ToolWrapper.__name__:
+            if (
+                isinstance(obj, type)
+                and issubclass(obj, (ToolWrapper, CopilotTool))
+                and name not in {"ToolWrapper", "CopilotTool"}
+            ):
                 globals()[name] = obj  # add the class to the package's namespace

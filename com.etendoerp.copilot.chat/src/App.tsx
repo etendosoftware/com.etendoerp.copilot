@@ -20,9 +20,6 @@ import { EventSourcePolyfill } from 'event-source-polyfill';
 import { ROLE_BOT, ROLE_ERROR, ROLE_NODE, ROLE_TOOL, ROLE_USER, ROLE_WAIT } from './utils/constants';
 import { getMessageContainerClasses } from './utils/styles';
 
-// Constants for conversation titles
-const CURRENT_CONVERSATION_TITLES = ['Conversación actual', 'Current conversation'];
-
 // StatusIcon component to avoid duplication
 const StatusIcon = ({ statusIcon, responseSent }: { statusIcon: string, responseSent: string }) => (
   <img
@@ -114,7 +111,7 @@ function App() {
     conversationsWithUnreadMessages,
     markConversationAsUnread,
     selectConversationAndMarkAsRead,
-  } = useConversations(selectedOption?.app_id || null);
+  } = useConversations(selectedOption?.app_id || null, labels);
 
   const isMaximized = useMaximized();
 
@@ -138,8 +135,9 @@ function App() {
 
   // Helper functions
   const shouldGenerateTitle = (conversation: any) => {
+    const currentConversationLabel = labels?.ETCOP_CurrentConversation ?? 'Current conversation';
     return conversation && (!conversation.title ||
-      CURRENT_CONVERSATION_TITLES.includes(conversation.title));
+      ['Conversación actual', 'Current conversation', currentConversationLabel].includes(conversation.title));
   };
 
   const handleTitleGeneration = (conversationId: string, reason: string) => {
@@ -410,7 +408,7 @@ function App() {
 
       await handleNewMessage(ROLE_USER, userMessage);
       await handleNewMessage(ROLE_WAIT, {
-        text: 'Processing...',
+        text: labels?.ETCOP_Processing ?? 'Processing...',
         sender: ROLE_WAIT,
         timestamp: formatTimeNewDate(new Date()),
       });
@@ -693,6 +691,7 @@ function App() {
               onConversationSelect={handleConversationSelect}
               onNewConversation={handleNewConversation}
               isVisible={true} // Always visible when in this layout
+              labels={labels}
               generatingTitles={generatingTitles}
               conversationsWithUnreadMessages={conversationsWithUnreadMessages}
             />

@@ -5,16 +5,24 @@ This module contains tools that are dynamically loaded from Etendo Classic
 based on the agent configuration and provides tools specific to each agent.
 """
 
+import inspect
 import logging
+import re
 from typing import List, Optional, Type
 
 import httpx
-from copilot.core.etendo_utils import call_etendo, get_etendo_host
+from copilot.baseutils.logging_envvar import copilot_debug, copilot_error, copilot_info
 from copilot.core.mcp.auth_utils import extract_etendo_token_from_mcp_context
 from copilot.core.schemas import AssistantSchema
 from copilot.core.tool_loader import ToolLoader
 from copilot.core.tool_wrapper import ToolWrapper
-from copilot.core.utils import copilot_debug, copilot_error, copilot_info
+from copilot.core.utils.etendo_utils import (
+    call_etendo,
+    get_etendo_host,
+    get_etendo_token,
+    normalize_etendo_token,
+    validate_etendo_token,
+)
 from fastmcp.server.dependencies import get_context
 from fastmcp.tools.tool import Tool
 from langchain_core.tools import BaseTool
@@ -202,6 +210,16 @@ async def _execute_langchain_tool(langchain_tool: BaseTool, kwargs: dict):
         return langchain_tool(**kwargs)
 
 
+def has_kwargs(tool):
+    sig = inspect.signature(tool._run)
+    # Reject functions with *args or **kwargs
+    for param in sig.parameters.values():
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            raise ValueError("Functions with *args are not supported as tools")
+        if param.kind == inspect.Parameter.VAR_KEYWORD:
+            raise ValueError("Functions with **kwargs are not supported as tools")
+
+
 def _convert_single_tool_to_mcp(tool: BaseTool) -> Tool:
     """Convert a single LangChain tool to FastMCP Tool."""
     from fastmcp.tools import Tool
@@ -214,8 +232,12 @@ def _convert_single_tool_to_mcp(tool: BaseTool) -> Tool:
             copilot_debug(f"Tool {tool.name} is a ToolWrapper - using unified arguments")
             toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=True)
         elif isinstance(tool, BaseTool):
-            copilot_debug(f"Tool {tool.name} is a BaseTool - using individual parameters")
-            toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=False)
+            copilot_debug(f"Tool {tool.name} is a BaseTool ")
+            # check if has kwargs or variable arguments
+            if not has_kwargs(tool):
+                toolfn_conv = tool._run
+            else:
+                toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=False)
         else:
             copilot_error(f"Unsupported tool type: {type(tool)}. Using individual parameters as fallback.")
             toolfn_conv = _create_langchain_tool_executor(tool, unify_arguments=False)
@@ -362,7 +384,9 @@ def _get_agent_structure_tool() -> dict:
         return {"success": False, "error": f"Unexpected error: {str(e)}"}
 
 
-def register_agent_tools(app, identifier: Optional[str] = None, etendo_token: Optional[str] = None) -> dict:
+def register_agent_tools(
+    app, identifier: Optional[str] = None, etendo_token: Optional[str] = None, is_direct_mode: bool = False
+) -> dict:
     """
     Register agent-specific tools with the MCP app.
 
@@ -373,6 +397,7 @@ def register_agent_tools(app, identifier: Optional[str] = None, etendo_token: Op
         etendo_token: Bearer token for authentication
         identifier:  Agent identifier (app_id) to fetch configuration
         app: FastMCP application instance
+        is_direct_mode: Whether this is being called in direct mode
     """
     try:
         if not identifier:
@@ -392,8 +417,21 @@ def register_agent_tools(app, identifier: Optional[str] = None, etendo_token: Op
             include_openapi_tools=True,
         )
 
-        mcp_tools = [_gen_prompt_tool(agent_config)]
-        mcp_tools.extend(convert_langchain_tools_to_mcp(_base_tools))
+        # In direct mode, if agent is a supervisor, register team member ask tools instead of supervisor tools
+        if is_direct_mode and _is_supervisor(agent_config):
+            # For supervisors in direct mode: only team member ask tools, no supervisor prompt or tools
+            team_ask_tools = _make_team_ask_agent_tools(agent_config)
+            mcp_tools = team_ask_tools
+            copilot_info(
+                f"Direct mode: Supervisor detected, registering only {len(team_ask_tools)} team member ask tools (no supervisor prompt)"
+            )
+        else:
+            # For regular agents or supervisors in simple mode: include prompt tool and converted tools
+            mcp_tools = [_gen_prompt_tool(agent_config)]
+            mcp_tools.extend(convert_langchain_tools_to_mcp(_base_tools))
+
+        # Note: agent-specific ask tools are only registered in the "simple" mode.
+        # For direct mode we register only the agent prompt and converted tools.
 
         for tool in mcp_tools:
             # Use add_tool method which expects a Tool object
@@ -431,6 +469,121 @@ def _gen_prompt_tool(agent_config: AssistantSchema, identifier: Optional[str] = 
         enabled=True,
     )
     return get_prompt_tool
+
+
+def _sanitize_tool_name(name: str) -> str:
+    """Sanitize agent name to be used in tool names: replace non-alphanumeric with underscore."""
+    if not name:
+        return "unknown_agent"
+    # Replace any sequence of non-alphanumeric characters with single underscore
+    sanitized = re.sub(r"[^0-9a-zA-Z]+", "_", name).strip("_")
+    # Ensure it doesn't start with a digit (tool name should be a valid identifier-like string)
+    if sanitized and sanitized[0].isdigit():
+        sanitized = "agent_" + sanitized
+    return sanitized
+
+
+def _is_supervisor(agent_config: AssistantSchema) -> bool:
+    """Check if an agent is a supervisor based on the presence of assistants."""
+    return agent_config.assistants is not None and len(agent_config.assistants) > 0
+
+
+def _make_team_ask_agent_tools(supervisor_config: AssistantSchema) -> List[Tool]:
+    """Create ask_agent tools for each team member of a supervisor.
+
+    Args:
+        supervisor_config: Supervisor configuration containing team members
+
+    Returns:
+        List[Tool]: Tools for each team member
+    """
+    tools = []
+
+    if not _is_supervisor(supervisor_config):
+        return tools
+
+    for assistant in supervisor_config.assistants:
+        try:
+            # Create ask tool for each team member using their own identifier
+            team_member_tool = _make_ask_agent_tool(assistant, assistant.assistant_id or assistant.name)
+            tools.append(team_member_tool)
+            copilot_debug(f"Created ask tool for team member: {team_member_tool.name}")
+        except Exception as e:
+            copilot_error(f"Failed to create ask tool for team member {assistant.name}: {e}")
+
+    copilot_info(f"Created {len(tools)} ask tools for supervisor team members")
+    return tools
+
+
+def _make_ask_agent_tool(agent_config: AssistantSchema, identifier: str) -> Tool:
+    """Create an ask_agent_<AgentName> FastMCP Tool using agent configuration.
+
+    The tool will POST the question to Etendo's /sws/copilot/question endpoint using the
+    Etendo token obtained at execution time from thread/context via get_etendo_token().
+    """
+
+    async def _ask_agent(question: str, conversation_id: Optional[str] = None) -> dict:
+        try:
+            # Get token from MCP request context using helper; get_etendo_token may raise if missing
+            try:
+                token = get_etendo_token()
+            except Exception:
+                return {
+                    "success": False,
+                    "error": "No authentication token found in request headers. Authentication required.",
+                    "status_code": 401,
+                }
+
+            # Normalize then validate token
+            normalized_token = normalize_etendo_token(token)
+            if not validate_etendo_token(normalized_token):
+                return {
+                    "success": False,
+                    "error": "Invalid Bearer token format. Authentication required.",
+                    "status_code": 401,
+                }
+
+            payload = {"question": question, "app_id": identifier}
+            if conversation_id and conversation_id != "null" and conversation_id != "":
+                payload["conversation_id"] = conversation_id
+
+            etendo_host = get_etendo_host()
+            headers = {
+                "Content-Type": APPLICATION_JSON,
+                "Accept": APPLICATION_JSON,
+                "Authorization": normalized_token,
+            }
+
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                resp = await client.post(f"{etendo_host}/sws/copilot/question", json=payload, headers=headers)
+                try:
+                    body = resp.json()
+                except Exception:
+                    body = resp.text
+
+                if resp.is_error:
+                    return {"success": False, "status_code": resp.status_code, "error": body}
+
+                return {"success": True, "status_code": resp.status_code, "result": body}
+
+        except Exception as e:
+            copilot_error(f"Error in agent-specific ask tool for {identifier}: {e}")
+            return {"success": False, "error": str(e)}
+
+    agent_name = agent_config.name or identifier
+    sanitized = _sanitize_tool_name(agent_name)
+    tool_name = f"ask_agent_{sanitized}"
+    description = agent_config.description or f"Ask agent {agent_name}"
+
+    ask_tool = Tool.from_function(
+        fn=_ask_agent,
+        name=tool_name,
+        description=description,
+        tags={"agent", "ask"},
+        enabled=True,
+    )
+
+    return ask_tool
 
 
 def initialize_agent_from_etendo(identifier: str):

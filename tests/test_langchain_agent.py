@@ -8,7 +8,7 @@ import pytest
 from copilot.core.agent import MultimodelAgent
 from copilot.core.agent.multimodel_agent import CustomOutputParser
 from copilot.core.schemas import QuestionSchema
-from copilot.core.utils import get_full_question
+from copilot.core.utils.agent import get_full_question
 from langchain_core.agents import AgentFinish
 
 

@@ -14,4 +14,11 @@ export interface ILabels {
     ETCOP_Welcome_Greeting?: string;
     ETCOP_Message_AssistantHeader?: string;
     ETCOP_Welcome_Message?: string;
+    ETCOP_NewConversation?: string;
+    ETCOP_GeneratingTitle?: string;
+    ETCOP_Untitled?: string;
+    ETCOP_CurrentConversation?: string;
+    ETCOP_Processing?: string;
+    ETCOP_LoadingConversations?: string;
+    ETCOP_NoConversations?: string;
 }
