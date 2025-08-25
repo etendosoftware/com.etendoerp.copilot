@@ -177,10 +177,28 @@ public class RestServiceUtil {
       }
       DiskFileItem itemDisk = (DiskFileItem) item;
       String originalFileName = item.getName();
-      String extension = originalFileName.substring(originalFileName.lastIndexOf("."));
-      String filenameWithoutExt = originalFileName.substring(0, originalFileName.lastIndexOf("."));
+      // Ensure we have a default name to avoid NPEs in tests or malformed items
+      if (originalFileName == null || originalFileName.isEmpty()) {
+        originalFileName = "default";
+      }
+      // Safely extract extension and filename without extension
+      int dotIndex = originalFileName.lastIndexOf('.');
+      String extension;
+      String filenameWithoutExt;
+      if (dotIndex == -1) {
+        extension = null; // no suffix
+        filenameWithoutExt = originalFileName;
+      } else {
+        extension = originalFileName.substring(dotIndex);
+        filenameWithoutExt = originalFileName.substring(0, dotIndex);
+      }
+      // Ensure prefix for createTempFile is at least 3 characters
+      String prefix = filenameWithoutExt + "_";
+      if (prefix.length() < 3) {
+        prefix = (prefix + "___").substring(0, 3);
+      }
       // Check if the file is in memory or on disk and create a temp file
-      File f = File.createTempFile(filenameWithoutExt + "_", extension);
+      File f = File.createTempFile(prefix, extension);
       f.deleteOnExit();
       if (itemDisk.isInMemory()) {
         // If the file is in memory, write it to the temp file
@@ -328,7 +346,7 @@ public class RestServiceUtil {
    *     the JSON object containing the file identifiers.
    * @return a list of file identifiers. If the "file" field is empty or not a valid JSON array, an empty list is returned.
    */
-  private static List<String> getFilesReceived(JSONObject jsonRequest) {
+  public static List<String> getFilesReceived(JSONObject jsonRequest) {
     List<String> result = new ArrayList<>();
     String questionAttachedFileIds = jsonRequest.optString("file");
     if (StringUtils.isEmpty(questionAttachedFileIds)) {
@@ -357,7 +375,7 @@ public class RestServiceUtil {
    * @param response
    * @param inputStream
    */
-  private static JSONObject serverSideEvents(boolean asyncRequest, HttpServletResponse response,
+  public static JSONObject serverSideEvents(boolean asyncRequest, HttpServletResponse response,
       InputStream inputStream) {
     setEventStreamMode(response);
     String lastLine = "";
@@ -405,7 +423,7 @@ public class RestServiceUtil {
    *     the JSON object to inspect (may be null)
    * @return true when an 'answer.role' of "null" or PROP_ERROR is present; false otherwise
    */
-  private static boolean isAnswerWithNullOrErrorRole(JSONObject jsonLastLine) throws JSONException {
+  public static boolean isAnswerWithNullOrErrorRole(JSONObject jsonLastLine) throws JSONException {
     if (jsonLastLine == null || !jsonLastLine.has(PROP_ANSWER)) {
       return false;
     }
@@ -421,8 +439,6 @@ public class RestServiceUtil {
    * This method is used to save a file in the temp folder of the server. The file is saved with a
    * UUID as name.
    *
-   * @param asyncRequest
-   * @param queue
    * @param copilotApp
    * @param conversationId
    * @param question
@@ -450,7 +466,7 @@ public class RestServiceUtil {
     return processResponseAndTrack(finalResponseAsync, conversationId, question, copilotApp);
   }
 
-  private static JSONObject buildRequestJson(CopilotApp copilotApp, String conversationId, String question,
+  public static JSONObject buildRequestJson(CopilotApp copilotApp, String conversationId, String question,
       List<String> questionAttachedFileIds) throws IOException, JSONException {
     JSONObject jsonRequestForCopilot = new JSONObject();
     boolean isGraph = CopilotUtils.checkIfGraphQuestion(copilotApp);
@@ -479,7 +495,7 @@ public class RestServiceUtil {
     return jsonRequestForCopilot;
   }
 
-  private static String determineEndpoint(boolean asyncRequest, CopilotApp copilotApp) {
+  public static String determineEndpoint(boolean asyncRequest, CopilotApp copilotApp) {
     boolean isGraph = CopilotUtils.checkIfGraphQuestion(copilotApp);
     if (isGraph) {
       return asyncRequest ? AGRAPH : GRAPH;
@@ -488,7 +504,7 @@ public class RestServiceUtil {
     }
   }
 
-  private static JSONObject sendRequestToCopilot(boolean asyncRequest, HttpServletResponse queue,
+  public static JSONObject sendRequestToCopilot(boolean asyncRequest, HttpServletResponse queue,
       JSONObject jsonRequestForCopilot, CopilotApp copilotApp) throws IOException, JSONException {
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
@@ -521,7 +537,7 @@ public class RestServiceUtil {
     }
   }
 
-  private static JSONObject processResponseAndTrack(JSONObject finalResponseAsync, String conversationId,
+  public static JSONObject processResponseAndTrack(JSONObject finalResponseAsync, String conversationId,
       String question, CopilotApp copilotApp) throws JSONException {
     if (finalResponseAsync == null) {
       trackNullResponse(conversationId, question, copilotApp);
@@ -548,14 +564,14 @@ public class RestServiceUtil {
     return responseOriginal;
   }
 
-  private static void trackNullResponse(String conversationId, String question, CopilotApp copilotApp) {
+  public static void trackNullResponse(String conversationId, String question, CopilotApp copilotApp) {
     // Note: This appears to be a bug in the original code - finalResponseAsync is null but we're calling methods on it
     // Keeping the original logic for backward compatibility
     TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
     TrackingUtil.getInstance().trackResponse(conversationId, "", copilotApp, true);
   }
 
-  private static void handleMissingAnswer(JSONObject finalResponseAsync) throws JSONException {
+  public static void handleMissingAnswer(JSONObject finalResponseAsync) throws JSONException {
     String message = "";
     if (finalResponseAsync.has("detail")) {
       JSONArray detail = finalResponseAsync.getJSONArray("detail");
@@ -568,7 +584,7 @@ public class RestServiceUtil {
     }
   }
 
-  private static String extractResponse(JSONObject finalResponseAsync, JSONObject responseOriginal,
+  public static String extractResponse(JSONObject finalResponseAsync, JSONObject responseOriginal,
       String conversationId) throws JSONException {
     String response = null;
 
@@ -592,7 +608,7 @@ public class RestServiceUtil {
     return response;
   }
 
-  private static void addTimestampToResponse(JSONObject responseOriginal) throws JSONException {
+  public static void addTimestampToResponse(JSONObject responseOriginal) throws JSONException {
     Date date = new Date();
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
