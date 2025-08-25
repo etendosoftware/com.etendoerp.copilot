@@ -54,7 +54,7 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
     if (log.isDebugEnabled()) {
       log.debug(String.format("RemoteFileHook for file: %s executed start", hookObject.getName()));
     }
-    var flow = hookObject.getEtapiOpenapiFlow();
+    var flow = hookObject.getOpenAPIFlow();
     String fileName = getFileName(hookObject, flow);
     try {
       Path path = getOpenAPIFile(flow, fileName);
