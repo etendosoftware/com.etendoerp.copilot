@@ -29,7 +29,7 @@ from datetime import datetime
 import pandas as pd
 import psycopg2
 import requests
-from copilot.core.utils import read_optional_env_var
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from dotenv import load_dotenv
 from psycopg2 import sql
 

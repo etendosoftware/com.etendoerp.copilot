@@ -4,6 +4,10 @@
 
 The Etendo Copilot includes a Model Context Protocol (MCP) server that **always runs** in parallel with the main FastAPI server. This allows integration with Claude Desktop and other MCP clients.
 
+The MCP server supports two connection modes:
+- **Simple Mode**: Provides a single `ask_agent` tool for natural language interaction with agents
+- **Direct Mode**: Exposes all agent tools for direct execution plus agent prompt reading capabilities
+
 **Transport**: The MCP server uses **HTTP Streaming**, the modern standard for real-time communication:
 - ✅ **Native HTTP streaming** protocol (modern standard)
 - ✅ **Direct HTTP communication** without SSE or WebSocket complexity
@@ -39,6 +43,31 @@ If `COPILOT_PORT_MCP` is not set, the server will use port **5007** by default.
    - MCP server on port 5007 (or `COPILOT_PORT_MCP`)
 
 **No configuration required** - the MCP server is always enabled.
+
+## Connection Modes
+
+The MCP server supports two distinct connection modes:
+
+### Simple Mode (Default)
+- **URL Pattern**: `http://localhost:5007/{AGENT_ID}/mcp`
+- **Purpose**: Provides a conversational interface to interact with agents
+- **Tools**: `ask_agent`, `ping`, `hello_world`, `server_info`
+- **Use Case**: Natural language interaction with agents
+
+### Direct Mode (Advanced)
+- **URL Pattern**: `http://localhost:5007/{AGENT_ID}/direct/mcp`
+- **Purpose**: Direct access to all agent tools and configuration
+- **Tools**: All agent-specific tools, `get_agent_prompt`, basic utility tools
+- **Use Case**: Precise control over tool execution and agent introspection
+
+## Quick Configuration
+
+Use the Gradle task to generate MCP client configuration:
+
+```bash
+./gradlew copilot.mcp.config -PagentId=YOUR_AGENT_ID -Pmode=simple
+./gradlew copilot.mcp.config -PagentId=YOUR_AGENT_ID -Pmode=direct
+```
 
 ## Server Architecture
 

@@ -2,7 +2,7 @@ import operator
 from abc import abstractmethod
 from typing import Annotated, Final, Sequence, TypedDict
 
-from copilot.core import utils
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -12,7 +12,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 
 class BasePattern:
-    OPENAI_MODEL: Final[str] = utils.read_optional_env_var("OPENAI_MODEL", "gpt-4o")
+    OPENAI_MODEL: Final[str] = read_optional_env_var("OPENAI_MODEL", "gpt-4o")
 
     def construct_nodes(self, members, assistant_graph=None, full_question=None) -> StateGraph:
         class AgentState(TypedDict):

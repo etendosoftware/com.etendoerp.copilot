@@ -51,10 +51,19 @@ public class MCPUtils {
             CopilotMCP mcpConfig = appMcp.getMCPServer();
             if (mcpConfig != null && mcpConfig.isActive() && StringUtils.isNotEmpty(mcpConfig.getJsonStructure())) {
                 try {
-                    // Parse the JSON structure and add it to the array
-                    JSONObject mcpJson = new JSONObject(mcpConfig.getJsonStructure());
-                    mcpJson.put("name", mcpConfig.getName());
-                    mcpConfigurations.put(mcpJson);
+
+                    JSONObject raw = new JSONObject(mcpConfig.getJsonStructure());
+
+                    JSONArray normalized = MCPConfigNormalizer.normalizeToArray(raw, mcpConfig.getName());
+
+                    for (int i = 0; i < normalized.length(); i++) {
+                        JSONObject item = normalized.getJSONObject(i);
+
+                        if (!item.has("name") || StringUtils.isBlank(item.optString("name"))) {
+                            item.put("name", mcpConfig.getName());
+                        }
+                        mcpConfigurations.put(item);
+                    }
                 } catch (JSONException e) {
                     log.warn("Invalid JSON structure in MCP configuration: " + mcpConfig.getName(), e);
                 }

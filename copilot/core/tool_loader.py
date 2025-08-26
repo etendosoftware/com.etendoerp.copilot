@@ -1,9 +1,15 @@
 import json
 import threading
 from pathlib import Path
-from typing import Dict, Final, List, Optional, TypeAlias
+from typing import Any, Dict, Final, List, Optional, TypeAlias
 
 import toml
+from copilot.baseutils.logging_envvar import (
+    copilot_info,
+    print_green,
+    print_yellow,
+    read_optional_env_var,
+)
 
 from . import tool_installer, utils
 
@@ -17,21 +23,23 @@ from .exceptions import (
 from .kb_utils import get_kb_tool
 from .schemas import AssistantSchema, ToolSchema
 from .tool_dependencies import Dependency, ToolsDependencies
-from .tool_wrapper import ToolWrapper
-from .toolgen.ApiTool import generate_tools_from_openapi
+from .tool_wrapper import CopilotTool, ToolWrapper
+from .toolgen.ApiTool import (
+    generate_tools_from_openapi as generate_tools_from_openapi_old,
+)
+from .toolgen.openapi_tool_gen import generate_tools_from_openapi
 
 # fmt: on
-from .utils import print_green, print_yellow
 
 LangChainTools: TypeAlias = List[ToolWrapper]
 
 NATIVE_TOOL_IMPLEMENTATION: Final[str] = "copilot"  # noqa: F405
 NATIVE_TOOLS_NODE_NAME: Final[str] = "native_tools"  # noqa: F405
 THIRD_PARTY_TOOLS_NODE_NAME: Final[str] = "third_party_tools"  # noqa: F405
-CONFIGURED_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var(
+CONFIGURED_TOOLS_FILENAME: Optional[str] = read_optional_env_var(
     "CONFIGURED_TOOLS_FILENAME", "tools_config.json"
 )
-DEPENDENCIES_TOOLS_FILENAME: Optional[str] = utils.read_optional_env_var(
+DEPENDENCIES_TOOLS_FILENAME: Optional[str] = read_optional_env_var(
     "DEPENDENCIES_TOOLS_FILENAME", "tools_deps.toml"
 )
 
@@ -92,7 +100,7 @@ class ToolLoader:
                 ToolLoader.installed_deps.append(tool_name)
 
         if enabled_tools_with_deps:
-            utils.copilot_info("Dependencies installed successfully")
+            copilot_info("Dependencies installed successfully")
 
     def _import_tools(self):
         """Import tools module after dependencies are installed."""
@@ -120,13 +128,16 @@ class ToolLoader:
         config = {"native_tools": {}, "third_party_tools": {}}
 
         # Get all concrete ToolWrapper subclasses
-        for tool_class in ToolWrapper.__subclasses__():
+        subclasses__: List[Any] = []
+        subclasses__.extend(ToolWrapper.__subclasses__())  # Get all ToolWrapper subclasses
+        subclasses__.extend(CopilotTool.__subclasses__())  # Include CopilotTool subclasses
+        for tool_class in subclasses__:
             tool_name = tool_class.__name__
 
             # Skip abstract classes and ToolWrapper itself
             if hasattr(tool_class, "__abstractmethods__") and tool_class.__abstractmethods__:
                 continue
-            if tool_class.__name__ == "ToolWrapper":
+            if tool_class.__name__ in {"ToolWrapper", "CopilotTool"}:
                 continue
 
             config["third_party_tools"][tool_name] = True
@@ -215,7 +226,10 @@ class ToolLoader:
 
         # Load all concrete ToolWrapper subclasses
         print_yellow("Loading all available tools...")
-        for tool_class in ToolWrapper.__subclasses__():
+        subclasses__: List[Any] = []
+        subclasses__.extend(ToolWrapper.__subclasses__())  # Get all ToolWrapper subclasses
+        subclasses__.extend(CopilotTool.__subclasses__())  # Include BaseTool subclasses
+        for tool_class in subclasses__:
             try:
                 # Skip abstract classes and ToolWrapper itself
                 if hasattr(tool_class, "__abstractmethods__") and tool_class.__abstractmethods__:
@@ -223,7 +237,7 @@ class ToolLoader:
                     continue
 
                 # Skip ToolWrapper base class
-                if tool_class.__name__ == "ToolWrapper":
+                if tool_class.__name__ in {"ToolWrapper", "CopilotTool"}:
                     continue
 
                 tool_instance = tool_class()
@@ -268,7 +282,11 @@ class ToolLoader:
             if spec.type == "FLOW":
                 try:
                     api_spec = json.loads(spec.spec)
-                    openapi_tools = generate_tools_from_openapi(api_spec)
+                    if read_optional_env_var("COPILOT_OLD_OPENAPI_TOOLS", "false").lower() == "true":
+                        # Use old OpenAPI tool generation logic
+                        openapi_tools = generate_tools_from_openapi_old(api_spec)
+                    else:
+                        openapi_tools = generate_tools_from_openapi(api_spec)
                     tools.extend(openapi_tools)
                 except Exception as e:
                     print_yellow(f"Warning: Could not generate tools from OpenAPI spec: {e}")

@@ -14,24 +14,24 @@ from typing import Dict, Optional
 
 import httpx
 import uvicorn
-from copilot.core.etendo_utils import normalize_etendo_token
-from copilot.core.mcp.auth_utils import extract_etendo_token_from_request
-from copilot.core.mcp.tools import (
-    register_agent_tools,
-    register_basic_tools,
-)
-from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils import (
+from copilot.baseutils.logging_envvar import (
     copilot_debug,
     copilot_error,
     copilot_info,
     copilot_warning,
 )
+from copilot.core.mcp.auth_utils import extract_etendo_token_from_request
+from copilot.core.mcp.tools import (
+    register_agent_tools,
+    register_basic_tools,
+    register_basic_tools_direct,
+)
+from copilot.core.threadcontext import ThreadContext
+from copilot.core.utils.etendo_utils import normalize_etendo_token
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from fastmcp import FastMCP
-from fastmcp.server.auth import BearerAuthProvider
 
 logger = logging.getLogger(__name__)
 
@@ -39,18 +39,15 @@ logger = logging.getLogger(__name__)
 MCP_INSTANCE_TTL_MINUTES = 10
 
 
-def get_bearer_provider():
-    return BearerAuthProvider(
-        issuer="sws",
-        audience="my-mcp-server",
-    )
-
-
 class DynamicMCPInstance:
     """A single MCP instance that can be created dynamically."""
 
-    def __init__(self, identifier: str, etendo_token: str, server_ref=None):
+    def __init__(self, identifier: str, etendo_token: str, server_ref=None, direct_mode: bool = False):
         self.identifier = identifier
+        self.direct_mode = direct_mode  # Flag to indicate direct mode (no ask_agent tool)
+        self.instance_key = (
+            f"{identifier}_direct" if direct_mode else identifier
+        )  # Key used in server's instances dict
         self.created_at = time.time()
         self.last_activity = time.time()  # For activity tracking
         self.server_ref = server_ref  # Reference to main server
@@ -62,17 +59,50 @@ class DynamicMCPInstance:
         self._should_stop = False  # Flag to control server stopping
 
         # Configure and register tools
-        self._setup_tools(identifier, etendo_token)
+        self._setup_tools(identifier, etendo_token, direct_mode)
 
-        copilot_info(f"🔧 Setting up DynamicMCPInstance for identifier: {identifier}")
+        copilot_info(
+            f"🔧 Setting up DynamicMCPInstance for identifier: {identifier} (direct_mode: {direct_mode})"
+        )
 
-    def _setup_tools(self, identifier: str, etendo_token: str):
+    def _setup_tools(self, identifier: str, etendo_token: str, direct_mode: bool = False):
         """Configure tools for this MCP instance."""
-        # Register basic tools (identifier extracted from request context)
-        register_basic_tools(self.mcp)
-        register_agent_tools(self.mcp, identifier, etendo_token)
+        if direct_mode:
+            # Direct mode: only basic tools (without ask_agent) and agent tools
+            register_basic_tools_direct(self.mcp)
+            register_agent_tools(self.mcp, identifier, etendo_token, is_direct_mode=True)
+            copilot_info(f"✅ Direct mode tools configured for MCP instance '{self.identifier}'")
+        else:
+            # Standard mode: basic tools (with ask_agent) only
+            register_basic_tools(self.mcp)
 
-        copilot_info(f"✅ Tools configured for MCP instance '{self.identifier}'")
+            # Additionally, register an agent-specific ask tool named with the agent name
+            # so that simple mode exposes ask_agent_<AgentName> with description from payload.
+            try:
+                from copilot.core.mcp.tools.agent_tools import (
+                    _make_ask_agent_tool,
+                    fetch_agent_structure_from_etendo,
+                )
+
+                agent_config = fetch_agent_structure_from_etendo(identifier, etendo_token)
+                if agent_config:
+                    try:
+                        ask_tool = _make_ask_agent_tool(agent_config, identifier)
+                        # add tool to FastMCP app
+                        self.mcp.add_tool(ask_tool)
+                        copilot_info(
+                            f"✅ Registered simple-mode agent-specific ask tool '{ask_tool.name}' for instance '{self.identifier}'"
+                        )
+                    except Exception as e:
+                        copilot_error(f"Failed to create/register agent ask tool for {identifier}: {e}")
+                else:
+                    copilot_debug(
+                        f"No agent configuration found for {identifier}; skipping agent-named ask tool"
+                    )
+            except Exception as e:
+                copilot_error(f"Error while attempting to register agent-named ask tool: {e}")
+
+            copilot_info(f"✅ Standard mode tools configured for MCP instance '{self.identifier}'")
 
     def _find_free_port(self, start_port: int = 5008) -> int:
         """Find a free port starting from start_port, reusing available ports when possible."""
@@ -165,7 +195,8 @@ class DynamicMCPInstance:
                 await self.server_task
             except asyncio.CancelledError:
                 copilot_debug(f"Server task for '{self.identifier}' cancelled successfully")
-                # Don't re-raise here as we're in the TTL monitor - this is intentional cleanup
+                # This is intentional cleanup during TTL expiry
+                raise  # Re-raise to satisfy linter requirements
             finally:
                 self.server_task = None
                 self.uvicorn_server = None
@@ -180,7 +211,7 @@ class DynamicMCPInstance:
 
         # Notify main server to remove the instance
         if self.server_ref:
-            self.server_ref.remove_instance(self.identifier)
+            self.server_ref.remove_instance(self.instance_key)
 
         copilot_info(f"✅ TTL monitor for '{self.identifier}' completed termination process")
 
@@ -389,10 +420,18 @@ class SimplifiedDynamicMCPServer:
         @app.api_route("/{identifier}/mcp", methods=["GET", "POST", "OPTIONS"])
         @app.api_route("/{identifier}/mcp/{path:path}", methods=["GET", "POST", "OPTIONS"])
         async def handle_mcp_request(identifier: str, request: Request, path: str = ""):
-            """Handle MCP requests and create instances on-demand."""
-            return await self._handle_mcp_request(identifier, request, path)
+            """Handle MCP requests and create instances on-demand (standard mode)."""
+            return await self._handle_mcp_request(identifier, request, path, direct_mode=False)
 
-    async def _handle_mcp_request(self, identifier: str, request: Request, path: str = ""):
+        @app.api_route("/{identifier}/direct/mcp", methods=["GET", "POST", "OPTIONS"])
+        @app.api_route("/{identifier}/direct/mcp/{path:path}", methods=["GET", "POST", "OPTIONS"])
+        async def handle_direct_mcp_request(identifier: str, request: Request, path: str = ""):
+            """Handle MCP requests and create instances on-demand (direct mode)."""
+            return await self._handle_mcp_request(identifier, request, path, direct_mode=True)
+
+    async def _handle_mcp_request(
+        self, identifier: str, request: Request, path: str = "", direct_mode: bool = False
+    ):
         """Internal handler for MCP requests."""
         # Validate identifier (alphanumeric + underscores/hyphens)
         if not identifier.replace("-", "").replace("_", "").isalnum():
@@ -409,7 +448,7 @@ class SimplifiedDynamicMCPServer:
         ThreadContext.set_data("extra_info", {"auth": {"ETENDO_TOKEN": etendo_token_wb}})
 
         # Create or get existing MCP instance
-        instance = await self._get_or_create_instance(identifier, etendo_token)
+        instance = await self._get_or_create_instance(identifier, etendo_token, direct_mode)
 
         # Update activity every time a request is received
         instance.update_activity()
@@ -417,25 +456,37 @@ class SimplifiedDynamicMCPServer:
         # Forward the request to the MCP instance
         return await self._proxy_request(request, instance, path)
 
-    async def _get_or_create_instance(self, identifier: str, etendo_token: str) -> DynamicMCPInstance:
+    async def _get_or_create_instance(
+        self, identifier: str, etendo_token: str, direct_mode: bool = False
+    ) -> DynamicMCPInstance:
         """Get existing instance or create new one."""
-        if identifier not in self.instances:
-            copilot_info(f"🆕 Creating new MCP instance for identifier: {identifier}")
-            instance = DynamicMCPInstance(identifier=identifier, etendo_token=etendo_token, server_ref=self)
-            self.instances[identifier] = instance
+        # Use different keys for standard vs direct mode instances
+        instance_key = f"{identifier}_direct" if direct_mode else identifier
+        mode_text = "direct mode" if direct_mode else "standard mode"
+
+        if instance_key not in self.instances:
+            copilot_info(f"🆕 Creating new MCP instance for identifier: {identifier} ({mode_text})")
+            instance = DynamicMCPInstance(
+                identifier=identifier, etendo_token=etendo_token, server_ref=self, direct_mode=direct_mode
+            )
+            self.instances[instance_key] = instance
 
             # Start the MCP server for this instance
             await instance.start_server()
-            copilot_info(f"✅ MCP instance for '{identifier}' created and started on port {instance.port}")
+            copilot_info(
+                f"✅ MCP instance for '{identifier}' ({mode_text}) created and started on port {instance.port}"
+            )
         else:
-            instance = self.instances[identifier]
+            instance = self.instances[instance_key]
 
             # Ensure the server is running
             if instance.server_task is None:
                 await instance.start_server()
-                copilot_info(f"🔄 Restarted MCP instance for '{identifier}' on port {instance.port}")
+                copilot_info(
+                    f"🔄 Restarted MCP instance for '{identifier}' ({mode_text}) on port {instance.port}"
+                )
             else:
-                copilot_debug(f"♻️ Using existing MCP instance for identifier: {identifier}")
+                copilot_debug(f"♻️ Using existing MCP instance for identifier: {identifier} ({mode_text})")
 
         return instance
 
@@ -444,9 +495,9 @@ class SimplifiedDynamicMCPServer:
         # Build the target URL
         target_url = f"{instance.get_url()}"
         # Add /mcp
-        target_url += "/mcp/"
+        target_url += "/mcp"
         if path:
-            target_url += f"{path}"
+            target_url += f"/{path}"
 
         copilot_debug(
             f"🔀 Proxying {request.method} /{instance.identifier}/mcp{('/' + path) if path else ''} -> {target_url}"

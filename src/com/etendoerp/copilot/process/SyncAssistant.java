@@ -263,7 +263,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
         // Filter files of type "FLOW"
         .filter(f -> StringUtils.equalsIgnoreCase(f.getType(), "FLOW"))
         // Map to the corresponding OpenAPI flow objects
-        .map(CopilotFile::getEtapiOpenapiFlow)
+        .map(CopilotFile::getOpenAPIFlow)
         // Safeguard against null values
         .filter(Objects::nonNull)
         // Extract and process flow points to retrieve defined webhooks

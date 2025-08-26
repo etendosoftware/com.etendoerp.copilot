@@ -1,5 +1,6 @@
 from copilot.core import api_router
 from copilot.core.threadcontext import request_context
+from copilot.core.tool_loader import ToolLoader
 from copilot.handlers import register_error_handlers
 from fastapi import FastAPI, Request
 from starlette.responses import RedirectResponse
@@ -9,6 +10,28 @@ app: FastAPI = FastAPI(title="Copilot API")
 app.include_router(api_router)
 
 register_error_handlers(app)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Startup event handler for the FastAPI application.
+
+    This function is executed when the application starts up and is responsible
+    for initializing critical components like the ToolLoader singleton.
+    """
+    # Clear any cached tools to ensure fresh loading
+    ToolLoader._configured_tools = None
+    ToolLoader._tools_module = None
+
+    # Initialize ToolLoader singleton and load tools
+    loader = ToolLoader()
+    tools = loader.load_configured_tools()
+    print(f"✅ ToolLoader singleton initialized with {len(tools)} tools loaded")
+
+    # Print tool names for debugging
+    for tool in tools:
+        print(f"  - {tool.name}")
 
 
 @app.middleware("http")
