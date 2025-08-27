@@ -386,7 +386,7 @@ class RestServiceUtilTest {
     Mockito.when(app.getId()).thenReturn(UUID.randomUUID().toString());
     Mockito.when(app.getName()).thenReturn("testApp");
     Mockito.when(app.getETCOPAppSourceList()).thenReturn(List.of());
-    Mockito.when(app.getOpenaiIdAssistant()).thenReturn("openai-id");
+    Mockito.when(app.getOpenaiAssistantID()).thenReturn("openai-id");
 
     // Mock OBContext static to provide user id and role
     OBContext mockCtx = Mockito.mock(OBContext.class);
