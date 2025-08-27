@@ -95,6 +95,8 @@ task 'copilot.do' {
         def app_id = project.findProperty("app_id")
         def role = project.findProperty("role")
         String question = project.findProperty("question")
+        def contextName = env.hasProperty("CONTEXT_NAME") ? env.property("CONTEXT_NAME").toString() : "etendo"
+
         if (project.hasProperty("single")) {
             project.logger.lifecycle("${yellowText}🤖 Single mode enabled. Only one question will be asked.${resetText}")
         }
@@ -111,8 +113,8 @@ task 'copilot.do' {
             }
         }
         if (!etendoHost) {
-            project.logger.lifecycle("${redText}🤖 Host not provided, using default (http://localhost:8080/etendo).${resetText}")
-            etendoHost = "http://localhost:8080/etendo"
+            project.logger.lifecycle("${redText}🤖 Host not provided, using default (http://localhost:${tomcatPort}/${contextName}).${resetText}")
+            etendoHost = "http://localhost:${tomcatPort}/${contextName}"
         }
         if (app_id == null || app_id == "") {
             project.logger.lifecycle("${redText}🤖 Please provide the parameter: app_id (Ex. -Papp_id=\'A1B2C3D4E5F6G7H8\').${resetText}")
@@ -464,7 +466,6 @@ task 'copilot.env.file' {
     doLast {
         def props = envFile()
         def env = props.envFile
-        def tomcatPort = env.hasProperty("TOMCAT_PORT") ? env.property("TOMCAT_PORT").toString() : "8080"
 
         def contextName = env.hasProperty("CONTEXT_NAME") ? env.property("CONTEXT_NAME").toString() : "etendo"
 
@@ -553,6 +554,7 @@ task 'copilot.mcp.config' {
         def password = project.findProperty('password')
         def role = project.findProperty("role")
         def agentId = project.findProperty("agentId")
+        def contextName = env.hasProperty("CONTEXT_NAME") ? env.property("CONTEXT_NAME").toString() : "etendo"
 
         // Get COPILOT_PORT_MCP property, default to 5006
         def copilotPortMCP = project.hasProperty("COPILOT_PORT_MCP") ?
@@ -619,8 +621,8 @@ task 'copilot.mcp.config' {
             }
         }
         if (!etendoHost) {
-            project.logger.lifecycle("${redText}🤖 Host not provided, using default (http://localhost:8080/etendo).${resetText}")
-            etendoHost = "http://localhost:8080/etendo"
+            project.logger.lifecycle("${redText}🤖 Host not provided, using default (http://localhost:${tomcatPort}/${contextName}).${resetText}")
+            etendoHost = "http://localhost:${tomcatPort}/${contextName}"
         }
 
         // Authenticate to get Bearer token

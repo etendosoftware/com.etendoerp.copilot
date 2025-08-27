@@ -25,6 +25,7 @@ import org.openbravo.dal.service.OBDal;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.data.CopilotTool;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -43,6 +44,7 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
     private ToolSyncStatusHandler handler;
     private MockedStatic<OBDal> mockedOBDal;
     private MockedStatic<ModelProvider> mockedModelProvider;
+    private MockedStatic<CopilotAppInfoUtils> mockedCopilotAppInfoUtils;
     private AutoCloseable mocks;
 
     @Mock
@@ -80,6 +82,7 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
         // Setup static mocks
         mockedOBDal = mockStatic(OBDal.class);
         mockedModelProvider = mockStatic(ModelProvider.class);
+        mockedCopilotAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
 
         // Configure static mocks
         mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
@@ -99,15 +102,10 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
      */
     @After
     public void tearDown() throws Exception {
-        if (mockedOBDal != null) {
-            mockedOBDal.close();
-        }
-        if (mockedModelProvider != null) {
-            mockedModelProvider.close();
-        }
-        if (mocks != null) {
-            mocks.close();
-        }
+        mockedOBDal.close();
+        mockedModelProvider.close();
+        mockedCopilotAppInfoUtils.close();
+        mocks.close();
     }
 
     /**
@@ -138,7 +136,7 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
         when(copilotTool.getEntity()).thenReturn(entity);
         when(updateEvent.getPreviousState(any(Property.class))).thenReturn("oldValue");
         when(updateEvent.getCurrentState(any(Property.class))).thenReturn("newValue");
-        
+
         List<CopilotAppTool> appTools = Arrays.asList(copilotAppTool);
         when(criteria.list()).thenReturn(appTools);
         when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
@@ -147,8 +145,8 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
         handler.onUpdate(updateEvent);
 
         // Then
-        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(obDal).save(copilotApp);
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
+        verify(obDal, never()).save(copilotApp);
     }
 
     /**
@@ -166,8 +164,8 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
         handler.onDelete(deleteEvent);
 
         // Then
-        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(obDal).save(copilotApp);
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
+        verify(obDal, never()).save(copilotApp);
     }
 
     /**
@@ -180,11 +178,11 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
         when(copilotTool.getEntity()).thenReturn(entity);
         when(updateEvent.getPreviousState(any(Property.class))).thenReturn("oldValue");
         when(updateEvent.getCurrentState(any(Property.class))).thenReturn("newValue");
-        
+
         CopilotApp copilotApp2 = mock(CopilotApp.class);
         CopilotAppTool copilotAppTool2 = mock(CopilotAppTool.class);
         when(copilotAppTool2.getCopilotApp()).thenReturn(copilotApp2);
-        
+
         List<CopilotAppTool> appTools = Arrays.asList(copilotAppTool, copilotAppTool2);
         when(criteria.list()).thenReturn(appTools);
         when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
@@ -193,9 +191,9 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
         handler.onUpdate(updateEvent);
 
         // Then
-        verify(copilotApp).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(copilotApp2).setSyncStatus(CopilotConstants.PENDING_SYNCHRONIZATION_STATE);
-        verify(obDal).save(copilotApp);
-        verify(obDal).save(copilotApp2);
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
+        mockedCopilotAppInfoUtils.verify(() -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp2));
+        verify(obDal, never()).save(copilotApp);
+        verify(obDal, never()).save(copilotApp2);
     }
 }

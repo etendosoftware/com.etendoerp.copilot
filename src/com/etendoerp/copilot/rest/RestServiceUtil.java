@@ -369,7 +369,7 @@ public class RestServiceUtil {
     CopilotApp copilotApp = CopilotUtils.getAssistantByIDOrName(appId);
     switch (copilotApp.getAppType()) {
       case CopilotConstants.APP_TYPE_OPENAI:
-        if (StringUtils.isEmpty(copilotApp.getOpenaiIdAssistant())) {
+        if (StringUtils.isEmpty(copilotApp.getOpenaiAssistantID())) {
           throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_OpenAIAppNotSync"), appId));
         }
         CopilotUtils.validateOpenAIKey();
@@ -894,7 +894,7 @@ public class RestServiceUtil {
   private static void buildOpenAIrequestForCopilot(CopilotApp copilotApp,
       JSONObject jsonRequestForCopilot) throws JSONException {
     jsonRequestForCopilot.put(PROP_TYPE, CopilotConstants.APP_TYPE_OPENAI);
-    jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getOpenaiIdAssistant());
+    jsonRequestForCopilot.put(PROP_ASSISTANT_ID, copilotApp.getOpenaiAssistantID());
     jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
   }
 

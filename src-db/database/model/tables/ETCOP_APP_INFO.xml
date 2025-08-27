@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETCOP_MCP">
-    <table name="ETCOP_MCP" primaryKey="ETCOP_MCP_KEY">
-      <column name="ETCOP_MCP_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETCOP_APP_INFO">
+    <table name="ETCOP_APP_INFO" primaryKey="ETCOP_APP_INFO__PK">
+      <column name="ETCOP_APP_INFO_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -33,31 +33,27 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="NAME" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+      <column name="ETCOP_APP_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default><![CDATA[NULL]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="SYNC_STATUS" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+        <default><![CDATA[PS]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="GRAPH_IMG" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="DESCRIPTION" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="JSON_STRUCTURE" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <column name="AD_MODULE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
-        <default/>
-        <onCreateDefault/>
-      </column>
-      <foreign-key foreignTable="AD_CLIENT" name="ETCOP_MCP_CLI_FK">
+      <foreign-key foreignTable="AD_CLIENT" name="ETCOP_APP_INFO_AD_CLIENT_FK">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_MODULE" name="ETCOP_MCP_MOD_FK">
-        <reference local="AD_MODULE_ID" foreign="AD_MODULE_ID"/>
-      </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETCOP_MCP_ORG_FK">
+      <foreign-key foreignTable="AD_ORG" name="ETCOP_APP_INFO_AD_ORG_FK">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <check name="ETCOP_MCP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_APP_INFO_ETCOP_APP_FK" onDelete="cascade">
+        <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
+      </foreign-key>
+      <check name="ETCOP_APP_INFO_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>
