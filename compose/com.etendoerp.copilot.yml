@@ -1,6 +1,8 @@
 services:
   copilot:
-    image: etendo/etendo_copilot_slim:${COPILOT_IMAGE_TAG}
+    build:
+      context: ../copilot
+      dockerfile: ../copilot/Dockerfile
     ports:
       - "${COPILOT_PORT}:${COPILOT_PORT}"
       - "${COPILOT_PORT_DEBUG}:${COPILOT_PORT_DEBUG}"
@@ -9,8 +11,6 @@ services:
     volumes:
       - ../copilot:/app/
       - ${SOURCE_PATH}/modules:/modules
-      - pip_cache:/root/.cache/pip
-      - uv_cache:/root/.cache/uv
       - copilot_attached_files:/copilotAttachedFiles
       - vectordbs:/app/vectordbs
       - /var/run/docker.sock:/var/run/docker.sock
@@ -19,7 +19,5 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 volumes:
-  pip_cache:
   copilot_attached_files:
   vectordbs:
-  uv_cache:
