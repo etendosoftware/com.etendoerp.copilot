@@ -37,6 +37,9 @@ def normalize_etendo_token(token: str) -> str:
     token = token.strip()
     if not token:
         return token
+    # If BEARER_PREFIX is already present, more than once, we do not add it again, and remove dup
+    if token.count(BEARER_PREFIX) > 1:
+        token = token.replace(BEARER_PREFIX, "").strip()
 
     return token if token.startswith(BEARER_PREFIX) else f"{BEARER_PREFIX}{token}"
 

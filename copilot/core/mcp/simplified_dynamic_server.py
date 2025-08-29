@@ -20,6 +20,7 @@ from copilot.baseutils.logging_envvar import (
     copilot_info,
     copilot_warning,
 )
+from copilot.core.mcp.auth_provider import CopilotAuthProvider
 from copilot.core.mcp.auth_utils import extract_etendo_token_from_request
 from copilot.core.mcp.tools import (
     register_agent_tools,
@@ -42,7 +43,14 @@ MCP_INSTANCE_TTL_MINUTES = 10
 class DynamicMCPInstance:
     """A single MCP instance that can be created dynamically."""
 
-    def __init__(self, identifier: str, etendo_token: str, server_ref=None, direct_mode: bool = False):
+    def __init__(
+        self,
+        identifier: str,
+        etendo_token: str,
+        server_ref=None,
+        direct_mode: bool = False,
+        agent_config=None,
+    ):
         self.identifier = identifier
         self.direct_mode = direct_mode  # Flag to indicate direct mode (no ask_agent tool)
         self.instance_key = (
@@ -51,7 +59,13 @@ class DynamicMCPInstance:
         self.created_at = time.time()
         self.last_activity = time.time()  # For activity tracking
         self.server_ref = server_ref  # Reference to main server
-        self.mcp = FastMCP(f"Etendo Copilot Dynamic MCP({identifier})", version=identifier)
+        self.agent_config = agent_config
+        # Create FastMCP instance with an AuthProvider bound to this identifier
+        self.mcp = FastMCP(
+            f"Etendo Copilot Dynamic MCP({identifier})",
+            version=identifier,
+            auth=CopilotAuthProvider(identifier=identifier),
+        )
         self.port: Optional[int] = None
         self.server_task: Optional[asyncio.Task] = None
         self.uvicorn_server: Optional[uvicorn.Server] = None  # Keep reference to uvicorn server
@@ -70,7 +84,14 @@ class DynamicMCPInstance:
         if direct_mode:
             # Direct mode: only basic tools (without ask_agent) and agent tools
             register_basic_tools_direct(self.mcp)
-            register_agent_tools(self.mcp, identifier, etendo_token, is_direct_mode=True)
+            # Pass pre-fetched agent_config to avoid redundant calls to Etendo
+            register_agent_tools(
+                self.mcp,
+                identifier=identifier,
+                etendo_token=etendo_token,
+                is_direct_mode=True,
+                agent_config=self.agent_config,
+            )
             copilot_info(f"✅ Direct mode tools configured for MCP instance '{self.identifier}'")
         else:
             # Standard mode: basic tools (with ask_agent) only
@@ -79,15 +100,13 @@ class DynamicMCPInstance:
             # Additionally, register an agent-specific ask tool named with the agent name
             # so that simple mode exposes ask_agent_<AgentName> with description from payload.
             try:
-                from copilot.core.mcp.tools.agent_tools import (
-                    _make_ask_agent_tool,
-                    fetch_agent_structure_from_etendo,
-                )
+                from copilot.core.mcp.tools.agent_tools import _make_ask_agent_tool
 
-                agent_config = fetch_agent_structure_from_etendo(identifier, etendo_token)
-                if agent_config:
+                # Use pre-fetched agent_config if available
+                agent_cfg = self.agent_config
+                if agent_cfg:
                     try:
-                        ask_tool = _make_ask_agent_tool(agent_config, identifier)
+                        ask_tool = _make_ask_agent_tool(agent_cfg, identifier)
                         # add tool to FastMCP app
                         self.mcp.add_tool(ask_tool)
                         copilot_info(
@@ -442,19 +461,24 @@ class SimplifiedDynamicMCPServer:
         if not etendo_token:
             raise HTTPException(
                 status_code=401,
-                detail="Authentication required. Please provide a valid Etendo token in headers.",
+                detail="Authentication required. "
+                "Please provide a valid Etendo token in headers: 'etendo-token', "
+                "'Authorization', or 'X-Etendo-Token'.",
             )
         etendo_token_wb = normalize_etendo_token(etendo_token)
         ThreadContext.set_data("extra_info", {"auth": {"ETENDO_TOKEN": etendo_token_wb}})
+        try:
+            # Create or get existing MCP instance (agent config is loaded only on creation)
+            instance = await self._get_or_create_instance(identifier, etendo_token, direct_mode)
 
-        # Create or get existing MCP instance
-        instance = await self._get_or_create_instance(identifier, etendo_token, direct_mode)
+            # Update activity every time a request is received
+            instance.update_activity()
 
-        # Update activity every time a request is received
-        instance.update_activity()
-
-        # Forward the request to the MCP instance
-        return await self._proxy_request(request, instance, path)
+            # Forward the request to the MCP instance
+            return await self._proxy_request(request, instance, path)
+        except Exception as e:
+            copilot_error(f"Error handling MCP request for '{identifier}': {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
     async def _get_or_create_instance(
         self, identifier: str, etendo_token: str, direct_mode: bool = False
@@ -466,8 +490,19 @@ class SimplifiedDynamicMCPServer:
 
         if instance_key not in self.instances:
             copilot_info(f"🆕 Creating new MCP instance for identifier: {identifier} ({mode_text})")
+            # Load agent configuration once during creation to avoid repeated calls
+            from copilot.core.mcp.tools.agent_tools import (
+                fetch_agent_structure_from_etendo,
+            )
+
+            agent_config = fetch_agent_structure_from_etendo(identifier, etendo_token)
+
             instance = DynamicMCPInstance(
-                identifier=identifier, etendo_token=etendo_token, server_ref=self, direct_mode=direct_mode
+                identifier=identifier,
+                etendo_token=etendo_token,
+                server_ref=self,
+                direct_mode=direct_mode,
+                agent_config=agent_config,
             )
             self.instances[instance_key] = instance
 

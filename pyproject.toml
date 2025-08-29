@@ -63,6 +63,7 @@ dependencies = [
     "fastmcp>=2.10.6",
     "pytest-dotenv>=0.5.2",
     "langchain-mcp-adapters>=0.1.9",
+    "jwt>=1.4.0",
 ]
 
 [dependency-groups]

@@ -46,6 +46,12 @@ def get_agent_identifier() -> Optional[str]:
         return None
 
 
+class MCPException(Exception):
+    """Custom exception for MCP-related errors."""
+
+    pass
+
+
 def fetch_agent_structure_from_etendo(identifier: str, etendo_token: str) -> Optional[AssistantSchema]:
     """
     Fetch agent structure from Etendo Classic endpoint.
@@ -70,6 +76,8 @@ def fetch_agent_structure_from_etendo(identifier: str, etendo_token: str) -> Opt
             body_params={},
             access_token=etendo_token,
         )
+        if not response or "error" in response:
+            raise MCPException(f"Error fetching agent structure: {response.get('error', 'Unknown error')}")
         return AssistantSchema(**response)
 
     except httpx.HTTPStatusError as e:
@@ -385,7 +393,11 @@ def _get_agent_structure_tool() -> dict:
 
 
 def register_agent_tools(
-    app, identifier: Optional[str] = None, etendo_token: Optional[str] = None, is_direct_mode: bool = False
+    app,
+    identifier: Optional[str] = None,
+    etendo_token: Optional[str] = None,
+    is_direct_mode: bool = False,
+    agent_config: Optional[AssistantSchema] = None,
 ) -> dict:
     """
     Register agent-specific tools with the MCP app.
@@ -394,6 +406,7 @@ def register_agent_tools(
     the agent configuration from Etendo Classic and sets up the tools.
 
     Args:
+        agent_config: Optional pre-fetched agent configuration to avoid extra network calls
         etendo_token: Bearer token for authentication
         identifier:  Agent identifier (app_id) to fetch configuration
         app: FastMCP application instance
@@ -405,10 +418,8 @@ def register_agent_tools(
 
         if not etendo_token:
             return {"success": False, "error": ERROR_NO_TOKEN}
-
-        agent_config: AssistantSchema = fetch_agent_structure_from_etendo(identifier, etendo_token)
         if not agent_config:
-            return {"success": False, "error": "Could not fetch agent structure"}
+            return {"success": False, "error": "Could not fetch agent configuration"}
 
         _base_tools = ToolLoader().get_all_tools(
             agent_configuration=agent_config,

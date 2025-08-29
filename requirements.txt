@@ -99,7 +99,9 @@ coloredlogs==15.0.1
 coverage==7.10.3
     # via pytest-cov
 cryptography==45.0.6
-    # via authlib
+    # via
+    #   authlib
+    #   jwt
 curlify==2.2.1
     # via etendo-copilot-core
 cyclopts==3.22.5
@@ -269,6 +271,8 @@ jsonschema-specifications==2025.4.1
     # via
     #   jsonschema
     #   openapi-schema-validator
+jwt==1.4.0
+    # via etendo-copilot-core
 kubernetes==33.1.0
     # via chromadb
 langchain==0.3.27
