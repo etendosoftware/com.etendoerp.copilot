@@ -42,6 +42,22 @@ import com.etendoerp.copilot.data.CopilotMCP;
  */
 public class MCPUtilsTest extends WeldBaseTest {
 
+  private static final String TEST_MCP_NAME = "filesystem";
+  private static final String TEST_CLIENT_ID = "client-123";
+  private static final String TEST_CLIENT_NAME = "Test Client";
+  private static final String TEST_ORG_ID = "org-456";
+  private static final String TEST_ORG_NAME = "Test Organization";
+  private static final String TEST_USER_ID = "user-789";
+  private static final String TEST_USERNAME = "testuser";
+  private static final String TEST_ROLE_ID = "role-101";
+  private static final String TEST_ROLE_NAME = "Test Role";
+  private static final String TEST_WAREHOUSE_ID = "warehouse-202";
+  private static final String TEST_WAREHOUSE_NAME = "Test Warehouse";
+  private static final String JSON_COMMAND_KEY = "command";
+  private static final String TEST_ETENDO_HOST = "http://localhost:8080";
+  private static final String TEST_ETENDO_HOST_DOCKER = "http://host.docker.internal:8080";
+  private static final String TEST_SOURCES_PATH = "/opt/etendo/sources";
+
   @Override
   @Before
   public void setUp() throws Exception {
@@ -54,28 +70,21 @@ public class MCPUtilsTest extends WeldBaseTest {
     RequestContext.get().setVariableSecureApp(vsa);
   }
 
-  @Test
-  public void testGetMCPConfigurations_WithValidConfiguration() throws JSONException {
-    // Arrange
-    CopilotApp copilotApp = mock(CopilotApp.class);
-    
-    CopilotMCP mcpConfig = mock(CopilotMCP.class);
-    when(mcpConfig.isActive()).thenReturn(true);
-    when(mcpConfig.getName()).thenReturn("filesystem");
-    when(mcpConfig.getJsonStructure()).thenReturn("{\"command\": \"npx\"}");
-
-    CopilotAppMCP appMcp = mock(CopilotAppMCP.class);
-    when(appMcp.getMCPServer()).thenReturn(mcpConfig);
-
-    List<CopilotAppMCP> appMcpList = Collections.singletonList(appMcp);
-
-    // Mock OBDal
+  /**
+   * Creates and configures a mock OBDal instance with the given list of CopilotAppMCP objects.
+   */
+  private OBDal createMockOBDal(List<CopilotAppMCP> appMcpList) {
     OBDal obDal = mock(OBDal.class);
     OBCriteria<CopilotAppMCP> criteria = mock(OBCriteria.class);
     when(criteria.list()).thenReturn(appMcpList);
     when(obDal.createCriteria(CopilotAppMCP.class)).thenReturn(criteria);
+    return obDal;
+  }
 
-    // Mock OBContext and related objects
+  /**
+   * Creates and configures a complete mock OBContext hierarchy with all related objects.
+   */
+  private OBContext createMockOBContext() {
     OBContext obContext = mock(OBContext.class);
     Client client = mock(Client.class);
     Organization org = mock(Organization.class);
@@ -83,33 +92,69 @@ public class MCPUtilsTest extends WeldBaseTest {
     Role role = mock(Role.class);
     Warehouse warehouse = mock(Warehouse.class);
     
-    when(client.getId()).thenReturn("client-123");
-    when(client.getName()).thenReturn("Test Client");
-    when(org.getId()).thenReturn("org-456");
-    when(org.getName()).thenReturn("Test Organization");
-    when(user.getId()).thenReturn("user-789");
-    when(user.getUsername()).thenReturn("testuser");
-    when(role.getId()).thenReturn("role-101");
-    when(role.getName()).thenReturn("Test Role");
-    when(warehouse.getId()).thenReturn("warehouse-202");
-    when(warehouse.getName()).thenReturn("Test Warehouse");
+    when(client.getId()).thenReturn(TEST_CLIENT_ID);
+    when(client.getName()).thenReturn(TEST_CLIENT_NAME);
+    when(org.getId()).thenReturn(TEST_ORG_ID);
+    when(org.getName()).thenReturn(TEST_ORG_NAME);
+    when(user.getId()).thenReturn(TEST_USER_ID);
+    when(user.getUsername()).thenReturn(TEST_USERNAME);
+    when(role.getId()).thenReturn(TEST_ROLE_ID);
+    when(role.getName()).thenReturn(TEST_ROLE_NAME);
+    when(warehouse.getId()).thenReturn(TEST_WAREHOUSE_ID);
+    when(warehouse.getName()).thenReturn(TEST_WAREHOUSE_NAME);
     
     when(obContext.getCurrentClient()).thenReturn(client);
     when(obContext.getCurrentOrganization()).thenReturn(org);
     when(obContext.getUser()).thenReturn(user);
     when(obContext.getRole()).thenReturn(role);
     when(obContext.getWarehouse()).thenReturn(warehouse);
+    
+    return obContext;
+  }
 
-    // Mock OBPropertiesProvider
+  /**
+   * Creates and configures a mock OBPropertiesProvider with Properties.
+   */
+  private OBPropertiesProvider createMockPropertiesProvider() {
     OBPropertiesProvider propertiesProvider = mock(OBPropertiesProvider.class);
     Properties properties = mock(Properties.class);
     when(propertiesProvider.getOpenbravoProperties()).thenReturn(properties);
+    return propertiesProvider;
+  }
+
+  /**
+   * Configures common static mocks for CopilotUtils.
+   */
+  private void configureCopilotUtilsMocks(MockedStatic<CopilotUtils> copilotUtilsStatic) {
+    copilotUtilsStatic.when(CopilotUtils::getEtendoHost).thenReturn(TEST_ETENDO_HOST);
+    copilotUtilsStatic.when(CopilotUtils::getEtendoHostDocker).thenReturn(TEST_ETENDO_HOST_DOCKER);
+    copilotUtilsStatic.when(() -> CopilotUtils.getSourcesPath(any(Properties.class))).thenReturn(TEST_SOURCES_PATH);
+  }
+
+  @Test
+  public void testGetMCPConfigurations_WithValidConfiguration() throws JSONException {
+    // Arrange
+    CopilotApp copilotApp = mock(CopilotApp.class);
+    
+    CopilotMCP mcpConfig = mock(CopilotMCP.class);
+    when(mcpConfig.isActive()).thenReturn(true);
+    when(mcpConfig.getName()).thenReturn(TEST_MCP_NAME);
+    when(mcpConfig.getJsonStructure()).thenReturn("{\"command\": \"npx\"}");
+
+    CopilotAppMCP appMcp = mock(CopilotAppMCP.class);
+    when(appMcp.getMCPServer()).thenReturn(mcpConfig);
+
+    List<CopilotAppMCP> appMcpList = Collections.singletonList(appMcp);
+
+    OBDal obDal = createMockOBDal(appMcpList);
+    OBContext obContext = createMockOBContext();
+    OBPropertiesProvider propertiesProvider = createMockPropertiesProvider();
 
     // Mock normalized JSON result
     JSONArray normalizedArray = new JSONArray();
     JSONObject normalizedConfig = new JSONObject();
-    normalizedConfig.put("command", "npx");
-    normalizedConfig.put("name", "filesystem");
+    normalizedConfig.put(JSON_COMMAND_KEY, "npx");
+    normalizedConfig.put("name", TEST_MCP_NAME);
     normalizedArray.put(normalizedConfig);
 
     try (MockedStatic<OBDal> obDalStatic = mockStatic(OBDal.class);
@@ -122,9 +167,7 @@ public class MCPUtilsTest extends WeldBaseTest {
       obContextStatic.when(OBContext::getOBContext).thenReturn(obContext);
       propertiesStatic.when(OBPropertiesProvider::getInstance).thenReturn(propertiesProvider);
       
-      copilotUtilsStatic.when(CopilotUtils::getEtendoHost).thenReturn("http://localhost:8080");
-      copilotUtilsStatic.when(CopilotUtils::getEtendoHostDocker).thenReturn("http://host.docker.internal:8080");
-      copilotUtilsStatic.when(() -> CopilotUtils.getSourcesPath(any(Properties.class))).thenReturn("/opt/etendo/sources");
+      configureCopilotUtilsMocks(copilotUtilsStatic);
       
       normalizerStatic.when(() -> MCPConfigNormalizer.normalizeToArray(any(JSONObject.class), anyString()))
                       .thenReturn(normalizedArray);
@@ -137,8 +180,8 @@ public class MCPUtilsTest extends WeldBaseTest {
       assertEquals(1, result.length());
       
       JSONObject config = result.getJSONObject(0);
-      assertEquals("filesystem", config.getString("name"));
-      assertEquals("npx", config.getString("command"));
+      assertEquals(TEST_MCP_NAME, config.getString("name"));
+      assertEquals("npx", config.getString(JSON_COMMAND_KEY));
     }
   }
 
@@ -148,11 +191,7 @@ public class MCPUtilsTest extends WeldBaseTest {
     CopilotApp copilotApp = mock(CopilotApp.class);
     List<CopilotAppMCP> emptyList = Collections.emptyList();
 
-    // Mock OBDal
-    OBDal obDal = mock(OBDal.class);
-    OBCriteria<CopilotAppMCP> criteria = mock(OBCriteria.class);
-    when(criteria.list()).thenReturn(emptyList);
-    when(obDal.createCriteria(CopilotAppMCP.class)).thenReturn(criteria);
+    OBDal obDal = createMockOBDal(emptyList);
 
     try (MockedStatic<OBDal> obDalStatic = mockStatic(OBDal.class)) {
       obDalStatic.when(OBDal::getInstance).thenReturn(obDal);
@@ -181,11 +220,7 @@ public class MCPUtilsTest extends WeldBaseTest {
 
     List<CopilotAppMCP> appMcpList = Collections.singletonList(appMcp);
 
-    // Mock OBDal
-    OBDal obDal = mock(OBDal.class);
-    OBCriteria<CopilotAppMCP> criteria = mock(OBCriteria.class);
-    when(criteria.list()).thenReturn(appMcpList);
-    when(obDal.createCriteria(CopilotAppMCP.class)).thenReturn(criteria);
+    OBDal obDal = createMockOBDal(appMcpList);
 
     try (MockedStatic<OBDal> obDalStatic = mockStatic(OBDal.class)) {
       obDalStatic.when(OBDal::getInstance).thenReturn(obDal);
@@ -214,41 +249,9 @@ public class MCPUtilsTest extends WeldBaseTest {
 
     List<CopilotAppMCP> appMcpList = Collections.singletonList(appMcp);
 
-    // Mock OBDal
-    OBDal obDal = mock(OBDal.class);
-    OBCriteria<CopilotAppMCP> criteria = mock(OBCriteria.class);
-    when(criteria.list()).thenReturn(appMcpList);
-    when(obDal.createCriteria(CopilotAppMCP.class)).thenReturn(criteria);
-
-    // Mock OBContext and related objects (needed for variable replacement)
-    OBContext obContext = mock(OBContext.class);
-    Client client = mock(Client.class);
-    Organization org = mock(Organization.class);
-    User user = mock(User.class);
-    Role role = mock(Role.class);
-    Warehouse warehouse = mock(Warehouse.class);
-    
-    when(client.getId()).thenReturn("client-123");
-    when(client.getName()).thenReturn("Test Client");
-    when(org.getId()).thenReturn("org-456");
-    when(org.getName()).thenReturn("Test Organization");
-    when(user.getId()).thenReturn("user-789");
-    when(user.getUsername()).thenReturn("testuser");
-    when(role.getId()).thenReturn("role-101");
-    when(role.getName()).thenReturn("Test Role");
-    when(warehouse.getId()).thenReturn("warehouse-202");
-    when(warehouse.getName()).thenReturn("Test Warehouse");
-    
-    when(obContext.getCurrentClient()).thenReturn(client);
-    when(obContext.getCurrentOrganization()).thenReturn(org);
-    when(obContext.getUser()).thenReturn(user);
-    when(obContext.getRole()).thenReturn(role);
-    when(obContext.getWarehouse()).thenReturn(warehouse);
-
-    // Mock OBPropertiesProvider
-    OBPropertiesProvider propertiesProvider = mock(OBPropertiesProvider.class);
-    Properties properties = mock(Properties.class);
-    when(propertiesProvider.getOpenbravoProperties()).thenReturn(properties);
+    OBDal obDal = createMockOBDal(appMcpList);
+    OBContext obContext = createMockOBContext();
+    OBPropertiesProvider propertiesProvider = createMockPropertiesProvider();
 
     try (MockedStatic<OBDal> obDalStatic = mockStatic(OBDal.class);
          MockedStatic<OBContext> obContextStatic = mockStatic(OBContext.class);
@@ -259,9 +262,7 @@ public class MCPUtilsTest extends WeldBaseTest {
       obContextStatic.when(OBContext::getOBContext).thenReturn(obContext);
       propertiesStatic.when(OBPropertiesProvider::getInstance).thenReturn(propertiesProvider);
       
-      copilotUtilsStatic.when(CopilotUtils::getEtendoHost).thenReturn("http://localhost:8080");
-      copilotUtilsStatic.when(CopilotUtils::getEtendoHostDocker).thenReturn("http://host.docker.internal:8080");
-      copilotUtilsStatic.when(() -> CopilotUtils.getSourcesPath(any(Properties.class))).thenReturn("/opt/etendo/sources");
+      configureCopilotUtilsMocks(copilotUtilsStatic);
 
       // Act
       JSONArray result = MCPUtils.getMCPConfigurations(copilotApp);
@@ -279,7 +280,7 @@ public class MCPUtilsTest extends WeldBaseTest {
     
     CopilotMCP mcpConfig = mock(CopilotMCP.class);
     when(mcpConfig.isActive()).thenReturn(true);
-    when(mcpConfig.getName()).thenReturn("filesystem");
+    when(mcpConfig.getName()).thenReturn(TEST_MCP_NAME);
     when(mcpConfig.getJsonStructure()).thenReturn(
         "{\"command\": \"npx\", \"args\": [\"@source.path@\"], \"env\": {\"CLIENT_ID\": \"@AD_CLIENT_ID@\", \"USER\": \"@USERNAME@\"}}");
 
@@ -288,53 +289,21 @@ public class MCPUtilsTest extends WeldBaseTest {
 
     List<CopilotAppMCP> appMcpList = Collections.singletonList(appMcp);
 
-    // Mock OBDal
-    OBDal obDal = mock(OBDal.class);
-    OBCriteria<CopilotAppMCP> criteria = mock(OBCriteria.class);
-    when(criteria.list()).thenReturn(appMcpList);
-    when(obDal.createCriteria(CopilotAppMCP.class)).thenReturn(criteria);
-
-    // Mock OBContext and related objects
-    OBContext obContext = mock(OBContext.class);
-    Client client = mock(Client.class);
-    Organization org = mock(Organization.class);
-    User user = mock(User.class);
-    Role role = mock(Role.class);
-    Warehouse warehouse = mock(Warehouse.class);
-    
-    when(client.getId()).thenReturn("client-123");
-    when(client.getName()).thenReturn("Test Client");
-    when(org.getId()).thenReturn("org-456");
-    when(org.getName()).thenReturn("Test Organization");
-    when(user.getId()).thenReturn("user-789");
-    when(user.getUsername()).thenReturn("testuser");
-    when(role.getId()).thenReturn("role-101");
-    when(role.getName()).thenReturn("Test Role");
-    when(warehouse.getId()).thenReturn("warehouse-202");
-    when(warehouse.getName()).thenReturn("Test Warehouse");
-    
-    when(obContext.getCurrentClient()).thenReturn(client);
-    when(obContext.getCurrentOrganization()).thenReturn(org);
-    when(obContext.getUser()).thenReturn(user);
-    when(obContext.getRole()).thenReturn(role);
-    when(obContext.getWarehouse()).thenReturn(warehouse);
-
-    // Mock OBPropertiesProvider
-    OBPropertiesProvider propertiesProvider = mock(OBPropertiesProvider.class);
-    Properties properties = mock(Properties.class);
-    when(propertiesProvider.getOpenbravoProperties()).thenReturn(properties);
+    OBDal obDal = createMockOBDal(appMcpList);
+    OBContext obContext = createMockOBContext();
+    OBPropertiesProvider propertiesProvider = createMockPropertiesProvider();
 
     // Mock normalized JSON result with replaced variables
     JSONArray normalizedArray = new JSONArray();
     JSONObject normalizedConfig = new JSONObject();
-    normalizedConfig.put("command", "npx");
-    normalizedConfig.put("name", "filesystem");
+    normalizedConfig.put(JSON_COMMAND_KEY, "npx");
+    normalizedConfig.put("name", TEST_MCP_NAME);
     JSONArray argsArray = new JSONArray();
-    argsArray.put("/opt/etendo/sources");
+    argsArray.put(TEST_SOURCES_PATH);
     normalizedConfig.put("args", argsArray);
     JSONObject envObject = new JSONObject();
-    envObject.put("CLIENT_ID", "client-123");
-    envObject.put("USER", "testuser");
+    envObject.put("CLIENT_ID", TEST_CLIENT_ID);
+    envObject.put("USER", TEST_USERNAME);
     normalizedConfig.put("env", envObject);
     normalizedArray.put(normalizedConfig);
 
@@ -348,9 +317,7 @@ public class MCPUtilsTest extends WeldBaseTest {
       obContextStatic.when(OBContext::getOBContext).thenReturn(obContext);
       propertiesStatic.when(OBPropertiesProvider::getInstance).thenReturn(propertiesProvider);
       
-      copilotUtilsStatic.when(CopilotUtils::getEtendoHost).thenReturn("http://localhost:8080");
-      copilotUtilsStatic.when(CopilotUtils::getEtendoHostDocker).thenReturn("http://host.docker.internal:8080");
-      copilotUtilsStatic.when(() -> CopilotUtils.getSourcesPath(any(Properties.class))).thenReturn("/opt/etendo/sources");
+      configureCopilotUtilsMocks(copilotUtilsStatic);
       
       normalizerStatic.when(() -> MCPConfigNormalizer.normalizeToArray(any(JSONObject.class), anyString()))
                       .thenReturn(normalizedArray);
@@ -363,8 +330,8 @@ public class MCPUtilsTest extends WeldBaseTest {
       assertEquals(1, result.length());
       
       JSONObject config = result.getJSONObject(0);
-      assertEquals("filesystem", config.getString("name"));
-      assertEquals("npx", config.getString("command"));
+      assertEquals(TEST_MCP_NAME, config.getString("name"));
+      assertEquals("npx", config.getString(JSON_COMMAND_KEY));
       
       // Verify that variables were replaced in the JSON processing
       // (This is indirectly tested through the mocked normalizer behavior)
@@ -381,11 +348,7 @@ public class MCPUtilsTest extends WeldBaseTest {
 
     List<CopilotAppMCP> appMcpList = Collections.singletonList(appMcp);
 
-    // Mock OBDal
-    OBDal obDal = mock(OBDal.class);
-    OBCriteria<CopilotAppMCP> criteria = mock(OBCriteria.class);
-    when(criteria.list()).thenReturn(appMcpList);
-    when(obDal.createCriteria(CopilotAppMCP.class)).thenReturn(criteria);
+    OBDal obDal = createMockOBDal(appMcpList);
 
     try (MockedStatic<OBDal> obDalStatic = mockStatic(OBDal.class)) {
       obDalStatic.when(OBDal::getInstance).thenReturn(obDal);
@@ -414,11 +377,7 @@ public class MCPUtilsTest extends WeldBaseTest {
 
     List<CopilotAppMCP> appMcpList = Collections.singletonList(appMcp);
 
-    // Mock OBDal
-    OBDal obDal = mock(OBDal.class);
-    OBCriteria<CopilotAppMCP> criteria = mock(OBCriteria.class);
-    when(criteria.list()).thenReturn(appMcpList);
-    when(obDal.createCriteria(CopilotAppMCP.class)).thenReturn(criteria);
+    OBDal obDal = createMockOBDal(appMcpList);
 
     try (MockedStatic<OBDal> obDalStatic = mockStatic(OBDal.class)) {
       obDalStatic.when(OBDal::getInstance).thenReturn(obDal);
