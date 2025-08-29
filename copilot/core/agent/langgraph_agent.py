@@ -7,20 +7,21 @@ from copilot.baseutils.logging_envvar import (
     read_optional_env_var,
     read_optional_env_var_int,
 )
+from copilot.core.langgraph.members_util import MembersUtil
+from copilot.core.langgraph.patterns.langsupervisor_pattern import LangSupervisorPattern
+from copilot.core.memory.memory_handler import MemoryHandler
 from copilot.core.schema.graph_member import GraphMember
+from copilot.core.schemas import GraphQuestionSchema
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
-from ..langgraph.members_util import MembersUtil
-from ..langgraph.patterns.langsupervisor_pattern import LangSupervisorPattern
-from ..memory.memory_handler import MemoryHandler
-from ..schemas import GraphQuestionSchema
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
 from .agent_utils import process_local_files
 
 SQLLITE_NAME = "checkpoints.sqlite"
+SQLLITE_STORE_NAME = "store.sqlite"
 
 
 def fullfill_question(local_file_ids, question):
@@ -40,7 +41,7 @@ def fullfill_question(local_file_ids, question):
     return full_question
 
 
-def setup_graph(question, memory):
+def setup_graph(question, memory, store):
     """
     Sets up the language graph for processing the given question.
 
@@ -53,7 +54,9 @@ def setup_graph(question, memory):
     """
     thread_id = question.conversation_id
     members: list[GraphMember] = MembersUtil().get_members(question)
-    lang_graph = LangSupervisorPattern(members, question.graph, None, memory=memory, full_question=question)
+    lang_graph = LangSupervisorPattern(
+        members, question.graph, None, memory=memory, store=store, full_question=question
+    )
     return lang_graph, thread_id
 
 
@@ -209,39 +212,40 @@ class LanggraphAgent(CopilotAgent):
         """
         _tools = self._configured_tools
         with SqliteSaver.from_conn_string(SQLLITE_NAME) as memory:
-            lang_graph, thread_id = setup_graph(question, memory)
-            local_file_ids = question.local_file_ids
-            # Process local files
-            image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+            with SqliteSaver.from_conn_string(SQLLITE_STORE_NAME) as store:
+                lang_graph, thread_id = setup_graph(question, memory, store)
+                local_file_ids = question.local_file_ids
+                # Process local files
+                image_payloads, other_file_paths = process_local_files(question.local_file_ids)
 
-            full_question = fullfill_question(local_file_ids, question)
-            cgraph: CompiledStateGraph = lang_graph._graph
-            if question.generate_image:
-                import base64
-                import time
+                full_question = fullfill_question(local_file_ids, question)
+                cgraph: CompiledStateGraph = lang_graph._graph
+                if question.generate_image:
+                    import base64
+                    import time
 
-                start_time = time.time()
-                png = cgraph.get_graph().draw_mermaid_png()
-                end_time = time.time()
-                print(f"Time taken to draw PNG: {end_time - start_time} seconds")
+                    start_time = time.time()
+                    png = cgraph.get_graph().draw_mermaid_png()
+                    end_time = time.time()
+                    print(f"Time taken to draw PNG: {end_time - start_time} seconds")
+                    return AgentResponse(
+                        input=question.model_dump_json(),
+                        output=AssistantResponse(
+                            response=base64.b64encode(png).decode(),
+                            conversation_id=thread_id,
+                        ),
+                    )
+
+                agent_response = cgraph.invoke(
+                    input=build_msg_input(full_question, image_payloads, other_file_paths),
+                    config=build_config(thread_id),
+                )
+                new_ai_message = agent_response.get("messages")[-1]
+
                 return AgentResponse(
                     input=question.model_dump_json(),
-                    output=AssistantResponse(
-                        response=base64.b64encode(png).decode(),
-                        conversation_id=thread_id,
-                    ),
+                    output=AssistantResponse(response=new_ai_message.content, conversation_id=thread_id),
                 )
-
-            agent_response = cgraph.invoke(
-                input=build_msg_input(full_question, image_payloads, other_file_paths),
-                config=build_config(thread_id),
-            )
-            new_ai_message = agent_response.get("messages")[-1]
-
-            return AgentResponse(
-                input=question.model_dump_json(),
-                output=AssistantResponse(response=new_ai_message.content, conversation_id=thread_id),
-            )
 
     async def aexecute(self, question: GraphQuestionSchema) -> AsyncGenerator[AgentResponse, None]:
         """
@@ -257,16 +261,17 @@ class LanggraphAgent(CopilotAgent):
             read_optional_env_var("COPILOT_STREAM_DEBUG", "false").lower() == "true"
         )  # Debug mode
         async with AsyncSqliteSaver.from_conn_string(SQLLITE_NAME) as memory:
-            lang_graph, thread_id = setup_graph(question, memory)
-            local_file_ids = question.local_file_ids
-            full_question = fullfill_question(local_file_ids, question)
-            # Process local files
-            image_payloads, other_file_paths = process_local_files(question.local_file_ids)
-            async for event in lang_graph._graph.astream_events(
-                build_msg_input(full_question, image_payloads, other_file_paths),
-                version="v2",
-                config=build_config(thread_id),
-            ):
-                response = await handle_events(copilot_stream_debug, event, thread_id)
-                if response is not None:
-                    yield response
+            async with AsyncSqliteSaver.from_conn_string(SQLLITE_STORE_NAME) as store:
+                lang_graph, thread_id = setup_graph(question, memory, store)
+                local_file_ids = question.local_file_ids
+                full_question = fullfill_question(local_file_ids, question)
+                # Process local files
+                image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+                async for event in lang_graph._graph.astream_events(
+                    build_msg_input(full_question, image_payloads, other_file_paths),
+                    version="v2",
+                    config=build_config(thread_id),
+                ):
+                    response = await handle_events(copilot_stream_debug, event, thread_id)
+                    if response is not None:
+                        yield response

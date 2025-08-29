@@ -14,5 +14,10 @@ RUN mkdir -p /venv && cd /venv && uv venv \
     && /venv/.venv/bin/python -m ensurepip --upgrade \
     && /venv/.venv/bin/pip3 install --upgrade pip
 WORKDIR /app
+# Install Python dependencies
+COPY ./tools_deps.toml /app-deps/tools_deps.toml
+COPY ./requirements.txt /app-deps/requirements.txt
+COPY ./local_setup.py /app-deps/local_setup.py
+RUN ["sh", "-c", ". /venv/.venv/bin/activate && uv pip install -r /app-deps/requirements.txt && python /app-deps/local_setup.py"]
 # Entrypoint: install dependencies + run script
-CMD ["sh", "-c", ". /venv/.venv/bin/activate && uv pip install --link-mode=copy -r requirements.txt && python run.py"]
+CMD ["sh", "-c", ". /venv/.venv/bin/activate && python run.py"]

@@ -99,7 +99,9 @@ coloredlogs==15.0.1
 coverage==7.10.3
     # via pytest-cov
 cryptography==45.0.6
-    # via authlib
+    # via
+    #   authlib
+    #   jwt
 curlify==2.2.1
     # via etendo-copilot-core
 cyclopts==3.22.5
@@ -269,6 +271,8 @@ jsonschema-specifications==2025.4.1
     # via
     #   jsonschema
     #   openapi-schema-validator
+jwt==1.4.0
+    # via etendo-copilot-core
 kubernetes==33.1.0
     # via chromadb
 langchain==0.3.27
@@ -383,6 +387,8 @@ mcp==1.13.0
     #   langchain-mcp-adapters
 mdurl==0.1.2
     # via markdown-it-py
+memory-profiler==0.61.0
+    # via etendo-copilot-core
 mmh3==5.2.0
     # via chromadb
 monotonic==1.6
@@ -423,6 +429,8 @@ oauthlib==3.3.1
     # via
     #   kubernetes
     #   requests-oauthlib
+objgraph==3.6.2
+    # via etendo-copilot-core
 ollama==0.5.3
     # via langchain-ollama
 onnxruntime==1.22.1
@@ -552,6 +560,8 @@ protobuf==6.31.1
     #   onnxruntime
     #   opentelemetry-proto
     #   proto-plus
+psutil==7.0.0
+    # via memory-profiler
 psycopg2-binary==2.9.10
     # via etendo-copilot-core
 ptyprocess==0.7.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'

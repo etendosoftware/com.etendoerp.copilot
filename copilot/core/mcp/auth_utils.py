@@ -38,7 +38,7 @@ def extract_etendo_token_from_request(request: Request) -> Optional[str]:
         # Try Authorization header
         auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
         if auth_header and auth_header.startswith(BEARER_PREFIX):
-            return auth_header
+            return normalize_etendo_token(auth_header)
 
         # Try X-Etendo-Token header
         x_token = request.headers.get("x-etendo-token") or request.headers.get("X-Etendo-Token")
