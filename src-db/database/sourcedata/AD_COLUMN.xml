@@ -6663,7 +6663,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--B1286450761D443D9474C39039EDE74A-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--B1286450761D443D9474C39039EDE74A-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--B1286450761D443D9474C39039EDE74A-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--B1286450761D443D9474C39039EDE74A-->  <NAME><![CDATA[MCP_Config]]></NAME>
+<!--B1286450761D443D9474C39039EDE74A-->  <NAME><![CDATA[MCP Config]]></NAME>
 <!--B1286450761D443D9474C39039EDE74A-->  <DESCRIPTION><![CDATA[Executes a process that retrieves the Server MCP configuration.]]></DESCRIPTION>
 <!--B1286450761D443D9474C39039EDE74A-->  <HELP><![CDATA[Retrieves the needed configuration to allow to a MCP client to connecto with a Copilot Agent.]]></HELP>
 <!--B1286450761D443D9474C39039EDE74A-->  <COLUMNNAME><![CDATA[MCP_Config]]></COLUMNNAME>
@@ -8689,7 +8689,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--E82ECE6580674EB7AB47D73855590810-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
 <!--E82ECE6580674EB7AB47D73855590810-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--E82ECE6580674EB7AB47D73855590810-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
-<!--E82ECE6580674EB7AB47D73855590810-->  <NAME><![CDATA[Check_Hosts]]></NAME>
+<!--E82ECE6580674EB7AB47D73855590810-->  <NAME><![CDATA[Check Hosts]]></NAME>
 <!--E82ECE6580674EB7AB47D73855590810-->  <DESCRIPTION><![CDATA[Check the hosting from Etendo to Copilot and back.]]></DESCRIPTION>
 <!--E82ECE6580674EB7AB47D73855590810-->  <HELP><![CDATA[This process check if the ETENDO_HOST is available and if the response is 200. If so,  checks the call to COPILOT_HOST verifying the 200 response, and then chek the call to Etendo again but using ETENDO_HOST_DOCKER.]]></HELP>
 <!--E82ECE6580674EB7AB47D73855590810-->  <COLUMNNAME><![CDATA[Check_Hosts]]></COLUMNNAME>

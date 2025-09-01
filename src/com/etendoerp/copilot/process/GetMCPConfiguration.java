@@ -141,8 +141,7 @@ public class GetMCPConfiguration extends Action {
       htmlCodeSB.append("<br>");
     }
 
-    String fullHTML = buildMessage(htmlCodeSB.toString());
-    return fullHTML;
+    return buildMessage(htmlCodeSB.toString());
   }
 
   /**

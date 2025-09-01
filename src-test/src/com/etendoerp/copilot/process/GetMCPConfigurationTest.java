@@ -32,12 +32,16 @@ import org.openbravo.erpCommon.utility.OBMessageUtils;
  */
 public class GetMCPConfigurationTest extends WeldBaseTest {
 
+  public static final String LOCALHOST_WARNING = "LOCALHOST_WARNING";
+  public static final String DIRECT = "Direct";
+  public static final String REMOTE_MODE = "mcp_remote_mode";
   private AutoCloseable mocks;
   private MockedStatic<CopilotUtils> mockedCopilotUtils;
   private MockedStatic<OBPropertiesProvider> mockedOBPropertiesProvider;
   private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
 
   @Before
+  @Override
   public void setUp() {
     mocks = MockitoAnnotations.openMocks(this);
     mockedCopilotUtils = mockStatic(CopilotUtils.class);
@@ -45,13 +49,13 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
     // default token
-    mockedCopilotUtils.when(() -> CopilotUtils.generateEtendoToken()).thenReturn("TOKEN");
+    mockedCopilotUtils.when(CopilotUtils::generateEtendoToken).thenReturn("TOKEN");
 
     // default messageBD
     mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(any(String.class))).thenAnswer(inv -> {
       String key = inv.getArgument(0);
       if ("ETCOP_ContextURLMCP_Warning".equals(key)) {
-        return "LOCALHOST_WARNING";
+        return LOCALHOST_WARNING;
       }
       if ("ETCOP_MCPInstallation".equals(key)) {
         return "INSTALLATION_MSG";
@@ -90,8 +94,8 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     CopilotApp a = mockAgent("AGENT1", "Agent One");
 
     JSONObject params = new JSONObject();
-    params.put("Direct", true);
-    params.put("mcp_remote_mode", false);
+    params.put(DIRECT, true);
+    params.put(REMOTE_MODE, false);
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     assertNotNull(html);
@@ -105,8 +109,8 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     CopilotApp a = mockAgent("AGENT2", "Agent Two");
 
     JSONObject params = new JSONObject();
-    params.put("Direct", false);
-    params.put("mcp_remote_mode", false);
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, false);
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     assertTrue(html.contains("/AGENT2/mcp"));
@@ -119,8 +123,8 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     CopilotApp a = mockAgent("AGENT3", "Agent Three");
 
     JSONObject params = new JSONObject();
-    params.put("Direct", false);
-    params.put("mcp_remote_mode", true);
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, true);
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     // remote example should include npx and mcp-remote
@@ -134,8 +138,8 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     CopilotApp a = mockAgent("AGENT4", "Agent Four");
 
     JSONObject params = new JSONObject();
-    params.put("Direct", false);
-    params.put("mcp_remote_mode", false);
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, false);
     params.put("custom_name", "My Custom");
     params.put("prefixMode", true);
 
@@ -156,11 +160,11 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     CopilotApp a = mockAgent("AGENT5", "Agent Five");
 
     JSONObject params = new JSONObject();
-    params.put("Direct", false);
-    params.put("mcp_remote_mode", false);
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, false);
 
     String html = g.getHTMLConfigurations(params, List.of(a));
-    assertTrue(html.contains("LOCALHOST_WARNING"));
+    assertTrue(html.contains(LOCALHOST_WARNING));
   }
 
   @Test
@@ -169,12 +173,12 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     CopilotApp a = mockAgent("AGENT6", "Agent Six");
 
     JSONObject params = new JSONObject();
-    params.put("Direct", false);
-    params.put("mcp_remote_mode", false);
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, false);
     params.put("custom_url", "https://example.com:1234");
 
     String html = g.getHTMLConfigurations(params, List.of(a));
-    assertFalse(html.contains("LOCALHOST_WARNING"));
+    assertFalse(html.contains(LOCALHOST_WARNING));
     assertTrue(html.contains("https://example.com:1234/AGENT6/mcp"));
   }
 
@@ -248,8 +252,8 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     CopilotApp a = mockAgent("AGENT10", "Agent Ten");
 
     JSONObject params = new JSONObject();
-    params.put("Direct", false);
-    params.put("mcp_remote_mode", false);
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, false);
     params.put("custom_name", "SoloCustom");
 
     String html = g.getHTMLConfigurations(params, List.of(a));
@@ -263,8 +267,8 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
   public void testEmptyAgentsListProducesOnlyFixedMessage() throws Exception {
     GetMCPConfiguration g = new GetMCPConfiguration();
     JSONObject params = new JSONObject();
-    params.put("Direct", false);
-    params.put("mcp_remote_mode", false);
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, false);
 
     String html = g.getHTMLConfigurations(params, List.of());
     // should at least contain the installation fixed message and not contain install badges
