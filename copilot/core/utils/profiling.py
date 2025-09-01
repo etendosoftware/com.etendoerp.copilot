@@ -9,6 +9,8 @@ profiling; the functions are opt-in and may require the optional
 import gc
 import tracemalloc
 
+from copilot.baseutils.logging_envvar import copilot_debug
+
 try:
     import objgraph
 except Exception:  # pragma: no cover - optional dependency
@@ -21,7 +23,7 @@ def start_memory_profiling():
     Returns:
         tracemalloc.Snapshot: initial memory snapshot
     """
-    print(">>> Starting memory tracing...")
+    copilot_debug(">>> Starting memory tracing...")
     if not tracemalloc.is_tracing():
         tracemalloc.start()
     return tracemalloc.take_snapshot()
@@ -32,17 +34,17 @@ def report_memory_growth(snapshot_before):
     snapshot_after = tracemalloc.take_snapshot()
 
     # 1. Memory growth by source line
-    print("\n--- Memory growth (tracemalloc) ---")
+    copilot_debug("\n--- Memory growth (tracemalloc) ---")
     top_stats = snapshot_after.compare_to(snapshot_before, "lineno")
     for stat in top_stats[:5]:
-        print(stat)
+        copilot_debug(stat)
 
     # 2. Object growth, if objgraph is available
     gc.collect()
-    print("\n--- Object growth (objgraph) ---")
+    copilot_debug("\n--- Object growth (objgraph) ---")
     if objgraph is not None:
         objgraph.show_growth(limit=10)
     else:
-        print("objgraph not installed; skipping object growth report.")
+        copilot_debug("objgraph not installed; skipping object growth report.")
 
-    print(">>> Memory report finished.")
+    copilot_debug(">>> Memory report finished.")
