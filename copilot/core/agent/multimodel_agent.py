@@ -158,6 +158,46 @@ def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
     return agent_configuration.code_execution
 
 
+def _fix_array_schemas(schema):
+    """
+    Recursively fix array schemas by adding missing 'items' property.
+    
+    Args:
+        schema: The schema dictionary to fix
+        
+    Returns:
+        Fixed schema dictionary
+    """
+    if not isinstance(schema, dict):
+        return schema
+    
+    # Create a copy to avoid modifying the original
+    fixed_schema = schema.copy()
+    
+    # Fix array type missing items
+    if fixed_schema.get("type") == "array" and "items" not in fixed_schema:
+        fixed_schema["items"] = {"type": "string"}  # Default to string items
+    
+    # Fix object type missing properties
+    if fixed_schema.get("type") == "object" and "properties" not in fixed_schema:
+        fixed_schema["properties"] = {}
+    
+    # Recursively fix nested schemas
+    if "properties" in fixed_schema:
+        fixed_properties = {}
+        for key, value in fixed_schema["properties"].items():
+            fixed_properties[key] = _fix_array_schemas(value)
+        fixed_schema["properties"] = fixed_properties
+    
+    if "items" in fixed_schema:
+        fixed_schema["items"] = _fix_array_schemas(fixed_schema["items"])
+    
+    if "additionalProperties" in fixed_schema and isinstance(fixed_schema["additionalProperties"], dict):
+        fixed_schema["additionalProperties"] = _fix_array_schemas(fixed_schema["additionalProperties"])
+    
+    return fixed_schema
+
+
 async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
     """
     Get MCP tools from configured MCP servers.
@@ -171,11 +211,25 @@ async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
     if not mcp_servers_config:
         return []
 
-    # Create new MCP client for each request (non-persistent)
+    # Create new MCP client for each request
     try:
         client = MultiServerMCPClient(mcp_servers_config)
         # Get tools with timeout
         tools = await asyncio.wait_for(client.get_tools(), timeout=45.0)
+
+        # Fix schema for tools with validation issues
+        for tool in tools:
+            if hasattr(tool, 'args_schema'):
+                schema = tool.args_schema
+                if schema is None:
+                    # Set empty schema for tools without parameters
+                    tool.args_schema = {"type": "object", "properties": {}}
+                elif isinstance(schema, dict):
+                    # Fix missing properties for object schemas
+                    if schema.get("type") == "object" and "properties" not in schema:
+                        schema["properties"] = {}
+                    # Fix missing items for array schemas recursively
+                    tool.args_schema = _fix_array_schemas(schema)
 
         return tools
 
