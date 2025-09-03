@@ -52,6 +52,7 @@ public class GetMCPConfiguration extends Action {
   private static final Logger log = LogManager.getLogger();
   private static final String DIV_CLOSE = "</div>\n";
   private static final String LOCALHOST_PREFIX = "http://localhost";
+  public static final String HEADERS = "headers";
 
   @Override
   /**
@@ -320,17 +321,17 @@ public class GetMCPConfiguration extends Action {
 
       String uniqueKey = jsonOld.keys().next().toString();
       var jsonInternal = jsonOld.getJSONObject(uniqueKey);
-      if (jsonInternal.has("headers")) {
-        JSONObject headers = jsonInternal.optJSONObject("headers");
-        jsonInternal.remove("headers");
+      if (jsonInternal.has(HEADERS)) {
+        JSONObject headers = jsonInternal.optJSONObject(HEADERS);
+        jsonInternal.remove(HEADERS);
         JSONObject requestInit = new JSONObject();
-        requestInit.put("headers", headers);
+        requestInit.put(HEADERS, headers);
         jsonInternal.put("requestInit", requestInit);
         jsonOld.put(uniqueKey, jsonInternal);
       }
       return jsonOld.toString(2);
     } catch (JSONException e) {
-      log.error("Could not parse JSON to adapt to JetBrains format: " + e.getMessage(), e);
+      log.error(String.format("Could not parse JSON to adapt to JetBrains format: %s", e.getMessage()), e);
       return json;
     }
   }
@@ -387,6 +388,7 @@ public class GetMCPConfiguration extends Action {
    *
    * @param json the pretty-printed JSON text to include inside the {@code <code>} element.
    * @param idSuffix a unique suffix for the HTML element IDs to avoid collisions.
+   * @param platform a human-readable platform name to display in the header (e.g. "VSCode" or "Other IDEs").
    * @return an HTML fragment with the {@code <pre><code>} block, a copy button and a small inline script as fallback.
    */
   public String buildCodeBlock(String json, String idSuffix, String platform) {
@@ -574,7 +576,7 @@ public class GetMCPConfiguration extends Action {
 
       JSONObject headers = new JSONObject();
       headers.put("Authorization", "Bearer " + req.token);
-      myMcpServer.put("headers", headers);
+      myMcpServer.put(HEADERS, headers);
 
       config.put(key, myMcpServer);
     }
