@@ -1,3 +1,5 @@
+import json
+
 import curlify
 import requests
 from copilot.baseutils.logging_envvar import copilot_debug
@@ -60,6 +62,7 @@ def do_request(
         return {"error": "method is required"}
 
     headers = {}
+    headers["Content-Type"] = "application/json; charset=utf-8"
     token_not_none(headers, token, url, endpoint)
 
     final_endpoint = endpoint
@@ -90,12 +93,20 @@ def do_request(
         copilot_debug("query_params: " + str(query_params))
 
         if upper_method == "PUT":
+            # Serialize body_params to JSON manually with UTF-8 encoding
+            json_data = json.dumps(body_params, ensure_ascii=False).encode("utf-8")
+            copilot_debug(f"JSON payload size (bytes): {len(json_data)}")
+            copilot_debug(f"JSON payload preview: {json_data[:200]}...")
             api_response = requests.put(
-                url=url + final_endpoint, json=body_params, headers=headers, params=query_params
+                url=url + final_endpoint, data=json_data, headers=headers, params=query_params
             )
         else:  # POST
+            # Serialize body_params to JSON manually with UTF-8 encoding
+            json_data = json.dumps(body_params, ensure_ascii=False).encode("utf-8")
+            copilot_debug(f"JSON payload size (bytes): {len(json_data)}")
+            copilot_debug(f"JSON payload preview: {json_data[:200]}...")
             api_response = requests.post(
-                url=url + final_endpoint, json=body_params, headers=headers, params=query_params
+                url=url + final_endpoint, data=json_data, headers=headers, params=query_params
             )
 
         copilot_debug("headers: " + str(api_response.request.headers))
@@ -108,4 +119,29 @@ def do_request(
     else:
         raise ValueError(f"Method {method} not supported")
 
-    return {"status_code": api_response.status_code, "content": api_response.content.decode("utf-8")}
+    # Safely decode response content with fallback handling
+    try:
+        content_text = api_response.content.decode("utf-8")
+    except UnicodeDecodeError as e:
+        copilot_debug(f"UTF-8 decode failed: {e}")
+        # Try with detected encoding or fallback to latin-1 with error replacement
+        encoding = api_response.encoding or "latin-1"
+        try:
+            content_text = api_response.content.decode(encoding, errors="replace")
+            copilot_debug(f"Decoded with {encoding} encoding using error replacement")
+        except Exception as fallback_error:
+            copilot_debug(f"Fallback decode failed: {fallback_error}")
+            # Last resort: return base64 encoded content with metadata
+            import base64
+
+            content_text = base64.b64encode(api_response.content).decode("ascii")
+            copilot_debug("Content encoded as base64 due to decode failures")
+            return {
+                "status_code": api_response.status_code,
+                "content": content_text,
+                "content_type": api_response.headers.get("Content-Type", "unknown"),
+                "encoding_error": str(e),
+                "is_base64": True,
+            }
+
+    return {"status_code": api_response.status_code, "content": content_text}

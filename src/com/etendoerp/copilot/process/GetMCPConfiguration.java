@@ -109,10 +109,13 @@ public class GetMCPConfiguration extends Action {
   /**
    * Builds the full HTML that contains the MCP configuration blocks for the provided agents.
    *
-   * @param parameters input JSON parameters controlling generation (Direct, mcp_remote_mode, etc.)
-   * @param agents     list of {@link CopilotApp} instances to generate configurations for
+   * @param parameters
+   *     input JSON parameters controlling generation (Direct, mcp_remote_mode, etc.)
+   * @param agents
+   *     list of {@link CopilotApp} instances to generate configurations for
    * @return an HTML string ready to be displayed to the user
-   * @throws JSONException when JSON construction fails or when underlying JSON operations fail.
+   * @throws JSONException
+   *     when JSON construction fails or when underlying JSON operations fail.
    */
   public String getHTMLConfigurations(JSONObject parameters, List<CopilotApp> agents) throws Exception {
     var direct = parameters.getBoolean("Direct");
@@ -148,8 +151,10 @@ public class GetMCPConfiguration extends Action {
    * Reads an optional string property from a {@link JSONObject}. The literal string {@code "null"}
    * (case-insensitive) is treated as {@code null}.
    *
-   * @param parameters source {@link JSONObject}
-   * @param prop       property name to read
+   * @param parameters
+   *     source {@link JSONObject}
+   * @param prop
+   *     property name to read
    * @return the string value, or {@code null} if the property is missing, blank, or the literal {@code "null"}
    */
   public static String readOptString(JSONObject parameters, String prop) {
@@ -163,9 +168,11 @@ public class GetMCPConfiguration extends Action {
   /**
    * Parses incoming parameters and loads CopilotApp agents from the DAL.
    *
-   * @param parameters JSON object containing a {@code recordIds} array with agent ids.
+   * @param parameters
+   *     JSON object containing a {@code recordIds} array with agent ids.
    * @return a list of {@link CopilotApp} instances matching the provided ids.
-   * @throws JSONException when {@code recordIds} is missing or malformed.
+   * @throws JSONException
+   *     when {@code recordIds} is missing or malformed.
    */
   public List<CopilotApp> parseAgents(JSONObject parameters) throws JSONException {
     var agentIDsArr = parameters.getJSONArray("recordIds");
@@ -180,15 +187,23 @@ public class GetMCPConfiguration extends Action {
   /**
    * Builds per-agent configuration JSON objects.
    *
-   * @param agents list of agents to process.
-   * @param direct whether to use direct endpoint paths.
-   * @param mcpRemoteCompatibilityMode toggles npx-compatible remote example generation.
-   * @param token authentication token to include in the generated config.
-   * @param contextUrlMcp base MCP context URL.
-   * @param customName optional custom name to use for the generated key/display name.
-   * @param prefixMode when true and customName is set, the agent name is appended to the key.
+   * @param agents
+   *     list of agents to process.
+   * @param direct
+   *     whether to use direct endpoint paths.
+   * @param mcpRemoteCompatibilityMode
+   *     toggles npx-compatible remote example generation.
+   * @param token
+   *     authentication token to include in the generated config.
+   * @param contextUrlMcp
+   *     base MCP context URL.
+   * @param customName
+   *     optional custom name to use for the generated key/display name.
+   * @param prefixMode
+   *     when true and customName is set, the agent name is appended to the key.
    * @return a list of {@link JSONObject} configurations (one per agent).
-   * @throws JSONException when JSON construction fails.
+   * @throws JSONException
+   *     when JSON construction fails.
    */
   public List<JSONObject> buildConfigsFromAgents(List<CopilotApp> agents, boolean direct,
       boolean mcpRemoteCompatibilityMode, String token, String contextUrlMcp, String customName,
@@ -205,7 +220,8 @@ public class GetMCPConfiguration extends Action {
   /**
    * Inspects a list of configuration objects and determines if any reference a localhost URL.
    *
-   * @param configs a list of configuration JSONObjects.
+   * @param configs
+   *     a list of configuration JSONObjects.
    * @return {@code true} if at least one config references a URL that starts with the configured localhost prefix, otherwise {@code false}.
    */
   public boolean detectLocalhostFromConfigs(List<JSONObject> configs) {
@@ -223,7 +239,8 @@ public class GetMCPConfiguration extends Action {
    * The config is expected to have a single top-level key whose value either contains a {@code url}
    * property (standard mode) or an {@code args} array (remote example) where the URL is at index 1.
    *
-   * @param cfg a configuration JSONObject with a single top-level key.
+   * @param cfg
+   *     a configuration JSONObject with a single top-level key.
    * @return the server URL if present, otherwise {@code null}.
    */
   public String getServerUrlFromConfig(JSONObject cfg) {
@@ -252,9 +269,11 @@ public class GetMCPConfiguration extends Action {
    * Builds a fragment containing the install badge and the JSON code block for a single
    * configuration object.
    *
-   * @param config a configuration JSONObject with a single top-level key.
+   * @param config
+   *     a configuration JSONObject with a single top-level key.
    * @return an HTML fragment with the badge and JSON block.
-   * @throws JSONException when JSON processing fails.
+   * @throws JSONException
+   *     when JSON processing fails.
    */
   public String buildConfigFragment(JSONObject config) throws JSONException {
     String key = null;
@@ -265,21 +284,55 @@ public class GetMCPConfiguration extends Action {
     JSONObject cfgInternal = key != null ? config.getJSONObject(key) : new JSONObject();
 
     String json = config.toString(2);
-    // remove first and last curly braces
-    json = json.substring(1, json.length() - 1).trim();
-  // Unescape forward slashes for nicer display (Jettison may escape them as \/)
-  json = json.replace("\\/", "/");
-  // Ensure encoded JSON uses unescaped slashes to avoid backslashes in the final link
-  String rawCfg = cfgInternal.toString().replace("\\/", "/");
-  String encodedJson = URLEncoder.encode(rawCfg, StandardCharsets.UTF_8);
-  encodedJson = encodedJson.replace("+", "%20");
+
+    // Ensure encoded JSON uses unescaped slashes to avoid backslashes in the final link
+    String rawCfg = cfgInternal.toString();
+    String encodedJson = URLEncoder.encode(rawCfg, StandardCharsets.UTF_8);
+    encodedJson = encodedJson.replace("+", "%20");
     String buttonLink = "vscode:mcp/install?" + encodedJson;
     String idSuffix = normalize(key != null ? key : "cfg");
 
     StringBuilder html = new StringBuilder();
+    html.append("<br>");
     html.append(buildInstallBadge(buttonLink));
-    html.append(buildCodeBlock(json, idSuffix));
+    html.append(buildCodeBlock(json, idSuffix + "vsc", "VSCode"));
+    html.append("<br>");
+    html.append(buildCodeBlock(adaptJsonToJetBrains(json), idSuffix + "jb", "Other IDEs"));
     return html.toString();
+  }
+
+  /**
+   * Adapts a JSON string to the JetBrains format by moving the "headers" object into a new "requestInit" object.
+   * <p>
+   * If the input JSON contains a "headers" field, this method removes it from the root and places it inside
+   * a new "requestInit" object, which is then added to the root. The resulting JSON is formatted with an indentation of 2 spaces.
+   * If the input JSON cannot be parsed, the original JSON string is returned and an error is logged.
+   *
+   * @param json
+   *     the original JSON string to adapt
+   * @return the adapted JSON string in JetBrains format, or the original string if parsing fails
+   * @throws JSONException
+   *     if there is an error parsing the JSON
+   */
+  private String adaptJsonToJetBrains(String json) throws JSONException {
+    try {
+      JSONObject jsonOld = new JSONObject(json);
+
+      String uniqueKey = jsonOld.keys().next().toString();
+      var jsonInternal = jsonOld.getJSONObject(uniqueKey);
+      if (jsonInternal.has("headers")) {
+        JSONObject headers = jsonInternal.optJSONObject("headers");
+        jsonInternal.remove("headers");
+        JSONObject requestInit = new JSONObject();
+        requestInit.put("headers", headers);
+        jsonInternal.put("requestInit", requestInit);
+        jsonOld.put(uniqueKey, jsonInternal);
+      }
+      return jsonOld.toString(2);
+    } catch (JSONException e) {
+      log.error("Could not parse JSON to adapt to JetBrains format: " + e.getMessage(), e);
+      return json;
+    }
   }
 
   /**
@@ -297,7 +350,8 @@ public class GetMCPConfiguration extends Action {
   /**
    * Returns an informational warning HTML if the provided serverUrl points to localhost.
    *
-   * @param serverUrl the server URL to inspect; may be null.
+   * @param serverUrl
+   *     the server URL to inspect; may be null.
    * @return an HTML fragment with a warning or an empty string when not applicable.
    */
   public String buildLocalhostWarning(String serverUrl) {
@@ -312,12 +366,13 @@ public class GetMCPConfiguration extends Action {
   /**
    * Builds the install badge HTML that links to the custom vscode:mcp install URL.
    *
-   * @param buttonLink the fully encoded install link to be used in the anchor href.
+   * @param buttonLink
+   *     the fully encoded install link to be used in the anchor href.
    * @return an HTML fragment with the badge anchor element.
    */
   public String buildInstallBadge(String buttonLink) {
     StringBuilder b = new StringBuilder();
-    b.append("  <div style=\"margin-bottom: 0.5rem; text-align: right;\">");
+    b.append("  <div style=\"margin-bottom: 0.5rem; text-align: left;\">");
     b.append("    <a href=\"").append(buttonLink).append("\" target=\"_blank\" rel=\"noopener noreferrer\">");
     b.append("      <img alt=\"Static Badge\" src=\"https://img.shields.io/badge/Install%20in%20-VSCode-blue\">");
     b.append("    </a>");
@@ -334,24 +389,32 @@ public class GetMCPConfiguration extends Action {
    * @param idSuffix a unique suffix for the HTML element IDs to avoid collisions.
    * @return an HTML fragment with the {@code <pre><code>} block, a copy button and a small inline script as fallback.
    */
-  public String buildCodeBlock(String json, String idSuffix) {
+  public String buildCodeBlock(String json, String idSuffix, String platform) {
     StringBuilder cb = new StringBuilder();
+    json = json.substring(1, json.length() - 1).trim();
+    json = json.replace("\\/", "/");
     cb.append(
         "  <div style=\"position: relative; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 1rem 1rem 1.25rem;\" role=\"region\" aria-label=\"JSON code block\">\n");
 
-    // copy button placed inside the code block (top-right)
+    // Header with title and copy button aligned horizontally
+    cb.append(
+        "    <div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;\">\n");
+    cb.append("      <span style=\"font-weight: bold; color: #333; font-size: 14px;\">" + platform + "</span>\n");
+
+    // copy button placed inside the header (right side)
     String btnId = "copilotMCP_btnCopiar_" + idSuffix;
     String codeId = "copilotMCP_json_" + idSuffix;
 
     cb.append(
-        "    <button style=\"position: absolute; top: .6rem; right: .6rem; border: 1px solid #d0d7de; background: #fff; border-radius: 6px; padding: .25rem .5rem; cursor: pointer; font-size: 12px;\" id=\""
+        "      <button style=\"border: 1px solid #d0d7de; background: #fff; border-radius: 6px; padding: .25rem .5rem; cursor: pointer; font-size: 12px;\" id=\""
             + btnId
             + "\" aria-label=\"Copy JSON\" title=\"Copy JSON to clipboard\" onclick=\"(function(btn){const code=document.getElementById('"
             + codeId
             + "'); if(!code)return; const myText=code.innerText.trim(); try{ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(myText);} else {const ta=document.createElement('textarea'); ta.value=myText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();} btn.textContent='Copied!'; setTimeout(()=>btn.textContent='Copy',1500);}catch(e){btn.textContent='Error'; console.error('Could not copy:',e);} })(this)\">Copy</button>\n");
+    cb.append("    </div>\n");
 
     cb.append(
-        "    <pre style=\"margin: 0; overflow: auto; min-height: 200px;\"><code style=\"font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 14px; line-height: 1.5; user-select: text; display: block; white-space: pre;\" id=\""
+        "    <pre style=\"margin: 0; overflow: auto; min-height: 150x;\"><code style=\"font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 14px; line-height: 1.5; user-select: text; display: block; white-space: pre;\" id=\""
             + codeId + "\">"
     ).append(json).append("</code></pre>\n");
 
@@ -394,7 +457,8 @@ public class GetMCPConfiguration extends Action {
    * {@code context.url.copilot.mcp}, falls back to {@code context.url} + port or finally to
    * localhost with the configured MCP port.
    *
-   * @param customContextUrl an optional URL to use instead of the configured properties.
+   * @param customContextUrl
+   *     an optional URL to use instead of the configured properties.
    * @return the resolved MCP base URL (including port when applicable).
    */
   public String getContextUrlMCP(String customContextUrl) {
@@ -416,7 +480,8 @@ public class GetMCPConfiguration extends Action {
   /**
    * Wraps the provided HTML content into a fixed-width span used by the response builder.
    *
-   * @param content HTML content to be wrapped.
+   * @param content
+   *     HTML content to be wrapped.
    * @return a wrapped HTML string ready to be placed in the response.
    */
   public String buildMessage(String content) {
@@ -521,7 +586,8 @@ public class GetMCPConfiguration extends Action {
    * Normalizes a human-readable name into a safe key by lowercasing and replacing non
    * alphanumeric characters with dashes.
    *
-   * @param name input name to normalize.
+   * @param name
+   *     input name to normalize.
    * @return a normalized key safe for use as a JSON object key.
    */
   public static String normalize(String name) {
@@ -545,8 +611,10 @@ public class GetMCPConfiguration extends Action {
     /**
      * Creates a new ConfigRequest for the given agent id and name.
      *
-     * @param agentId   agent identifier
-     * @param agentName human readable agent name
+     * @param agentId
+     *     agent identifier
+     * @param agentName
+     *     human readable agent name
      */
     public ConfigRequest(String agentId, String agentName) {
       this.agentId = agentId;
@@ -556,12 +624,18 @@ public class GetMCPConfiguration extends Action {
     /**
      * Sets the options used to generate the configuration.
      *
-     * @param direct                      whether to use direct endpoint
-     * @param mcpRemoteCompatibilityMode  remote compatibility mode flag
-     * @param token                       authentication token
-     * @param contextUrlMcp               base context URL
-     * @param customName                  optional custom name
-     * @param prefixMode                  prefix mode flag
+     * @param direct
+     *     whether to use direct endpoint
+     * @param mcpRemoteCompatibilityMode
+     *     remote compatibility mode flag
+     * @param token
+     *     authentication token
+     * @param contextUrlMcp
+     *     base context URL
+     * @param customName
+     *     optional custom name
+     * @param prefixMode
+     *     prefix mode flag
      */
     public void setOptions(boolean direct, boolean mcpRemoteCompatibilityMode, String token, String contextUrlMcp,
         String customName, boolean prefixMode) {
