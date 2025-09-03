@@ -13,7 +13,7 @@ from copilot.baseutils.logging_envvar import copilot_debug
 
 try:
     import objgraph
-except Exception:  # pragma: no cover - optional dependency
+except ImportError:  # pragma: no cover - optional dependency
     objgraph = None
 
 
