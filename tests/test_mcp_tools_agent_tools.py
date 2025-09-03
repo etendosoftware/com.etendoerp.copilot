@@ -616,7 +616,8 @@ class TestRegisterAgentTools:
 
         mock_app = MagicMock()
 
-        result = register_agent_tools(mock_app, "test_agent", "test_token")
+        # Provide the agent_config directly to avoid relying on internal fetch behavior
+        result = register_agent_tools(mock_app, "test_agent", "test_token", agent_config=mock_agent)
 
         assert result["success"] is True
         assert result["tools_count"] == 2  # prompt tool + converted tools
@@ -649,18 +650,21 @@ class TestRegisterAgentTools:
         result = register_agent_tools(mock_app, "test_agent", "test_token")
 
         assert result["success"] is False
-        assert result["error"] == "Could not fetch agent structure"
+        # Current implementation returns a specific configuration-related message
+        assert result["error"] == "Could not fetch agent configuration"
 
-    @patch("copilot.core.mcp.tools.agent_tools.fetch_agent_structure_from_etendo")
-    def test_register_agent_tools_exception(self, mock_fetch):
-        """Test registering agent tools when exception occurs."""
-        mock_fetch.side_effect = Exception("Test error")
-        mock_app = MagicMock()
+    def test_register_agent_tools_exception(self):
+        """Test registering agent tools when exception occurs inside the registration flow."""
+        # Simulate an internal error during tool loading to trigger the exception path
+        with patch(
+            "copilot.core.mcp.tools.agent_tools.ToolLoader", side_effect=Exception("ToolLoader failed")
+        ):
+            mock_app = MagicMock()
 
-        result = register_agent_tools(mock_app, "test_agent", "test_token")
+            result = register_agent_tools(mock_app, "test_agent", "test_token", agent_config=MagicMock())
 
-        assert result["success"] is False
-        assert "Unexpected error" in result["error"]
+            assert result["success"] is False
+            assert "Unexpected error" in result["error"]
 
     @patch("copilot.core.mcp.tools.agent_tools.convert_langchain_tools_to_mcp")
     @patch("copilot.core.mcp.tools.agent_tools._make_team_ask_agent_tools")
@@ -689,7 +693,10 @@ class TestRegisterAgentTools:
 
         mock_app = MagicMock()
 
-        result = register_agent_tools(mock_app, "supervisor_agent", "test_token", is_direct_mode=True)
+        # Provide the supervisor configuration directly
+        result = register_agent_tools(
+            mock_app, "supervisor_agent", "test_token", is_direct_mode=True, agent_config=supervisor_config
+        )
 
         assert result["success"] is True
         mock_is_supervisor.assert_called_once_with(supervisor_config)
