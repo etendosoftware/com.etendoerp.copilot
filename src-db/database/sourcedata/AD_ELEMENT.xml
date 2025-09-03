@@ -192,6 +192,8 @@
 <!--2B522600DAD4428799C9860DB94639D6-->  <PRINTNAME><![CDATA[Direct Mode]]></PRINTNAME>
 <!--2B522600DAD4428799C9860DB94639D6-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--2B522600DAD4428799C9860DB94639D6-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
+<!--2B522600DAD4428799C9860DB94639D6-->  <DESCRIPTION><![CDATA[If enabled, the MCP server operates in direct mode; otherwise, it operates in simple mode.]]></DESCRIPTION>
+<!--2B522600DAD4428799C9860DB94639D6-->  <HELP><![CDATA[If enabled, the MCP server will provide all agent tools directly and access to agent instructions (get_agent_prompt). If disabled, only the main conversation tool will be available (ask_agent for Multi-Model, ask_agent_supervisor for LangGraph). Use direct mode for advanced workflows and tool access; use simple mode for guided conversations.]]></HELP>
 <!--2B522600DAD4428799C9860DB94639D6--></AD_ELEMENT>
 
 <!--2C2F8F682D1B46899A819A3696999E69--><AD_ELEMENT>
