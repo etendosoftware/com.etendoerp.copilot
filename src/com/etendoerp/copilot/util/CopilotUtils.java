@@ -3,6 +3,7 @@ package com.etendoerp.copilot.util;
 import static com.etendoerp.copilot.rest.RestServiceUtil.replaceAliasInPrompt;
 import static com.etendoerp.copilot.util.CopilotConstants.LANGCHAIN_MAX_LENGTH_QUESTION;
 import static com.etendoerp.copilot.util.CopilotConstants.isHQLQueryFile;
+import static com.etendoerp.copilot.util.OpenAIUtils.ENDPOINT_MODELS;
 import static com.etendoerp.copilot.util.OpenAIUtils.deleteFile;
 import static com.etendoerp.webhookevents.webhook_util.OpenAPISpecUtils.PROP_NAME;
 
@@ -14,6 +15,7 @@ import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import kong.unirest.UnirestException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -881,27 +883,13 @@ public class CopilotUtils {
    */
   public static void validateOpenAIKey() {
     try {
-      // Retrieve the OpenAI API key from the configuration
-      String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
-
-      // Construct the URL for the OpenAI models endpoint
-      URL url = new URL(CopilotConstants.OPENAI_MODELS);
-
-      // Open an HTTP connection to the endpoint
-      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-      // Set the request method to GET
-      connection.setRequestMethod("GET");
-
-      // Add the Authorization header with the OpenAI API key
-      connection.setRequestProperty("Authorization", "Bearer " + openaiApiKey);
-
-      // Check the response code; throw an exception if it is not 200 (OK)
-      if (connection.getResponseCode() != 200) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_OpenAIKeyNotValid")));
+      final String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
+      // Use OpenAIUtils helper to call the models endpoint. The helper returns a JSONObject when successful.
+      JSONObject resp = OpenAIUtils.makeRequestToOpenAI(openaiApiKey, ENDPOINT_MODELS, null, "GET", null, true);
+      if (resp == null) {
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_OpenAIKeyNotValid"));
       }
-    } catch (Exception e) {
-      // Catch any exception and rethrow it as an OBException
+    } catch (UnirestException | JSONException e) {
       throw new OBException(e.getMessage());
     }
   }

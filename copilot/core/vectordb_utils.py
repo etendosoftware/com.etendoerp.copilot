@@ -10,6 +10,7 @@ import pymupdf
 from chromadb import Settings
 from copilot.baseutils.logging_envvar import copilot_debug
 from copilot.core.schemas import SplitterConfig
+from copilot.core.utils.models import get_proxy_url
 from langchain.text_splitter import CharacterTextSplitter, MarkdownTextSplitter
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
@@ -25,7 +26,7 @@ LANGCHAIN_DEFAULT_COLLECTION_NAME = "langchain"
 
 
 def get_embedding():
-    return OpenAIEmbeddings(disallowed_special=(), show_progress_bar=True)
+    return OpenAIEmbeddings(disallowed_special=(), show_progress_bar=True, base_url=get_proxy_url())
 
 
 def get_vector_db_path(vector_db_id):

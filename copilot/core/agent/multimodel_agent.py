@@ -14,6 +14,12 @@ from copilot.core.agent.agent import (
     AssistantResponse,
     CopilotAgent,
 )
+from copilot.core.memory.memory_handler import MemoryHandler
+from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
+from copilot.core.threadcontext import ThreadContext
+from copilot.core.utils import etendo_utils
+from copilot.core.utils.agent import get_full_question
+from copilot.core.utils.models import get_proxy_url
 from langchain.agents import (
     AgentExecutor,
     AgentOutputParser,
@@ -29,11 +35,6 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
 from langgraph_codeact import create_default_prompt
 
-from ..memory.memory_handler import MemoryHandler
-from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
-from ..threadcontext import ThreadContext
-from ..utils import etendo_utils
-from ..utils.agent import get_full_question
 from .agent_utils import process_local_files
 from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
 from .langgraph_agent import handle_events
@@ -132,7 +133,12 @@ def get_llm(model, provider, temperature):
         )
 
     else:
-        llm = init_chat_model(model_provider=provider, model=model, temperature=temperature)
+        llm = init_chat_model(
+            model_provider=provider,
+            model=model,
+            temperature=temperature,
+            base_url=get_proxy_url(),
+        )
     # Adjustments for specific models, because some models have different
     # default parameters
     model_config = get_model_config(provider, model)
@@ -233,7 +239,7 @@ class MultimodelAgent(CopilotAgent):
         llm = get_llm(model, provider, temperature)
 
         # Use the unified tool loader to get all tools
-        from ..tool_loader import ToolLoader
+        from copilot.core.tool_loader import ToolLoader
 
         tool_loader = ToolLoader()
         _enabled_tools = tool_loader.get_all_tools(
