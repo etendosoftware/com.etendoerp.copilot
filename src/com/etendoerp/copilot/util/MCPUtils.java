@@ -74,45 +74,13 @@ public class MCPUtils {
     }
 
     private static String replaceVariables(CopilotMCP mcpConfig) {
-        String processedJsonString;
         try {
-            String jsonString = mcpConfig.getJsonStructure();
-            OBContext obContext = OBContext.getOBContext();
-            
-            // Replace standard variables
-            processedJsonString = StringUtils.replace(jsonString, "@ETENDO_HOST@", CopilotUtils.getEtendoHost());
-            processedJsonString = StringUtils.replace(processedJsonString, "@ETENDO_HOST_DOCKER@", CopilotUtils.getEtendoHostDocker());
-            
-            if (obContext.getCurrentClient() != null) {
-                processedJsonString = StringUtils.replace(processedJsonString, "@AD_CLIENT_ID@", obContext.getCurrentClient().getId());
-                processedJsonString = StringUtils.replace(processedJsonString, "@CLIENT_NAME@", obContext.getCurrentClient().getName());
-            }
-            if (obContext.getCurrentOrganization() != null) {
-                processedJsonString = StringUtils.replace(processedJsonString, "@AD_ORG_ID@", obContext.getCurrentOrganization().getId());
-                processedJsonString = StringUtils.replace(processedJsonString, "@ORG_NAME@", obContext.getCurrentOrganization().getName());
-            }
-            if (obContext.getUser() != null) {
-                processedJsonString = StringUtils.replace(processedJsonString, "@AD_USER_ID@", obContext.getUser().getId());
-                processedJsonString = StringUtils.replace(processedJsonString, "@USERNAME@", obContext.getUser().getUsername());
-            }
-            if (obContext.getRole() != null) {
-                processedJsonString = StringUtils.replace(processedJsonString, "@AD_ROLE_ID@", obContext.getRole().getId());
-                processedJsonString = StringUtils.replace(processedJsonString, "@ROLE_NAME@", obContext.getRole().getName());
-            }
-            if (obContext.getWarehouse() != null) {
-                processedJsonString = StringUtils.replace(processedJsonString, "@M_WAREHOUSE_ID@", obContext.getWarehouse().getId());
-                processedJsonString = StringUtils.replace(processedJsonString, "@WAREHOUSE_NAME@", obContext.getWarehouse().getName());
-            }
-            
-            // Replace source path variable
-            Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-            processedJsonString = StringUtils.replace(processedJsonString, "@source.path@", CopilotUtils.getSourcesPath(properties));
+            return CopilotUtils.replaceCopilotPromptVariables(mcpConfig.getJsonStructure(), null, false);
         } catch (Exception ex) {
             String errorMsg = "Failed to replace variables in MCP: " + mcpConfig.getName();
             log.error(errorMsg);
             log.error(ex.getMessage());
-            processedJsonString = mcpConfig.getJsonStructure();
+            return mcpConfig.getJsonStructure();
         }
-        return processedJsonString;
     }
 }

@@ -485,7 +485,7 @@ public class CopilotUtils {
    */
   public static String replaceCopilotPromptVariables(String string) {
     try {
-      return replaceCopilotPromptVariables(string, new JSONObject());
+      return replaceCopilotPromptVariables(string, new JSONObject(), true);
     } catch (JSONException e) {
       throw new OBException(e);
     }
@@ -508,20 +508,17 @@ public class CopilotUtils {
    * @throws JSONException
    *     If an error occurs while parsing the JSON object.
    */
-  public static String replaceCopilotPromptVariables(String string, JSONObject maps) throws JSONException {
+  public static String replaceCopilotPromptVariables(String string, JSONObject maps, boolean balanceBrackets) throws JSONException {
     OBContext obContext = OBContext.getOBContext();
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
     stringParsed = StringUtils.replace(stringParsed, "@ETENDO_HOST_DOCKER@", getEtendoHostDocker());
+
     if (obContext.getCurrentClient() != null) {
       stringParsed = StringUtils.replace(stringParsed, "@AD_CLIENT_ID@", obContext.getCurrentClient().getId());
-    }
-    if (obContext.getCurrentClient() != null) {
       stringParsed = StringUtils.replace(stringParsed, "@CLIENT_NAME@", obContext.getCurrentClient().getName());
     }
     if (obContext.getCurrentOrganization() != null) {
       stringParsed = StringUtils.replace(stringParsed, "@AD_ORG_ID@", obContext.getCurrentOrganization().getId());
-    }
-    if (obContext.getCurrentOrganization() != null) {
       stringParsed = StringUtils.replace(stringParsed, "@ORG_NAME@", obContext.getCurrentOrganization().getName());
     }
     if (obContext.getUser() != null) {
@@ -553,10 +550,12 @@ public class CopilotUtils {
       stringParsed = sub.replace(stringParsed);
     }
 
-    stringParsed = stringParsed.replace("{", "{{").replace("}", "}}");
+    if (balanceBrackets) {
+      stringParsed = stringParsed.replace("{", "{{").replace("}", "}}");
 
-    if (StringUtils.countMatches(stringParsed, "{{") != StringUtils.countMatches(stringParsed, "}}")) {
-      throw new OBException(OBMessageUtils.messageBD("ETCOP_BalancedBrackets"));
+      if (StringUtils.countMatches(stringParsed, "{{") != StringUtils.countMatches(stringParsed, "}}")) {
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_BalancedBrackets"));
+      }
     }
 
     return stringParsed;
