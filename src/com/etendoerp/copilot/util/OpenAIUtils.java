@@ -100,8 +100,7 @@ public class OpenAIUtils {
    * @throws JSONException
    *     If an error occurs while parsing the JSON object.
    */
-  private static boolean matchParamAndCode(JSONObject response, String param, String code)
-      throws JSONException {
+  private static boolean matchParamAndCode(JSONObject response, String param, String code) throws JSONException {
     if (!response.has(ERROR)) {
       return false;
     }
@@ -126,17 +125,14 @@ public class OpenAIUtils {
    * @throws IOException
    *     If an error occurs while making the request to the OpenAI API.
    */
-  private static JSONObject upsertAssistant(CopilotApp app, String openaiApiKey)
-      throws JSONException, IOException {
+  private static JSONObject upsertAssistant(CopilotApp app, String openaiApiKey) throws JSONException, IOException {
     String openaiIdAssistant = app.getOpenaiAssistantID();
     if (StringUtils.isNotEmpty(openaiIdAssistant)) {
       if (!existsAssistant(openaiIdAssistant)) {
         openaiIdAssistant = null;
       }
     }
-    String endpoint = ENDPOINT_ASSISTANTS + (StringUtils.isNotEmpty(openaiIdAssistant) ?
-        "/" + openaiIdAssistant :
-        "");
+    String endpoint = ENDPOINT_ASSISTANTS + (StringUtils.isNotEmpty(openaiIdAssistant) ? "/" + openaiIdAssistant : "");
     JSONObject body = new JSONObject();
     body.put(INSTRUCTIONS, getAssistantPrompt(app));
     body.put("name", app.getName());
@@ -152,21 +148,17 @@ public class OpenAIUtils {
     logIfDebug(response.toString());
     if (response.has(ERROR)) {
       if (matchParamAndCode(response, INSTRUCTIONS, "string_above_max_length")) {
-        throw new OBException(
-            String.format(OBMessageUtils.messageBD("ETCOP_Error_Sync_Instructions"), app.getName(),
-                response.getJSONObject(ERROR).getString(MESSAGE)));
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Sync_Instructions"), app.getName(),
+            response.getJSONObject(ERROR).getString(MESSAGE)));
       }
-      if (response.optJSONObject(ERROR) != null
-          && StringUtils.isNotEmpty(response.getJSONObject(ERROR).optString(MESSAGE))
-          && StringUtils.containsIgnoreCase(response.getJSONObject(ERROR).optString(MESSAGE), CODE_INT_TOO_LONG_ERR)
-      ) {
-        throw new OBException(
-            String.format(OBMessageUtils.messageBD("ETCOP_Error_Code_Int_Too_Long"), app.getName(),
-                response.getJSONObject(ERROR).getString(MESSAGE)));
+      if (response.optJSONObject(ERROR) != null && StringUtils.isNotEmpty(
+          response.getJSONObject(ERROR).optString(MESSAGE)) && StringUtils.containsIgnoreCase(
+          response.getJSONObject(ERROR).optString(MESSAGE), CODE_INT_TOO_LONG_ERR)) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Code_Int_Too_Long"), app.getName(),
+            response.getJSONObject(ERROR).getString(MESSAGE)));
       }
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
-              response.getJSONObject(ERROR).getString(MESSAGE)));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Syn_Assist"), app.getName(),
+          response.getJSONObject(ERROR).getString(MESSAGE)));
     }
     if (!StringUtils.equals(app.getOpenaiAssistantID(), response.getString("id"))) {
       app.setOpenaiAssistantID(response.getString("id"));
@@ -235,34 +227,6 @@ public class OpenAIUtils {
     return vectordb;
   }
 
-  /**
-   * Lists all assistants from the OpenAI API.
-   * <p>
-   * This method makes a GET request to the OpenAI API to retrieve a list of assistants.
-   * It then logs the ID, name, and creation date of each assistant.
-   *
-   * @param openaiApiKey
-   *     The API key for OpenAI.
-   * @return A JSONArray containing the data of all assistants.
-   * @throws JSONException
-   *     If an error occurs while parsing the JSON response.
-   */
-  private static JSONArray listAssistants(String openaiApiKey) throws JSONException {
-    String endpoint = ENDPOINT_ASSISTANTS;
-    JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, "GET",
-        "?order=desc&limit=100");
-    JSONArray data = json.getJSONArray("data");
-    for (int i = 0; i < data.length(); i++) {
-      JSONObject assistant = data.getJSONObject(i);
-      String created = assistant.getString(
-          "created_at"); // convert the date to a timestamp. the created is in The Unix timestamp (in seconds) for when the assistant file was created.
-      Date date = new Date(Long.parseLong(created) * 1000);
-      logIfDebug(
-          String.format("%s - %s - %s", assistant.getString("id"), assistant.getString("name"),
-              date));
-    }
-    return data;
-  }
 
   /**
    * Logs the given text if debug logging is enabled.
@@ -288,8 +252,7 @@ public class OpenAIUtils {
    * @throws JSONException
    *     If an error occurs while parsing the JSON response.
    */
-  private static void deleteAssistant(String openaiAssistantId, String openaiApiKey)
-      throws JSONException {
+  private static void deleteAssistant(String openaiAssistantId, String openaiApiKey) throws JSONException {
     String endpoint = ENDPOINT_ASSISTANTS + "/" + openaiAssistantId;
     JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, METHOD_DELETE, null);
     logIfDebug(json.toString());
@@ -322,8 +285,9 @@ public class OpenAIUtils {
   private static JSONArray getKbArrayFiles(CopilotApp app) {
     JSONArray result = new JSONArray();
     for (CopilotAppSource source : app.getETCOPAppSourceList()) {
-      if (!source.isExcludeFromCodeInterpreter() && CopilotConstants.isKbBehaviour(source) &&
-          (StringUtils.equalsIgnoreCase(source.getEtcopApp().getAppType(), CopilotConstants.APP_TYPE_OPENAI))) {
+      if (!source.isExcludeFromCodeInterpreter() && CopilotConstants.isKbBehaviour(
+          source) && (StringUtils.equalsIgnoreCase(source.getEtcopApp().getAppType(),
+          CopilotConstants.APP_TYPE_OPENAI))) {
         String openaiIdFile;
         if (CopilotConstants.isFileTypeLocalOrRemoteFile(source.getFile())) {
           openaiIdFile = source.getOpenaiIdFile();
@@ -353,14 +317,12 @@ public class OpenAIUtils {
    * @throws JSONException
    *     If an error occurs while parsing the JSON response.
    */
-  private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint,
-      String purpose, File fileToSend) throws JSONException {
+  private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint, String purpose,
+      File fileToSend) throws JSONException {
     String mimeType = URLConnection.guessContentTypeFromName(fileToSend.getName());
-    kong.unirest.HttpResponse<String> response = Unirest.post(BASE_URL + endpoint)
-        .header(HEADER_AUTHORIZATION, String.format("Bearer %s", openaiApiKey))
-        .field("purpose", purpose)
-        .field("file", fileToSend, mimeType)
-        .asString();
+    kong.unirest.HttpResponse<String> response = Unirest.post(getBaseUrl() + endpoint).header(HEADER_AUTHORIZATION,
+        String.format("Bearer %s", openaiApiKey)).field("purpose", purpose).field("file", fileToSend,
+        mimeType).asString();
     JSONObject jsonResponse = new JSONObject(response.getBody());
     if (!response.isSuccess()) {
       if (jsonResponse.has(ERROR)) {
@@ -370,6 +332,23 @@ public class OpenAIUtils {
       }
     }
     return jsonResponse;
+  }
+
+  /**
+   * Returns the base URL to use for OpenAI API requests.
+   * <p>
+   * The method first checks Openbravo properties for the key {@code COPILOT_PROXY_URL}.
+   * If present, that value is returned allowing a proxy or custom endpoint to override
+   * the default OpenAI API base URL. Otherwise the constant {@link #BASE_URL} is returned.
+   *
+   * @return the base URL to use for OpenAI API requests (proxy override if configured)
+   */
+  private static String getBaseUrl() {
+    var prop = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    if (prop.containsKey("COPILOT_PROXY_URL")) {
+      return prop.getProperty("COPILOT_PROXY_URL");
+    }
+    return BASE_URL;
   }
 
   /**
@@ -394,8 +373,8 @@ public class OpenAIUtils {
    * @throws JSONException
    *     If an error occurs while parsing the JSON response.
    */
-  private static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
-      JSONObject body, String method, String queryParams) throws UnirestException, JSONException {
+  private static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint, JSONObject body, String method,
+      String queryParams) throws UnirestException, JSONException {
     return makeRequestToOpenAI(openaiApiKey, endpoint, body, method, queryParams, true);
   }
 
@@ -424,10 +403,10 @@ public class OpenAIUtils {
    * @throws JSONException
    *     If an error occurs while parsing the JSON response.
    */
-  private static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
+  static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
       JSONObject body, String method, String queryParams, boolean catchHttpErrors)
       throws UnirestException, JSONException {
-    String url = BASE_URL + endpoint + ((queryParams != null) ? queryParams : "");
+    String url = getBaseUrl() + endpoint + ((queryParams != null) ? queryParams : "");
     HttpResponse<String> response;
     switch (method) {
       case "GET":
@@ -468,12 +447,13 @@ public class OpenAIUtils {
         throw new IllegalArgumentException("Invalid method: " + method);
     }
     JSONObject jsonBody = new JSONObject(response.getBody());
-    if (catchHttpErrors && !response.isSuccess()) {
-      if (jsonBody.has(ERROR)) {
-        throw new OBException(jsonBody.getJSONObject(ERROR).getString(MESSAGE));
-      }
+    if (catchHttpErrors && !response.isSuccess() && jsonBody.has(ERROR)) {
+      throw new OBException(jsonBody.getJSONObject(ERROR).getString(MESSAGE));
     }
-    return new JSONObject(response.getBody());
+    if (catchHttpErrors && !response.isSuccess()) {
+      throw new OBException(response.getBody());
+    }
+    return jsonBody;
   }
 
   /**
@@ -517,14 +497,12 @@ public class OpenAIUtils {
    * @throws IOException
    *     If an error occurs while uploading the file.
    */
-  public static void syncAppSource(CopilotAppSource appSource, String openaiApiKey)
-      throws JSONException, IOException {
+  public static void syncAppSource(CopilotAppSource appSource, String openaiApiKey) throws JSONException, IOException {
     //first we need to get the file
     //if the file not has an id, we need to create it
     logIfDebug("Syncing file " + appSource.getFile().getName());
     CopilotFile fileToSync = appSource.getFile();
-    WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class)
-        .executeHooks(fileToSync);
+    WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
     if (!fileHasChanged(fileToSync)) {
       logIfDebug("File " + fileToSync.getName() + " not has changed, skipping sync");
       return;
@@ -563,8 +541,7 @@ public class OpenAIUtils {
    * @throws JSONException
    *     If an error occurs while parsing the JSON response.
    */
-  private static String syncHQLAppSource(CopilotAppSource appSource, String openaiApiKey)
-      throws JSONException {
+  private static String syncHQLAppSource(CopilotAppSource appSource, String openaiApiKey) throws JSONException {
     String openaiFileId = appSource.getOpenaiIdFile();
     if (StringUtils.isNotEmpty(openaiFileId)) {
       logIfDebug("Deleting file " + appSource.getFile().getName());
@@ -575,8 +552,7 @@ public class OpenAIUtils {
     String fileId = uploadFileToOpenAI(openaiApiKey, file);
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
 
-    aim.upload(new HashMap<>(), APP_SOURCE_TAB_ID, appSource.getId(),
-        appSource.getOrganization().getId(), file);
+    aim.upload(new HashMap<>(), APP_SOURCE_TAB_ID, appSource.getId(), appSource.getOrganization().getId(), file);
 
     appSource.setOpenaiIdFile(fileId);
     OBDal.getInstance().save(appSource);
@@ -597,10 +573,8 @@ public class OpenAIUtils {
    * @throws JSONException
    *     If an error occurs while parsing the JSON response.
    */
-  private static boolean existsRemoteFile(String openaiFileId, String openaiApiKey)
-      throws JSONException {
-    var response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiFileId, null,
-        "GET", null, false);
+  private static boolean existsRemoteFile(String openaiFileId, String openaiApiKey) throws JSONException {
+    var response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiFileId, null, "GET", null, false);
     return !response.has(ERROR);
   }
 
@@ -657,8 +631,8 @@ public class OpenAIUtils {
    */
   static void deleteFile(String openaiIdFile, String openaiApiKey) throws JSONException {
     if (existsRemoteFile(openaiIdFile, openaiApiKey)) {
-      JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiIdFile,
-          null, METHOD_DELETE, null);
+      JSONObject response = makeRequestToOpenAI(openaiApiKey, ENDPOINT_FILES + "/" + openaiIdFile, null, METHOD_DELETE,
+          null);
       logIfDebug(response.toString());
     }
   }
@@ -679,8 +653,8 @@ public class OpenAIUtils {
    * @throws IOException
    *     If an error occurs while handling the file.
    */
-  private static String downloadAttachmentAndUploadFile(CopilotFile fileToSync, String openaiApiKey)
-      throws JSONException, IOException {
+  private static String downloadAttachmentAndUploadFile(CopilotFile fileToSync,
+      String openaiApiKey) throws JSONException, IOException {
     // Make the request to OpenAI
     File tempFile = getFileFromCopilotFile(fileToSync);
     return uploadFileToOpenAI(openaiApiKey, tempFile);
@@ -699,8 +673,7 @@ public class OpenAIUtils {
    *     If an error occurs while handling the file.
    */
   public static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
-    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(
-        AttachImplementationManager.class);
+    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
     OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
     Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
@@ -737,15 +710,12 @@ public class OpenAIUtils {
    * @throws JSONException
    *     If an error occurs while parsing the JSON response.
    */
-  public static String uploadFileToOpenAI(String openaiApiKey, File fileToSend)
-      throws JSONException {
+  public static String uploadFileToOpenAI(String openaiApiKey, File fileToSend) throws JSONException {
     JSONObject jsonResponse;
-    jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, ENDPOINT_FILES, "assistants",
-        fileToSend);
+    jsonResponse = makeRequestToOpenAIForFiles(openaiApiKey, ENDPOINT_FILES, "assistants", fileToSend);
     if (jsonResponse.has(ERROR)) {
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSend.getName(),
-              jsonResponse.getJSONObject(ERROR).getString(MESSAGE)));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_File_upload"), fileToSend.getName(),
+          jsonResponse.getJSONObject(ERROR).getString(MESSAGE)));
     }
     return jsonResponse.getString("id");
   }
@@ -833,8 +803,8 @@ public class OpenAIUtils {
    */
   private static boolean existsVectorDb(String openaiIdVectordb) {
     try {
-      JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(),
-          ENDPOINT_VECTORDB + "/" + openaiIdVectordb, null, "GET", null, false);
+      JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(), ENDPOINT_VECTORDB + "/" + openaiIdVectordb, null,
+          "GET", null, false);
       return !response.has("error");
     } catch (JSONException e) {
       return false;
@@ -852,8 +822,8 @@ public class OpenAIUtils {
    */
   private static boolean existsAssistant(String openaiAssistantId) {
     try {
-      JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(),
-          ENDPOINT_ASSISTANTS + "/" + openaiAssistantId, null, "GET", null, false);
+      JSONObject response = makeRequestToOpenAI(getOpenaiApiKey(), ENDPOINT_ASSISTANTS + "/" + openaiAssistantId, null,
+          "GET", null, false);
       return !response.has("error");
     } catch (JSONException e) {
       return false;
@@ -925,9 +895,8 @@ public class OpenAIUtils {
    */
   private static void updateVectorDBKBFile(CopilotApp app, String openAIVectorDbId, CopilotAppSource copilotAppSource,
       List<String> updatedFiles) throws JSONException {
-    if (copilotAppSource.isExcludeFromRetrieval()
-        || !CopilotConstants.isKbBehaviour(copilotAppSource)
-        || copilotAppSource.getFile() == null) {
+    if (copilotAppSource.isExcludeFromRetrieval() || !CopilotConstants.isKbBehaviour(
+        copilotAppSource) || copilotAppSource.getFile() == null) {
       return;
     }
 
@@ -936,16 +905,15 @@ public class OpenAIUtils {
         copilotAppSource.getOpenaiIdFile()) ? copilotAppSource.getOpenaiIdFile() : file.getOpenaiIdFile();
     JSONObject fileSearch = new JSONObject();
     fileSearch.put("file_id", openAIFileId);
-    var response = makeRequestToOpenAI(getOpenaiApiKey(),
-        ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES, fileSearch, "POST", null, false);
+    var response = makeRequestToOpenAI(getOpenaiApiKey(), ENDPOINT_VECTORDB + "/" + openAIVectorDbId + ENDPOINT_FILES,
+        fileSearch, "POST", null, false);
     if (response.has(ERROR)) {
       if (app.isCodeInterpreter()) {
         log.warn("Error updating file in vector db: " + response);
         return;
       }
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_Error_Updating_VectorDb"), app.getName(),
-              response.getJSONObject(ERROR).getString(MESSAGE)));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_Updating_VectorDb"), app.getName(),
+          response.getJSONObject(ERROR).getString(MESSAGE)));
 
     }
     updatedFiles.add(openAIFileId);
@@ -999,8 +967,7 @@ public class OpenAIUtils {
    */
   public static void checkIfAppCanUseAttachedFiles(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles) {
     if (!knowledgeBaseFiles.isEmpty() && !app.isCodeInterpreter() && !app.isRetrieval()) {
-      throw new OBException(
-          String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_KnowledgeBaseIgnored"), app.getName()));
     }
   }
 }
