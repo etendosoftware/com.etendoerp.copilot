@@ -492,21 +492,23 @@ public class CopilotUtils {
   }
 
   /**
-   * This method is used to replace a specific placeholder in a string with the
-   * host name of Etendo.
-   * The placeholder is "@ETENDO_HOST@" and it is replaced with the value returned
-   * by the getEtendoHost() method.
+   * Replaces system placeholders, context variables, and custom mappings in a string.
+   * <p>
+   * Replaces {@code @ETENDO_HOST@}, {@code @AD_CLIENT_ID@}, {@code @source.path@}, and other
+   * system/context placeholders, plus custom variables from the maps parameter.
+   * Optionally escapes and validates curly braces if {@code balanceBrackets} is true.
    *
    * @param string
-   *     The string in which the placeholder is to be replaced. It is
-   *     expected to contain "@ETENDO_HOST@".
+   *     The input string containing placeholders to replace
    * @param maps
-   *     A JSONObject containing key-value pairs to replace in the
-   *     string.
-   * @return The string with the placeholder "@ETENDO_HOST@" replaced by the host
-   *     name of Etendo.
-   * @throws JSONException
-   *     If an error occurs while parsing the JSON object.
+   *     Custom key-value pairs to replace (String/Boolean values only), can be null
+   * @param balanceBrackets
+   *     If true, escapes curly braces and validates bracket balance
+   * @return The string with all placeholders replaced
+   * @throws JSONException 
+   *     If an error occurs while parsing the JSON object
+   * @throws OBException 
+   *     If bracket balancing is enabled and brackets are not balanced
    */
   public static String replaceCopilotPromptVariables(String string, JSONObject maps, boolean balanceBrackets) throws JSONException {
     OBContext obContext = OBContext.getOBContext();
