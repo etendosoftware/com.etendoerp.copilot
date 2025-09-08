@@ -35,10 +35,7 @@ class CopilotAuthProvider(AuthProvider):
     # Simple in-memory cache mapping token_value -> AccessToken
     authenticated_tokens: dict[str, AccessToken] = {}
 
-    def __init__(
-        self, identifier: Optional[str] = None, resource_server_url: Optional[str] = DEFAULT_RESOURCE_URL
-    ):
-        copilot_debug(resource_server_url)
+    def __init__(self, identifier: Optional[str] = None):
         super().__init__()
         # instance identifier (agent/assistant id or name)
         self.identifier = identifier
