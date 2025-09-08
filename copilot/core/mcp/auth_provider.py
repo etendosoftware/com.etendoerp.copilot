@@ -38,7 +38,8 @@ class CopilotAuthProvider(AuthProvider):
     def __init__(
         self, identifier: Optional[str] = None, resource_server_url: Optional[str] = DEFAULT_RESOURCE_URL
     ):
-        super().__init__(resource_server_url=resource_server_url)
+        copilot_debug(resource_server_url)
+        super().__init__()
         # instance identifier (agent/assistant id or name)
         self.identifier = identifier
 
