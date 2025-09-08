@@ -1,12 +1,29 @@
+import json
+
 import curlify
 import requests
 from copilot.baseutils.logging_envvar import copilot_debug
 
 
 def token_not_none(headers, token, url, endpoint):
-    """This function builds the headers for the API request, ensuring that the token is set correctly.
-    If the token is "ETENDO_TOKEN", it retrieves the token from the etendo_utils module.
-    If the token is None or empty, but its recognized as a Etendo Classic request, add the token from etendo_utils.
+    """Ensure the Authorization header is set when a token is required.
+
+    Behavior:
+    - If token is the special string "ETENDO_TOKEN", retrieve the real token
+      from etendo_utils and set the Authorization header using the
+      normalize_etendo_token helper.
+    - If token is None or an empty string and the request targets the Etendo
+      host under the Secure Web Services path (endpoint starts with "/sws/"),
+      retrieve the token from etendo_utils and set the Authorization header.
+
+    Args:
+        headers (dict): HTTP headers dictionary that will be modified in-place.
+        token (str | None): Token provided by the caller or special marker.
+        url (str): Base URL of the target server. Used to detect Etendo host.
+        endpoint (str): Endpoint path; used to detect SWS endpoints.
+
+    Returns:
+        None: The headers dict is modified in-place. No return value.
     """
     from copilot.core.utils import etendo_utils
 
@@ -84,19 +101,7 @@ def do_request(
         copilot_debug("response text: " + api_response.text)
 
     elif upper_method in ["POST", "PUT"]:
-        copilot_debug(f"{upper_method} method")
-        copilot_debug("url: " + url + final_endpoint)
-        copilot_debug("body_params: " + str(body_params))
-        copilot_debug("query_params: " + str(query_params))
-
-        if upper_method == "PUT":
-            api_response = requests.put(
-                url=url + final_endpoint, json=body_params, headers=headers, params=query_params
-            )
-        else:  # POST
-            api_response = requests.post(
-                url=url + final_endpoint, json=body_params, headers=headers, params=query_params
-            )
+        api_response = do_post_put(body_params, final_endpoint, headers, query_params, upper_method, url)
 
         copilot_debug("headers: " + str(api_response.request.headers))
         copilot_debug("----CURL----")
@@ -108,4 +113,92 @@ def do_request(
     else:
         raise ValueError(f"Method {method} not supported")
 
-    return {"status_code": api_response.status_code, "content": api_response.content.decode("utf-8")}
+    # Safely decode response content with fallback handling
+    try:
+        content_text = api_response.content.decode("utf-8")
+    except UnicodeDecodeError as e:
+        copilot_debug(f"UTF-8 decode failed: {e}")
+        # Try with detected encoding or fallback to latin-1 with error replacement
+        encoding = api_response.encoding or "latin-1"
+        try:
+            content_text = api_response.content.decode(encoding, errors="replace")
+            copilot_debug(f"Decoded with {encoding} encoding using error replacement")
+        except Exception as fallback_error:
+            copilot_debug(f"Fallback decode failed: {fallback_error}")
+            # Last resort: return base64 encoded content with metadata
+            import base64
+
+            content_text = base64.b64encode(api_response.content).decode("ascii")
+            copilot_debug("Content encoded as base64 due to decode failures")
+            return {
+                "status_code": api_response.status_code,
+                "content": content_text,
+                "content_type": api_response.headers.get("Content-Type", "unknown"),
+                "encoding_error": str(e),
+                "is_base64": True,
+            }
+
+    return {"status_code": api_response.status_code, "content": content_text}
+
+
+def do_post_put(body_params, final_endpoint, headers, query_params, upper_method, url):
+    """Perform a POST or PUT HTTP request with JSON body.
+
+    This helper sets the appropriate Content-Type header for JSON payloads,
+    serializes the provided body parameters into UTF-8 encoded JSON bytes,
+    and issues either a POST or PUT request using the requests library.
+
+    Args:
+        body_params (dict): The payload to serialize and send in the request body.
+        final_endpoint (str): The endpoint path to append to the base URL.
+        headers (dict): Dictionary of HTTP headers to include in the request. The
+            Content-Type header will be set to 'application/json; charset=utf-8'.
+        query_params (dict): Optional query parameters to include in the URL.
+        upper_method (str): Uppercase HTTP method name, expected to be 'POST' or 'PUT'.
+        url (str): Base URL for the request.
+
+    Returns:
+        requests.Response: The Response object returned by the requests call.
+
+    Raises:
+        Any exception raised by requests.post or requests.put is propagated to the caller.
+    """
+    copilot_debug(f"{upper_method} method")
+    copilot_debug("url: " + url + final_endpoint)
+    copilot_debug("body_params: " + str(body_params))
+    copilot_debug("query_params: " + str(query_params))
+    headers["Content-Type"] = "application/json; charset=utf-8"
+    if upper_method == "PUT":
+        json_data = serialize_json(body_params)
+        api_response = requests.put(
+            url=url + final_endpoint, data=json_data, headers=headers, params=query_params
+        )
+    else:  # POST
+        json_data = serialize_json(body_params)
+        api_response = requests.post(
+            url=url + final_endpoint, data=json_data, headers=headers, params=query_params
+        )
+    return api_response
+
+
+def serialize_json(body_params):
+    """Serialize a Python object to UTF-8 encoded JSON bytes.
+
+    This function converts the given Python object (typically a dict) into a
+    JSON-formatted bytes object using ensure_ascii=False to preserve Unicode
+    characters, then logs the payload size and a short preview.
+
+    Args:
+        body_params (Any): The Python object to serialize to JSON.
+
+    Returns:
+        bytes: The UTF-8 encoded JSON representation of body_params.
+
+    Raises:
+        TypeError: If body_params contains non-serializable objects.
+    """
+    # Serialize body_params to JSON manually with UTF-8 encoding
+    json_data = json.dumps(body_params, ensure_ascii=False).encode("utf-8")
+    copilot_debug(f"JSON payload size (bytes): {len(json_data)}")
+    copilot_debug(f"JSON payload preview: {json_data[:200]}...")
+    return json_data

@@ -8,7 +8,6 @@ from copilot.core.langgraph.special_nodes.supervisor_node import (
 from copilot.core.langgraph.tool_utils.TaskManagementTool import task_management_tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt.chat_agent_executor import AgentState
-from langgraph.store.memory import InMemoryStore
 from langgraph_supervisor import create_supervisor
 
 
@@ -18,13 +17,10 @@ class LangSupervisorState(AgentState):
     done_tasks: List[str]  # Already done
 
 
-store = InMemoryStore()
-
-
 class LangSupervisorPattern(BasePattern):
     _first = None
 
-    def __init__(self, members, assistant_graph, pattern: BasePattern, memory, full_question=None):
+    def __init__(self, members, assistant_graph, pattern: BasePattern, memory, store, full_question=None):
         self._pattern = pattern
         self._full_question = full_question
         temperature = (
