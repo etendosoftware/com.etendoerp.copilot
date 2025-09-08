@@ -240,23 +240,6 @@ public class OpenAIUtils {
     }
   }
 
-  /**
-   * Deletes an assistant from the OpenAI API.
-   * <p>
-   * This method makes a DELETE request to the OpenAI API to delete the specified assistant.
-   *
-   * @param openaiAssistantId
-   *     The ID of the assistant to delete.
-   * @param openaiApiKey
-   *     The API key for OpenAI.
-   * @throws JSONException
-   *     If an error occurs while parsing the JSON response.
-   */
-  private static void deleteAssistant(String openaiAssistantId, String openaiApiKey) throws JSONException {
-    String endpoint = ENDPOINT_ASSISTANTS + "/" + openaiAssistantId;
-    JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, METHOD_DELETE, null);
-    logIfDebug(json.toString());
-  }
 
   /**
    * Wraps the given parameters in a JSON schema.
