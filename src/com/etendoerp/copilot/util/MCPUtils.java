@@ -10,10 +10,13 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
+import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 
 import java.util.List;
+import java.util.Properties;
 
 /**
  * Utility class for handling Model Context Protocol (MCP) server configurations.
@@ -51,25 +54,33 @@ public class MCPUtils {
             CopilotMCP mcpConfig = appMcp.getMCPServer();
             if (mcpConfig != null && mcpConfig.isActive() && StringUtils.isNotEmpty(mcpConfig.getJsonStructure())) {
                 try {
-
-                    JSONObject raw = new JSONObject(mcpConfig.getJsonStructure());
-
+                    String mcpJson = replaceVariables(mcpConfig);
+                    JSONObject raw = new JSONObject(mcpJson);
                     JSONArray normalized = MCPConfigNormalizer.normalizeToArray(raw, mcpConfig.getName());
-
                     for (int i = 0; i < normalized.length(); i++) {
                         JSONObject item = normalized.getJSONObject(i);
-
                         if (!item.has("name") || StringUtils.isBlank(item.optString("name"))) {
                             item.put("name", mcpConfig.getName());
                         }
                         mcpConfigurations.put(item);
                     }
                 } catch (JSONException e) {
-                    log.warn("Invalid JSON structure in MCP configuration: " + mcpConfig.getName(), e);
+                    String errorMsg = "Invalid JSON structure in MCP configuration: " + mcpConfig.getName();
+                    log.error(errorMsg, e);
                 }
             }
         }
-
         return mcpConfigurations;
+    }
+
+    private static String replaceVariables(CopilotMCP mcpConfig) {
+        try {
+            return CopilotUtils.replaceCopilotPromptVariables(mcpConfig.getJsonStructure(), null, false);
+        } catch (Exception ex) {
+            String errorMsg = "Failed to replace variables in MCP: " + mcpConfig.getName();
+            log.error(errorMsg);
+            log.error(ex.getMessage());
+            return mcpConfig.getJsonStructure();
+        }
     }
 }
