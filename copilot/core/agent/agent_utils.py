@@ -106,3 +106,31 @@ def get_checkpoint_file():
         base = "./checkpoints/"
     Path(base).mkdir(parents=True, exist_ok=True)
     return base + "checkpoints.sqlite"
+
+
+async def acheckpointer_has_thread(checkpointer, config):
+    """
+    Asynchronously checks if a thread exists in the checkpointer for the given configuration.
+    Args:
+        checkpointer: The checkpointer instance (e.g., AsyncSqliteSaver) to query.
+        config: The configuration object for the thread.
+
+    Returns:
+        bool: True if thread data exists, False otherwise.
+    """
+    thread_data = await checkpointer.aget(config=config)
+    return thread_data is not None  # if not none, thread exists
+
+
+def checkpointer_has_thread(checkpointer, config):
+    """
+    Synchronously checks if a thread exists in the checkpointer for the given configuration.
+    Args:
+        checkpointer: The checkpointer instance (e.g., SqliteSaver) to query.
+        config: The configuration object for the thread.
+
+    Returns:
+        bool: True if thread data exists, False otherwise.
+    """
+    thread_data = checkpointer.get(config=config)
+    return thread_data is not None  # if not none, thread exists

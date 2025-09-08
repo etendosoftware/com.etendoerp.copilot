@@ -10,6 +10,12 @@ from copilot.core.agent.agent import (
     CopilotAgent,
     get_kb_tool,
 )
+from copilot.core.agent.agent_utils import (
+    acheckpointer_has_thread,
+    checkpointer_has_thread,
+    get_checkpoint_file,
+    process_local_files,
+)
 from langchain.agents import (
     AgentExecutor,
     AgentOutputParser,
@@ -32,7 +38,6 @@ from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..threadcontext import ThreadContext
 from ..utils import get_full_question, is_debug_enabled
-from .agent_utils import get_checkpoint_file, process_local_files
 from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
 from .langgraph_agent import build_config, handle_events
 
@@ -363,31 +368,3 @@ class MultimodelAgent(CopilotAgent):
         new_human_message = HumanMessage(content=content)
         messages.append(new_human_message)
         return messages
-
-
-async def acheckpointer_has_thread(checkpointer, config):
-    """
-    Asynchronously checks if a thread exists in the checkpointer for the given configuration.
-    Args:
-        checkpointer: The checkpointer instance (e.g., AsyncSqliteSaver) to query.
-        config: The configuration object for the thread.
-
-    Returns:
-        bool: True if thread data exists, False otherwise.
-    """
-    thread_data = await checkpointer.aget(config=config)
-    return thread_data is not None  # if not none, thread exists
-
-
-def checkpointer_has_thread(checkpointer, config):
-    """
-    Synchronously checks if a thread exists in the checkpointer for the given configuration.
-    Args:
-        checkpointer: The checkpointer instance (e.g., SqliteSaver) to query.
-        config: The configuration object for the thread.
-
-    Returns:
-        bool: True if thread data exists, False otherwise.
-    """
-    thread_data = checkpointer.get(config=config)
-    return thread_data is not None  # if not none, thread exists
