@@ -15,8 +15,11 @@ RUN mkdir -p /venv && cd /venv && uv venv \
     && /venv/.venv/bin/python -m ensurepip --upgrade \
     && /venv/.venv/bin/pip3 install --upgrade pip
 
+# Create folders
+RUN mkdir /checkpoints
 # Set working directory
 WORKDIR /app
+RUN mkdir vectordbs
 
 # Copy source code
 COPY ./copilot /app/copilot

@@ -2,6 +2,8 @@ import base64
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
+from copilot.baseutils.logging_envvar import is_docker
+
 
 def process_local_files(local_file_ids: Union[str, List[str]]) -> Tuple[List[Dict], List[str]]:
     """Process local file IDs, returning image payloads and a list of other file
@@ -95,3 +97,12 @@ def split_file_paths(local_file_ids):
     else:
         file_paths = local_file_ids
     return file_paths
+
+
+def get_checkpoint_file():
+    if is_docker():
+        base = "/checkpoints/"
+    else:
+        base = "./checkpoints/"
+    Path(base).mkdir(parents=True, exist_ok=True)
+    return base + "checkpoints.sqlite"
