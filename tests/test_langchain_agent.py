@@ -9,7 +9,6 @@ from copilot.core.schemas import QuestionSchema
 from copilot.core.utils import get_full_question
 from langchain_core.agents import AgentFinish
 from langchain_core.runnables import RunnableSequence
-from langsmith import unit
 
 
 @pytest.fixture
@@ -69,7 +68,7 @@ def test_execute(langchain_agent):
         mock_executor = MagicMock()
         mock_get_agent.return_value = mock_agent
         mock_get_agent_executor.return_value = mock_executor
-        mock_get_memory.return_value = "mock memory"
+        mock_get_memory.return_value = []
         mock_invoke.return_value = {"output": "mock output"}
 
         response = langchain_agent.execute(question)
@@ -98,7 +97,7 @@ async def test_aexecute():
         mock_executor = MagicMock()
         mock_get_agent.return_value = mock_agent
         mock_get_agent_executor.return_value = mock_executor
-        mock_get_memory.return_value = "mock memory"
+        mock_get_memory.return_value = []
         mock_astream_events.return_value = [
             {"event": "on_tool_start", "name": "tool", "parent_ids": [1]},
             {
