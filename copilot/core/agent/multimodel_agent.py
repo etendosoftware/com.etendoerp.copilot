@@ -298,12 +298,12 @@ class MultimodelAgent(CopilotAgent):
 
             try:
                 if is_code_act_enabled(agent_configuration=question):
-                    async for event in agent.astream_events(_input, version="v2"):
+                    async for event in agent.astream_events(_input, config=config, version="v2"):
                         response = await handle_events(copilot_stream_debug, event, question.conversation_id)
                         if response is not None:
                             yield response
                     return
-                async for event in agent.astream_events(_input, version="v2"):
+                async for event in agent.astream_events(_input, config=config, version="v2"):
                     if copilot_stream_debug:
                         yield AssistantResponse(response=str(event), conversation_id="", role="debug")
                         continue
