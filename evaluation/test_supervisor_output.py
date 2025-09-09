@@ -1,8 +1,8 @@
 import pytest
 from copilot.core.agent.langgraph_agent import setup_graph
 from copilot.core.schemas import GraphQuestionSchema
+from copilot.core.utils.models import get_openai_client
 from langsmith import Client, wrappers
-from openai import OpenAI
 from pydantic import BaseModel, Field
 
 grafo = {
@@ -50,7 +50,7 @@ grafo = {
 }
 
 client = Client()
-openai_client = wrappers.wrap_openai(OpenAI())
+openai_client = wrappers.wrap_openai(get_openai_client())
 
 # Create inputs and reference outputs
 examples = [{"input": "perros y gatos", "output": " Habia una vez un gato y un perro y fueron felices."}]
@@ -73,7 +73,7 @@ def target(inputs: dict) -> dict:
     grafo["question"] = inputs["question"]
     # convert graph dict to GraphQuestionSchema
     question = GraphQuestionSchema.model_validate(grafo)
-    graph, conv = setup_graph(question=question, memory=None)
+    graph, _ = setup_graph(question=question, memory=None, store=None)
 
     response = graph.invoke(inputs["question"], thread_id=question.conversation_id)
 

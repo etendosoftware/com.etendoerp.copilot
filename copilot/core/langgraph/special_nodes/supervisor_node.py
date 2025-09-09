@@ -1,7 +1,8 @@
 from typing import Final
 
 from copilot.baseutils.logging_envvar import read_optional_env_var
-from langchain_openai import ChatOpenAI
+from copilot.core.utils.models import get_proxy_url
+from langchain.chat_models import init_chat_model
 
 
 def build_system_prompt(members_descriptions, members_names, system_prompt):
@@ -109,8 +110,9 @@ class SupervisorNode:
             ]
         )
 
-        llm = ChatOpenAI(model=self.OPENAI_MODEL, temperature=temperature, streaming=False)
-
+        llm = init_chat_model(
+            model=self.OPENAI_MODEL, temperature=temperature, streaming=False, base_url=get_proxy_url()
+        )
         supervisor_chain = (
             prompt
             | llm.bind_functions(functions=[function_def], function_call="route")

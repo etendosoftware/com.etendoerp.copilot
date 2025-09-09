@@ -44,7 +44,7 @@ def _handle_etendo_host_var(env_var_name, default_value):
     return _read_env_var(env_var_name, default_value)
 
 
-def read_optional_env_var(env_var_name: str, default_value: str) -> str:
+def read_optional_env_var(env_var_name: str, default_value: str | None) -> str:
     """Reads an optional environment variable and returns its value or the default one."""
     return _read_env_var(env_var_name, default_value)
 

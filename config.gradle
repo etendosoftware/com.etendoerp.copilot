@@ -7,13 +7,21 @@
 
 
 // Network and Host Configuration
-network {
+copilot {
+    dockerized {
+        description = "Configure to run Copilot in a Docker container"
+        value = "true"
+        sensitive = false
+        required = true
+        group = "Copilot Configuration"
+        name = "docker.com.etendoerp.copilot"
+    }
     etendoHost {
         description = "URL where Copilot sends requests to communicate with the Etendo system"
         value = "http://localhost:8080/etendo"
         sensitive = false
         required = true
-        group = "Network Configuration"
+        group = "Copilot Configuration"
         name = "ETENDO_HOST"
     }
     etendoHostDocker {
@@ -21,7 +29,7 @@ network {
         value = "http://tomcat:8080/etendo"
         sensitive = false
         required = true
-        group = "Network Configuration"
+        group = "Copilot Configuration"
         name = "ETENDO_HOST_DOCKER"
     }
     copilotHost {
@@ -29,7 +37,7 @@ network {
         value = "localhost"
         sensitive = false
         required = true
-        group = "Network Configuration"
+        group = "Copilot Configuration"
         name = "COPILOT_HOST"
     }
     copilotPort {
@@ -37,7 +45,7 @@ network {
         value = "5005"
         sensitive = false
         required = true
-        group = "Network Configuration"
+        group = "Copilot Configuration"
         name = "COPILOT_PORT"
     }
     copilotPortMCP {
@@ -45,31 +53,26 @@ network {
         value = "5006"
         sensitive = false
         required = false
-        group = "Network Configuration"
+        group = "Copilot Configuration"
         name = "COPILOT_PORT_MCP"
     }
-}
-
-// Docker Configuration
-docker {
-    imageTag {
-        description = "Docker image tag for Copilot container"
-        value = "latest"
-        sensitive = false
-        required = false
-        group = "Docker Configuration"
-        name = "COPILOT_IMAGE_TAG"
+    openai {
+        description = "API key for OpenAI services used by Copilot"
+        value = ""
+        sensitive = true
+        required = true
+        group = "Copilot Configuration"
+        name = "OPENAI_API_KEY"
     }
 }
 
-// Development and Debug Configuration
-development {
+copilot-advanced {
     debugPort {
         description = "Port for debugging Copilot (when debug mode is enabled)"
         value = "5100"
         sensitive = false
         required = false
-        group = "Development Configuration"
+        group = "Copilot Configuration (Advanced)"
         name = "COPILOT_PORT_DEBUG"
     }
     debugMode {
@@ -77,26 +80,18 @@ development {
         value = "false"
         sensitive = false
         required = false
-        group = "Development Configuration"
+        group = "Copilot Configuration (Advanced)"
         name = "COPILOT_DEBUG"
     }
-}
-// API Keys
-api_keys {
-    openai {
-        description = "API key for OpenAI services used by Copilot"
-        value = ""
-        sensitive = true
-        required = true
-        group = "API Keys"
-        name = "OPENAI_API_KEY"
-    }
+
+
+
     anthropic {
         description = "API key for Anthropic Claude services used by Copilot"
         value = ""
         sensitive = true
         required = false
-        group = "API Keys"
+        group = "Copilot Configuration (Advanced)"
         name = "ANTHROPIC_API_KEY"
     }
     google {
@@ -104,55 +99,56 @@ api_keys {
         value = ""
         sensitive = true
         required = false
-        group = "API Keys"
+        group = "Copilot Configuration (Advanced)"
         name = "GOOGLE_API_KEY"
     }
-}
 
-// LangSmith Configuration
-langsmith {
-    apiKey {
+    langsmith-apiKey {
         description = "API key for LangSmith tracing and monitoring services"
         value = ""
         sensitive = true
         required = false
-        group = "LangSmith Configuration"
+        group = "Copilot Configuration (Advanced)"
         name = "LANGSMITH_API_KEY"
     }
-    tracing {
+    langsmith-tracing {
         description = "Enable LangSmith tracing for debugging and monitoring"
         value = "false"
         sensitive = false
         required = false
-        group = "LangSmith Configuration"
+        group = "Copilot Configuration (Advanced)"
         name = "LANGSMITH_TRACING"
     }
-    project {
+    langsmith-project {
         description = "LangSmith project name for organizing traces and experiments"
         value = ""
         sensitive = false
         required = false
-        group = "LangSmith Configuration"
+        group = "Copilot Configuration (Advanced)"
         name = "LANGSMITH_PROJECT"
     }
-}
-
-// Authentication and Security
-security {
-
-}
-
-// Feature Configuration
-features {
-
-}
-
-// Database Configuration (for Copilot-specific data)
-database {
-
-}
-
-// Performance and Resource Configuration
-performance {
-
+    proxyUrl {
+        description = "Proxy URL for routing Copilot requests (if required)"
+        value = ""
+        sensitive = false
+        required = false
+        group = "Copilot Configuration (Advanced)"
+        name = "COPILOT_PROXY_URL"
+    }
+    dockerized-litellm {
+        description = "Enables the dockerized Litellm proxy service included with Copilot (only for development and testing)"
+        value = "true"
+        sensitive = false
+        required = false
+        group = "Copilot Configuration (Advanced)"
+        name = "docker.com.etendoerp.copilot.litellm"
+    }
+    litellmProxyPort {
+        description = "Port for the Litellm proxy service (if using the dockerized Litellm proxy)"
+        value = "4000"
+        sensitive = false
+        required = false
+        group = "Copilot Configuration (Advanced)"
+        name = "COPILOT_LITELLM_PROXY_PORT"
+    }
 }

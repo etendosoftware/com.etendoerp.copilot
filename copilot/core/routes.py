@@ -25,7 +25,7 @@ from copilot.baseutils.logging_envvar import (
 from copilot.core.agent import AssistantAgent
 from copilot.core.agent.agent import AgentEnum, AgentResponse, AssistantResponse
 from copilot.core.agent.langgraph_agent import LanggraphAgent
-from copilot.core.exceptions import UnsupportedAgent
+from copilot.core.exceptions import CopilotException, UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import (
     GraphQuestionSchema,
@@ -36,6 +36,7 @@ from copilot.core.schemas import (
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.tool_loader import ToolLoader
 from copilot.core.utils import etendo_utils
+from copilot.core.utils.models import get_openai_client
 from copilot.core.vectordb_utils import (
     LANGCHAIN_DEFAULT_COLLECTION_NAME,
     get_chroma_settings,
@@ -106,7 +107,7 @@ async def gather_responses(agent, question, queue):
 
 def _serve_question_sync(question: QuestionSchema):
     """Copilot endpoint for answering questions synchronously."""
-    agent_type, copilot_agent = _initialize_agent(question)
+    _, copilot_agent = _initialize_agent(question)
     response = None
     try:
         response = _execute_agent(copilot_agent, question)
@@ -266,7 +267,7 @@ def serve_question(question: QuestionSchema):
 
 async def _serve_question_async(question: QuestionSchema):
     """Copilot endpoint for answering questions asynchronously."""
-    agent_type, copilot_agent = _initialize_agent(question)
+    _, copilot_agent = _initialize_agent(question)
     response = None
     try:
         queue = asyncio.Queue()
@@ -334,7 +335,7 @@ def get_chat_history():
 @core_router.get("/assistant")
 def serve_assistant():
     if not isinstance(current_agent, AssistantAgent):
-        raise Exception("Copilot is not using AssistantAgent")
+        raise CopilotException("Copilot is not using AssistantAgent")
 
     return {"assistant_id": current_agent.get_assistant_id()}
 
@@ -491,9 +492,8 @@ def transcript_file(file: UploadFile = File(...)):
     temp_file_path.parent.mkdir(parents=True, exist_ok=True)
     with temp_file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-    from openai import OpenAI
 
-    client = OpenAI()
+    client = get_openai_client()
     audio_file = open(temp_file_path, "rb")
     transcription = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
     print(transcription.text)

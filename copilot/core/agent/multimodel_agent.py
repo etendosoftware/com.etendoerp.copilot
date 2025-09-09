@@ -22,6 +22,7 @@ from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils import etendo_utils
 from copilot.core.utils.agent import get_full_question
+from copilot.core.utils.models import get_proxy_url
 from langchain.agents import (
     AgentExecutor,
     AgentOutputParser,
@@ -133,7 +134,12 @@ def get_llm(model, provider, temperature):
         )
 
     else:
-        llm = init_chat_model(model_provider=provider, model=model, temperature=temperature)
+        llm = init_chat_model(
+            model_provider=provider,
+            model=model,
+            temperature=temperature,
+            base_url=get_proxy_url(),
+        )
     # Adjustments for specific models, because some models have different
     # default parameters
     model_config = get_model_config(provider, model)
