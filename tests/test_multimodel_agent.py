@@ -83,7 +83,7 @@ class TestMultimodelAgent:
         result = get_llm("gpt-4.1", "openai", 0.7)
 
         mock_init_chat_model.assert_called_once_with(
-            model_provider="openai", model="gpt-4.1", temperature=0.7
+            model_provider="openai", model="gpt-4.1", temperature=0.7, base_url=None
         )
         assert result == mock_model
 

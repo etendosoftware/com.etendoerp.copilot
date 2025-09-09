@@ -10,9 +10,9 @@ from typing import List
 
 from copilot.core.schemas import AssistantSchema
 from copilot.core.utils.etendo_utils import get_etendo_host
+from copilot.core.utils.models import get_openai_client
 from dotenv import load_dotenv
 from langsmith import Client, wrappers
-from openai import OpenAI
 from pydantic import ValidationError
 from schemas import Conversation, Message
 from utils import (
@@ -292,7 +292,7 @@ def target(inputs: dict) -> dict:
         dict: A dictionary containing the response with the key:
             - "answer" (str): The content of the response message from the OpenAI client.
     """
-    openai_client = wrappers.wrap_openai(OpenAI())
+    openai_client = wrappers.wrap_openai(get_openai_client())
     response = openai_client.chat.completions.create(
         model=inputs["model"],
         messages=inputs["messages"],

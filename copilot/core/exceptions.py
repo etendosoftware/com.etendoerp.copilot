@@ -52,3 +52,7 @@ class AssistantTimeout(ApplicationError):
 
 class ToolException(Exception):
     pass
+
+
+class CopilotException(Exception):
+    pass
