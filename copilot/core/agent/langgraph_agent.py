@@ -59,6 +59,30 @@ def setup_graph(question, memory, store):
     return lang_graph, thread_id
 
 
+def get_subgraph_name(metadata) -> str:
+    """
+    Extracts the subgraph name from the metadata.
+    Args:
+        metadata: dict: The metadata containing information about the checkpoint namespace.
+
+    Returns:
+        str: The extracted subgraph name.
+    """
+    try:
+        if "checkpoint_ns" in metadata:
+            subgraph_name = metadata["checkpoint_ns"]
+        elif "langgraph_checkpoint_ns" in metadata:
+            subgraph_name = metadata["langgraph_checkpoint_ns"]
+        else:
+            subgraph_name = " : "
+
+        subgraph_name = subgraph_name.split(":")[0]
+        return subgraph_name
+    except Exception as e:
+        copilot_debug(f"Error extracting subgraph name: {str(e)}")
+        return " "
+
+
 async def _handle_on_chain_end(event, thread_id):
     """
     Handles the 'on_chain_end' event.
@@ -114,9 +138,7 @@ async def _handle_on_chain_start(event, thread_id):
         graph_step = any(tag.startswith("graph:step") and tag != "graph:step:0" for tag in event["tags"])
         if graph_step:
             node = metadata["langgraph_node"]
-            subgraph_name = metadata["checkpoint_ns"]
-            # remove text afte the fist :
-            subgraph_name = subgraph_name.split(":")[0]
+            subgraph_name = get_subgraph_name(metadata)
             if node.startswith("__start__"):
                 message = "Starting..."
             elif node.startswith("agent"):
