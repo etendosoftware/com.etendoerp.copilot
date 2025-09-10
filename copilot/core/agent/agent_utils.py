@@ -112,6 +112,8 @@ def get_checkpoint_file(agent_id: str):
     Returns:
         str: The full file path to the agent's checkpoint SQLite file.
     """
+    if not agent_id:
+        agent_id = "default_"
     if is_docker():
         base = "/checkpoints/"
     else:
