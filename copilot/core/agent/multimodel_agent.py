@@ -232,7 +232,7 @@ class MultimodelAgent(CopilotAgent):
         return _enabled_tools
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
-        with SqliteSaver.from_conn_string(get_checkpoint_file()) as checkpointer:
+        with SqliteSaver.from_conn_string(get_checkpoint_file(question.assistant_id)) as checkpointer:
             full_question = get_full_question(question)
             agent = self.get_agent(
                 provider=question.provider,
@@ -271,7 +271,9 @@ class MultimodelAgent(CopilotAgent):
 
     async def aexecute(self, question: QuestionSchema) -> AsyncGenerator[AgentResponse, None]:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
-        async with AsyncSqliteSaver.from_conn_string(get_checkpoint_file()) as checkpointer:
+        async with AsyncSqliteSaver.from_conn_string(
+            get_checkpoint_file(question.assistant_id)
+        ) as checkpointer:
             agent = self.get_agent(
                 provider=question.provider,
                 model=question.model,

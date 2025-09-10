@@ -99,13 +99,25 @@ def split_file_paths(local_file_ids):
     return file_paths
 
 
-def get_checkpoint_file():
+def get_checkpoint_file(agent_id: str):
+    """
+    Returns the file path for the checkpoint SQLite file associated with a given agent ID.
+
+    The function determines the base directory for checkpoints based on whether the code is running inside a Docker container.
+    It ensures the checkpoint directory exists, then constructs and returns the full path to the agent's checkpoint file.
+
+    Args:
+        agent_id (str): The unique identifier for the agent.
+
+    Returns:
+        str: The full file path to the agent's checkpoint SQLite file.
+    """
     if is_docker():
         base = "/checkpoints/"
     else:
         base = "./checkpoints/"
     Path(base).mkdir(parents=True, exist_ok=True)
-    return base + "checkpoints.sqlite"
+    return base + agent_id + "_checkpoints.sqlite"
 
 
 async def acheckpointer_has_thread(checkpointer, config):
