@@ -307,6 +307,21 @@ def _create_tool_instance(
     return DynamicTool()
 
 
+def normalize(txt: str) -> str:
+    """
+    Normalize a string by converting to lowercase and removing non-alphanumeric characters
+    Args:
+        txt (str): The input string to normalize
+    Returns:
+        str: The normalized string
+    """
+    txt = txt.lower()
+    # remove http:// or https://
+    txt = re.sub(r"https?://", "", txt)
+    txt = re.sub(r"[^a-z0-9.-]", "", txt)
+    return txt
+
+
 def _process_single_operation(
     path: str, method: str, operation: Dict, url: str, type_map: Dict, tool_class
 ) -> Optional[Any]:
@@ -325,7 +340,7 @@ def _process_single_operation(
 
     # Check if this is an Etendo classic endpoint
     etendo_host_docker = get_etendo_host()
-    is_etendo_classic = url == etendo_host_docker
+    is_etendo_classic = normalize(url) == normalize(etendo_host_docker)
 
     # Debug logging
     logger.debug(
