@@ -5,6 +5,7 @@ import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_COMPLETE
 import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_EVAL;
 import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_IN_PROGRESS;
 import static com.etendoerp.copilot.process.AddBulkTasks.getStatus;
+import static com.etendoerp.copilot.process.EvalTask.evaluateTask;
 import static com.etendoerp.copilot.rest.RestServiceUtil.APP_ID;
 import static com.etendoerp.copilot.util.CopilotConstants.PROP_QUESTION;
 
@@ -133,7 +134,7 @@ public class ExecTask extends Action {
       if (isAsyncJobsEnabled()) {
         task.setStatus(getStatus(TASK_STATUS_EVAL));
       } else {
-        task.setStatus(getStatus(TASK_STATUS_COMPLETED));
+        evaluateTask(task, logger);
       }
     } catch (Exception e) {
       if (logger != null) {
