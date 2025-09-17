@@ -41,7 +41,7 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_APP_MCP_APP_FK">
+      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_APP_MCP_APP_FK" onDelete="cascade">
         <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
       </foreign-key>
       <foreign-key foreignTable="AD_CLIENT" name="ETCOP_APP_MCP_CLI_FK">
@@ -50,7 +50,7 @@
       <foreign-key foreignTable="AD_ORG" name="ETCOP_APP_MCP_ORG_FK">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="ETCOP_MCP" name="ETCOP_APPMCP_MCP_FK">
+      <foreign-key foreignTable="ETCOP_MCP" name="ETCOP_APPMCP_MCP_FK" onDelete="cascade">
         <reference local="ETCOP_MCP_ID" foreign="ETCOP_MCP_ID"/>
       </foreign-key>
       <check name="ETCOP_APP_MCP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>

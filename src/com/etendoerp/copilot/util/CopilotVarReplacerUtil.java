@@ -24,6 +24,10 @@ import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.access.User;
 
 import com.etendoerp.copilot.data.CopilotApiToken;
+import org.openbravo.utils.CryptoUtility;
+import org.openbravo.utils.FormatUtilities;
+
+import javax.servlet.ServletException;
 
 /**
  * CopilotVarReplacerUtil is a utility class that provides methods for replacing
@@ -109,8 +113,17 @@ public class CopilotVarReplacerUtil {
     // Replace API tokens with priority: user+role > user > role > null user and role
     Map<String, String> apiTokens = getApiTokensForCurrentContext(obContext);
     for (Map.Entry<String, String> tokenEntry : apiTokens.entrySet()) {
+      String token;
+      try {
+        token = CryptoUtility.decrypt(tokenEntry.getValue());
+      } catch (ServletException e) {
+        String errorMsg = OBMessageUtils.messageBD("ETCOP_DecryptTokenError");
+        String formattedMsg = String.format(errorMsg, tokenEntry.getKey());
+        log.error(formattedMsg, e);
+        continue;
+      }
       String tokenPlaceholder = "@" + tokenEntry.getKey().toUpperCase() + "@";
-      stringParsed = StringUtils.replace(stringParsed, tokenPlaceholder, tokenEntry.getValue());
+      stringParsed = StringUtils.replace(stringParsed, tokenPlaceholder, token);
     }
 
     if (maps != null) {
