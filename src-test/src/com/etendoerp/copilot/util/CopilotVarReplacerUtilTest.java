@@ -36,7 +36,20 @@ import org.openbravo.test.base.TestConstants;
 
 import com.etendoerp.copilot.data.CopilotApiToken;
 
+/**
+ * Unit test class for CopilotVarReplacerUtil.
+ * <p>
+ * This test class verifies the functionality of the CopilotVarReplacerUtil utility class,
+ * including variable replacement, context handling, custom mappings, bracket balancing,
+ * and API token processing.
+ */
 public class CopilotVarReplacerUtilTest extends WeldBaseTest {
+
+  // Test constants
+  private static final String TEST_LANGUAGE_ID = "testLanguageId";
+  private static final String TEST_ETENDO_HOST = "http://localhost:8080/etendo";
+  private static final String TEST_ETENDO_HOST_DOCKER = "http://etendo:8080/etendo";
+  private static final String TEST_PATH = "/test/path";
 
   /**
    * Sets up the necessary mocks and spies before each test.
@@ -84,7 +97,7 @@ public class CopilotVarReplacerUtilTest extends WeldBaseTest {
     when(mockWarehouse.getName()).thenReturn("Test Warehouse");
 
     Language mockLanguage = mock(Language.class);
-    when(mockLanguage.getId()).thenReturn("testLanguageId");
+    when(mockLanguage.getId()).thenReturn(TEST_LANGUAGE_ID);
 
     OBContext mockContext = mock(OBContext.class);
     when(mockContext.getCurrentClient()).thenReturn(mockClient);
@@ -99,20 +112,20 @@ public class CopilotVarReplacerUtilTest extends WeldBaseTest {
          MockedStatic<OBPropertiesProvider> propertiesMock = mockStatic(OBPropertiesProvider.class)) {
       
       obContextMock.when(OBContext::getOBContext).thenReturn(mockContext);
-      copilotUtilsMock.when(CopilotUtils::getEtendoHost).thenReturn("http://localhost:8080/etendo");
-      copilotUtilsMock.when(CopilotUtils::getEtendoHostDocker).thenReturn("http://etendo:8080/etendo");
+      copilotUtilsMock.when(CopilotUtils::getEtendoHost).thenReturn(TEST_ETENDO_HOST);
+      copilotUtilsMock.when(CopilotUtils::getEtendoHostDocker).thenReturn(TEST_ETENDO_HOST_DOCKER);
       
       Properties props = new Properties();
-      props.setProperty("source.path", "/test/path");
+      props.setProperty("source.path", TEST_PATH);
       OBPropertiesProvider mockProvider = mock(OBPropertiesProvider.class);
       when(mockProvider.getOpenbravoProperties()).thenReturn(props);
       propertiesMock.when(OBPropertiesProvider::getInstance).thenReturn(mockProvider);
-      copilotUtilsMock.when(() -> CopilotUtils.getSourcesPath(props)).thenReturn("/test/path");
+      copilotUtilsMock.when(() -> CopilotUtils.getSourcesPath(props)).thenReturn(TEST_PATH);
 
       String input = "Host: @ETENDO_HOST@, Client: @CLIENT_NAME@, User: @USERNAME@";
       String result = CopilotVarReplacerUtil.replaceCopilotPromptVariables(input, null, false);
       
-      assertEquals("Host: http://localhost:8080/etendo, Client: Test Client, User: testuser", result);
+      assertEquals("Host: " + TEST_ETENDO_HOST + ", Client: Test Client, User: testuser", result);
     }
   }
 
@@ -135,18 +148,18 @@ public class CopilotVarReplacerUtilTest extends WeldBaseTest {
       when(mockContext.getWarehouse()).thenReturn(null);
       
       Language mockLanguage = mock(Language.class);
-      when(mockLanguage.getId()).thenReturn("testLanguageId");
+      when(mockLanguage.getId()).thenReturn(TEST_LANGUAGE_ID);
       when(mockContext.getLanguage()).thenReturn(mockLanguage);
       
       obContextMock.when(OBContext::getOBContext).thenReturn(mockContext);
-      copilotUtilsMock.when(CopilotUtils::getEtendoHost).thenReturn("http://localhost:8080/etendo");
-      copilotUtilsMock.when(CopilotUtils::getEtendoHostDocker).thenReturn("http://etendo:8080/etendo");
+      copilotUtilsMock.when(CopilotUtils::getEtendoHost).thenReturn(TEST_ETENDO_HOST);
+      copilotUtilsMock.when(CopilotUtils::getEtendoHostDocker).thenReturn(TEST_ETENDO_HOST_DOCKER);
       
       Properties props = new Properties();
       OBPropertiesProvider mockProvider = mock(OBPropertiesProvider.class);
       when(mockProvider.getOpenbravoProperties()).thenReturn(props);
       propertiesMock.when(OBPropertiesProvider::getInstance).thenReturn(mockProvider);
-      copilotUtilsMock.when(() -> CopilotUtils.getSourcesPath(props)).thenReturn("/test/path");
+      copilotUtilsMock.when(() -> CopilotUtils.getSourcesPath(props)).thenReturn(TEST_PATH);
 
       // Mock OBDal and criteria for API tokens
       OBDal mockOBDal = mock(OBDal.class);
@@ -178,18 +191,18 @@ public class CopilotVarReplacerUtilTest extends WeldBaseTest {
       when(mockContext.getWarehouse()).thenReturn(null);
       
       Language mockLanguage = mock(Language.class);
-      when(mockLanguage.getId()).thenReturn("testLanguageId");
+      when(mockLanguage.getId()).thenReturn(TEST_LANGUAGE_ID);
       when(mockContext.getLanguage()).thenReturn(mockLanguage);
       
       obContextMock.when(OBContext::getOBContext).thenReturn(mockContext);
-      copilotUtilsMock.when(CopilotUtils::getEtendoHost).thenReturn("http://localhost:8080/etendo");
-      copilotUtilsMock.when(CopilotUtils::getEtendoHostDocker).thenReturn("http://etendo:8080/etendo");
+      copilotUtilsMock.when(CopilotUtils::getEtendoHost).thenReturn(TEST_ETENDO_HOST);
+      copilotUtilsMock.when(CopilotUtils::getEtendoHostDocker).thenReturn(TEST_ETENDO_HOST_DOCKER);
       
       Properties props = new Properties();
       OBPropertiesProvider mockProvider = mock(OBPropertiesProvider.class);
       when(mockProvider.getOpenbravoProperties()).thenReturn(props);
       propertiesMock.when(OBPropertiesProvider::getInstance).thenReturn(mockProvider);
-      copilotUtilsMock.when(() -> CopilotUtils.getSourcesPath(props)).thenReturn("/test/path");
+      copilotUtilsMock.when(() -> CopilotUtils.getSourcesPath(props)).thenReturn(TEST_PATH);
 
       // Mock OBDal and criteria for API tokens
       OBDal mockOBDal = mock(OBDal.class);
@@ -222,18 +235,18 @@ public class CopilotVarReplacerUtilTest extends WeldBaseTest {
       when(mockContext.getWarehouse()).thenReturn(null);
       
       Language mockLanguage = mock(Language.class);
-      when(mockLanguage.getId()).thenReturn("testLanguageId");
+      when(mockLanguage.getId()).thenReturn(TEST_LANGUAGE_ID);
       when(mockContext.getLanguage()).thenReturn(mockLanguage);
       
       obContextMock.when(OBContext::getOBContext).thenReturn(mockContext);
-      copilotUtilsMock.when(CopilotUtils::getEtendoHost).thenReturn("http://localhost:8080/etendo");
-      copilotUtilsMock.when(CopilotUtils::getEtendoHostDocker).thenReturn("http://etendo:8080/etendo");
+      copilotUtilsMock.when(CopilotUtils::getEtendoHost).thenReturn(TEST_ETENDO_HOST);
+      copilotUtilsMock.when(CopilotUtils::getEtendoHostDocker).thenReturn(TEST_ETENDO_HOST_DOCKER);
       
       Properties props = new Properties();
       OBPropertiesProvider mockProvider = mock(OBPropertiesProvider.class);
       when(mockProvider.getOpenbravoProperties()).thenReturn(props);
       propertiesMock.when(OBPropertiesProvider::getInstance).thenReturn(mockProvider);
-      copilotUtilsMock.when(() -> CopilotUtils.getSourcesPath(props)).thenReturn("/test/path");
+      copilotUtilsMock.when(() -> CopilotUtils.getSourcesPath(props)).thenReturn(TEST_PATH);
 
       // Mock OBDal and criteria for API tokens
       OBDal mockOBDal = mock(OBDal.class);
@@ -272,7 +285,7 @@ public class CopilotVarReplacerUtilTest extends WeldBaseTest {
     when(mockContext.getWarehouse()).thenReturn(null);
 
     Language mockLanguage = mock(Language.class);
-    when(mockLanguage.getId()).thenReturn("testLanguageId");
+    when(mockLanguage.getId()).thenReturn(TEST_LANGUAGE_ID);
     when(mockContext.getLanguage()).thenReturn(mockLanguage);
 
     CopilotApiToken mockToken = mock(CopilotApiToken.class);
@@ -287,14 +300,14 @@ public class CopilotVarReplacerUtilTest extends WeldBaseTest {
          MockedStatic<OBDal> obDalMock = mockStatic(OBDal.class)) {
       
       obContextMock.when(OBContext::getOBContext).thenReturn(mockContext);
-      copilotUtilsMock.when(CopilotUtils::getEtendoHost).thenReturn("http://localhost:8080/etendo");
-      copilotUtilsMock.when(CopilotUtils::getEtendoHostDocker).thenReturn("http://etendo:8080/etendo");
+      copilotUtilsMock.when(CopilotUtils::getEtendoHost).thenReturn(TEST_ETENDO_HOST);
+      copilotUtilsMock.when(CopilotUtils::getEtendoHostDocker).thenReturn(TEST_ETENDO_HOST_DOCKER);
       
       Properties props = new Properties();
       OBPropertiesProvider mockProvider = mock(OBPropertiesProvider.class);
       when(mockProvider.getOpenbravoProperties()).thenReturn(props);
       propertiesMock.when(OBPropertiesProvider::getInstance).thenReturn(mockProvider);
-      copilotUtilsMock.when(() -> CopilotUtils.getSourcesPath(props)).thenReturn("/test/path");
+      copilotUtilsMock.when(() -> CopilotUtils.getSourcesPath(props)).thenReturn(TEST_PATH);
 
       // Mock OBDal and criteria for API tokens
       OBDal mockOBDal = mock(OBDal.class);
