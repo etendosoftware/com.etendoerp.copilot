@@ -11,6 +11,7 @@ import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
 import org.openbravo.client.kernel.event.EntityNewEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEventObserver;
+import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -36,7 +37,8 @@ public class CopilotFileAttachmentEH  extends EntityPersistenceEventObserver {
     if(!StringUtils.equals(idTable, COPILOT_FILE_ID_TABLE)){
       return;
     }
-    if(getAttachment(targetInstance) != null){
+    Attachment attachment = getAttachment(targetInstance);
+    if(attachment != null && attachment.getClient()==OBContext.getOBContext().getCurrentClient()){
       throw new OBException(OBMessageUtils.messageBD("ETCOP_UniqueAttachment"));
     }
   }
