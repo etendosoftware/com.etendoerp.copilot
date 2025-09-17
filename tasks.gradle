@@ -553,7 +553,7 @@ task 'copilot.variables.setup' {
             tomcatMode = "docker"
         }
 
-        if (!tomcatMode) {
+        while (!tomcatMode) {
             //check sources.path property, if starts with /opt/EtendoERP, suggest server mode
             def sourcesPath = project.findProperty("sources.path")
             if (sourcesPath && sourcesPath.toString().startsWithIgnoreCase("/opt/EtendoERP")) {
@@ -567,17 +567,14 @@ task 'copilot.variables.setup' {
                 tomcatMode = "local"
             }
             if (!["local", "docker", "server"].contains(tomcatMode)) {
-                throw new GradleException("${red}❌ Invalid Tomcat mode. Must be 'docker', 'local', or 'server'.${reset}")
+                println("${red}❌ Invalid Tomcat mode. Must be 'docker', 'local', or 'server'.${reset}")
+                tomcatMode = null
             }
         }
 
         // === DETECT COPILOT MODE ===
         def copilotMode = null
-        if (project.hasProperty("docker_com.etendoerp.copilot") && project.property("docker_com.etendoerp.copilot").toString() == "true") {
-            copilotMode = "docker"
-        }
-
-        if (!copilotMode) {
+        while (!copilotMode) {
             System.out.print("${yellow}\n💬 Please enter Copilot mode ('docker' or 'local'. By default 'docker' will be used.): \n${reset}")
             System.out.flush()
             copilotMode = reader.readLine()?.trim()?.toLowerCase()
@@ -586,7 +583,8 @@ task 'copilot.variables.setup' {
                 copilotMode = "docker"
             }
             if (!["docker", "local"].contains(copilotMode)) {
-                throw new GradleException("${red}❌ Invalid Copilot mode. Must be 'docker' or 'local'.${reset}")
+                println("${red}❌ Invalid Copilot mode. Must be 'docker' or 'local'.${reset}")
+                copilotMode = null
             }
         }
 
@@ -655,8 +653,10 @@ task 'copilot.variables.setup' {
         ]
 
         // Add Docker configuration properties if user selected Docker modes
-        if (copilotMode == "docker" && !project.hasProperty("docker_com.etendoerp.copilot")) {
+        if (copilotMode == "docker") {
             properties['docker_com.etendoerp.copilot'] = 'true'
+        } else if (project.hasProperty("docker_com.etendoerp.copilot")) {
+            properties['docker_com.etendoerp.copilot'] = 'false'
         }
 
 
