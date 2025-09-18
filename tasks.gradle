@@ -505,13 +505,13 @@ task 'copilot.variables.setup' {
         def etendoHost
         def etendoHostDocker
         def copilotHost
-
+        def gatewayIp = "host.docker.internal"
         if (tomcatMode == "docker" && copilotMode == "docker") {
             etendoHost = "http://tomcat:8080/${contextName}"
             etendoHostDocker = etendoHost
             copilotHost = "copilot"
         } else if (copilotMode == "docker" && tomcatMode != "docker") {
-            def gatewayIp = "172.17.0.1"
+             gatewayIp = "172.17.0.1"
             try {
                 def process = ["sh", "-c", "docker run --rm alpine sh -c 'ip route show default | head -1 | cut -d\" \" -f3'"].execute()
                 gatewayIp = process.text.trim()
