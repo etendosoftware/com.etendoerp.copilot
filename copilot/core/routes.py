@@ -30,7 +30,7 @@ from copilot.core.schemas import (
     VectorDBInputSchema,
 )
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils import copilot_debug, copilot_info
+from copilot.core.utils import copilot_debug, copilot_info, get_openai_client
 from copilot.core.vectordb_utils import (
     LANGCHAIN_DEFAULT_COLLECTION_NAME,
     get_chroma_settings,
@@ -475,9 +475,8 @@ def transcript_file(file: UploadFile = File(...)):
     temp_file_path.parent.mkdir(parents=True, exist_ok=True)
     with temp_file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-    from openai import OpenAI
 
-    client = OpenAI()
+    client = get_openai_client()
     audio_file = open(temp_file_path, "rb")
     transcription = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
     print(transcription.text)

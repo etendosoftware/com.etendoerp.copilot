@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from copilot.core.agent import AssistantAgent
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.schemas import QuestionSchema
+from copilot.core.utils import get_openai_client
 from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
-from openai import OpenAI
 
 
 @patch("copilot.core.agent.AssistantAgent.get_agent", autospec=True)
@@ -37,7 +37,7 @@ def test_execute(mock_invoke):
 @patch("copilot.core.utils.read_optional_env_var")
 @patch("langchain_community.agents.openai_assistant.OpenAIAssistantV2Runnable")
 def setUp(mock_openai_assistant, mock_read_optional_env_var):
-    client = OpenAI()
+    client = get_openai_client()
 
     assistant = client.beta.assistants.create(
         name="Math Tutor",
@@ -66,7 +66,7 @@ def setUp(mock_openai_assistant, mock_read_optional_env_var):
 
 @patch("langchain.agents.AgentExecutor")
 def test_aexecute(mock_agent_executor):
-    client = OpenAI()
+    client = get_openai_client()
     assistant = client.beta.assistants.create(
         name="Math Tutor",
         instructions="You are a personal math tutor. Write and run code to answer math questions.",

@@ -32,7 +32,6 @@ import com.etendoerp.copilot.data.CopilotTool;
 
 public class SyncToolStructure extends BaseProcessActionHandler {
   private static final Logger log = LogManager.getLogger(SyncToolStructure.class);
-  public static final String OPENAI_API_KEY = "OPENAI_API_KEY";
   public static final String DESCRIPTION = "description";
 
   @Override

@@ -1,6 +1,7 @@
 from typing import Final
 
 from copilot.core import utils
+from copilot.core.utils import get_proxy_url
 from langchain_openai import ChatOpenAI
 
 
@@ -109,7 +110,9 @@ class SupervisorNode:
             ]
         )
 
-        llm = ChatOpenAI(model=self.OPENAI_MODEL, temperature=temperature, streaming=False)
+        llm = ChatOpenAI(
+            model=self.OPENAI_MODEL, temperature=temperature, streaming=False, base_url=get_proxy_url()
+        )
 
         supervisor_chain = (
             prompt

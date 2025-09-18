@@ -29,7 +29,7 @@ from ..langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..threadcontext import ThreadContext
-from ..utils import get_full_question
+from ..utils import get_full_question, get_proxy_url
 from .agent_utils import process_local_files
 from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
 from .langgraph_agent import handle_events
@@ -96,7 +96,9 @@ def get_llm(model, provider, temperature):
         )
 
     else:
-        llm = init_chat_model(model_provider=provider, model=model, temperature=temperature)
+        llm = init_chat_model(
+            model_provider=provider, model=model, temperature=temperature, base_url=get_proxy_url()
+        )
     # Adjustments for specific models, because some models have different
     # default parameters
     model_config = get_model_config(provider, model)

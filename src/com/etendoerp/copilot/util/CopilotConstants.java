@@ -39,7 +39,6 @@ public class CopilotConstants {
   public static final String PROP_APP_ID = "app_id";
   public static final String PROP_CONVERSATION_ID = "conversation_id";
   public static final String PROP_FILE = "file";
-  public static final String OPENAI_MODELS = "https://api.openai.com/v1/models";
 
   protected static final String[] KB_FILE_VALID_EXTENSIONS = {
       "pdf", "md", "markdown", "txt", "zip", "java", "py", "js", "xml", "json"

@@ -5,6 +5,7 @@ from typing import Final
 
 from colorama import Fore, Style
 from copilot.core.schemas import QuestionSchema
+from openai import OpenAI
 
 SUCCESS_CODE: Final[str] = "\u2713"
 
@@ -55,23 +56,24 @@ def _handle_etendo_host_var(env_var_name, default_value):
     return _read_env_var(env_var_name, default_value)
 
 
-def read_optional_env_var(env_var_name: str, default_value: str) -> str:
+def read_optional_env_var(env_var_name: str, default_value: str | None) -> str | None:
     """Reads an optional environment variable and returns its value or the default one."""
     return _read_env_var(env_var_name, default_value)
 
 
 def _read_env_var(env_var_name, default_value):
-    upper_env_var = env_var_name.replace('.', '_').upper()
+    upper_env_var = env_var_name.replace(".", "_").upper()
     value = os.getenv(upper_env_var)
-    if value is not None and value != '':
+    if value is not None and value != "":
         copilot_debug(f"Reading environment variable {upper_env_var} = {value}")
         return value
     value = os.getenv(env_var_name)
-    if value is not None and value != '':
+    if value is not None and value != "":
         copilot_debug(f"Reading alternative environment variable {env_var_name} = {value}")
         return value
     copilot_debug(
-        f"Environment variable {upper_env_var} / {env_var_name} is not set, using default value {default_value}")
+        f"Environment variable {upper_env_var} / {env_var_name} is not set, using default value {default_value}"
+    )
     return default_value
 
 
@@ -159,3 +161,25 @@ def empty_folder(db_path):
 def read_optional_env_var_float(env_var_name: str, default_value: float) -> float:
     """Reads an optional environment variable and returns its value or the default one."""
     return float(read_optional_env_var(env_var_name, str(default_value)))
+
+
+def get_proxy_url():
+    """Return the proxy URL for the OpenAI client.
+
+    Reads the COPILOT_PROXY_URL environment variable via read_optional_env_var.
+
+    Returns:
+        str | None: The proxy URL or None if not set.
+    """
+    return read_optional_env_var("COPILOT_PROXY_URL", None)
+
+
+def get_openai_client():
+    """Create and return an OpenAI client configured with the proxy URL.
+
+    Uses get_proxy_url() to obtain a base URL and instantiates OpenAI with it.
+
+    Returns:
+        openai.OpenAI: Configured OpenAI client instance.
+    """
+    return OpenAI(base_url=get_proxy_url())

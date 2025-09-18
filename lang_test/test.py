@@ -1,5 +1,9 @@
 import os
-from connection import prompt,model
+
+from connection import model, prompt
+from langchain.chat_models import init_chat_model
+
+from copilot.core.utils import get_proxy_url
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -160,7 +164,7 @@ Prompt = ChatPromptTemplate.from_messages(
     ]
 ).partial(time=str(datetime.now()))
 
-model = ChatOpenAI(model=model, temperature=0)
+model = init_chat_model(model=model, temperature=0, base_url=get_proxy_url())
 response_generator = Prompt | model | StrOutputParser()
 
 # The full chain looks like the followinP
