@@ -5,6 +5,14 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
+// Try to import InteractiveSetupManager, but don't fail if not available
+def InteractiveSetupManager = null
+try {
+    InteractiveSetupManager = Class.forName('com.etendoerp.legacy.interactive.InteractiveSetupManager')
+} catch (ClassNotFoundException e) {
+    // InteractiveSetupManager not available, will use fallback behavior
+}
+
 final String TRUE = 'true'
 final String SH = 'sh'
 final String DASH_C = '-c'
@@ -520,187 +528,6 @@ task 'copilot.env.file' {
     }
 }
 
-task 'copilot.mcp.config' {
-    group = "copilot"
-    description = "Generates MCP configuration JSON for Etendo Agents with mode selection (simple/direct) and agent type guidance"
-
-    doLast {
-        /*
-         * MCP Configuration Generator with Mode Selection and Agent Type Support
-         *
-         * Usage examples:
-         * Interactive mode: ./gradlew copilot.mcp.config
-         * Automated mode: ./gradlew copilot.mcp.config -Phost=<url> -Pusername=<user> -Ppassword=<pass> -PagentId=<id> -Pmode=<simple|direct>
-         *
-         * Connection modes:
-         * - simple: Exposes a single tool to talk to the Copilot agent (URL: /{agentId}/mcp)
-         * - direct: Exposes all agent tools for direct execution + prompt reader tool (URL: /{agentId}/direct/mcp)
-         *
-         * Agent types supported:
-         * - Multi-Model Agent: Single intelligent agent with configurable tools and knowledge base
-         * - LangGraph Agent: Supervisor agent that coordinates a team of specialized sub-agents
-         */
-        def reader = new BufferedReader(new InputStreamReader(System.in))
-        def yellowText = "\u001B[33;1m"
-        def greenText = "\u001B[32;1m"
-        def blueText = "\u001B[34;1m"
-        def redText = "\u001B[31;1m"
-        def resetText = "\u001B[0m"
-
-        // Parameters can be passed via command line:
-        // -Phost=<etendo_host> -Pusername=<user> -Ppassword=<pass> -PagentId=<id> -Pmode=<simple|direct>
-        def etendoHost = project.findProperty('host')
-        def username = project.findProperty('username')
-        def password = project.findProperty('password')
-        def role = project.findProperty("role")
-        def agentId = project.findProperty("agentId")
-        def contextName = env.hasProperty("CONTEXT_NAME") ? env.property("CONTEXT_NAME").toString() : "etendo"
-
-        // Get COPILOT_PORT_MCP property, default to 5006
-        def copilotPortMCP = project.hasProperty("COPILOT_PORT_MCP") ?
-            project.property("COPILOT_PORT_MCP").toString() : "5006"
-
-        // Request agent ID if not provided
-        if (agentId == null || agentId == "") {
-            project.logger.lifecycle("${blueText}🤖 Please provide the Agent ID:${resetText}")
-            agentId = reader.readLine()?.trim()
-            if (agentId == null || agentId == "") {
-                project.logger.lifecycle("${redText}🤖 Agent ID is required.${resetText}")
-                return
-            }
-        }
-
-        // Ask for connection mode
-        def connectionMode = project.findProperty("mode")
-        if (connectionMode == null || connectionMode == "") {
-            project.logger.lifecycle("${blueText}🔧 Select connection mode:${resetText}")
-            project.logger.lifecycle("${yellowText}  1. Simple mode - Exposes a single tool to talk to the Copilot agent (recommended)${resetText}")
-            project.logger.lifecycle("${yellowText}     • Multi-Model Agent: Delivers ask_agent tool to communicate with the agent${resetText}")
-            project.logger.lifecycle("${yellowText}     • LangGraph Agent: Delivers ask_agent_supervisor tool to talk with the supervisor${resetText}")
-            project.logger.lifecycle("${yellowText}  2. Direct mode - Exposes all agent tools for direct execution + prompt reader${resetText}")
-            project.logger.lifecycle("${yellowText}     • Multi-Model Agent: Delivers all agent tools + get_agent_prompt (adopt agent personality)${resetText}")
-            project.logger.lifecycle("${yellowText}     • LangGraph Agent: Delivers ask_agent tools for each team member + get_agent_prompt${resetText}")
-            project.logger.lifecycle("${blueText}Please enter mode (1 for simple, 2 for direct) [default: 1]:${resetText}")
-            def modeInput = reader.readLine()?.trim()
-
-            if (modeInput == null || modeInput == "" || modeInput == "1") {
-                connectionMode = "simple"
-            } else if (modeInput == "2") {
-                connectionMode = "direct"
-            } else {
-                project.logger.lifecycle("${yellowText}⚠️ Invalid mode selected, using simple mode${resetText}")
-                connectionMode = "simple"
-            }
-        } else {
-            // Normalize and validate mode parameter
-            connectionMode = connectionMode.toString().toLowerCase()
-            // Support both "simple" and "normal" (for backwards compatibility)
-            if (connectionMode == "normal") {
-                connectionMode = "simple"
-                project.logger.lifecycle("${yellowText}ℹ️ Mode 'normal' is now called 'simple', using simple mode${resetText}")
-            }
-            if (connectionMode != "simple" && connectionMode != "direct") {
-                project.logger.lifecycle("${yellowText}⚠️ Invalid mode parameter '${connectionMode}', using simple mode${resetText}")
-                connectionMode = "simple"
-            }
-        }
-
-        def isDirectMode = (connectionMode == "direct")
-        def modeUrlPath = isDirectMode ? "/direct" : ""
-        def modeDescription = isDirectMode ? "Direct mode (direct tool execution + prompt reader)" : "Simple mode (talk to Copilot agent)"
-
-        if (username == null || username == "") {
-            project.logger.lifecycle("${blueText}👮 Please provide the username:${resetText}")
-            username = reader.readLine()?.trim()
-        }
-        if (password == null || password == "") {
-            project.logger.lifecycle("${blueText}👮 Please provide the password:${resetText}")
-            password = reader.readLine()?.trim()
-            exec {
-                commandLine 'clear'
-            }
-        }
-        if (!etendoHost) {
-            project.logger.lifecycle("${redText}🤖 Host not provided, using default (http://localhost:${tomcatPort}/${contextName}).${resetText}")
-            etendoHost = "http://localhost:${tomcatPort}/${contextName}"
-        }
-
-        // Authenticate to get Bearer token
-        String login = JsonOutput.toJson([
-                "username": username,
-                "password": password
-        ] + (role != null && !role.isEmpty() ? ["role": role] : [:]))
-
-        String loginURL = "${etendoHost}/sws/login"
-
-        HttpClient hClient = HttpClient.newHttpClient()
-        HttpRequest hRequest = HttpRequest.newBuilder()
-                .uri(URI.create(loginURL))
-                .header("Content-Type", "application/json")
-                .method("POST", HttpRequest.BodyPublishers.ofString(login))
-                .build()
-
-        HttpResponse<String> hResponse
-        String hResponseBody
-        try {
-            hResponse = hClient.send(hRequest, HttpResponse.BodyHandlers.ofString())
-            hResponseBody = hResponse.body()
-        } catch (Exception e) {
-            project.logger.lifecycle("${redText}🤖 ❌ Failed to connect to Etendo at ${etendoHost}${resetText}")
-            project.logger.lifecycle("${yellowText}💡 Please ensure:${resetText}")
-            project.logger.lifecycle("${yellowText}   1. You have run 'copilot.variables.setup' to configure the connection${resetText}")
-            project.logger.lifecycle("${yellowText}   2. Tomcat is running and accessible at the configured host${resetText}")
-            project.logger.lifecycle("${yellowText}   3. The host URL is correct: ${etendoHost}${resetText}")
-            project.logger.lifecycle("${redText}   Error details: ${e.message}${resetText}")
-            return
-        }
-
-        def hResponseJson = new JsonSlurper().parseText(hResponseBody)
-        String bearerToken = hResponseJson.token
-        if (!bearerToken) {
-            project.logger.lifecycle("${redText}🤖 Failed to authenticate. No token received.${resetText}")
-            project.logger.lifecycle("${yellowText}💡 Please verify your username and password are correct.${resetText}")
-            return
-        }
-
-        // Generate MCP configuration JSON
-        def mcpConfig = [
-            "etendoAgent": [
-                "type": "http",
-                "httpUrl": "http://localhost:${copilotPortMCP}/${agentId}${modeUrlPath}/mcp",
-                "note": "For Streamable HTTP connections, add this URL directly in your MCP Client",
-                "mode": modeDescription,
-                "headers": [
-                    "etendo-token": "Bearer ${bearerToken}"
-                ]
-            ]
-        ]
-
-        String configJson = JsonOutput.prettyPrint(JsonOutput.toJson(mcpConfig))
-
-        project.logger.lifecycle("${greenText}🤖 MCP Configuration (${modeDescription}):${resetText}")
-        project.logger.lifecycle(configJson)
-
-        if (isDirectMode) {
-            project.logger.lifecycle("${yellowText}💡 Direct mode features:${resetText}")
-            project.logger.lifecycle("${yellowText}   • Direct access to all agent-specific tools for execution from MCP client${resetText}")
-            project.logger.lifecycle("${yellowText}   • get_agent_prompt tool to read the agent's system prompt and understand how it works${resetText}")
-            project.logger.lifecycle("${yellowText}   • Basic tools (ping, hello_world, server_info)${resetText}")
-            project.logger.lifecycle("${yellowText}   • NO ask_agent tool (you execute tools directly)${resetText}")
-            project.logger.lifecycle("${blueText}📋 What MCP delivers by agent type:${resetText}")
-            project.logger.lifecycle("${yellowText}   • Multi-Model Agent: All agent tools + get_agent_prompt (adopt agent personality and use its tools)${resetText}")
-            project.logger.lifecycle("${yellowText}   • LangGraph Agent: ask_agent tools for each team member + get_agent_prompt (direct team access)${resetText}")
-        } else {
-            project.logger.lifecycle("${yellowText}💡 Simple mode features:${resetText}")
-            project.logger.lifecycle("${yellowText}   • ask_agent tool to talk to the Copilot agent using natural language${resetText}")
-            project.logger.lifecycle("${yellowText}   • Basic tools (ping, hello_world, server_info)${resetText}")
-            project.logger.lifecycle("${yellowText}   • Simplified interface - just talk to the agent, it handles the tools${resetText}")
-            project.logger.lifecycle("${blueText}📋 What MCP delivers by agent type:${resetText}")
-            project.logger.lifecycle("${yellowText}   • Multi-Model Agent: ask_agent tool to communicate with the agent${resetText}")
-            project.logger.lifecycle("${yellowText}   • LangGraph Agent: ask_agent_supervisor tool to talk with the supervisor${resetText}")
-        }
-    }
-}
 
 task 'copilot.variables.setup' {
     group = "configuration"
@@ -726,27 +553,38 @@ task 'copilot.variables.setup' {
             tomcatMode = "docker"
         }
 
-        if (!tomcatMode) {
-            System.out.print("${yellow} \n💬 Please enter Tomcat mode ('docker', 'local', or 'server'):\n ${reset}")
+        while (!tomcatMode) {
+            //check sources.path property, if starts with /opt/EtendoERP, suggest server mode
+            def sourcesPath = project.findProperty("sources.path")
+            if (sourcesPath && sourcesPath.toString().startsWithIgnoreCase("/opt/EtendoERP")) {
+                System.out.println("${yellow}💡 Detected sources.path in /opt/EtendoERP, suggesting 'server' mode for Tomcat.${reset}")
+            }
+            System.out.print("${yellow} \n💬 Please enter Tomcat mode ('docker', 'local', or 'server'. By default 'local' will be used.):\n ${reset}")
             System.out.flush()
             tomcatMode = reader.readLine()?.trim()?.toLowerCase()
-            if (!["docker", "local", "server"].contains(tomcatMode)) {
-                throw new GradleException("${red}❌ Invalid Tomcat mode. Must be 'docker', 'local', or 'server'.${reset}")
+            //for if empty input, set to local
+            if (!tomcatMode || tomcatMode == "") {
+                tomcatMode = "local"
+            }
+            if (!["local", "docker", "server"].contains(tomcatMode)) {
+                println("${red}❌ Invalid Tomcat mode. Must be 'docker', 'local', or 'server'.${reset}")
+                tomcatMode = null
             }
         }
 
         // === DETECT COPILOT MODE ===
         def copilotMode = null
-        if (project.hasProperty("docker_com.etendoerp.copilot") && project.property("docker_com.etendoerp.copilot").toString() == "true") {
-            copilotMode = "docker"
-        }
-
-        if (!copilotMode) {
-            System.out.print("${yellow}\n💬 Please enter Copilot mode ('docker' or 'local'): \n${reset}")
+        while (!copilotMode) {
+            System.out.print("${yellow}\n💬 Please enter Copilot mode ('docker' or 'local'. By default 'docker' will be used.): \n${reset}")
             System.out.flush()
             copilotMode = reader.readLine()?.trim()?.toLowerCase()
+            //for if empty input, set to docker
+            if (!copilotMode || copilotMode == "") {
+                copilotMode = "docker"
+            }
             if (!["docker", "local"].contains(copilotMode)) {
-                throw new GradleException("${red}❌ Invalid Copilot mode. Must be 'docker' or 'local'.${reset}")
+                println("${red}❌ Invalid Copilot mode. Must be 'docker' or 'local'.${reset}")
+                copilotMode = null
             }
         }
 
@@ -755,7 +593,8 @@ task 'copilot.variables.setup' {
         if (!tomcatPort) {
             try {
                 tomcatPort = envFile().property("TOMCAT_PORT")?.toString()
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         if (!tomcatPort && tomcatMode != "docker") {
@@ -804,18 +643,52 @@ task 'copilot.variables.setup' {
         }
 
         // === OUTPUT ===
-        println ""
-        println "${green}✅ Suggested gradle.properties values:${reset}"
-        println "-------------------------------------------"
-        println "ETENDO_HOST=${etendoHost}"
-        println "ETENDO_HOST_DOCKER=${etendoHostDocker}"
-        println "COPILOT_HOST=${copilotHost}"
-        println "COPILOT_PORT=${copilotPort}"
-        println "COPILOT_PORT_MCP=${copilotPortMCP}"
-        println "-------------------------------------------"
-        println ""
+        // Prepare the properties map
+        def properties = [
+                'ETENDO_HOST'       : etendoHost,
+                'ETENDO_HOST_DOCKER': etendoHostDocker,
+                'COPILOT_HOST'      : copilotHost,
+                'COPILOT_PORT'      : copilotPort,
+                'COPILOT_PORT_MCP'  : copilotPortMCP
+        ]
+
+        // Add Docker configuration properties if user selected Docker modes
+        if (copilotMode == "docker") {
+            properties['docker_com.etendoerp.copilot'] = 'true'
+        } else if (project.hasProperty("docker_com.etendoerp.copilot")) {
+            properties['docker_com.etendoerp.copilot'] = 'false'
+        }
+
+
+        // Use the reusable function for JSON output (if called from interactive setup)
+        boolean wasWrittenAsJson = false
+        if (InteractiveSetupManager != null) {
+            try {
+                wasWrittenAsJson = InteractiveSetupManager.writeResultsForInteractiveSetup(project, properties)
+            } catch (Exception e) {
+                // Fallback if the method call fails - assume direct execution
+                project.logger.debug("Failed to call InteractiveSetupManager.writeResultsForInteractiveSetup: ${e.message}")
+                wasWrittenAsJson = false
+            }
+        }
+
+        // If not written as JSON (direct execution), handle display here
+        if (!wasWrittenAsJson) {
+            // Human-readable output for direct execution
+            println ""
+            println "${green}✅ Suggested gradle.properties values:${reset}"
+            println "-------------------------------------------"
+
+            properties.each { key, value ->
+                println "${key}=${value}"
+            }
+
+            println "-------------------------------------------"
+            println ""
+        }
     }
 }
+
 
 afterEvaluate {
     if (isCopilotDockerized()) {

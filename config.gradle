@@ -4,151 +4,190 @@
  * used by the copilot.variables.setup task and the broader Copilot functionality.
  */
 
-
-
 // Network and Host Configuration
 copilot {
+    setup {
+        description = "Run automated copilot configuration setup"
+        help = "🚀 Executes copilot.variables.setup task to automatically detect and configure optimal Copilot settings based on your Docker setup"
+        value = "Execute"
+        sensitive = false
+        required = true
+        group = "Copilot Configuration"
+        order = 10
+        process = true
+        name = "copilot.variables.setup"
+    }
     dockerized {
-        description = "Configure to run Copilot in a Docker container"
+        description = "Enable Copilot to run in Docker container"
+        help = "🐳 When enabled, Copilot runs as a Docker service. When disabled, runs as local process"
         value = "true"
         sensitive = false
         required = true
         group = "Copilot Configuration"
-        name = "docker.com.etendoerp.copilot"
+        order = 20
+        name = "docker_com.etendoerp.copilot"
     }
     etendoHost {
-        description = "URL where Copilot sends requests to communicate with the Etendo system"
+        description = "Etendo server URL for Copilot communication"
+        help = "🌐 URL where Copilot sends requests to communicate with Etendo system (typically http://localhost:8080/etendo)"
         value = "http://localhost:8080/etendo"
         sensitive = false
         required = true
         group = "Copilot Configuration"
+        order = 30
         name = "ETENDO_HOST"
     }
     etendoHostDocker {
-        description = "Etendo host URL used when Copilot runs in Docker and Etendo is not accessible from a domain"
+        description = "Etendo host URL for Docker-to-Docker communication"
+        help = "🐳 URL used when Copilot runs in Docker container (use 'tomcat' hostname if Tomcat is also dockerized)"
         value = "http://tomcat:8080/etendo"
         sensitive = false
         required = true
         group = "Copilot Configuration"
+        order = 40
         name = "ETENDO_HOST_DOCKER"
     }
     copilotHost {
-        description = "Host for Copilot service (localhost for local, copilot for docker)"
+        description = "Copilot service hostname"
+        help = "🏠 Hostname for Copilot service ('localhost' for local, 'copilot' for Docker service name)"
         value = "localhost"
         sensitive = false
         required = true
         group = "Copilot Configuration"
+        order = 50
         name = "COPILOT_HOST"
     }
     copilotPort {
-        description = "Port used by Copilot service for external communication"
+        description = "Copilot main service port"
+        help = "🚪 Port for Copilot HTTP API service (default: 5005)"
         value = "5005"
         sensitive = false
         required = true
         group = "Copilot Configuration"
+        order = 60
         name = "COPILOT_PORT"
     }
     copilotPortMCP {
-        description = "Port used by Copilot MCP server for model context protocol"
+        description = "Copilot MCP server port"
+        help = "🔗 Port for Model Context Protocol server (default: 5006, used for AI agent communication)"
         value = "5006"
         sensitive = false
         required = false
         group = "Copilot Configuration"
+        order = 70
         name = "COPILOT_PORT_MCP"
     }
     openai {
-        description = "API key for OpenAI services used by Copilot"
+        description = "OpenAI API key"
+        help = "🤖 Required API key for OpenAI GPT models (get from https://platform.openai.com/api-keys)"
         value = ""
         sensitive = true
         required = true
         group = "Copilot Configuration"
+        order = 80
         name = "OPENAI_API_KEY"
     }
 }
 
 copilot-advanced {
     debugPort {
-        description = "Port for debugging Copilot (when debug mode is enabled)"
+        description = "Copilot debug port"
+        help = "🐛 Port for remote debugging Copilot service (only needed for development)"
         value = "5100"
         sensitive = false
         required = false
         group = "Copilot Configuration (Advanced)"
+        order = 10
         name = "COPILOT_PORT_DEBUG"
     }
     debugMode {
-        description = "Enable debug mode for Copilot development"
+        description = "Enable debug mode"
+        help = "🔧 Enable verbose debugging for Copilot development and troubleshooting"
         value = "false"
         sensitive = false
         required = false
         group = "Copilot Configuration (Advanced)"
+        order = 20
         name = "COPILOT_DEBUG"
     }
-
-
-
     anthropic {
-        description = "API key for Anthropic Claude services used by Copilot"
+        description = "Anthropic Claude API key"
+        help = "🧠 Optional API key for Anthropic Claude models (get from https://console.anthropic.com/)"
         value = ""
         sensitive = true
         required = false
         group = "Copilot Configuration (Advanced)"
+        order = 30
         name = "ANTHROPIC_API_KEY"
     }
     google {
-        description = "API key for Google services used by Copilot"
+        description = "Google API key"
+        help = "🔍 Optional API key for Google services like Gemini models (get from https://console.cloud.google.com/)"
         value = ""
         sensitive = true
         required = false
         group = "Copilot Configuration (Advanced)"
+        order = 40
         name = "GOOGLE_API_KEY"
     }
-
     langsmith-apiKey {
-        description = "API key for LangSmith tracing and monitoring services"
+        description = "LangSmith API key"
+        help = "📊 Optional API key for LangSmith tracing and monitoring (get from https://smith.langchain.com/)"
         value = ""
         sensitive = true
         required = false
         group = "Copilot Configuration (Advanced)"
+        order = 50
         name = "LANGSMITH_API_KEY"
     }
     langsmith-tracing {
-        description = "Enable LangSmith tracing for debugging and monitoring"
+        description = "Enable LangSmith tracing"
+        help = "📈 Enable detailed tracing for debugging AI interactions (requires LANGSMITH_API_KEY)"
         value = "false"
         sensitive = false
         required = false
         group = "Copilot Configuration (Advanced)"
+        order = 60
         name = "LANGSMITH_TRACING"
     }
     langsmith-project {
-        description = "LangSmith project name for organizing traces and experiments"
+        description = "LangSmith project name"
+        help = "📁 Project name for organizing traces and experiments in LangSmith"
         value = ""
         sensitive = false
         required = false
         group = "Copilot Configuration (Advanced)"
+        order = 70
         name = "LANGSMITH_PROJECT"
     }
     proxyUrl {
-        description = "Proxy URL for routing Copilot requests (if required)"
+        description = "HTTP proxy URL"
+        help = "🌐 Optional HTTP proxy URL for routing Copilot requests (format: http://proxy-host:port)"
         value = ""
         sensitive = false
         required = false
         group = "Copilot Configuration (Advanced)"
+        order = 80
         name = "COPILOT_PROXY_URL"
     }
     dockerized-litellm {
-        description = "Enables the dockerized Litellm proxy service included with Copilot (only for development and testing)"
+        description = "Enable LiteLLM proxy service"
+        help = "🔄 Enable dockerized LiteLLM proxy for model routing (development and testing only)"
         value = "true"
         sensitive = false
         required = false
         group = "Copilot Configuration (Advanced)"
+        order = 90
         name = "docker.com.etendoerp.copilot.litellm"
     }
     litellmProxyPort {
-        description = "Port for the Litellm proxy service (if using the dockerized Litellm proxy)"
+        description = "LiteLLM proxy port"
+        help = "🚪 Port for LiteLLM proxy service when dockerized (default: 4000)"
         value = "4000"
         sensitive = false
         required = false
         group = "Copilot Configuration (Advanced)"
+        order = 100
         name = "COPILOT_LITELLM_PROXY_PORT"
     }
 }
