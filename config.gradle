@@ -89,7 +89,7 @@ copilot {
     }
 }
 
-copilot-advanced {
+copilotAdvanced {
     debugPort {
         description = "Copilot debug port"
         help = "🐛 Port for remote debugging Copilot service (only needed for development)"
@@ -130,7 +130,7 @@ copilot-advanced {
         order = 40
         name = "GOOGLE_API_KEY"
     }
-    langsmith-apiKey {
+    langsmithApiKey {
         description = "LangSmith API key"
         help = "📊 Optional API key for LangSmith tracing and monitoring (get from https://smith.langchain.com/)"
         value = ""
@@ -140,7 +140,7 @@ copilot-advanced {
         order = 50
         name = "LANGSMITH_API_KEY"
     }
-    langsmith-tracing {
+    langsmithTracing {
         description = "Enable LangSmith tracing"
         help = "📈 Enable detailed tracing for debugging AI interactions (requires LANGSMITH_API_KEY)"
         value = "false"
@@ -150,7 +150,7 @@ copilot-advanced {
         order = 60
         name = "LANGSMITH_TRACING"
     }
-    langsmith-project {
+    langsmithProject {
         description = "LangSmith project name"
         help = "📁 Project name for organizing traces and experiments in LangSmith"
         value = ""
@@ -178,7 +178,7 @@ copilot-advanced {
         required = false
         group = "Copilot Configuration (Advanced)"
         order = 90
-        name = "docker.com.etendoerp.copilot.litellm"
+        name = "docker_com.etendoerp.copilot.litellm"
     }
     litellmProxyPort {
         description = "LiteLLM proxy port"
