@@ -298,7 +298,7 @@ public class GetMCPConfiguration extends Action {
     html.append(buildInstallBadge(buttonLink));
     html.append(buildCodeBlock(json, idSuffix + "vsc", "VSCode"));
     html.append("<br>");
-    html.append(buildCodeBlock(adaptJsonToJetBrains(json), idSuffix + "jb", "Other IDEs"));
+    html.append(buildCodeBlock(adaptJsonToJetBrains(json), idSuffix + "jb", "Other MCP clients"));
     return html.toString();
   }
 

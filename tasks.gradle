@@ -559,7 +559,13 @@ task 'copilot.variables.setup' {
             if (sourcesPath && sourcesPath.toString().startsWithIgnoreCase("/opt/EtendoERP")) {
                 System.out.println("${yellow}💡 Detected sources.path in /opt/EtendoERP, suggesting 'server' mode for Tomcat.${reset}")
             }
-            System.out.print("${yellow} \n💬 Please enter Tomcat mode ('docker', 'local', or 'server'. By default 'local' will be used.):\n ${reset}")
+            System.out.println("${yellow} Select Tomcat mode:${reset}")
+            System.out.println("${yellow}💡 Mode 'docker' is for when Tomcat runs in a Docker container (using Tomcat Docker module).${reset}")
+            System.out.println("${yellow}💡 Mode 'local' is for when Tomcat runs directly on the host machine (typical local development setup).${reset}")
+            System.out.println("${yellow}💡 Mode 'server' is for when Tomcat runs in a server environment.${reset}")
+            System.out.println("")
+            System.out.println("${yellow}💬 Please enter Tomcat mode ('docker', 'local', or 'server'. By default 'local' will be used.): ${reset}")
+
             System.out.flush()
             tomcatMode = reader.readLine()?.trim()?.toLowerCase()
             //for if empty input, set to local
@@ -575,7 +581,13 @@ task 'copilot.variables.setup' {
         // === DETECT COPILOT MODE ===
         def copilotMode = null
         while (!copilotMode) {
+            System.out.println("")
+            System.out.println("${yellow} Select Copilot mode:${reset}")
+            System.out.println("${yellow}💡 Mode 'docker' is for running Copilot in a Docker container (most cases). \n${reset}")
+            System.out.println("${yellow}💡 Mode 'local' is for running Copilot directly on the host machine (for Copilot modules development).${reset}")
+            System.out.println("")
             System.out.print("${yellow}\n💬 Please enter Copilot mode ('docker' or 'local'. By default 'docker' will be used.): \n${reset}")
+
             System.out.flush()
             copilotMode = reader.readLine()?.trim()?.toLowerCase()
             //for if empty input, set to docker
