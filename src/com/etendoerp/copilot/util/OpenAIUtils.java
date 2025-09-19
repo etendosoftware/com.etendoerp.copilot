@@ -235,34 +235,6 @@ public class OpenAIUtils {
     return vectordb;
   }
 
-  /**
-   * Lists all assistants from the OpenAI API.
-   * <p>
-   * This method makes a GET request to the OpenAI API to retrieve a list of assistants.
-   * It then logs the ID, name, and creation date of each assistant.
-   *
-   * @param openaiApiKey
-   *     The API key for OpenAI.
-   * @return A JSONArray containing the data of all assistants.
-   * @throws JSONException
-   *     If an error occurs while parsing the JSON response.
-   */
-  private static JSONArray listAssistants(String openaiApiKey) throws JSONException {
-    String endpoint = ENDPOINT_ASSISTANTS;
-    JSONObject json = makeRequestToOpenAI(openaiApiKey, endpoint, null, "GET",
-        "?order=desc&limit=100");
-    JSONArray data = json.getJSONArray("data");
-    for (int i = 0; i < data.length(); i++) {
-      JSONObject assistant = data.getJSONObject(i);
-      String created = assistant.getString(
-          "created_at"); // convert the date to a timestamp. the created is in The Unix timestamp (in seconds) for when the assistant file was created.
-      Date date = new Date(Long.parseLong(created) * 1000);
-      logIfDebug(
-          String.format("%s - %s - %s", assistant.getString("id"), assistant.getString("name"),
-              date));
-    }
-    return data;
-  }
 
   /**
    * Logs the given text if debug logging is enabled.
@@ -356,7 +328,7 @@ public class OpenAIUtils {
   private static JSONObject makeRequestToOpenAIForFiles(String openaiApiKey, String endpoint,
       String purpose, File fileToSend) throws JSONException {
     String mimeType = URLConnection.guessContentTypeFromName(fileToSend.getName());
-    kong.unirest.HttpResponse<String> response = Unirest.post(BASE_URL + endpoint)
+    kong.unirest.HttpResponse<String> response = Unirest.post(getBaseUrl() + endpoint)
         .header(HEADER_AUTHORIZATION, String.format("Bearer %s", openaiApiKey))
         .field("purpose", purpose)
         .field("file", fileToSend, mimeType)
@@ -370,6 +342,23 @@ public class OpenAIUtils {
       }
     }
     return jsonResponse;
+  }
+
+  /**
+   * Returns the base URL to use for OpenAI API requests.
+   * <p>
+   * The method first checks Openbravo properties for the key {@code COPILOT_PROXY_URL}.
+   * If present, that value is returned allowing a proxy or custom endpoint to override
+   * the default OpenAI API base URL. Otherwise the constant {@link #BASE_URL} is returned.
+   *
+   * @return the base URL to use for OpenAI API requests (proxy override if configured)
+   */
+  private static String getBaseUrl() {
+    var prop = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    if (prop.containsKey("COPILOT_PROXY_URL")) {
+      return prop.getProperty("COPILOT_PROXY_URL");
+    }
+    return BASE_URL;
   }
 
   /**
@@ -424,10 +413,10 @@ public class OpenAIUtils {
    * @throws JSONException
    *     If an error occurs while parsing the JSON response.
    */
-  private static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
+  static JSONObject makeRequestToOpenAI(String openaiApiKey, String endpoint,
       JSONObject body, String method, String queryParams, boolean catchHttpErrors)
       throws UnirestException, JSONException {
-    String url = BASE_URL + endpoint + ((queryParams != null) ? queryParams : "");
+    String url = getBaseUrl() + endpoint + ((queryParams != null) ? queryParams : "");
     HttpResponse<String> response;
     switch (method) {
       case "GET":
@@ -468,12 +457,13 @@ public class OpenAIUtils {
         throw new IllegalArgumentException("Invalid method: " + method);
     }
     JSONObject jsonBody = new JSONObject(response.getBody());
-    if (catchHttpErrors && !response.isSuccess()) {
-      if (jsonBody.has(ERROR)) {
-        throw new OBException(jsonBody.getJSONObject(ERROR).getString(MESSAGE));
-      }
+    if (catchHttpErrors && !response.isSuccess() && jsonBody.has(ERROR)) {
+      throw new OBException(jsonBody.getJSONObject(ERROR).getString(MESSAGE));
     }
-    return new JSONObject(response.getBody());
+    if (catchHttpErrors && !response.isSuccess()) {
+      throw new OBException(response.getBody());
+    }
+    return jsonBody;
   }
 
   /**

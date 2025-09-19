@@ -219,13 +219,25 @@ async def _execute_langchain_tool(langchain_tool: BaseTool, kwargs: dict):
 
 
 def has_kwargs(tool):
+    """
+    Check if the tool has variable keyword arguments.
+
+    Args:
+        tool: The tool to inspect.
+
+    Returns:
+        bool: True if the tool has *args or **kwargs, False otherwise.
+    """
     sig = inspect.signature(tool._run)
     # Reject functions with *args or **kwargs
-    for param in sig.parameters.values():
-        if param.kind == inspect.Parameter.VAR_POSITIONAL:
-            raise ValueError("Functions with *args are not supported as tools")
-        if param.kind == inspect.Parameter.VAR_KEYWORD:
-            raise ValueError("Functions with **kwargs are not supported as tools")
+    try:
+        for param in sig.parameters.values():
+            if param.kind == inspect.Parameter.VAR_POSITIONAL:
+                raise ValueError("Functions with *args are not supported as tools")
+            if param.kind == inspect.Parameter.VAR_KEYWORD:
+                raise ValueError("Functions with **kwargs are not supported as tools")
+    except ValueError:
+        return True
 
 
 def _convert_single_tool_to_mcp(tool: BaseTool) -> Tool:

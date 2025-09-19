@@ -14,6 +14,15 @@ from copilot.core.agent.agent import (
     AssistantResponse,
     CopilotAgent,
 )
+from copilot.core.agent.agent_utils import get_checkpoint_file, process_local_files
+from copilot.core.agent.eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
+from copilot.core.agent.langgraph_agent import build_config, handle_events
+from copilot.core.memory.memory_handler import MemoryHandler
+from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
+from copilot.core.threadcontext import ThreadContext
+from copilot.core.utils import etendo_utils
+from copilot.core.utils.agent import get_full_question
+from copilot.core.utils.models import get_proxy_url
 from langchain.agents import (
     AgentExecutor,
     AgentOutputParser,
@@ -26,17 +35,10 @@ from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import AddableDict
 from langchain_core.tools import StructuredTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.prebuilt import create_react_agent
 from langgraph_codeact import create_default_prompt
-
-from ..memory.memory_handler import MemoryHandler
-from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
-from ..threadcontext import ThreadContext
-from ..utils import etendo_utils
-from ..utils.agent import get_full_question
-from .agent_utils import process_local_files
-from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
-from .langgraph_agent import handle_events
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 tools_loaded = {}
@@ -132,7 +134,12 @@ def get_llm(model, provider, temperature):
         )
 
     else:
-        llm = init_chat_model(model_provider=provider, model=model, temperature=temperature)
+        llm = init_chat_model(
+            model_provider=provider,
+            model=model,
+            temperature=temperature,
+            base_url=get_proxy_url(),
+        )
     # Adjustments for specific models, because some models have different
     # default parameters
     model_config = get_model_config(provider, model)
@@ -239,6 +246,36 @@ async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
         return []
 
 
+async def acheckpointer_has_thread(checkpointer, config):
+    """
+    Asynchronously checks if a thread exists in the checkpointer for the given configuration.
+
+    Args:
+        checkpointer: The checkpointer instance (e.g., AsyncSqliteSaver) to query.
+        config: The configuration object for the thread.
+
+    Returns:
+        bool: True if thread data exists, False otherwise.
+    """
+    thread_data = await checkpointer.aget(config=config)
+    return thread_data is not None  # if not none, thread exists
+
+
+def checkpointer_has_thread(checkpointer, config):
+    """
+    Synchronously checks if a thread exists in the checkpointer for the given configuration.
+
+    Args:
+        checkpointer: The checkpointer instance (e.g., SqliteSaver) to query.
+        config: The configuration object for the thread.
+
+    Returns:
+        bool: True if thread data exists, False otherwise.
+    """
+    thread_data = checkpointer.get(config=config)
+    return thread_data is not None  # if not none, thread exists
+
+
 class MultimodelAgent(CopilotAgent):
     OPENAI_MODEL: Final[str] = read_optional_env_var("OPENAI_MODEL", "gpt-4o")
     _memory: MemoryHandler = None
@@ -276,6 +313,7 @@ class MultimodelAgent(CopilotAgent):
         system_prompt: str = None,
         temperature: float = 1,
         mcp_tools: list = None,
+        checkpointer=None,
     ):
         """Construct and return an agent from scratch, using LangChain Expression Language.
 
@@ -287,7 +325,7 @@ class MultimodelAgent(CopilotAgent):
         llm = get_llm(model, provider, temperature)
 
         # Use the unified tool loader to get all tools
-        from ..tool_loader import ToolLoader
+        from copilot.core.tool_loader import ToolLoader
 
         tool_loader = ToolLoader()
         _enabled_tools = tool_loader.get_all_tools(
@@ -313,11 +351,11 @@ class MultimodelAgent(CopilotAgent):
 
         if is_code_act_enabled(agent_configuration):
             agent = self._create_code_act_agent(llm, _enabled_tools, system_prompt)
+            agent = agent.compile(checkpointer=checkpointer)
+            agent.get_graph().print_ascii()
         else:
             agent = create_react_agent(
-                model=llm,
-                tools=_enabled_tools,
-                prompt=system_prompt,
+                model=llm, tools=_enabled_tools, prompt=system_prompt, checkpointer=checkpointer
             )
         return agent
 
@@ -336,96 +374,109 @@ class MultimodelAgent(CopilotAgent):
         return agent_exec
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
-        full_question = get_full_question(question)
-        agent = self.get_agent(
-            provider=question.provider,
-            model=question.model,
-            agent_configuration=question,
-            tools=question.tools,
-            system_prompt=question.system_prompt,
-            temperature=question.temperature,
-        )
+        with SqliteSaver.from_conn_string(get_checkpoint_file(question.assistant_id)) as checkpointer:
+            full_question = get_full_question(question)
+            agent = self.get_agent(
+                provider=question.provider,
+                model=question.model,
+                agent_configuration=question,
+                tools=question.tools,
+                system_prompt=question.system_prompt,
+                temperature=question.temperature,
+                checkpointer=checkpointer,
+            )
 
-        # Process local files
-        image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+            # Process local files
+            image_payloads, other_file_paths = process_local_files(question.local_file_ids)
 
-        # Construct messages
-        messages_prev = self._memory.get_memory(question.history, full_question)
-        messages = []
-        messages.extend(messages_prev)
-        if image_payloads or other_file_paths:
-            content = [{"type": "text", "text": full_question}]
-            if image_payloads:
-                content.extend(image_payloads)
-            if other_file_paths:
-                # Attach non-image files as a text block with file paths
-                content.append({"type": "text", "text": "Attached files:\n" + "\n".join(other_file_paths)})
-            messages.append(HumanMessage(content=content))
+            config = build_config(question.conversation_id)
+            # Construct messages array using the unified method
+            has_thread = checkpointer_has_thread(checkpointer, config)
+            messages = self.get_messages_array(
+                full_question, image_payloads, other_file_paths, question, has_thread
+            )
 
-        agent_response = agent.invoke({"system_prompt": question.system_prompt, "messages": messages})
-        new_ai_message = agent_response.get("messages")[-1]
+            agent_response = agent.invoke(
+                {"system_prompt": question.system_prompt, "messages": messages}, config=config
+            )
+            new_ai_message = agent_response.get("messages")[-1]
 
-        return AgentResponse(
-            input=full_question,
-            output=AssistantResponse(
-                response=new_ai_message.content, conversation_id=question.conversation_id
-            ),
-        )
+            return AgentResponse(
+                input=full_question,
+                output=AssistantResponse(
+                    response=new_ai_message.content, conversation_id=question.conversation_id
+                ),
+            )
 
     def get_tools(self):
         return self._configured_tools
 
     async def aexecute(self, question: QuestionSchema) -> AsyncGenerator[AgentResponse, None]:
         copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
+        async with AsyncSqliteSaver.from_conn_string(
+            get_checkpoint_file(question.assistant_id)
+        ) as checkpointer:
+            mcp_servers_config = convert_mcp_servers_config(question.mcp_servers or [])
+            # Get MCP tools asynchronously
+            mcp_tools = await get_mcp_tools(mcp_servers_config)
 
-        mcp_servers_config = convert_mcp_servers_config(question.mcp_servers or [])
-        # Get MCP tools asynchronously
-        mcp_tools = await get_mcp_tools(mcp_servers_config)
+            # Use async agent creation to include MCP tools
+            agent = self.get_agent(
+                provider=question.provider,
+                model=question.model,
+                agent_configuration=question,
+                tools=question.tools,
+                system_prompt=question.system_prompt,
+                temperature=question.temperature,
+                mcp_tools=mcp_tools,
+                checkpointer=checkpointer,
+            )
 
-        # Use async agent creation to include MCP tools
-        agent = self.get_agent(
-            provider=question.provider,
-            model=question.model,
-            agent_configuration=question,
-            tools=question.tools,
-            system_prompt=question.system_prompt,
-            temperature=question.temperature,
-            mcp_tools=mcp_tools,
-        )
+            full_question = get_full_question(question)
 
-        full_question = question.question
+            # Process local files
+            image_payloads, other_file_paths = process_local_files(question.local_file_ids)
 
-        # Process local files
-        image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+            config = build_config(question.conversation_id)
 
-        # Construct messages
-        messages = await self.get_messages_array(full_question, image_payloads, other_file_paths, question)
+            # Construct messages array. If the checkpointer has the thread history, only
+            # the new question is added to the messages.
+            has_thread = await acheckpointer_has_thread(checkpointer, config)
+            messages = self.get_messages_array(
+                full_question, image_payloads, other_file_paths, question, has_thread
+            )
 
-        _input = {
-            "content": full_question,
-            "messages": messages,
-            "system_prompt": question.system_prompt,
-            "thread_id": question.conversation_id,
-        }
-        try:
-            if is_code_act_enabled(agent_configuration=question):
-                agent = agent.compile()
-                agent.get_graph().print_ascii()
-                async for event in agent.astream_events(_input, version="v2"):
-                    response = await handle_events(copilot_stream_debug, event, question.conversation_id)
-                    if response is not None:
-                        yield response
-                return
-            async for response in self._process_regular_agent_events(
-                agent, _input, copilot_stream_debug, question.conversation_id
-            ):
-                yield response
-        except Exception as e:
-            yield AssistantResponse(response=str(e), conversation_id=question.conversation_id, role="error")
+            _input = {
+                "content": full_question,
+                "messages": messages,
+                "system_prompt": question.system_prompt,
+                "thread_id": question.conversation_id,
+            }
+            try:
+                if is_code_act_enabled(agent_configuration=question):
+                    async for event in agent.astream_events(_input, config=config, version="v2"):
+                        response = await handle_events(copilot_stream_debug, event, question.conversation_id)
+                        if response is not None:
+                            yield response
+                    return
+                async for response in self._process_regular_agent_events(
+                    agent,
+                    _input,
+                    copilot_stream_debug,
+                    config=config,
+                    conversation_id=question.conversation_id,
+                ):
+                    yield response
+            except Exception as e:
+                yield AssistantResponse(
+                    response=str(e), conversation_id=question.conversation_id, role="error"
+                )
 
-    async def _process_regular_agent_events(self, agent, _input, copilot_stream_debug, conversation_id):
+    async def _process_regular_agent_events(
+        self, agent, _input, copilot_stream_debug, config, conversation_id
+    ):
         """Process events for regular (non-code-act) agents."""
-        async for event in agent.astream_events(_input, version="v2"):
+        async for event in agent.astream_events(_input, config=config, version="v2"):
             if copilot_stream_debug:
                 yield AssistantResponse(response=str(event), conversation_id="", role="debug")
                 continue
@@ -454,15 +505,31 @@ class MultimodelAgent(CopilotAgent):
                 msg = str(o["text"])
         return msg
 
-    async def get_messages_array(self, full_question, image_payloads, other_file_paths, question):
-        messages = self._memory.get_memory(question.history, full_question)
-        if image_payloads or other_file_paths:
-            content = [{"type": "text", "text": full_question}]
-            if image_payloads:
-                content.extend(image_payloads)
-            if other_file_paths:
-                # Attach non-image files as a text block with file paths
-                content.append({"type": "text", "text": "Attached files:\n" + "\n".join(other_file_paths)})
-            new_human_message = HumanMessage(content=content)
-            messages.append(new_human_message)
+    def get_messages_array(self, full_question, image_payloads, other_file_paths, question, has_thread):
+        """
+        Constructs the array of messages for the agent based on thread status and attachments.
+
+        Args:
+            full_question (str): The full text of the user's question.
+            image_payloads (list): List of image payloads to include in the message.
+            other_file_paths (list): List of paths to other attached files.
+            question (QuestionSchema): The question object containing history and other data.
+            has_thread (bool): True if a thread exists in the checkpointer, False otherwise.
+
+        Returns:
+            list: A list of message objects (HumanMessage, AIMessage) ready for the agent.
+                 - If has_thread is True: Only includes the new question with attachments.
+                 - If has_thread is False: Includes conversation history + new question with attachments.
+        """
+        if has_thread:
+            messages = []
+        else:
+            messages = self._memory.get_memory(question.history, None)  # Only load if no thread
+        content = [{"type": "text", "text": full_question}]
+        if image_payloads:
+            content.extend(image_payloads)
+        if other_file_paths:
+            content.append({"type": "text", "text": "Attached files:\n" + "\n".join(other_file_paths)})
+        new_human_message = HumanMessage(content=content)
+        messages.append(new_human_message)
         return messages

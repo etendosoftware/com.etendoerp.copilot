@@ -13,7 +13,11 @@ ENV PATH="/root/.local/bin:$PATH"
 RUN mkdir -p /venv && cd /venv && uv venv \
     && /venv/.venv/bin/python -m ensurepip --upgrade \
     && /venv/.venv/bin/pip3 install --upgrade pip
+# Create folders
+RUN mkdir /checkpoints
+# Set working directory
 WORKDIR /app
+RUN mkdir vectordbs
 # Install Python dependencies
 COPY ./tools_deps.toml /app-deps/tools_deps.toml
 COPY ./requirements.txt /app-deps/requirements.txt
