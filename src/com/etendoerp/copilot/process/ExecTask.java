@@ -1,9 +1,7 @@
 package com.etendoerp.copilot.process;
 
 
-import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_COMPLETED;
-import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_EVAL;
-import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_IN_PROGRESS;
+import static com.etendoerp.copilot.background.BulkTaskExec.*;
 import static com.etendoerp.copilot.process.AddBulkTasks.getStatus;
 import static com.etendoerp.copilot.rest.RestServiceUtil.APP_ID;
 import static com.etendoerp.copilot.util.CopilotConstants.PROP_QUESTION;
@@ -13,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.etendoerp.copilot.exceptions.CopilotExecutionException;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
@@ -49,14 +48,34 @@ public class ExecTask extends Action {
       }
       OBDal.getInstance().flush();
       SessionHandler.getInstance().commitAndStart();
+      StringBuilder logMessage = new StringBuilder();
       for (Task task : selectedTasks) {
         OBDal.getInstance().refresh(task);
-        processTask(task, null);
+        String logErrorMsg = null;
+        try {
+          processTask(task, null);
+        } catch (CopilotExecutionException e) {
+          log.error("Error processing task " + task.getId() + ": " + e.getMessage(), e);
+          logErrorMsg = e.getMessage();
+          task.setStatus(getStatus(TASK_STATUS_PENDING));
+        }
+        logMessage.append("==============================\n");
+        logMessage.append("Task ID: ").append(task.getId()).append("\n");
+        logMessage.append("Status: ").append(task.getStatus()).append("\n");
+        logMessage.append("Question (Human):\n").append(task.getEtcopQuestion()).append("\n");
+        logMessage.append("Answer (AI):\n").append(task.getEtcopResponse()).append("\n");
+        if (logErrorMsg != null) {
+          logMessage.append("ERROR: ").append(logErrorMsg).append("\n");
+        }
+        logMessage.append("==============================\n\n");
       }
       actionResult.setType(Result.Type.SUCCESS);
-      actionResult.setMessage(new JSONObject().put("message",
+      JSONObject message = new JSONObject();
+      message.put("message",
           String.format(OBMessageUtils.messageBD("ETCOP_ExecTask_Success"), selectedTasks.size())
-      ).toString());
+      );
+      message.put("log", logMessage.toString());
+      actionResult.setMessage(message.toString());
     } catch (Exception e) {
       try {
         actionResult.setMessage("Error during process execution: " + e.getMessage());
@@ -120,7 +139,7 @@ public class ExecTask extends Action {
    * @param logger
    *     the {@link ProcessLogger} used for logging processing steps and errors; may be null
    */
-  public static void processTask(Task task, ProcessLogger logger) {
+  public static void processTask(Task task, ProcessLogger logger) throws CopilotExecutionException {
     try {
       if (logger != null) {
         logger.log("Processing task " + task.getId() + "\n");
@@ -128,11 +147,13 @@ public class ExecTask extends Action {
 
       execTask(task);
       task.setStatus(getStatus(TASK_STATUS_EVAL));
+    } catch (CopilotExecutionException e) {
+      throw e;
     } catch (Exception e) {
       if (logger != null) {
         logger.log("Error processing task " + task.getId() + ": " + e.getMessage() + "\n");
       }
-      task.setStatus(getStatus(TASK_STATUS_IN_PROGRESS));
+      throw new CopilotExecutionException(e);
     } finally {
       OBDal.getInstance().save(task);
       OBDal.getInstance().flush();
@@ -159,14 +180,19 @@ public class ExecTask extends Action {
    * @throws IOException
    *     If an I/O error occurs during the remote service call.
    */
-  public static void execTask(Task task) throws JSONException, IOException {
+  public static void execTask(Task task)
+      throws JSONException, IOException, CopilotExecutionException {
     String question = task.getEtcopQuestion();
     var agent = task.getETCOPAgent();
     JSONObject body = new JSONObject();
     body.put(APP_ID, agent.getId());
     body.put(PROP_QUESTION, question);
-    var responseQuest = RestServiceUtil.handleQuestion(false, null, body);
-    task.setEtcopResponse(responseQuest.toString());
+    try {
+      var responseQuest = RestServiceUtil.handleQuestion(false, null, body);
+      task.setEtcopResponse(responseQuest.toString());
+    } catch (Exception e) {
+      throw new CopilotExecutionException(e);
+    }
 
     OBDal.getInstance().save(task);
     OBDal.getInstance().flush();

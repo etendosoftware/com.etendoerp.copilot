@@ -22,6 +22,8 @@ public class BulkTaskExec extends DalBaseProcess {
   public static final String TASK_STATUS_COMPLETED = "CO";
   public static final String TASK_STATUS_PENDING = "PE";
   public static final String TASK_STATUS_EVAL = "EVAL";
+  public static final String TASK_STATUS_ERROR = "ERR";
+
   private ProcessLogger logger;
   private static final int BATCH_SIZE = 10;
 
