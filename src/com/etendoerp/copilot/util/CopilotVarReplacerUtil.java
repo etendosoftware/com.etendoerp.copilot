@@ -122,7 +122,7 @@ public class CopilotVarReplacerUtil {
         log.error(formattedMsg, e);
         continue;
       }
-      String tokenPlaceholder = "@" + tokenEntry.getKey().toUpperCase() + "@";
+      String tokenPlaceholder = "@" + tokenEntry.getKey() + "@";
       stringParsed = StringUtils.replace(stringParsed, tokenPlaceholder, token);
     }
 
