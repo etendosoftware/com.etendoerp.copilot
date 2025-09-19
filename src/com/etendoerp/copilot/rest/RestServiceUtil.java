@@ -1025,7 +1025,7 @@ public class RestServiceUtil {
    *
    * @return a {@link JSONArray} with assistant id/name objects
    */
-  static JSONArray handleAssistants() {
+  public static JSONArray handleAssistants() {
     try {
       OBContext.setAdminMode();
       //send json of assistants
