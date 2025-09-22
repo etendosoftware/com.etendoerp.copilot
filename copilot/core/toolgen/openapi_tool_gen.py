@@ -185,7 +185,8 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
             field_meta = Field(description=prop_description)
             body_model_fields[prop_name] = (field_type, field_meta)
         else:
-            # Optional field (either not in required list or is nullable)
+            # Optional field - always use default=None for proper Pydantic behavior
+            # The difference for Etendo Headless will be in how we serialize (exclude_unset=True)
             field_meta = Field(description=prop_description, default=None)
             body_model_fields[prop_name] = (Optional[field_type], field_meta)
 
@@ -254,13 +255,22 @@ def _generate_function_code(
     else:
         token_logic = 'auth_token = token if "token" in locals() and token is not None else None'
 
+    # Check if this is an Etendo Headless PUT endpoint (PATCH-like behavior)
+    is_etendo_headless_put = path.startswith(ETENDO_HEADLESS_PATH_PREFIX) and method.lower() == "put"
+
+    # Choose the appropriate model_dump method
+    if is_etendo_headless_put:
+        model_dump_method = "body_params.model_dump(exclude_unset=True)"
+    else:
+        model_dump_method = "body_params.model_dump()"
+
     return f"""
 def _run_dynamic(self, {param_names_str}):
     body_params = None
     if 'body' in locals():
         body_params = body
         if isinstance(body_params, BaseModel):
-            body_params = body_params.model_dump()
+            body_params = {model_dump_method}
 
     # Handle authentication token
     {token_logic}
@@ -382,6 +392,12 @@ def _process_single_operation(
         logger.info(f"  - URL: {url}")
         logger.info(f"  - Endpoint: {path}")
 
+    # Check if this is an Etendo Headless PUT endpoint (PATCH-like behavior)
+    is_etendo_headless_put = path.startswith(ETENDO_HEADLESS_PATH_PREFIX) and method.lower() == "put"
+    if is_etendo_headless_put:
+        logger.info("Etendo Headless PUT endpoint detected - using PATCH-like behavior")
+        logger.info("  - Will use exclude_unset=True for body serialization")
+
     # Log information
     logger.info(f"Generating OpenAPI tool: {tool_name}")
     logger.info(f"  - Method: {method.upper()}")
@@ -390,6 +406,10 @@ def _process_single_operation(
     logger.info(f"  - Parameters: {param_names}")
     if param_mapping:
         logger.info(f"  - Parameter mapping: {param_mapping}")
+    if is_etendo_headless_put:
+        logger.info("  - Body serialization: exclude_unset=True (PATCH-like)")
+    else:
+        logger.info("  - Body serialization: standard model_dump()")
 
     tool_instance = _create_tool_instance(
         tool_name, tool_description, tool_args_schema, generated_run_func, tool_class
