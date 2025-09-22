@@ -74,6 +74,11 @@ def _is_etendo_headless_get(method: str, path: str) -> bool:
     return method.lower() == "get" and path.startswith(ETENDO_HEADLESS_PATH_PREFIX)
 
 
+def _is_etendo_headless_put(method: str, path: str) -> bool:
+    """Check if this is an Etendo Headless PUT endpoint."""
+    return method.lower() == "put" and path.startswith(ETENDO_HEADLESS_PATH_PREFIX)
+
+
 def _process_etendo_headless_param(original_name: str, param: Dict) -> tuple:
     """Process Etendo Headless pagination parameters."""
     if original_name in ETENDO_HEADLESS_PAGINATION_PARAMS:
@@ -255,11 +260,8 @@ def _generate_function_code(
     else:
         token_logic = 'auth_token = token if "token" in locals() and token is not None else None'
 
-    # Check if this is an Etendo Headless PUT endpoint (PATCH-like behavior)
-    is_etendo_headless_put = path.startswith(ETENDO_HEADLESS_PATH_PREFIX) and method.lower() == "put"
-
     # Choose the appropriate model_dump method
-    if is_etendo_headless_put:
+    if _is_etendo_headless_put(method, path):
         model_dump_method = "body_params.model_dump(exclude_unset=True)"
     else:
         model_dump_method = "body_params.model_dump()"
@@ -392,9 +394,7 @@ def _process_single_operation(
         logger.info(f"  - URL: {url}")
         logger.info(f"  - Endpoint: {path}")
 
-    # Check if this is an Etendo Headless PUT endpoint (PATCH-like behavior)
-    is_etendo_headless_put = path.startswith(ETENDO_HEADLESS_PATH_PREFIX) and method.lower() == "put"
-    if is_etendo_headless_put:
+    if _is_etendo_headless_put(method, path):
         logger.info("Etendo Headless PUT endpoint detected - using PATCH-like behavior")
         logger.info("  - Will use exclude_unset=True for body serialization")
 
@@ -406,7 +406,7 @@ def _process_single_operation(
     logger.info(f"  - Parameters: {param_names}")
     if param_mapping:
         logger.info(f"  - Parameter mapping: {param_mapping}")
-    if is_etendo_headless_put:
+    if _is_etendo_headless_put(method, path):
         logger.info("  - Body serialization: exclude_unset=True (PATCH-like)")
     else:
         logger.info("  - Body serialization: standard model_dump()")
