@@ -4,15 +4,15 @@
  * used by the copilot.variables.setup task and the broader Copilot functionality.
  */
 
-// Network and Host Configuration
+
 copilot {
     setup {
-        description = "Run automated copilot configuration setup"
+        description = "Run automated Copilot configuration setup"
         help = "🚀 Executes copilot.variables.setup task to automatically detect and configure optimal Copilot settings based on your Docker setup"
         value = "Execute"
         sensitive = false
         required = true
-        group = "Copilot Configuration"
+        group = "Copilot"
         order = 10
         process = true
         name = "copilot.variables.setup"
@@ -23,7 +23,7 @@ copilot {
         value = "true"
         sensitive = false
         required = true
-        group = "Copilot Configuration"
+        group = "Copilot"
         order = 20
         name = "docker_com.etendoerp.copilot"
     }
@@ -33,7 +33,7 @@ copilot {
         value = "http://localhost:8080/etendo"
         sensitive = false
         required = true
-        group = "Copilot Configuration"
+        group = "Copilot"
         order = 30
         name = "ETENDO_HOST"
     }
@@ -43,7 +43,7 @@ copilot {
         value = "http://tomcat:8080/etendo"
         sensitive = false
         required = true
-        group = "Copilot Configuration"
+        group = "Copilot"
         order = 40
         name = "ETENDO_HOST_DOCKER"
     }
@@ -53,7 +53,7 @@ copilot {
         value = "localhost"
         sensitive = false
         required = true
-        group = "Copilot Configuration"
+        group = "Copilot"
         order = 50
         name = "COPILOT_HOST"
     }
@@ -63,7 +63,7 @@ copilot {
         value = "5005"
         sensitive = false
         required = true
-        group = "Copilot Configuration"
+        group = "Copilot"
         order = 60
         name = "COPILOT_PORT"
     }
@@ -73,7 +73,7 @@ copilot {
         value = "5006"
         sensitive = false
         required = false
-        group = "Copilot Configuration"
+        group = "Copilot"
         order = 70
         name = "COPILOT_PORT_MCP"
     }
@@ -83,7 +83,7 @@ copilot {
         value = ""
         sensitive = true
         required = true
-        group = "Copilot Configuration"
+        group = "Copilot"
         order = 80
         name = "OPENAI_API_KEY"
     }
@@ -96,7 +96,7 @@ copilotAdvanced {
         value = "5100"
         sensitive = false
         required = false
-        group = "Copilot Configuration (Advanced)"
+        group = "Copilot (Advanced)"
         order = 10
         name = "COPILOT_PORT_DEBUG"
     }
@@ -106,7 +106,7 @@ copilotAdvanced {
         value = "false"
         sensitive = false
         required = false
-        group = "Copilot Configuration (Advanced)"
+        group = "Copilot (Advanced)"
         order = 20
         name = "COPILOT_DEBUG"
     }
@@ -116,7 +116,7 @@ copilotAdvanced {
         value = ""
         sensitive = true
         required = false
-        group = "Copilot Configuration (Advanced)"
+        group = "Copilot (Advanced)"
         order = 30
         name = "ANTHROPIC_API_KEY"
     }
@@ -126,7 +126,7 @@ copilotAdvanced {
         value = ""
         sensitive = true
         required = false
-        group = "Copilot Configuration (Advanced)"
+        group = "Copilot (Advanced)"
         order = 40
         name = "GOOGLE_API_KEY"
     }
@@ -136,7 +136,7 @@ copilotAdvanced {
         value = ""
         sensitive = true
         required = false
-        group = "Copilot Configuration (Advanced)"
+        group = "Copilot (Advanced)"
         order = 50
         name = "LANGSMITH_API_KEY"
     }
@@ -146,7 +146,7 @@ copilotAdvanced {
         value = "false"
         sensitive = false
         required = false
-        group = "Copilot Configuration (Advanced)"
+        group = "Copilot (Advanced)"
         order = 60
         name = "LANGSMITH_TRACING"
     }
@@ -156,7 +156,7 @@ copilotAdvanced {
         value = ""
         sensitive = false
         required = false
-        group = "Copilot Configuration (Advanced)"
+        group = "Copilot (Advanced)"
         order = 70
         name = "LANGSMITH_PROJECT"
     }
@@ -166,7 +166,7 @@ copilotAdvanced {
         value = ""
         sensitive = false
         required = false
-        group = "Copilot Configuration (Advanced)"
+        group = "Copilot (Advanced)"
         order = 80
         name = "COPILOT_PROXY_URL"
     }
@@ -176,17 +176,17 @@ copilotAdvanced {
         value = "true"
         sensitive = false
         required = false
-        group = "Copilot Configuration (Advanced)"
+        group = "Copilot (Advanced)"
         order = 90
         name = "docker_com.etendoerp.copilot.litellm"
     }
     litellmProxyPort {
         description = "LiteLLM proxy port"
-        help = "🚪 Port for LiteLLM proxy service when dockerized (default: 4000)"
+        help = "🚪 Port for LiteLLM proxy service when dockerized (default: 4000) (development and testing only)"
         value = "4000"
         sensitive = false
         required = false
-        group = "Copilot Configuration (Advanced)"
+        group = "Copilot (Advanced)"
         order = 100
         name = "COPILOT_LITELLM_PROXY_PORT"
     }
