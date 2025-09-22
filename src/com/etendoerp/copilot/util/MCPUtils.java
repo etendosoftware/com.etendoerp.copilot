@@ -51,25 +51,33 @@ public class MCPUtils {
             CopilotMCP mcpConfig = appMcp.getMCPServer();
             if (mcpConfig != null && mcpConfig.isActive() && StringUtils.isNotEmpty(mcpConfig.getJsonStructure())) {
                 try {
-
-                    JSONObject raw = new JSONObject(mcpConfig.getJsonStructure());
-
+                    String mcpJson = replaceVariables(mcpConfig);
+                    JSONObject raw = new JSONObject(mcpJson);
                     JSONArray normalized = MCPConfigNormalizer.normalizeToArray(raw, mcpConfig.getName());
-
                     for (int i = 0; i < normalized.length(); i++) {
                         JSONObject item = normalized.getJSONObject(i);
-
                         if (!item.has("name") || StringUtils.isBlank(item.optString("name"))) {
                             item.put("name", mcpConfig.getName());
                         }
                         mcpConfigurations.put(item);
                     }
                 } catch (JSONException e) {
-                    log.warn("Invalid JSON structure in MCP configuration: " + mcpConfig.getName(), e);
+                    String errorMsg = "Invalid JSON structure in MCP configuration: " + mcpConfig.getName();
+                    log.error(errorMsg, e);
                 }
             }
         }
-
         return mcpConfigurations;
+    }
+
+    private static String replaceVariables(CopilotMCP mcpConfig) {
+        try {
+            return CopilotVarReplacerUtil.replaceCopilotPromptVariables(mcpConfig.getJsonStructure(), null, false);
+        } catch (Exception ex) {
+            String errorMsg = "Failed to replace variables in MCP: " + mcpConfig.getName();
+            log.error(errorMsg);
+            log.error(ex.getMessage());
+            return mcpConfig.getJsonStructure();
+        }
     }
 }
