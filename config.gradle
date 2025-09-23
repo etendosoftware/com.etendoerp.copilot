@@ -20,7 +20,7 @@ copilot {
     dockerized {
         description = "Enable Copilot to run in Docker container"
         help = "🐳 When enabled, Copilot runs as a Docker service. When disabled, runs as local process"
-        value = "true"
+        value = "false"
         sensitive = false
         required = true
         group = "Copilot"
@@ -50,7 +50,6 @@ copilot {
     copilotHost {
         description = "Copilot service hostname"
         help = "🏠 Hostname for Copilot service ('localhost' for local, 'copilot' for Docker service name)"
-        value = "localhost"
         sensitive = false
         required = true
         group = "Copilot"
@@ -173,7 +172,7 @@ copilotAdvanced {
     dockerized-litellm {
         description = "Enable LiteLLM proxy service"
         help = "🔄 Enable dockerized LiteLLM proxy for model routing (development and testing only)"
-        value = "true"
+        value = "false"
         sensitive = false
         required = false
         group = "Copilot (Advanced)"
