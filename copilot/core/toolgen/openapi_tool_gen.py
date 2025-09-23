@@ -112,8 +112,25 @@ def _process_openapi_parameters(
         param_type_str = param.get("schema", {}).get("type", "string")
         param_description = param.get("description", "")
 
-        # Handle Etendo Headless pagination parameters
         if is_etendo_headless:
+            # For 'q' parameter, add description with operators
+            if original_name == "q":
+                param_description = (
+                    param_description
+                    + """
+Equality and Inequality: Use operators like == for equality and != for inequality to match exact values.
+Case Sensitivity: Use =c= for case-sensitive matches and =ic= for case-insensitive matches, especially useful for string comparisons.
+Range Comparisons: Use operators like >, <, >=, <= to filter data within a certain range.
+Null Checks: Use =is=null to find records with null values and =isnot=null for non-null values.
+String Matching: Use =sw= for "starts with", =ew= for "ends with", and =c= for "contains".
+Case-insensitive versions are also available, such as =isw= and =iew=.
+Set and Existence Checks: Use =ins= to check if a value is in a set, =nis= for not in a set, and =exists to check for existence.
+Logical operators like AND (; or and) and OR (, or or) can be used to combine multiple conditions, allowing for complex queries that can filter data based on multiple criteria simultaneously.
+This flexible querying system enables precise data retrieval tailored to specific needs. If a search term has spaces, it should be enclosed in simple quotes. For example, to search for a name containing the words "John Doe", use q=name=sw='John Doe'.
+"""
+                )
+
+            # Handle Etendo Headless pagination parameters
             etendo_name, etendo_type, etendo_desc = _process_etendo_headless_param(original_name, param)
             if etendo_name:
                 name = etendo_name
@@ -386,8 +403,12 @@ def _process_single_operation(
     # Create tool
     tool_name_raw = f"{method.upper()}{tool_name_base.title()}"
     tool_name = sanitize_tool_name(tool_name_raw)
-    tool_description = operation.get("summary", "No description provided")
-
+    summary = operation.get("summary", "")
+    description = operation.get("description", "")
+    if summary and description:
+        tool_description = summary + "\n" + description
+    else:
+        tool_description = summary or description
     # Log appropriate message based on endpoint type
     if is_etendo_classic:
         logger.info("Etendo classic endpoint detected")
