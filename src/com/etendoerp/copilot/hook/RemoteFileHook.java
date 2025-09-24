@@ -1,7 +1,5 @@
 package com.etendoerp.copilot.hook;
 
-import static com.etendoerp.copilot.util.CopilotUtils.replaceCopilotPromptVariables;
-
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -10,6 +8,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import com.etendoerp.copilot.util.CopilotVarReplacerUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -44,7 +43,7 @@ public class RemoteFileHook implements CopilotFileHook {
       log.debug(String.format("RemoteFileHook for file: %s executed start", hookObject.getName()));
     }
     String url = hookObject.getUrl();
-    url = replaceCopilotPromptVariables(url);
+    url = CopilotVarReplacerUtil.replaceCopilotPromptVariables(url);
     String fileName = hookObject.getFilename();
     //download the file from the URL, preserving the original name, if filename is not empty, use it instead. The file must be
     //stored in a temporary folder.
