@@ -169,7 +169,7 @@ copilotAdvanced {
         order = 80
         name = "COPILOT_PROXY_URL"
     }
-    dockerized-litellm {
+    dockerizedLiteLLM {
         description = "Enable LiteLLM proxy service"
         help = "🔄 Enable dockerized LiteLLM proxy for model routing (development and testing only)"
         value = "false"
