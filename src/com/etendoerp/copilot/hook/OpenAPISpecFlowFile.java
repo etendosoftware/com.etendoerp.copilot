@@ -20,6 +20,7 @@ import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
+import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -134,12 +135,14 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
   }
 
   public static Attachment getAttachment(CopilotFile targetInstance) {
-    OBCriteria<Attachment> attchCriteria = OBDal.getInstance().createCriteria(Attachment.class);
-    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_RECORD, targetInstance.getId()));
-    attchCriteria.add(Restrictions.eq(Attachment.PROPERTY_TABLE,
+    OBCriteria<Attachment> attachCriteria = OBDal.getInstance().createCriteria(Attachment.class);
+    attachCriteria.add(Restrictions.eq(Attachment.PROPERTY_RECORD, targetInstance.getId()));
+    attachCriteria.add(Restrictions.eq(Attachment.PROPERTY_TABLE,
         OBDal.getInstance().get(Table.class, COPILOT_FILE_AD_TABLE_ID)));
-    attchCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
-    return (Attachment) attchCriteria.setMaxResults(1).uniqueResult();
+    attachCriteria.add(Restrictions.ne(Attachment.PROPERTY_ID, targetInstance.getId()));
+    //attachCriteria.add(Restrictions.eq(Attachment.PROPERTY_ORGANIZATION, OBContext.getOBContext().getCurrentOrganization()));
+    attachCriteria.add(Restrictions.eq(Attachment.PROPERTY_CLIENT, OBContext.getOBContext().getCurrentClient()));
+    return (Attachment) attachCriteria.setMaxResults(1).uniqueResult();
   }
 
   /**

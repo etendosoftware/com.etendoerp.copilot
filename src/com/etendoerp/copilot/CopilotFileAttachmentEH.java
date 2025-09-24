@@ -38,7 +38,7 @@ public class CopilotFileAttachmentEH  extends EntityPersistenceEventObserver {
       return;
     }
     Attachment attachment = getAttachment(targetInstance);
-    if(attachment != null && attachment.getClient()==OBContext.getOBContext().getCurrentClient()){
+    if(attachment != null && attachment.getOrganization()==OBContext.getOBContext().getCurrentOrganization()){
       throw new OBException(OBMessageUtils.messageBD("ETCOP_UniqueAttachment"));
     }
   }
