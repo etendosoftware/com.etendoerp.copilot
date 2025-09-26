@@ -3,6 +3,7 @@ package com.etendoerp.copilot.process;
 
 import static com.etendoerp.copilot.background.BulkTaskExec.*;
 import static com.etendoerp.copilot.process.AddBulkTasks.getStatus;
+import static com.etendoerp.copilot.process.EvalTask.evaluateTask;
 import static com.etendoerp.copilot.rest.RestServiceUtil.APP_ID;
 import static com.etendoerp.copilot.util.CopilotConstants.PROP_QUESTION;
 
@@ -12,10 +13,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.etendoerp.copilot.exceptions.CopilotExecutionException;
+import com.etendoerp.asyncprocess.startup.AsyncProcessStartup;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.SessionHandler;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -146,9 +150,11 @@ public class ExecTask extends Action {
       }
 
       execTask(task);
-      task.setStatus(getStatus(TASK_STATUS_EVAL));
-    } catch (CopilotExecutionException e) {
-      throw e;
+      if (isAsyncJobsEnabled()) {
+        task.setStatus(getStatus(TASK_STATUS_EVAL));
+      } else {
+        evaluateTask(task, logger);
+      }
     } catch (Exception e) {
       if (logger != null) {
         logger.log("Error processing task " + task.getId() + ": " + e.getMessage() + "\n");
@@ -207,5 +213,20 @@ public class ExecTask extends Action {
   @Override
   protected Class<Task> getInputClass() {
     return Task.class;
+  }
+
+  /**
+   * Checks if asynchronous jobs are enabled based on the Openbravo properties configuration.
+   *
+   * <p>This method retrieves the `kafka.enable` property from the Openbravo properties file
+   * and compares its value to "true" (case-insensitive). If the property is not defined,
+   * it defaults to "false".
+   *
+   * @return `true` if asynchronous jobs are enabled, otherwise `false`.
+   */
+  private static boolean isAsyncJobsEnabled() {
+    var obProps = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return obProps.containsKey("kafka.enable") && StringUtils.equalsIgnoreCase(
+            obProps.getProperty("kafka.enable", "false"), "true");
   }
 }
