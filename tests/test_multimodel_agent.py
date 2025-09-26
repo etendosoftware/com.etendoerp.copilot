@@ -240,6 +240,8 @@ class TestMultimodelAgent:
         mock_llm = MagicMock()
         mock_get_llm.return_value = mock_llm
         mock_agent = MagicMock()
+        mock_compiled_agent = MagicMock()
+        mock_agent.compile.return_value = mock_compiled_agent
         mock_create_codeact.return_value = mock_agent
 
         # Enable code execution
@@ -257,7 +259,7 @@ class TestMultimodelAgent:
 
         mock_get_llm.assert_called_once()
         mock_create_codeact.assert_called_once()
-        assert result == mock_agent
+        assert result == mock_compiled_agent
 
     @patch("copilot.core.agent.multimodel_agent.get_mcp_tools")
     @patch("copilot.core.agent.multimodel_agent.process_local_files")
@@ -331,7 +333,7 @@ class TestMultimodelAgent:
         # Test the extracted method
         responses = []
         async for response in multimodel_agent._process_regular_agent_events(
-            mock_agent, {}, False, "test_conversation"
+            mock_agent, {}, False, "test_config", "test_conversation"
         ):
             responses.append(response)
 
@@ -354,25 +356,23 @@ class TestMultimodelAgent:
         result = await multimodel_agent.get_messages(output)
         assert result == "Message from list"
 
-    @pytest.mark.asyncio
-    async def test_get_messages_array_no_files(self, multimodel_agent, sample_question_schema):
+    def test_get_messages_array_no_files(self, multimodel_agent, sample_question_schema):
         """Test message array construction without files."""
         with patch.object(multimodel_agent._memory, "get_memory", return_value=[]):
-            result = await multimodel_agent.get_messages_array(
-                "Test question", [], [], sample_question_schema
+            result = multimodel_agent.get_messages_array(
+                "Test question", [], [], sample_question_schema, False
             )
 
             assert isinstance(result, list)
 
-    @pytest.mark.asyncio
-    async def test_get_messages_array_with_files(self, multimodel_agent, sample_question_schema):
+    def test_get_messages_array_with_files(self, multimodel_agent, sample_question_schema):
         """Test message array construction with files."""
         image_payloads = [{"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}]
         other_files = ["/path/to/file.txt"]
 
         with patch.object(multimodel_agent._memory, "get_memory", return_value=[]):
-            result = await multimodel_agent.get_messages_array(
-                "Test question", image_payloads, other_files, sample_question_schema
+            result = multimodel_agent.get_messages_array(
+                "Test question", image_payloads, other_files, sample_question_schema, False
             )
 
             assert isinstance(result, list)

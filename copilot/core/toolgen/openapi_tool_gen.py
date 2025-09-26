@@ -74,6 +74,11 @@ def _is_etendo_headless_get(method: str, path: str) -> bool:
     return method.lower() == "get" and path.startswith(ETENDO_HEADLESS_PATH_PREFIX)
 
 
+def _is_etendo_headless_put(method: str, path: str) -> bool:
+    """Check if this is an Etendo Headless PUT endpoint."""
+    return method.lower() == "put" and path.startswith(ETENDO_HEADLESS_PATH_PREFIX)
+
+
 def _process_etendo_headless_param(original_name: str, param: Dict) -> tuple:
     """Process Etendo Headless pagination parameters."""
     if original_name in ETENDO_HEADLESS_PAGINATION_PARAMS:
@@ -107,8 +112,25 @@ def _process_openapi_parameters(
         param_type_str = param.get("schema", {}).get("type", "string")
         param_description = param.get("description", "")
 
-        # Handle Etendo Headless pagination parameters
         if is_etendo_headless:
+            # For 'q' parameter, add description with operators
+            if original_name == "q":
+                param_description = (
+                    param_description
+                    + """
+Equality and Inequality: Use operators like == for equality and != for inequality to match exact values.
+Case Sensitivity: Use =c= for case-sensitive matches and =ic= for case-insensitive matches, especially useful for string comparisons.
+Range Comparisons: Use operators like >, <, >=, <= to filter data within a certain range.
+Null Checks: Use =is=null to find records with null values and =isnot=null for non-null values.
+String Matching: Use =sw= for "starts with", =ew= for "ends with", and =c= for "contains".
+Case-insensitive versions are also available, such as =isw= and =iew=.
+Set and Existence Checks: Use =ins= to check if a value is in a set, =nis= for not in a set, and =exists to check for existence.
+Logical operators like AND (; or and) and OR (, or or) can be used to combine multiple conditions, allowing for complex queries that can filter data based on multiple criteria simultaneously.
+This flexible querying system enables precise data retrieval tailored to specific needs. If a search term has spaces, it should be enclosed in simple quotes. For example, to search for a name containing the words "John Doe", use q=name=sw='John Doe'.
+"""
+                )
+
+            # Handle Etendo Headless pagination parameters
             etendo_name, etendo_type, etendo_desc = _process_etendo_headless_param(original_name, param)
             if etendo_name:
                 name = etendo_name
@@ -185,7 +207,8 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
             field_meta = Field(description=prop_description)
             body_model_fields[prop_name] = (field_type, field_meta)
         else:
-            # Optional field (either not in required list or is nullable)
+            # Optional field - always use default=None for proper Pydantic behavior
+            # The difference for Etendo Headless will be in how we serialize (exclude_unset=True)
             field_meta = Field(description=prop_description, default=None)
             body_model_fields[prop_name] = (Optional[field_type], field_meta)
 
@@ -254,13 +277,19 @@ def _generate_function_code(
     else:
         token_logic = 'auth_token = token if "token" in locals() and token is not None else None'
 
+    # Choose the appropriate model_dump method
+    if _is_etendo_headless_put(method, path):
+        model_dump_method = "body_params.model_dump(exclude_unset=True)"
+    else:
+        model_dump_method = "body_params.model_dump()"
+
     return f"""
 def _run_dynamic(self, {param_names_str}):
     body_params = None
     if 'body' in locals():
         body_params = body
         if isinstance(body_params, BaseModel):
-            body_params = body_params.model_dump()
+            body_params = {model_dump_method}
 
     # Handle authentication token
     {token_logic}
@@ -307,6 +336,21 @@ def _create_tool_instance(
     return DynamicTool()
 
 
+def normalize(txt: str) -> str:
+    """
+    Normalize a string by converting to lowercase and removing non-alphanumeric characters
+    Args:
+        txt (str): The input string to normalize
+    Returns:
+        str: The normalized string
+    """
+    txt = txt.lower()
+    # remove http:// or https://
+    txt = re.sub(r"https?://", "", txt)
+    txt = re.sub(r"[^a-z0-9.-]", "", txt)
+    return txt
+
+
 def _process_single_operation(
     path: str, method: str, operation: Dict, url: str, type_map: Dict, tool_class
 ) -> Optional[Any]:
@@ -325,7 +369,7 @@ def _process_single_operation(
 
     # Check if this is an Etendo classic endpoint
     etendo_host_docker = get_etendo_host()
-    is_etendo_classic = url == etendo_host_docker
+    is_etendo_classic = normalize(url) == normalize(etendo_host_docker)
 
     # Debug logging
     logger.debug(
@@ -359,13 +403,21 @@ def _process_single_operation(
     # Create tool
     tool_name_raw = f"{method.upper()}{tool_name_base.title()}"
     tool_name = sanitize_tool_name(tool_name_raw)
-    tool_description = operation.get("summary", "No description provided")
-
+    summary = operation.get("summary", "")
+    description = operation.get("description", "")
+    if summary and description:
+        tool_description = summary + "\n" + description
+    else:
+        tool_description = summary or description
     # Log appropriate message based on endpoint type
     if is_etendo_classic:
         logger.info("Etendo classic endpoint detected")
         logger.info(f"  - URL: {url}")
         logger.info(f"  - Endpoint: {path}")
+
+    if _is_etendo_headless_put(method, path):
+        logger.info("Etendo Headless PUT endpoint detected - using PATCH-like behavior")
+        logger.info("  - Will use exclude_unset=True for body serialization")
 
     # Log information
     logger.info(f"Generating OpenAPI tool: {tool_name}")
@@ -375,6 +427,10 @@ def _process_single_operation(
     logger.info(f"  - Parameters: {param_names}")
     if param_mapping:
         logger.info(f"  - Parameter mapping: {param_mapping}")
+    if _is_etendo_headless_put(method, path):
+        logger.info("  - Body serialization: exclude_unset=True (PATCH-like)")
+    else:
+        logger.info("  - Body serialization: standard model_dump()")
 
     tool_instance = _create_tool_instance(
         tool_name, tool_description, tool_args_schema, generated_run_func, tool_class
