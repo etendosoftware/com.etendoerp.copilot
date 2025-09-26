@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-  <database name="TABLE ETCOP_APP_MCP">
-    <table name="ETCOP_APP_MCP" primaryKey="ETCOP_APP_MCP_KEY">
-      <column name="ETCOP_APP_MCP_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+  <database name="TABLE ETCOP_API_TOKEN">
+    <table name="ETCOP_API_TOKEN" primaryKey="ETCOP_API_TOKEN_KEY">
+      <column name="ETCOP_API_TOKEN_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
@@ -33,26 +33,34 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="ETCOP_MCP_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="VALUE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="ETCOP_APP_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+      <column name="AD_USER_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
         <default/>
         <onCreateDefault/>
       </column>
-      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_APP_MCP_APP_FK" onDelete="cascade">
-        <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
-      </foreign-key>
-      <foreign-key foreignTable="AD_CLIENT" name="ETCOP_APP_MCP_CLI_FK">
+      <column name="AD_ROLE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="TOKEN" primaryKey="false" required="true" type="CLOB" size="4000" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="AD_CLIENT" name="ETCOP_API_TOKEN_CLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="AD_ORG" name="ETCOP_APP_MCP_ORG_FK">
+      <foreign-key foreignTable="AD_ORG" name="ETCOP_API_TOKEN_ORG">
         <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
       </foreign-key>
-      <foreign-key foreignTable="ETCOP_MCP" name="ETCOP_APPMCP_MCP_FK" onDelete="cascade">
-        <reference local="ETCOP_MCP_ID" foreign="ETCOP_MCP_ID"/>
+      <foreign-key foreignTable="AD_ROLE" name="ETCOP_API_TOKEN_ROLE">
+        <reference local="AD_ROLE_ID" foreign="AD_ROLE_ID"/>
       </foreign-key>
-      <check name="ETCOP_APP_MCP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <foreign-key foreignTable="AD_USER" name="ETCOP_API_TOKEN_USER">
+        <reference local="AD_USER_ID" foreign="AD_USER_ID"/>
+      </foreign-key>
+      <check name="ETCOP_API_TOKEN_ACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>
   </database>

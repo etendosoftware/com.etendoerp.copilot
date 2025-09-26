@@ -3,6 +3,7 @@ package com.etendoerp.copilot.hook;
 import java.io.IOException;
 import java.net.URL;
 
+import com.etendoerp.copilot.util.CopilotVarReplacerUtil;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -19,7 +20,6 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.FileUtils;
 
 import org.openbravo.model.ad.system.Language;
@@ -50,7 +50,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
     private AttachImplementationManager mockAttachManager;
 
     private MockedStatic<WeldUtils> mockedWeldUtils;
-    private MockedStatic<CopilotUtils> mockedCopilotUtils;
+    private MockedStatic<CopilotVarReplacerUtil> mockedCopilotVarReplacerUtil;
     private MockedStatic<FileUtils> mockedFileUtils;
     private MockedStatic<OBContext> mockedOBContext;
     private RemoteFileHook remoteFileHook;
@@ -80,7 +80,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
                 .thenReturn(mockAttachManager);
         mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
-        mockedCopilotUtils = mockStatic(CopilotUtils.class);
+        mockedCopilotVarReplacerUtil = mockStatic(CopilotVarReplacerUtil.class);
         mockedFileUtils = mockStatic(FileUtils.class);
     }
 
@@ -97,8 +97,8 @@ public class RemoteFileHookTest extends WeldBaseTest {
         if (mockedWeldUtils != null) {
             mockedWeldUtils.close();
         }
-        if (mockedCopilotUtils != null) {
-            mockedCopilotUtils.close();
+        if (mockedCopilotVarReplacerUtil != null) {
+            mockedCopilotVarReplacerUtil.close();
         }
         if (mockedFileUtils != null) {
             mockedFileUtils.close();
@@ -176,7 +176,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
         String fileName = "example.txt";
         when(mockCopilotFile.getUrl()).thenReturn(testUrl);
         when(mockCopilotFile.getFilename()).thenReturn(fileName);
-        mockedCopilotUtils.when(() -> CopilotUtils.replaceCopilotPromptVariables(testUrl))
+        mockedCopilotVarReplacerUtil.when(() -> CopilotVarReplacerUtil.replaceCopilotPromptVariables(testUrl))
                 .thenReturn(testUrl);
 
         // Mock file operations
@@ -204,7 +204,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
         String invalidUrl = "invalid://url";
         when(mockCopilotFile.getUrl()).thenReturn(invalidUrl);
         when(mockCopilotFile.getFilename()).thenReturn("");
-        mockedCopilotUtils.when(() -> CopilotUtils.replaceCopilotPromptVariables(invalidUrl))
+        mockedCopilotVarReplacerUtil.when(() -> CopilotVarReplacerUtil.replaceCopilotPromptVariables(invalidUrl))
                 .thenReturn(invalidUrl);
 
         mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_FileDownErr"))

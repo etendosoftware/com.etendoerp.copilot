@@ -24,7 +24,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -32,7 +31,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
@@ -465,100 +463,16 @@ public class CopilotUtils {
 
     promptBuilder.append(getAppSourceContent(appSourcesToAppend, CopilotConstants.FILE_BEHAVIOUR_SYSTEM));
 
-    return replaceCopilotPromptVariables(promptBuilder.toString());
+    return CopilotVarReplacerUtil.replaceCopilotPromptVariables(promptBuilder.toString());
   }
 
-  /**
-   * Replaces Copilot prompt variables in the given string.
-   * <p>
-   * This method replaces placeholders in the provided string with their corresponding
-   * values. It uses a default empty {@link JSONObject} for variable mappings.
-   * If an error occurs during the replacement process, a {@link RuntimeException} is thrown.
-   *
-   * @param string
-   *     The input string containing placeholders to be replaced.
-   * @return A {@link String} with the placeholders replaced by their corresponding values.
-   * @throws RuntimeException
-   *     If a {@link JSONException} occurs during the replacement process.
-   */
-  public static String replaceCopilotPromptVariables(String string) {
-    try {
-      return replaceCopilotPromptVariables(string, new JSONObject());
-    } catch (JSONException e) {
-      throw new OBException(e);
-    }
-  }
 
-  /**
-   * This method is used to replace a specific placeholder in a string with the
-   * host name of Etendo.
-   * The placeholder is "@ETENDO_HOST@" and it is replaced with the value returned
-   * by the getEtendoHost() method.
-   *
-   * @param string
-   *     The string in which the placeholder is to be replaced. It is
-   *     expected to contain "@ETENDO_HOST@".
-   * @param maps
-   *     A JSONObject containing key-value pairs to replace in the
-   *     string.
-   * @return The string with the placeholder "@ETENDO_HOST@" replaced by the host
-   *     name of Etendo.
-   * @throws JSONException
-   *     If an error occurs while parsing the JSON object.
-   */
-  public static String replaceCopilotPromptVariables(String string, JSONObject maps) throws JSONException {
-    OBContext obContext = OBContext.getOBContext();
-    String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", getEtendoHost());
-    stringParsed = StringUtils.replace(stringParsed, "@ETENDO_HOST_DOCKER@", getEtendoHostDocker());
-    if (obContext.getCurrentClient() != null) {
-      stringParsed = StringUtils.replace(stringParsed, "@AD_CLIENT_ID@", obContext.getCurrentClient().getId());
-    }
-    if (obContext.getCurrentClient() != null) {
-      stringParsed = StringUtils.replace(stringParsed, "@CLIENT_NAME@", obContext.getCurrentClient().getName());
-    }
-    if (obContext.getCurrentOrganization() != null) {
-      stringParsed = StringUtils.replace(stringParsed, "@AD_ORG_ID@", obContext.getCurrentOrganization().getId());
-    }
-    if (obContext.getCurrentOrganization() != null) {
-      stringParsed = StringUtils.replace(stringParsed, "@ORG_NAME@", obContext.getCurrentOrganization().getName());
-    }
-    if (obContext.getUser() != null) {
-      stringParsed = StringUtils.replace(stringParsed, "@AD_USER_ID@", obContext.getUser().getId());
-      stringParsed = StringUtils.replace(stringParsed, "@USERNAME@", obContext.getUser().getUsername());
-    }
-    if (obContext.getRole() != null) {
-      stringParsed = StringUtils.replace(stringParsed, "@AD_ROLE_ID@", obContext.getRole().getId());
-      stringParsed = StringUtils.replace(stringParsed, "@ROLE_NAME@", obContext.getRole().getName());
-    }
-    if (obContext.getWarehouse() != null) {
-      stringParsed = StringUtils.replace(stringParsed, "@M_WAREHOUSE_ID@", obContext.getWarehouse().getId());
-      stringParsed = StringUtils.replace(stringParsed, "@WAREHOUSE_NAME@", obContext.getWarehouse().getName());
-    }
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    stringParsed = StringUtils.replace(stringParsed, "@source.path@", getSourcesPath(properties));
 
-    if (maps != null) {
-      Map<String, String> replacements = new HashMap<>();
-      Iterator<String> keys = maps.keys();
-      while (keys.hasNext()) {
-        String key = keys.next();
-        Object value = maps.get(key);
-        if (value instanceof String || value instanceof Boolean) {
-          replacements.put(key, value.toString());
-        }
-      }
-      StrSubstitutor sub = new StrSubstitutor(replacements);
-      stringParsed = sub.replace(stringParsed);
-    }
 
-    stringParsed = stringParsed.replace("{", "{{").replace("}", "}}");
 
-    if (StringUtils.countMatches(stringParsed, "{{") != StringUtils.countMatches(stringParsed, "}}")) {
-      throw new OBException(OBMessageUtils.messageBD("ETCOP_BalancedBrackets"));
-    }
 
-    return stringParsed;
-  }
+
+
 
   /**
    * Retrieves the source path from the provided properties.

@@ -38,10 +38,10 @@ public class MCPUtilsTest extends WeldBaseTest {
   public void setUp() throws Exception {
     super.setUp();
     OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN, TestConstants.Clients.FB_GRP,
-        TestConstants.Orgs.ESP_NORTE);
+            TestConstants.Orgs.ESP_NORTE);
     VariablesSecureApp vsa = new VariablesSecureApp(OBContext.getOBContext().getUser().getId(),
-        OBContext.getOBContext().getCurrentClient().getId(), OBContext.getOBContext().getCurrentOrganization().getId(),
-        OBContext.getOBContext().getRole().getId());
+            OBContext.getOBContext().getCurrentClient().getId(), OBContext.getOBContext().getCurrentOrganization().getId(),
+            OBContext.getOBContext().getRole().getId());
     RequestContext.get().setVariableSecureApp(vsa);
   }
 
@@ -49,7 +49,7 @@ public class MCPUtilsTest extends WeldBaseTest {
   public void testGetMCPConfigurations_WithValidConfiguration() throws JSONException {
     // Arrange
     CopilotApp copilotApp = mock(CopilotApp.class);
-    
+
     CopilotMCP mcpConfig = mock(CopilotMCP.class);
     when(mcpConfig.isActive()).thenReturn(true);
     when(mcpConfig.getName()).thenReturn("filesystem");
@@ -75,7 +75,7 @@ public class MCPUtilsTest extends WeldBaseTest {
       // Assert
       assertNotNull(result);
       assertEquals(1, result.length());
-      
+
       JSONObject config = result.getJSONObject(0);
       assertEquals("filesystem", config.getString("name"));
       assertEquals("npx", config.getString("command"));
@@ -110,7 +110,7 @@ public class MCPUtilsTest extends WeldBaseTest {
   public void testGetMCPConfigurations_WithInactiveServer() throws JSONException {
     // Arrange
     CopilotApp copilotApp = mock(CopilotApp.class);
-    
+
     CopilotMCP mcpConfig = mock(CopilotMCP.class);
     when(mcpConfig.isActive()).thenReturn(false);
     when(mcpConfig.getName()).thenReturn("inactive_server");
@@ -143,7 +143,7 @@ public class MCPUtilsTest extends WeldBaseTest {
   public void testGetMCPConfigurations_WithInvalidJson() throws JSONException {
     // Arrange
     CopilotApp copilotApp = mock(CopilotApp.class);
-    
+
     CopilotMCP mcpConfig = mock(CopilotMCP.class);
     when(mcpConfig.isActive()).thenReturn(true);
     when(mcpConfig.getName()).thenReturn("invalid_server");
