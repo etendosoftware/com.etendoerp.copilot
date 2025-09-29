@@ -4,9 +4,9 @@ services:
       context: ../copilot
       dockerfile: ../copilot/Dockerfile
     ports:
-      - "${COPILOT_PORT}:${COPILOT_PORT}"
-      - "${COPILOT_PORT_DEBUG}:${COPILOT_PORT_DEBUG}"
-      - "${COPILOT_PORT_MCP}:${COPILOT_PORT_MCP}"
+      - "${COPILOT_PORT:-5005}:${COPILOT_PORT:-5005}"
+      - "${COPILOT_PORT_DEBUG:-5100}:${COPILOT_PORT_DEBUG:-5100}"
+      - "${COPILOT_PORT_MCP:-5006}:${COPILOT_PORT_MCP:-5006}"
     env_file: ".env"
     volumes:
       - ../copilot:/app/
