@@ -7,6 +7,8 @@ from typing import Any, Dict, List
 
 import numpy as np  # For numerical operations in selection
 import pandas as pd
+from copilot.core.utils import get_proxy_url
+from langchain.chat_models import init_chat_model
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
 from langchain_core.messages import SystemMessage
 from langchain_core.output_parsers import (
@@ -361,7 +363,7 @@ def generate_templates_via_llm(
         print("CRITICAL ERROR: The OPENAI_API_KEY environment variable is not set.")
         return [], {"status": "OPENAI_API_KEY not set"}
     try:
-        llm = ChatOpenAI(model_name=model_name, temperature=temperature)
+        llm = init_chat_model(model=model_name, temperature=temperature, base_url=get_proxy_url())
     except Exception as e:
         print(f"CRITICAL ERROR: Failed to initialize LLM '{model_name}': {e}")
         traceback.print_exc()
