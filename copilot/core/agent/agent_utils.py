@@ -2,6 +2,8 @@ import base64
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
+from copilot.core.utils import is_docker
+
 
 def process_local_files(local_file_ids: Union[str, List[str]]) -> Tuple[List[Dict], List[str]]:
     """Process local file IDs, returning image payloads and a list of other file
@@ -95,3 +97,54 @@ def split_file_paths(local_file_ids):
     else:
         file_paths = local_file_ids
     return file_paths
+
+
+def get_checkpoint_file(agent_id: str):
+    """
+    Returns the file path for the checkpoint SQLite file associated with a given agent ID.
+
+    The function determines the base directory for checkpoints based on whether the code is running inside a Docker container.
+    It ensures the checkpoint directory exists, then constructs and returns the full path to the agent's checkpoint file.
+
+    Args:
+        agent_id (str): The unique identifier for the agent.
+
+    Returns:
+        str: The full file path to the agent's checkpoint SQLite file.
+    """
+    if not agent_id:
+        agent_id = "default_"
+    if is_docker():
+        base = "/checkpoints/"
+    else:
+        base = "./checkpoints/"
+    Path(base).mkdir(parents=True, exist_ok=True)
+    return base + agent_id + "_checkpoints.sqlite"
+
+
+async def acheckpointer_has_thread(checkpointer, config):
+    """
+    Asynchronously checks if a thread exists in the checkpointer for the given configuration.
+    Args:
+        checkpointer: The checkpointer instance (e.g., AsyncSqliteSaver) to query.
+        config: The configuration object for the thread.
+
+    Returns:
+        bool: True if thread data exists, False otherwise.
+    """
+    thread_data = await checkpointer.aget(config=config)
+    return thread_data is not None  # if not none, thread exists
+
+
+def checkpointer_has_thread(checkpointer, config):
+    """
+    Synchronously checks if a thread exists in the checkpointer for the given configuration.
+    Args:
+        checkpointer: The checkpointer instance (e.g., SqliteSaver) to query.
+        config: The configuration object for the thread.
+
+    Returns:
+        bool: True if thread data exists, False otherwise.
+    """
+    thread_data = checkpointer.get(config=config)
+    return thread_data is not None  # if not none, thread exists
