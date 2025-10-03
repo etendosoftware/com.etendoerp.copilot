@@ -9,6 +9,7 @@ from langchain_core.runnables import AddableDict
 
 from .. import utils
 from ..schemas import QuestionSchema
+from ..utils import get_openai_client
 from .agent import AgentResponse, AssistantResponse, CopilotAgent
 
 
@@ -26,7 +27,9 @@ class AssistantAgent(CopilotAgent):
         return self._assistant_id
 
     def get_agent(self, assistant_id: str) -> OpenAIAssistantV2Runnable:
-        agent = OpenAIAssistantV2Runnable(assistant_id=assistant_id, as_agent=True)
+        agent = OpenAIAssistantV2Runnable(
+            client=get_openai_client(), assistant_id=assistant_id, as_agent=True
+        )
         return agent
 
     def get_agent_executor(self, agent: OpenAIAssistantV2Runnable) -> AgentExecutor:

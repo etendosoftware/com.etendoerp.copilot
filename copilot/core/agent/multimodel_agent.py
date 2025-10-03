@@ -14,7 +14,6 @@ from copilot.core.agent.agent_utils import (
     acheckpointer_has_thread,
     checkpointer_has_thread,
     get_checkpoint_file,
-    process_local_files,
 )
 from langchain.agents import (
     AgentExecutor,
@@ -37,7 +36,8 @@ from ..langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..threadcontext import ThreadContext
-from ..utils import get_full_question, is_debug_enabled
+from ..utils import get_full_question, get_proxy_url, is_debug_enabled
+from .agent_utils import process_local_files
 from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
 from .langgraph_agent import build_config, handle_events
 
@@ -103,7 +103,9 @@ def get_llm(model, provider, temperature):
         )
 
     else:
-        llm = init_chat_model(model_provider=provider, model=model, temperature=temperature)
+        llm = init_chat_model(
+            model_provider=provider, model=model, temperature=temperature, base_url=get_proxy_url()
+        )
     # Adjustments for specific models, because some models have different
     # default parameters
     model_config = get_model_config(provider, model)

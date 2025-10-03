@@ -10,7 +10,6 @@ def get_request_context():
 
 
 class ThreadContext:
-
     @classmethod
     def identifier_data(cls):
         return ""
@@ -23,5 +22,5 @@ class ThreadContext:
     def get_data(cls, key):
         """Get a value for a specific key, isolated by thread."""
         data = get_request_context()[key]
-        copilot_debug('  data: ' + str(data))
+        copilot_debug("  data: " + str(data))
         return data

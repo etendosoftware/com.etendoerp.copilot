@@ -7,6 +7,7 @@ from copilot.core.agent.agent import (
     CopilotAgent,
     get_kb_tool,
 )
+from copilot.core.utils import get_proxy_url
 from langchain.agents import (
     AgentExecutor,
     AgentOutputParser,
@@ -88,7 +89,11 @@ class LangchainAgent(CopilotAgent):
         self, open_ai_model, tools, system_prompt, temperature=1, kb_vectordb_id: Optional[str] = None
     ):
         _llm = init_chat_model(
-            temperature=temperature, model_provider="openai", model=open_ai_model, streaming=False
+            temperature=temperature,
+            model_provider="openai",
+            model=open_ai_model,
+            streaming=False,
+            base_url=get_proxy_url(),
         )
         _enabled_tools = self.get_functions(tools)
 

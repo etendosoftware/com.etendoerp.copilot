@@ -1,0 +1,16 @@
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    env_file: ".env"
+    # Mount a local litellm_config.yaml into the container as /app/config.yaml
+    volumes:
+      - ../copilot/litellm/:/app-config/:ro
+    # Expose the HTTP API port used by litellm
+    ports:
+      - "${COPILOT_LITELLM_PROXY_PORT:-4000}:4000"
+
+    # Pass the same arguments used in the provided docker run example
+    command: [ "--config", "/app-config/litellm_config.yaml", "--detailed_debug" ]
+
+    networks:
+      - etendo

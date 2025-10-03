@@ -78,3 +78,4 @@ checkpoints.sqlite-wal
 copilotAttachedFiles/*
 out/production/resources/META-INF/beans.xml
 evaluation_output/*
+bin/
