@@ -24,3 +24,8 @@ class ThreadContext:
         data = get_request_context()[key]
         copilot_debug("  data: " + str(data))
         return data
+
+    @classmethod
+    def has_data(cls, key):
+        """Check if a specific key exists in the context."""
+        return key in get_request_context()

@@ -64,6 +64,7 @@ def _response(response: AssistantResponse):
                     "response": response.response,
                     "conversation_id": response.conversation_id,
                     "role": response.role,
+                    "metadata": response.metadata,
                 }
             }
         )

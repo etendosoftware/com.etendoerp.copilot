@@ -148,3 +148,24 @@ def checkpointer_has_thread(checkpointer, config):
     """
     thread_data = checkpointer.get(config=config)
     return thread_data is not None  # if not none, thread exists
+
+
+def build_metadata(usage_data):
+    """
+    Builds metadata dictionary from usage data.
+    Args:
+        usage_data (dict): A dictionary containing usage data with keys 'input_tokens'
+        and 'output_tokens'.
+    Returns:
+        dict: A dictionary containing 'input_tokens', 'output_tokens',
+        and 'total_tokens'.
+    If usage_data is None or empty, returns an empty dictionary.
+    """
+    metadata = {}
+    if usage_data:
+        metadata = {
+            "input_tokens": usage_data.get("input_tokens", 0),
+            "output_tokens": usage_data.get("output_tokens", 0),
+            "total_tokens": usage_data.get("input_tokens", 0) + usage_data.get("output_tokens", 0),
+        }
+    return metadata
