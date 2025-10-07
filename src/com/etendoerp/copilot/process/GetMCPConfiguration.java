@@ -388,7 +388,7 @@ public class GetMCPConfiguration extends Action {
    *
    * @param json the pretty-printed JSON text to include inside the {@code <code>} element.
    * @param idSuffix a unique suffix for the HTML element IDs to avoid collisions.
-   * @param platform a human-readable platform name to display in the header (e.g. "VSCode" or "Other IDEs").
+   * @param platform a human-readable platform name to display in the header (e.g. "VSCode" or "Other Clients").
    * @return an HTML fragment with the {@code <pre><code>} block, a copy button and a small inline script as fallback.
    */
   public String buildCodeBlock(String json, String idSuffix, String platform) {
