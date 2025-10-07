@@ -1,22 +1,21 @@
 package com.etendoerp.copilot.util;
 
-import com.etendoerp.copilot.data.Conversation;
-import com.etendoerp.copilot.data.CopilotApp;
-import com.etendoerp.copilot.data.Message;
+import java.util.Date;
+import java.util.List;
 
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
-import org.hibernate.query.Query;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 
-import java.util.Date;
-import java.util.List;
+import com.etendoerp.copilot.data.Conversation;
+import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.Message;
 
 public class TrackingUtil {
 
@@ -56,13 +55,16 @@ public class TrackingUtil {
     return conversation;
   }
 
-  private void createMessage(String conversationId, String messageRole, String question, CopilotApp app) {
+
+  private void createMessage(String conversationId, String messageRole, String question, CopilotApp app,
+      JSONObject metadata) {
     Message message = new Message();
     Conversation conversation = getConversation(conversationId, app);
     conversation.setLastMsg(new Date());
     message.setConversation(conversation);
     message.setMessage(question);
     message.setRole(messageRole);
+    message.setMetadata(metadata != null ? metadata.toString() : null);
 
     OBCriteria<Message> messCrit = OBDal.getInstance().createCriteria(Message.class);
     messCrit.add(Restrictions.eq(Message.PROPERTY_CONVERSATION, conversation));
@@ -79,19 +81,53 @@ public class TrackingUtil {
     OBDal.getInstance().flush();
   }
 
+  /**
+   * Tracks a user question in a conversation by creating a message with the user role.
+   *
+   * @param conversationId the unique identifier of the conversation
+   * @param question the user's question to be tracked
+   * @param app the CopilotApp instance associated with the conversation
+   */
   public void trackQuestion(String conversationId, String question, CopilotApp app) {
-    createMessage(conversationId, CopilotConstants.MESSAGE_USER, question, app);
+    createMessage(conversationId, CopilotConstants.MESSAGE_USER, question, app, null);
   }
 
-  public void trackResponse(String conversationId, String string, CopilotApp app) {
-    trackResponse(conversationId, string, app, false);
+  /**
+   * Tracks a response in a conversation by creating a message with the assistant role.
+   * This is a convenience method that calls the full trackResponse method with isError set to false.
+   *
+   * @param conversationId the unique identifier of the conversation
+   * @param string the response content to be tracked
+   * @param app the CopilotApp instance associated with the conversation
+   * @param metadata additional metadata associated with the response
+   */
+  public void trackResponse(String conversationId, String string, CopilotApp app, JSONObject metadata) {
+    trackResponse(conversationId, string, app, false, metadata);
   }
 
-  public void trackResponse(String conversationId, String string, CopilotApp app, boolean isError) {
+  /**
+   * Tracks a response in a conversation by creating a message with either assistant or error role.
+   *
+   * @param conversationId the unique identifier of the conversation
+   * @param string the response content to be tracked
+   * @param app the CopilotApp instance associated with the conversation
+   * @param isError whether this response represents an error (true) or a normal response (false)
+   * @param metadata additional metadata associated with the response
+   */
+  public void trackResponse(String conversationId, String string, CopilotApp app, boolean isError,
+      JSONObject metadata) {
     String messageRole = isError ? CopilotConstants.MESSAGE_ERROR : CopilotConstants.MESSAGE_ASSISTANT;
-    createMessage(conversationId, messageRole, string, app);
+    createMessage(conversationId, messageRole, string, app, metadata);
   }
 
+  /**
+   * Retrieves the conversation history for a given conversation ID.
+   * Returns all messages in the conversation ordered by creation date in ascending order.
+   *
+   * @param conversationId the unique identifier of the conversation
+   * @return a JSONArray containing the conversation history with role and content for each message
+   * @throws JSONException if there's an error creating the JSON response
+   */
   public static JSONArray getHistory(String conversationId) throws JSONException {
     List<Message> messages = OBDal.getInstance()
         .createQuery(Message.class,

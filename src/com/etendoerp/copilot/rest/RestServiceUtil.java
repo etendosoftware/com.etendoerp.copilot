@@ -108,6 +108,7 @@ public class RestServiceUtil {
   public static final String PROP_KB_SEARCH_K = "kb_search_k";
   public static final String PROP_AD_USER_ID = "ad_user_id";
   public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
+  public static final String METADATA = "metadata";
 
   private RestServiceUtil() {
   }
@@ -697,10 +698,10 @@ public class RestServiceUtil {
     if (StringUtils.isEmpty(response)) {
       throw new OBException(String.format(OBMessageUtils.messageBD(ETCOP_COPILOT_ERROR), "Empty response"));
     }
-
+    JSONObject metadata = finalResponseAsync.optJSONObject(METADATA);
     addTimestampToResponse(responseOriginal);
     TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
-    TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp, metadata);
 
     return responseOriginal;
   }
@@ -720,7 +721,7 @@ public class RestServiceUtil {
     // Note: This appears to be a bug in the original code - finalResponseAsync is null but we're calling methods on it
     // Keeping the original logic for backward compatibility
     TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
-    TrackingUtil.getInstance().trackResponse(conversationId, "", copilotApp, true);
+    TrackingUtil.getInstance().trackResponse(conversationId, "", copilotApp, true,null);
   }
 
   /**
@@ -763,6 +764,7 @@ public class RestServiceUtil {
   public static String extractResponse(JSONObject finalResponseAsync, JSONObject responseOriginal,
       String conversationId) throws JSONException {
     String response = null;
+    JSONObject metadata = new JSONObject();
 
     if (finalResponseAsync.has(PROP_ANSWER)) {
       JSONObject answer = (JSONObject) finalResponseAsync.get(PROP_ANSWER);
@@ -773,12 +775,14 @@ public class RestServiceUtil {
       }
       responseOriginal.put(PROP_RESPONSE, answer.get(PROP_RESPONSE));
       response = responseOriginal.getString(PROP_RESPONSE);
+      metadata = answer.optJSONObject(METADATA);
     } else if (finalResponseAsync.has(PROP_RESPONSE)) {
       response = finalResponseAsync.getString(PROP_RESPONSE);
       if (finalResponseAsync.has(PROP_CONVERSATION_ID)) {
         responseOriginal.put(PROP_CONVERSATION_ID, finalResponseAsync.get(PROP_CONVERSATION_ID));
         conversationId = finalResponseAsync.optString(PROP_CONVERSATION_ID);
       }
+      metadata = finalResponseAsync.optJSONObject(METADATA);
     }
 
     return response;
