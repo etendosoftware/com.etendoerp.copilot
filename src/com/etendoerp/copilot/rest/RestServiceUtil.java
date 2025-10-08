@@ -73,6 +73,32 @@ import com.etendoerp.copilot.util.WebhookPermissionUtils;
 
 public class RestServiceUtil {
 
+  /**
+   * Result class to encapsulate the response data extracted from Copilot's response.
+   */
+  public static class ExtractedResponse {
+    private final String response;
+    private final String conversationId;
+    private final JSONObject metadata;
+
+    public ExtractedResponse(String response, String conversationId, JSONObject metadata) {
+      this.response = response;
+      this.conversationId = conversationId;
+      this.metadata = metadata != null ? metadata : new JSONObject();
+    }
+
+    public String getResponse() {
+      return response;
+    }
+
+    public String getConversationId() {
+      return conversationId;
+    }
+
+    public JSONObject getMetadata() {
+      return metadata;
+    }
+  }
 
   public static final Logger log = LogManager.getLogger(RestServiceUtil.class);
 
@@ -675,7 +701,7 @@ public class RestServiceUtil {
    * @param copilotApp
    *     the assistant used to serve the request
    * @return a {@link JSONObject} ready to be returned to the client containing the app id,
-   *     conversation id (if present), response text and timestamp
+   *     conversation id (if present), response text, metadata (if present), and timestamp
    * @throws JSONException
    *     when assembling the resulting JSON fails
    */
@@ -693,12 +719,15 @@ public class RestServiceUtil {
       handleMissingAnswer(finalResponseAsync);
     }
 
-    String response = extractResponse(finalResponseAsync, responseOriginal, conversationId);
+    ExtractedResponse extractedResponse = extractResponse(finalResponseAsync, responseOriginal, conversationId);
+    String response = extractedResponse.getResponse();
+    conversationId = extractedResponse.getConversationId();
+    JSONObject metadata = extractedResponse.getMetadata();
 
     if (StringUtils.isEmpty(response)) {
       throw new OBException(String.format(OBMessageUtils.messageBD(ETCOP_COPILOT_ERROR), "Empty response"));
     }
-    JSONObject metadata = finalResponseAsync.optJSONObject(METADATA);
+
     addTimestampToResponse(responseOriginal);
     TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
     TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp, metadata);
@@ -747,7 +776,7 @@ public class RestServiceUtil {
   }
 
   /**
-   * Extract the textual response and conversation id from Copilot's response structure.
+   * Extract the textual response, conversation id, and metadata from Copilot's response structure.
    * Supports both the nested {@code answer} object shape and the older flat {@code response}
    * format.
    *
@@ -757,11 +786,11 @@ public class RestServiceUtil {
    *     the object that will be populated with extracted fields
    * @param conversationId
    *     the conversation id passed by the caller (may be updated from the response)
-   * @return the extracted response text
+   * @return an {@link ExtractedResponse} containing the response text, conversation id, and metadata
    * @throws JSONException
    *     when required fields are missing or parsing fails
    */
-  public static String extractResponse(JSONObject finalResponseAsync, JSONObject responseOriginal,
+  public static ExtractedResponse extractResponse(JSONObject finalResponseAsync, JSONObject responseOriginal,
       String conversationId) throws JSONException {
     String response = null;
     JSONObject metadata = new JSONObject();
@@ -785,7 +814,12 @@ public class RestServiceUtil {
       metadata = finalResponseAsync.optJSONObject(METADATA);
     }
 
-    return response;
+    // Add metadata to the response object if it exists
+    if (metadata != null && metadata.length() > 0) {
+      responseOriginal.put(METADATA, metadata);
+    }
+
+    return new ExtractedResponse(response, conversationId, metadata);
   }
 
   /**

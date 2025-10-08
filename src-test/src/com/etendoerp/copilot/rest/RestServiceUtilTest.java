@@ -223,9 +223,38 @@ class RestServiceUtilTest {
     answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
     JSONObject finalResponseAsync = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
     JSONObject responseOriginal = new JSONObject();
-    String result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
-    Assertions.assertEquals(LIT_RESPONSE_TEXT, result);
+    RestServiceUtil.ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
+    Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
     Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+    // Verify metadata is empty when not provided
+    Assertions.assertNotNull(result.getMetadata());
+    Assertions.assertEquals(0, result.getMetadata().length());
+  }
+
+  @Test
+  void testExtractResponseWithAnswerAndMetadata() throws JSONException {
+    JSONObject metadata = new JSONObject();
+    metadata.put("model", "gpt-4");
+    metadata.put("tokens", 150);
+
+    JSONObject answer = new JSONObject();
+    answer.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_TEXT);
+    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
+    answer.put(RestServiceUtil.METADATA, metadata);
+    JSONObject finalResponseAsync = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
+    JSONObject responseOriginal = new JSONObject();
+    RestServiceUtil.ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
+    Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
+    Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+    // Verify metadata is correctly extracted
+    Assertions.assertNotNull(result.getMetadata());
+    Assertions.assertEquals("gpt-4", result.getMetadata().getString("model"));
+    Assertions.assertEquals(150, result.getMetadata().getInt("tokens"));
+    // Verify metadata is also added to responseOriginal
+    Assertions.assertTrue(responseOriginal.has(RestServiceUtil.METADATA));
+    Assertions.assertEquals("gpt-4", responseOriginal.getJSONObject(RestServiceUtil.METADATA).getString("model"));
   }
 
   @Test
@@ -234,9 +263,55 @@ class RestServiceUtilTest {
     finalResponseAsync.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_TEXT);
     finalResponseAsync.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
     JSONObject responseOriginal = new JSONObject();
-    String result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
-    Assertions.assertEquals(LIT_RESPONSE_TEXT, result);
+    RestServiceUtil.ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
+    Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
     Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+    // Verify metadata is empty when not provided
+    Assertions.assertNotNull(result.getMetadata());
+    Assertions.assertEquals(0, result.getMetadata().length());
+  }
+
+  @Test
+  void testExtractResponseWithResponseAndMetadata() throws JSONException {
+    JSONObject metadata = new JSONObject();
+    metadata.put("provider", "openai");
+    metadata.put("usage", 75);
+
+    JSONObject finalResponseAsync = new JSONObject();
+    finalResponseAsync.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_TEXT);
+    finalResponseAsync.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
+    finalResponseAsync.put(RestServiceUtil.METADATA, metadata);
+    JSONObject responseOriginal = new JSONObject();
+    RestServiceUtil.ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
+    Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
+    Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+    // Verify metadata is correctly extracted
+    Assertions.assertNotNull(result.getMetadata());
+    Assertions.assertEquals("openai", result.getMetadata().getString("provider"));
+    Assertions.assertEquals(75, result.getMetadata().getInt("usage"));
+    // Verify metadata is also added to responseOriginal
+    Assertions.assertTrue(responseOriginal.has(RestServiceUtil.METADATA));
+    Assertions.assertEquals("openai", responseOriginal.getJSONObject(RestServiceUtil.METADATA).getString("provider"));
+  }
+
+  @Test
+  void testExtractResponseWithNullMetadata() throws JSONException {
+    JSONObject answer = new JSONObject();
+    answer.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_TEXT);
+    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
+    answer.put(RestServiceUtil.METADATA, (Object) null); // Explicitly null metadata
+    JSONObject finalResponseAsync = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
+    JSONObject responseOriginal = new JSONObject();
+    RestServiceUtil.ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
+    Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
+    // Verify metadata is handled as empty when null
+    Assertions.assertNotNull(result.getMetadata());
+    Assertions.assertEquals(0, result.getMetadata().length());
+    // Verify null metadata is not added to responseOriginal
+    Assertions.assertFalse(responseOriginal.has(RestServiceUtil.METADATA));
   }
 
   @Test
@@ -462,7 +537,7 @@ class RestServiceUtilTest {
       JSONObject result = RestServiceUtil.processResponseAndTrack(null, LIT_CONV1, "q", app);
       Assertions.assertNull(result);
       Mockito.verify(tracker).trackQuestion(LIT_CONV1, "q", app);
-      Mockito.verify(tracker).trackResponse(LIT_CONV1, "", app, true);
+      Mockito.verify(tracker).trackResponse(LIT_CONV1, "", app, true,null);
     }
   }
 
@@ -486,10 +561,48 @@ class RestServiceUtilTest {
       Assertions.assertEquals("ok", out.getString(RestServiceUtil.PROP_RESPONSE));
       Assertions.assertEquals("conv2", out.getString(RestServiceUtil.PROP_CONVERSATION_ID));
       Assertions.assertTrue(out.has("timestamp"));
-      // The method uses the conversationId parameter when tracking. Since we passed null
-      // the tracking calls are expected to be invoked with null as the conversation id.
-      Mockito.verify(tracker).trackQuestion((String) null, "q2", app);
-      Mockito.verify(tracker).trackResponse((String) null, "ok", app);
+      // The method now uses the conversationId extracted from the response JSON ("conv2")
+      // rather than the conversationId parameter (null) when tracking.
+      Mockito.verify(tracker).trackQuestion("conv2", "q2", app);
+      // When no metadata is provided in input, an empty JSONObject is passed to trackResponse
+      Mockito.verify(tracker).trackResponse(Mockito.eq("conv2"), Mockito.eq("ok"), Mockito.eq(app),
+          Mockito.argThat(metadata -> metadata != null && metadata.length() == 0));
+    }
+  }
+
+  @Test
+  void testProcessResponseAndTrackValidAnswerWithMetadata() throws Exception {
+    CopilotApp app = Mockito.mock(CopilotApp.class);
+    Mockito.when(app.getId()).thenReturn(LIT_APP1);
+
+    JSONObject metadata = new JSONObject();
+    metadata.put("model", "gpt-4o");
+    metadata.put("finish_reason", "stop");
+
+    JSONObject answer = new JSONObject();
+    answer.put(RestServiceUtil.PROP_RESPONSE, "response with metadata");
+    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, "conv3");
+    answer.put(RestServiceUtil.METADATA, metadata);
+    JSONObject finalResp = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
+
+    try (org.mockito.MockedStatic<TrackingUtil> mockTrack = org.mockito.Mockito.mockStatic(TrackingUtil.class)) {
+      TrackingUtil tracker = Mockito.mock(TrackingUtil.class);
+      mockTrack.when(TrackingUtil::getInstance).thenReturn(tracker);
+
+      JSONObject out = RestServiceUtil.processResponseAndTrack(finalResp, null, "q3", app);
+      Assertions.assertNotNull(out);
+      Assertions.assertEquals(LIT_APP1, out.getString(RestServiceUtil.APP_ID));
+      Assertions.assertEquals("response with metadata", out.getString(RestServiceUtil.PROP_RESPONSE));
+      Assertions.assertEquals("conv3", out.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+      Assertions.assertTrue(out.has("timestamp"));
+      // Verify metadata is included in the response
+      Assertions.assertTrue(out.has(RestServiceUtil.METADATA));
+      JSONObject outMetadata = out.getJSONObject(RestServiceUtil.METADATA);
+      Assertions.assertEquals("gpt-4o", outMetadata.getString("model"));
+      Assertions.assertEquals("stop", outMetadata.getString("finish_reason"));
+      // Verify tracking is called with the extracted metadata
+      Mockito.verify(tracker).trackQuestion("conv3", "q3", app);
+      Mockito.verify(tracker).trackResponse("conv3", "response with metadata", app, metadata);
     }
   }
 
