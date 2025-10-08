@@ -1,11 +1,11 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from copilot.core.agent import AssistantAgent
-from copilot.core.agent.agent import AssistantResponse
 from copilot.core.schemas import QuestionSchema
 from copilot.core.utils.models import get_openai_client
 from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
+from langchain_core.agents import AgentFinish
 
 
 @patch("copilot.core.agent.AssistantAgent.get_agent", autospec=True)
@@ -63,16 +63,9 @@ def set_up(mock_openai_assistant, mock_read_optional_env_var):
     )
 
 
-@patch("langchain.agents.AgentExecutor")
-def test_aexecute(mock_agent_executor):
-    client = get_openai_client()
-    assistant = client.beta.assistants.create(
-        name="Math Tutor",
-        instructions="You are a personal math tutor. Write and run code to answer math questions.",
-        tools=[{"type": "code_interpreter"}],
-        model="gpt-4o",
-    )
-    assistant_id = assistant.id
+@patch("copilot.core.agent.assistant_agent.AssistantAgent._prepare_agent_executor")
+def test_aexecute(mock_prepare):
+    assistant_id = "test_assistant_id"
     question = QuestionSchema(
         assistant_id=assistant_id,
         question="What is the capital of France?",
@@ -81,18 +74,29 @@ def test_aexecute(mock_agent_executor):
         system_prompt="",
     )
     agent = AssistantAgent()
-    mock_agent_executor_instance = mock_agent_executor.return_value
-    mock_agent_executor_instance.astream_events = AsyncMock(return_value=AsyncMock())
-    mock_event = {"event": "on_tool_start", "parent_ids": [1], "name": "Test Tool"}
+    mock_agent_executor_instance = MagicMock()
+    mock_prepare.return_value = mock_agent_executor_instance
 
-    async def mock_async_generator():
-        yield mock_event
+    async def mock_astream_events(*args, **kwargs):
+        yield {"event": "on_tool_start", "parent_ids": [1], "name": "Test Tool"}
+        yield {
+            "event": "on_chain_end",
+            "data": {
+                "output": AgentFinish(return_values={"output": "Paris", "thread_id": "test_thread"}, log="")
+            },
+        }
 
-    mock_agent_executor_instance.astream_events.return_value = mock_async_generator()
+    mock_agent_executor_instance.astream_events = mock_astream_events
 
     async def test_coroutine():
+        responses = []
         async for response in agent.aexecute(question):
-            assert isinstance(response, AssistantResponse)
+            responses.append(response)
+        assert len(responses) == 2
+        assert responses[0].response == "Test Tool"
+        assert responses[0].role == "tool"
+        assert responses[1].response == "Paris"
+        assert responses[1].conversation_id == "test_thread"
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(test_coroutine())
