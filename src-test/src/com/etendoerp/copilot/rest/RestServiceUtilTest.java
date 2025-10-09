@@ -52,6 +52,14 @@ class RestServiceUtilTest {
   private static final String LIT_LANG1 = "lang1";
   private static final String LIT_RESPONSE_TEXT = "responseText";
   private static final String LIT_CONV_ID = "convId";
+  private static final String LIT_CONV2 = "conv2";
+  private static final String LIT_CONV3 = "conv3";
+  private static final String LIT_RESPONSE_WITH_METADATA = "response with metadata";
+  private static final String LIT_GPT4 = "gpt-4";
+  private static final String LIT_OPENAI = "openai";
+  private static final String LIT_PROVIDER = "provider";
+  private static final String LIT_MODEL = "model";
+  private static final String LIT_TIMESTAMP = "timestamp";
 
   // Setup and utility methods for mocks will go here
 
@@ -213,7 +221,7 @@ class RestServiceUtilTest {
   void testAddTimestampToResponse() throws JSONException {
     JSONObject obj = new JSONObject();
     RestServiceUtil.addTimestampToResponse(obj);
-    Assertions.assertTrue(obj.has("timestamp"));
+    Assertions.assertTrue(obj.has(LIT_TIMESTAMP));
   }
 
   @Test
@@ -235,7 +243,7 @@ class RestServiceUtilTest {
   @Test
   void testExtractResponseWithAnswerAndMetadata() throws JSONException {
     JSONObject metadata = new JSONObject();
-    metadata.put("model", "gpt-4");
+    metadata.put(LIT_MODEL, LIT_GPT4);
     metadata.put("tokens", 150);
 
     JSONObject answer = new JSONObject();
@@ -250,11 +258,11 @@ class RestServiceUtilTest {
     Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
     // Verify metadata is correctly extracted
     Assertions.assertNotNull(result.getMetadata());
-    Assertions.assertEquals("gpt-4", result.getMetadata().getString("model"));
+    Assertions.assertEquals(LIT_GPT4, result.getMetadata().getString(LIT_MODEL));
     Assertions.assertEquals(150, result.getMetadata().getInt("tokens"));
     // Verify metadata is also added to responseOriginal
     Assertions.assertTrue(responseOriginal.has(RestServiceUtil.METADATA));
-    Assertions.assertEquals("gpt-4", responseOriginal.getJSONObject(RestServiceUtil.METADATA).getString("model"));
+    Assertions.assertEquals(LIT_GPT4, responseOriginal.getJSONObject(RestServiceUtil.METADATA).getString(LIT_MODEL));
   }
 
   @Test
@@ -275,7 +283,7 @@ class RestServiceUtilTest {
   @Test
   void testExtractResponseWithResponseAndMetadata() throws JSONException {
     JSONObject metadata = new JSONObject();
-    metadata.put("provider", "openai");
+    metadata.put(LIT_PROVIDER, LIT_OPENAI);
     metadata.put("usage", 75);
 
     JSONObject finalResponseAsync = new JSONObject();
@@ -289,11 +297,11 @@ class RestServiceUtilTest {
     Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
     // Verify metadata is correctly extracted
     Assertions.assertNotNull(result.getMetadata());
-    Assertions.assertEquals("openai", result.getMetadata().getString("provider"));
+    Assertions.assertEquals(LIT_OPENAI, result.getMetadata().getString(LIT_PROVIDER));
     Assertions.assertEquals(75, result.getMetadata().getInt("usage"));
     // Verify metadata is also added to responseOriginal
     Assertions.assertTrue(responseOriginal.has(RestServiceUtil.METADATA));
-    Assertions.assertEquals("openai", responseOriginal.getJSONObject(RestServiceUtil.METADATA).getString("provider"));
+    Assertions.assertEquals(LIT_OPENAI, responseOriginal.getJSONObject(RestServiceUtil.METADATA).getString(LIT_PROVIDER));
   }
 
   @Test
@@ -548,7 +556,7 @@ class RestServiceUtilTest {
 
     JSONObject answer = new JSONObject();
     answer.put(RestServiceUtil.PROP_RESPONSE, "ok");
-    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, "conv2");
+    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV2);
     JSONObject finalResp = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
 
     try (org.mockito.MockedStatic<TrackingUtil> mockTrack = org.mockito.Mockito.mockStatic(TrackingUtil.class)) {
@@ -559,13 +567,13 @@ class RestServiceUtilTest {
       Assertions.assertNotNull(out);
       Assertions.assertEquals(LIT_APP1, out.getString(RestServiceUtil.APP_ID));
       Assertions.assertEquals("ok", out.getString(RestServiceUtil.PROP_RESPONSE));
-      Assertions.assertEquals("conv2", out.getString(RestServiceUtil.PROP_CONVERSATION_ID));
-      Assertions.assertTrue(out.has("timestamp"));
+      Assertions.assertEquals(LIT_CONV2, out.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+      Assertions.assertTrue(out.has(LIT_TIMESTAMP));
       // The method now uses the conversationId extracted from the response JSON ("conv2")
       // rather than the conversationId parameter (null) when tracking.
-      Mockito.verify(tracker).trackQuestion("conv2", "q2", app);
+      Mockito.verify(tracker).trackQuestion(LIT_CONV2, "q2", app);
       // When no metadata is provided in input, an empty JSONObject is passed to trackResponse
-      Mockito.verify(tracker).trackResponse(Mockito.eq("conv2"), Mockito.eq("ok"), Mockito.eq(app),
+      Mockito.verify(tracker).trackResponse(Mockito.eq(LIT_CONV2), Mockito.eq("ok"), Mockito.eq(app),
           Mockito.argThat(metadata -> metadata != null && metadata.length() == 0));
     }
   }
@@ -576,12 +584,12 @@ class RestServiceUtilTest {
     Mockito.when(app.getId()).thenReturn(LIT_APP1);
 
     JSONObject metadata = new JSONObject();
-    metadata.put("model", "gpt-4o");
+    metadata.put(LIT_MODEL, "gpt-4o");
     metadata.put("finish_reason", "stop");
 
     JSONObject answer = new JSONObject();
-    answer.put(RestServiceUtil.PROP_RESPONSE, "response with metadata");
-    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, "conv3");
+    answer.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_WITH_METADATA);
+    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV3);
     answer.put(RestServiceUtil.METADATA, metadata);
     JSONObject finalResp = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
 
@@ -592,17 +600,17 @@ class RestServiceUtilTest {
       JSONObject out = RestServiceUtil.processResponseAndTrack(finalResp, null, "q3", app);
       Assertions.assertNotNull(out);
       Assertions.assertEquals(LIT_APP1, out.getString(RestServiceUtil.APP_ID));
-      Assertions.assertEquals("response with metadata", out.getString(RestServiceUtil.PROP_RESPONSE));
-      Assertions.assertEquals("conv3", out.getString(RestServiceUtil.PROP_CONVERSATION_ID));
-      Assertions.assertTrue(out.has("timestamp"));
+      Assertions.assertEquals(LIT_RESPONSE_WITH_METADATA, out.getString(RestServiceUtil.PROP_RESPONSE));
+      Assertions.assertEquals(LIT_CONV3, out.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+      Assertions.assertTrue(out.has(LIT_TIMESTAMP));
       // Verify metadata is included in the response
       Assertions.assertTrue(out.has(RestServiceUtil.METADATA));
       JSONObject outMetadata = out.getJSONObject(RestServiceUtil.METADATA);
-      Assertions.assertEquals("gpt-4o", outMetadata.getString("model"));
+      Assertions.assertEquals("gpt-4o", outMetadata.getString(LIT_MODEL));
       Assertions.assertEquals("stop", outMetadata.getString("finish_reason"));
       // Verify tracking is called with the extracted metadata
-      Mockito.verify(tracker).trackQuestion("conv3", "q3", app);
-      Mockito.verify(tracker).trackResponse("conv3", "response with metadata", app, metadata);
+      Mockito.verify(tracker).trackQuestion(LIT_CONV3, "q3", app);
+      Mockito.verify(tracker).trackResponse(LIT_CONV3, LIT_RESPONSE_WITH_METADATA, app, metadata);
     }
   }
 

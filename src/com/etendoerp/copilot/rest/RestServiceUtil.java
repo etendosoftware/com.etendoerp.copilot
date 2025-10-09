@@ -71,6 +71,11 @@ import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.TrackingUtil;
 import com.etendoerp.copilot.util.WebhookPermissionUtils;
 
+/**
+ * Utility class providing REST service operations for Copilot integration.
+ * This class handles file uploads, question processing, response extraction,
+ * and communication with the Copilot backend services.
+ */
 public class RestServiceUtil {
 
   /**
@@ -81,20 +86,42 @@ public class RestServiceUtil {
     private final String conversationId;
     private final JSONObject metadata;
 
+    /**
+     * Constructs an ExtractedResponse with the given response, conversation ID, and metadata.
+     *
+     * @param response the response text
+     * @param conversationId the conversation ID
+     * @param metadata the metadata JSON object, or null
+     */
     public ExtractedResponse(String response, String conversationId, JSONObject metadata) {
       this.response = response;
       this.conversationId = conversationId;
       this.metadata = metadata != null ? metadata : new JSONObject();
     }
 
+    /**
+     * Gets the response text.
+     *
+     * @return the response string
+     */
     public String getResponse() {
       return response;
     }
 
+    /**
+     * Gets the conversation ID.
+     *
+     * @return the conversation ID string
+     */
     public String getConversationId() {
       return conversationId;
     }
 
+    /**
+     * Gets the metadata JSON object.
+     *
+     * @return the metadata JSONObject
+     */
     public JSONObject getMetadata() {
       return metadata;
     }
@@ -136,6 +163,9 @@ public class RestServiceUtil {
   public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
   public static final String METADATA = "metadata";
 
+  /**
+   * Private constructor to prevent instantiation of utility class.
+   */
   private RestServiceUtil() {
   }
 
