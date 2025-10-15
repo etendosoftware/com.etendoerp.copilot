@@ -1174,9 +1174,18 @@ public class RestServiceUtil {
    *     If an error occurs during the creation of the JSON object.
    */
   public static JSONObject getErrorEventJSON(HttpServletRequest request, OBException e) throws JSONException {
-    return new JSONObject().put(PROP_ANSWER,
-        new JSONObject().put(PROP_RESPONSE, e.getMessage()).put(PROP_CONVERSATION_ID,
-            request.getParameter(PROP_CONVERSATION_ID)).put("role", PROP_ERROR));
+
+    JSONObject answer = new JSONObject();
+    answer.put(PROP_RESPONSE, e.getMessage());
+    String convId = request.getParameter(PROP_CONVERSATION_ID);
+    if (StringUtils.isEmpty(convId)) {
+      convId = UUID.randomUUID().toString();
+    }
+    answer.put(PROP_CONVERSATION_ID, convId);
+    answer.put("role", PROP_ERROR);
+    JSONObject result = new JSONObject();
+    result.put(PROP_ANSWER, answer);
+    return result;
   }
 
   /**
