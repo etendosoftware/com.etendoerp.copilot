@@ -12,10 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
-import kong.unirest.UnirestException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -61,6 +58,8 @@ import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
+
+import kong.unirest.UnirestException;
 
 /**
  * CopilotUtils is a utility class that provides various methods for interacting with
@@ -852,6 +851,7 @@ public class CopilotUtils {
     jsonRequestForCopilot.put(RestServiceUtil.PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
     jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
   }
 
   /**

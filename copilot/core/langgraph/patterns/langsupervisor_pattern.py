@@ -6,8 +6,7 @@ from copilot.core.langgraph.special_nodes.supervisor_node import (
     get_supervisor_system_prompt,
 )
 from copilot.core.langgraph.tool_utils.TaskManagementTool import task_management_tool
-from copilot.core.utils.models import get_proxy_url
-from langchain.chat_models import init_chat_model
+from copilot.core.utils.agent import get_llm
 from langgraph.prebuilt.chat_agent_executor import AgentState
 from langgraph_supervisor import create_supervisor
 
@@ -30,7 +29,7 @@ class LangSupervisorPattern(BasePattern):
         supervisor_model = (
             full_question.model if full_question and full_question.model is not None else "gpt-4o"
         )
-        model = init_chat_model(model=supervisor_model, temperature=temperature, base_url=get_proxy_url())
+        model = get_llm(model=supervisor_model, provider=full_question.provider, temperature=temperature)
         # Create supervisor workflow
         members_names = [m.name for m in full_question.assistants]
         members_descriptions = [m.description for m in full_question.assistants]

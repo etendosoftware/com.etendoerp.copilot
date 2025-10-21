@@ -80,6 +80,7 @@ class GraphQuestionSchema(BaseModel):
     tools: Optional[list[ToolSchema]] = None
     name: Optional[str] = None
     model: Optional[str] = None
+    provider: Optional[str] = None
 
 
 class VectorDBInputSchema(BaseModel):
