@@ -81,7 +81,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
   public static final String ERROR = "error";
 
   @Override
-  protected JSONObject doExecute(Map<String, Object> parameters, String content) {
+  public JSONObject doExecute(Map<String, Object> parameters, String content) {
     // Declare json to be returned
     JSONObject result = new JSONObject();
     try {
