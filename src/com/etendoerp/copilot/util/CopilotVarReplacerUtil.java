@@ -110,6 +110,10 @@ public class CopilotVarReplacerUtil {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     stringParsed = StringUtils.replace(stringParsed, "@source.path@", CopilotUtils.getSourcesPath(properties));
 
+    stringParsed = StringUtils.replace(stringParsed, "@context.name@",
+        properties.getProperty("context.name", "etendo"));
+    stringParsed = StringUtils.replace(stringParsed, "@context.url@",
+        properties.getProperty("context.url", "http://localhost:8080/etendo"));
     // Replace API tokens with priority: user+role > user > role > null user and role
     Map<String, String> apiTokens = getApiTokensForCurrentContext(obContext);
     for (Map.Entry<String, String> tokenEntry : apiTokens.entrySet()) {
