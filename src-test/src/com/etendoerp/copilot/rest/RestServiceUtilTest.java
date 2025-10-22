@@ -36,6 +36,7 @@ import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.ExtractedResponse;
 import com.etendoerp.copilot.util.TrackingUtil;
 
 class RestServiceUtilTest {
@@ -152,14 +153,14 @@ class RestServiceUtilTest {
       java.nio.file.Files.setPosixFilePermissions(tempPath, perms);
     } catch (UnsupportedOperationException | IOException ignore) {
       boolean ok;
-  ok = tempFile.setReadable(false, false);
-  if (!ok) testLog.warn("Failed to set non-owner readable on temp file: {}", tempFile.getAbsolutePath());
-  ok = tempFile.setWritable(false, false);
-  if (!ok) testLog.warn("Failed to set non-owner writable on temp file: {}", tempFile.getAbsolutePath());
-  ok = tempFile.setReadable(true, true);
-  if (!ok) testLog.warn("Failed to set owner-readable on temp file: {}", tempFile.getAbsolutePath());
-  ok = tempFile.setWritable(true, true);
-  if (!ok) testLog.warn("Failed to set owner-writable on temp file: {}", tempFile.getAbsolutePath());
+      ok = tempFile.setReadable(false, false);
+      if (!ok) testLog.warn("Failed to set non-owner readable on temp file: {}", tempFile.getAbsolutePath());
+      ok = tempFile.setWritable(false, false);
+      if (!ok) testLog.warn("Failed to set non-owner writable on temp file: {}", tempFile.getAbsolutePath());
+      ok = tempFile.setReadable(true, true);
+      if (!ok) testLog.warn("Failed to set owner-readable on temp file: {}", tempFile.getAbsolutePath());
+      ok = tempFile.setWritable(true, true);
+      if (!ok) testLog.warn("Failed to set owner-writable on temp file: {}", tempFile.getAbsolutePath());
     }
   }
 
@@ -231,7 +232,8 @@ class RestServiceUtilTest {
     answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
     JSONObject finalResponseAsync = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
     JSONObject responseOriginal = new JSONObject();
-    RestServiceUtil.ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal,
+        "");
     Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
     Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
     Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
@@ -252,7 +254,7 @@ class RestServiceUtilTest {
     answer.put(RestServiceUtil.METADATA, metadata);
     JSONObject finalResponseAsync = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
     JSONObject responseOriginal = new JSONObject();
-    RestServiceUtil.ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
     Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
     Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
     Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
@@ -271,7 +273,7 @@ class RestServiceUtilTest {
     finalResponseAsync.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_TEXT);
     finalResponseAsync.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
     JSONObject responseOriginal = new JSONObject();
-    RestServiceUtil.ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
     Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
     Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
     Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
@@ -291,7 +293,7 @@ class RestServiceUtilTest {
     finalResponseAsync.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
     finalResponseAsync.put(RestServiceUtil.METADATA, metadata);
     JSONObject responseOriginal = new JSONObject();
-    RestServiceUtil.ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
     Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
     Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
     Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
@@ -301,7 +303,8 @@ class RestServiceUtilTest {
     Assertions.assertEquals(75, result.getMetadata().getInt("usage"));
     // Verify metadata is also added to responseOriginal
     Assertions.assertTrue(responseOriginal.has(RestServiceUtil.METADATA));
-    Assertions.assertEquals(LIT_OPENAI, responseOriginal.getJSONObject(RestServiceUtil.METADATA).getString(LIT_PROVIDER));
+    Assertions.assertEquals(LIT_OPENAI,
+        responseOriginal.getJSONObject(RestServiceUtil.METADATA).getString(LIT_PROVIDER));
   }
 
   @Test
@@ -312,7 +315,7 @@ class RestServiceUtilTest {
     answer.put(RestServiceUtil.METADATA, (Object) null); // Explicitly null metadata
     JSONObject finalResponseAsync = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
     JSONObject responseOriginal = new JSONObject();
-    RestServiceUtil.ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
     Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
     Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
     // Verify metadata is handled as empty when null
@@ -545,7 +548,7 @@ class RestServiceUtilTest {
       JSONObject result = RestServiceUtil.processResponseAndTrack(null, LIT_CONV1, "q", app);
       Assertions.assertNull(result);
       Mockito.verify(tracker).trackQuestion(LIT_CONV1, "q", app);
-      Mockito.verify(tracker).trackResponse(LIT_CONV1, "", app, true,null);
+      Mockito.verify(tracker).trackResponse(LIT_CONV1, "", app, true, null);
     }
   }
 

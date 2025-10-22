@@ -67,6 +67,7 @@ import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.ExtractedResponse;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.TrackingUtil;
 import com.etendoerp.copilot.util.WebhookPermissionUtils;
@@ -78,54 +79,6 @@ import com.etendoerp.copilot.util.WebhookPermissionUtils;
  */
 public class RestServiceUtil {
 
-  /**
-   * Result class to encapsulate the response data extracted from Copilot's response.
-   */
-  public static class ExtractedResponse {
-    private final String response;
-    private final String conversationId;
-    private final JSONObject metadata;
-
-    /**
-     * Constructs an ExtractedResponse with the given response, conversation ID, and metadata.
-     *
-     * @param response the response text
-     * @param conversationId the conversation ID
-     * @param metadata the metadata JSON object, or null
-     */
-    public ExtractedResponse(String response, String conversationId, JSONObject metadata) {
-      this.response = response;
-      this.conversationId = conversationId;
-      this.metadata = metadata != null ? metadata : new JSONObject();
-    }
-
-    /**
-     * Gets the response text.
-     *
-     * @return the response string
-     */
-    public String getResponse() {
-      return response;
-    }
-
-    /**
-     * Gets the conversation ID.
-     *
-     * @return the conversation ID string
-     */
-    public String getConversationId() {
-      return conversationId;
-    }
-
-    /**
-     * Gets the metadata JSON object.
-     *
-     * @return the metadata JSONObject
-     */
-    public JSONObject getMetadata() {
-      return metadata;
-    }
-  }
 
   public static final Logger log = LogManager.getLogger(RestServiceUtil.class);
 
@@ -340,11 +293,15 @@ public class RestServiceUtil {
    * Upload the given temporary file to the configured Copilot endpoint and return
    * the Copilot response 'answer' value.
    *
-   * @param f the temporary file to upload
-   * @param endpoint the Copilot endpoint to use
+   * @param f
+   *     the temporary file to upload
+   * @param endpoint
+   *     the Copilot endpoint to use
    * @return the 'answer' value from Copilot's JSON response (may be empty)
-   * @throws IOException on network IO errors
-   * @throws JSONException when the response cannot be parsed as JSON
+   * @throws IOException
+   *     on network IO errors
+   * @throws JSONException
+   *     when the response cannot be parsed as JSON
    */
   public static String handleFile(File f, String endpoint) throws IOException, JSONException {
     java.util.Properties prop = OBPropertiesProvider.getInstance().getOpenbravoProperties();
@@ -363,7 +320,8 @@ public class RestServiceUtil {
    * Validate that the provided file does not exceed the maximum allowed size
    * (512 MB). Throws an {@link OBException} when the file is too large.
    *
-   * @param f the file to validate
+   * @param f
+   *     the file to validate
    */
   private static void checkSizeFile(File f) {
     //check the size of the file: must be max 512mb
@@ -376,7 +334,8 @@ public class RestServiceUtil {
   /**
    * Log a debug-level message when debug logging is enabled.
    *
-   * @param msg the message to log
+   * @param msg
+   *     the message to log
    */
   private static void logIfDebug(String msg) {
     if (log.isDebugEnabled()) {
@@ -390,8 +349,10 @@ public class RestServiceUtil {
    * queue is null the method returns immediately. The thread is re-interrupted
    * when an {@link InterruptedException} occurs.
    *
-   * @param queue the transfer queue to send the data to
-   * @param data the data payload to transfer
+   * @param queue
+   *     the transfer queue to send the data to
+   * @param data
+   *     the data payload to transfer
    */
   public static void sendData(TransferQueue<String> queue, String data) {
     if (queue == null) {
@@ -410,12 +371,17 @@ public class RestServiceUtil {
    * delegate to the overloaded {@link #handleQuestion(boolean, HttpServletResponse, CopilotApp, String, String, List)}
    * implementation that performs the actual request handling.
    *
-   * @param isAsyncRequest whether the request should be processed asynchronously (SSE)
-   * @param queue the {@link HttpServletResponse} used for streaming SSE events when async
-   * @param jsonRequest the JSON payload containing at least the assistant id and question
+   * @param isAsyncRequest
+   *     whether the request should be processed asynchronously (SSE)
+   * @param queue
+   *     the {@link HttpServletResponse} used for streaming SSE events when async
+   * @param jsonRequest
+   *     the JSON payload containing at least the assistant id and question
    * @return the parsed response {@link JSONObject} or null for async flows
-   * @throws JSONException when request parsing fails
-   * @throws IOException on IO errors
+   * @throws JSONException
+   *     when request parsing fails
+   * @throws IOException
+   *     on IO errors
    */
   public static JSONObject handleQuestion(boolean isAsyncRequest, HttpServletResponse queue,
       JSONObject jsonRequest) throws JSONException, IOException {
@@ -639,10 +605,10 @@ public class RestServiceUtil {
     jsonRequestForCopilot.put(RestServiceUtil.PROP_AD_USER_ID, OBContext.getOBContext().getUser().getId());
     question += getAppSourceContent(copilotApp.getETCOPAppSourceList(), CopilotConstants.FILE_BEHAVIOUR_QUESTION);
     CopilotUtils.checkQuestionPrompt(question);
-  jsonRequestForCopilot.put(PROP_QUESTION, question + appendLocalFileIds(questionAttachedFileIds));
+    jsonRequestForCopilot.put(PROP_QUESTION, question + appendLocalFileIds(questionAttachedFileIds));
 
-  addAppSourceFileIds(copilotApp, questionAttachedFileIds);
-  handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
+    addAppSourceFileIds(copilotApp, questionAttachedFileIds);
+    handleFileIds(questionAttachedFileIds, jsonRequestForCopilot);
     addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
 
     return jsonRequestForCopilot;
@@ -695,7 +661,7 @@ public class RestServiceUtil {
     logIfDebug("Request to Copilot:);");
     logIfDebug(new JSONObject(jsonRequestForCopilot.toString()).toString(2));
 
-  URL url = new URL(String.format("http://%s:%s%s", copilotHost, copilotPort, endpoint));
+    URL url = new URL(String.format("http://%s:%s%s", copilotHost, copilotPort, endpoint));
     try {
       HttpURLConnection connection = (HttpURLConnection) url.openConnection();
       connection.setRequestMethod("POST");
@@ -780,7 +746,7 @@ public class RestServiceUtil {
     // Note: This appears to be a bug in the original code - finalResponseAsync is null but we're calling methods on it
     // Keeping the original logic for backward compatibility
     TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
-    TrackingUtil.getInstance().trackResponse(conversationId, "", copilotApp, true,null);
+    TrackingUtil.getInstance().trackResponse(conversationId, "", copilotApp, true, null);
   }
 
   /**
@@ -1130,8 +1096,10 @@ public class RestServiceUtil {
    * the provided {@code role}. Exceptions for individual apps are logged but do
    * not abort the overall operation.
    *
-   * @param appList the list of assistants
-   * @param role the role to assign permissions to
+   * @param appList
+   *     the list of assistants
+   * @param role
+   *     the role to assign permissions to
    */
   private static void assignWebhookPermissionsSafely(List<CopilotApp> appList, Role role) {
     for (CopilotApp app : appList) {
@@ -1147,8 +1115,10 @@ public class RestServiceUtil {
    * Return the date of the most recent conversation for the given user and app.
    * When no conversation exists a fixed past date is returned to allow sorting.
    *
-   * @param user the user whose conversations will be queried
-   * @param copilotApp the assistant application
+   * @param user
+   *     the user whose conversations will be queried
+   * @param copilotApp
+   *     the assistant application
    * @return the last message timestamp or the creation date (or fixed fallback)
    */
   private static Date getLastConversation(User user, CopilotApp copilotApp) {
@@ -1182,12 +1152,12 @@ public class RestServiceUtil {
     // read the json sent
     HttpResponse<String> responseFromCopilot = null;
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-  try {
+    try {
       HttpClient client = HttpClient.newBuilder().build();
       String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
       String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
       JSONObject jsonRequestForCopilot = new JSONObject();
-  // appType was unused after refactor; get it inline where needed
+      // appType was unused after refactor; get it inline where needed
       String conversationId = UUID.randomUUID().toString();
 
       CopilotUtils.buildLangraphRequestForCopilot(copilotApp, conversationId, jsonRequestForCopilot);
