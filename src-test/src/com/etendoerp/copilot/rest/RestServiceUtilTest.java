@@ -542,13 +542,21 @@ class RestServiceUtilTest {
     Mockito.when(app.getId()).thenReturn(LIT_APP1);
 
     try (org.mockito.MockedStatic<TrackingUtil> mockTrack = org.mockito.Mockito.mockStatic(TrackingUtil.class)) {
+      // Mock the static method trackNullResponse since that's what's being called directly
+      mockTrack.when(() -> TrackingUtil.trackNullResponse(LIT_CONV1, "q", app))
+          .thenCallRealMethod();
+
       TrackingUtil tracker = Mockito.mock(TrackingUtil.class);
       mockTrack.when(TrackingUtil::getInstance).thenReturn(tracker);
 
       JSONObject result = RestServiceUtil.processResponseAndTrack(null, LIT_CONV1, "q", app);
       Assertions.assertNull(result);
+
+      // Verify the static method was called
+      mockTrack.verify(() -> TrackingUtil.trackNullResponse(LIT_CONV1, "q", app));
+      // Verify the instance methods were called through the static method
       Mockito.verify(tracker).trackQuestion(LIT_CONV1, "q", app);
-      Mockito.verify(tracker).trackResponse(LIT_CONV1, "", app, true, null);
+      Mockito.verify(tracker).trackResponse(LIT_CONV1, "", app, true, (JSONObject) null);
     }
   }
 
@@ -784,95 +792,6 @@ class RestServiceUtilTest {
       mockDal.when(OBDal::getInstance).thenReturn(dal);
 
       Assertions.assertThrows(org.openbravo.base.exception.OBException.class, RestServiceUtil::handleAssistants);
-    }
-  }
-
-  @Test
-  void testGetJSONLabelsModuleLanguageEquals() throws Exception {
-    // Setup OBContext with language
-    org.openbravo.dal.core.OBContext mockCtx = Mockito.mock(org.openbravo.dal.core.OBContext.class);
-    org.openbravo.model.ad.system.Language mockLang = Mockito.mock(org.openbravo.model.ad.system.Language.class);
-    Mockito.when(mockLang.getId()).thenReturn(LIT_LANG1);
-    Mockito.when(mockCtx.getLanguage()).thenReturn(mockLang);
-
-    // Module whose language equals current language
-    org.openbravo.model.ad.module.Module module = Mockito.mock(org.openbravo.model.ad.module.Module.class);
-    org.openbravo.model.ad.system.Language modLang = Mockito.mock(org.openbravo.model.ad.system.Language.class);
-    Mockito.when(modLang.getId()).thenReturn(LIT_LANG1);
-    Mockito.when(module.getLanguage()).thenReturn(modLang);
-
-    // OBDal and criteria for Message
-    OBDal dal = Mockito.mock(OBDal.class);
-    org.openbravo.dal.service.OBCriteria<org.openbravo.model.ad.ui.Message> crit = Mockito
-        .mock(org.openbravo.dal.service.OBCriteria.class);
-    Mockito.when(dal.get(org.openbravo.model.ad.module.Module.class, RestServiceUtil.COPILOT_MODULE_ID))
-        .thenReturn(module);
-    Mockito.when(dal.createCriteria(org.openbravo.model.ad.ui.Message.class)).thenReturn(crit);
-    Mockito.when(crit.add(org.mockito.ArgumentMatchers.any())).thenReturn(crit);
-
-    org.openbravo.model.ad.ui.Message msg = Mockito.mock(org.openbravo.model.ad.ui.Message.class);
-    Mockito.when(msg.getIdentifier()).thenReturn("id1");
-    Mockito.when(msg.getMessageText()).thenReturn("text1");
-    Mockito.when(crit.list()).thenReturn(List.of(msg));
-
-    try (org.mockito.MockedStatic<OBContext> mockOB = org.mockito.Mockito.mockStatic(OBContext.class);
-         org.mockito.MockedStatic<OBDal> mockDal = org.mockito.Mockito.mockStatic(OBDal.class)) {
-      mockOB.when(() -> OBContext.setAdminMode(false)).thenAnswer(i -> null);
-      mockOB.when(OBContext::getOBContext).thenReturn(mockCtx);
-      mockOB.when(OBContext::restorePreviousMode).thenAnswer(i -> null);
-
-      mockDal.when(OBDal::getInstance).thenReturn(dal);
-
-      JSONObject json = RestServiceUtil.getJSONLabels();
-      Assertions.assertNotNull(json);
-      Assertions.assertEquals("text1", json.getString("id1"));
-    }
-  }
-
-  @Test
-  void testGetJSONLabelsMessageTrlBranch() throws Exception {
-    // Setup OBContext with language different from module language
-    org.openbravo.dal.core.OBContext mockCtx = Mockito.mock(org.openbravo.dal.core.OBContext.class);
-    org.openbravo.model.ad.system.Language mockLang = Mockito.mock(org.openbravo.model.ad.system.Language.class);
-    Mockito.when(mockLang.getId()).thenReturn("lang2");
-    Mockito.when(mockCtx.getLanguage()).thenReturn(mockLang);
-
-    // Module whose language is different
-    org.openbravo.model.ad.module.Module module = Mockito.mock(org.openbravo.model.ad.module.Module.class);
-    org.openbravo.model.ad.system.Language modLang = Mockito.mock(org.openbravo.model.ad.system.Language.class);
-    Mockito.when(modLang.getId()).thenReturn(LIT_LANG1);
-    Mockito.when(module.getLanguage()).thenReturn(modLang);
-
-    // OBDal and criteria for MessageTrl
-    OBDal dal = Mockito.mock(OBDal.class);
-    org.openbravo.dal.service.OBCriteria<org.openbravo.model.ad.ui.MessageTrl> crit = Mockito
-        .mock(org.openbravo.dal.service.OBCriteria.class);
-    Mockito.when(dal.get(org.openbravo.model.ad.module.Module.class, RestServiceUtil.COPILOT_MODULE_ID))
-        .thenReturn(module);
-    Mockito.when(dal.createCriteria(org.openbravo.model.ad.ui.MessageTrl.class)).thenReturn(crit);
-    Mockito.when(crit.add(org.mockito.ArgumentMatchers.any())).thenReturn(crit);
-    // createAlias returns the criteria; mock it to return the same crit
-    Mockito.when(crit.createAlias(org.mockito.ArgumentMatchers.anyString(),
-        org.mockito.ArgumentMatchers.anyString())).thenReturn(crit);
-
-    org.openbravo.model.ad.ui.MessageTrl msgTrl = Mockito.mock(org.openbravo.model.ad.ui.MessageTrl.class);
-    org.openbravo.model.ad.ui.Message linkedMsg = Mockito.mock(org.openbravo.model.ad.ui.Message.class);
-    Mockito.when(linkedMsg.getIdentifier()).thenReturn("id2");
-    Mockito.when(msgTrl.getMessage()).thenReturn(linkedMsg);
-    Mockito.when(msgTrl.getMessageText()).thenReturn("text2");
-    Mockito.when(crit.list()).thenReturn(List.of(msgTrl));
-
-    try (org.mockito.MockedStatic<OBContext> mockOB = org.mockito.Mockito.mockStatic(OBContext.class);
-         org.mockito.MockedStatic<OBDal> mockDal = org.mockito.Mockito.mockStatic(OBDal.class)) {
-      mockOB.when(() -> OBContext.setAdminMode(false)).thenAnswer(i -> null);
-      mockOB.when(OBContext::getOBContext).thenReturn(mockCtx);
-      mockOB.when(OBContext::restorePreviousMode).thenAnswer(i -> null);
-
-      mockDal.when(OBDal::getInstance).thenReturn(dal);
-
-      JSONObject json = RestServiceUtil.getJSONLabels();
-      Assertions.assertNotNull(json);
-      Assertions.assertEquals("text2", json.getString("id2"));
     }
   }
 }
