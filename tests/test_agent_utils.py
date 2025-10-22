@@ -37,7 +37,9 @@ class TestGetFullQuestion:
         ):
             result = get_full_question(question)
 
-            expected = "Analyze this file\n" "Local Files Ids for Context:\n" " - /parent/path/to/file.txt"
+            expected = """Analyze this file
+Local Files Ids for Context:
+ - /parent/path/to/file.txt"""
             assert result == expected
 
     def test_get_full_question_with_multiple_local_files(self):
@@ -51,13 +53,11 @@ class TestGetFullQuestion:
         ):
             result = get_full_question(question)
 
-            expected = (
-                "Compare these files\n"
-                "Local Files Ids for Context:\n"
-                " - /parent/file1.txt\n"
-                " - /parent/file2.py\n"
-                " - /parent/file3.json"
-            )
+            expected = """Compare these files
+Local Files Ids for Context:
+ - /parent/file1.txt
+ - /parent/file2.py
+ - /parent/file3.json"""
             assert result == expected
 
     def test_get_full_question_preserves_original_question_structure(self):
