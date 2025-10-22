@@ -31,7 +31,7 @@ def get_llm(model, provider, temperature):
         ChatModel: An initialized language model instance.
     """
     # Initialize the language model
-    if "ollama" in provider:
+    if provider and "ollama" in provider:
         ollama_host = os.getenv("COPILOT_OLLAMA_HOST", "ollama")
         ollama_port = os.getenv("COPILOT_OLLAMA_PORT", "11434")
         llm = init_chat_model(
