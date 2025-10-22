@@ -1,17 +1,20 @@
 package com.etendoerp.copilot.util;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.model.ad.access.User;
 
 import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotApp;
@@ -84,9 +87,12 @@ public class TrackingUtil {
   /**
    * Tracks a user question in a conversation by creating a message with the user role.
    *
-   * @param conversationId the unique identifier of the conversation
-   * @param question the user's question to be tracked
-   * @param app the CopilotApp instance associated with the conversation
+   * @param conversationId
+   *     the unique identifier of the conversation
+   * @param question
+   *     the user's question to be tracked
+   * @param app
+   *     the CopilotApp instance associated with the conversation
    */
   public void trackQuestion(String conversationId, String question, CopilotApp app) {
     createMessage(conversationId, CopilotConstants.MESSAGE_USER, question, app, null);
@@ -96,10 +102,14 @@ public class TrackingUtil {
    * Tracks a response in a conversation by creating a message with the assistant role.
    * This is a convenience method that calls the full trackResponse method with isError set to false.
    *
-   * @param conversationId the unique identifier of the conversation
-   * @param string the response content to be tracked
-   * @param app the CopilotApp instance associated with the conversation
-   * @param metadata additional metadata associated with the response
+   * @param conversationId
+   *     the unique identifier of the conversation
+   * @param string
+   *     the response content to be tracked
+   * @param app
+   *     the CopilotApp instance associated with the conversation
+   * @param metadata
+   *     additional metadata associated with the response
    */
   public void trackResponse(String conversationId, String string, CopilotApp app, JSONObject metadata) {
     trackResponse(conversationId, string, app, false, metadata);
@@ -108,11 +118,16 @@ public class TrackingUtil {
   /**
    * Tracks a response in a conversation by creating a message with either assistant or error role.
    *
-   * @param conversationId the unique identifier of the conversation
-   * @param string the response content to be tracked
-   * @param app the CopilotApp instance associated with the conversation
-   * @param isError whether this response represents an error (true) or a normal response (false)
-   * @param metadata additional metadata associated with the response
+   * @param conversationId
+   *     the unique identifier of the conversation
+   * @param string
+   *     the response content to be tracked
+   * @param app
+   *     the CopilotApp instance associated with the conversation
+   * @param isError
+   *     whether this response represents an error (true) or a normal response (false)
+   * @param metadata
+   *     additional metadata associated with the response
    */
   public void trackResponse(String conversationId, String string, CopilotApp app, boolean isError,
       JSONObject metadata) {
@@ -124,9 +139,11 @@ public class TrackingUtil {
    * Retrieves the conversation history for a given conversation ID.
    * Returns all messages in the conversation ordered by creation date in ascending order.
    *
-   * @param conversationId the unique identifier of the conversation
+   * @param conversationId
+   *     the unique identifier of the conversation
    * @return a JSONArray containing the conversation history with role and content for each message
-   * @throws JSONException if there's an error creating the JSON response
+   * @throws JSONException
+   *     if there's an error creating the JSON response
    */
   public static JSONArray getHistory(String conversationId) throws JSONException {
     List<Message> messages = OBDal.getInstance()
@@ -144,4 +161,47 @@ public class TrackingUtil {
     return history;
   }
 
+  /**
+   * Track the event when Copilot returns no response (null). This records both the question
+   * and an empty response for analytics and troubleshooting.
+   *
+   * @param conversationId
+   *     the conversation id associated with the question
+   * @param question
+   *     the original user question
+   * @param copilotApp
+   *     the assistant used to serve the request
+   */
+  public static void trackNullResponse(String conversationId, String question, CopilotApp copilotApp) {
+    // Note: This appears to be a bug in the original code - finalResponseAsync is null but we're calling methods on it
+    // Keeping the original logic for backward compatibility
+    TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, "", copilotApp, true, null);
+  }
+
+  /**
+   * Return the date of the most recent conversation for the given user and app.
+   * When no conversation exists a fixed past date is returned to allow sorting.
+   *
+   * @param user
+   *     the user whose conversations will be queried
+   * @param copilotApp
+   *     the assistant application
+   * @return the last message timestamp or the creation date (or fixed fallback)
+   */
+  public static Date getLastConversation(User user, CopilotApp copilotApp) {
+    OBCriteria<Conversation> convCriteria = OBDal.getInstance().createCriteria(Conversation.class);
+    convCriteria.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, copilotApp));
+    convCriteria.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, user));
+    convCriteria.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
+    convCriteria.setMaxResults(1);
+    Conversation conversation = (Conversation) convCriteria.uniqueResult();
+    if (conversation == null) {
+      return Date.from(Instant.parse("2024-01-01T00:00:00Z"));
+    }
+    if (conversation.getLastMsg() == null) {
+      return conversation.getCreationDate();
+    }
+    return conversation.getLastMsg();
+  }
 }

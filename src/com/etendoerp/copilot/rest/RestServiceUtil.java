@@ -1,6 +1,8 @@
 package com.etendoerp.copilot.rest;
 
 import static com.etendoerp.copilot.util.CopilotUtils.getAppSourceContent;
+import static com.etendoerp.copilot.util.TrackingUtil.getLastConversation;
+import static com.etendoerp.copilot.util.TrackingUtil.trackNullResponse;
 import static com.etendoerp.webhookevents.webhook_util.OpenAPISpecUtils.PROP_NAME;
 
 import java.io.BufferedReader;
@@ -731,23 +733,6 @@ public class RestServiceUtil {
     return responseOriginal;
   }
 
-  /**
-   * Track the event when Copilot returns no response (null). This records both the question
-   * and an empty response for analytics and troubleshooting.
-   *
-   * @param conversationId
-   *     the conversation id associated with the question
-   * @param question
-   *     the original user question
-   * @param copilotApp
-   *     the assistant used to serve the request
-   */
-  public static void trackNullResponse(String conversationId, String question, CopilotApp copilotApp) {
-    // Note: This appears to be a bug in the original code - finalResponseAsync is null but we're calling methods on it
-    // Keeping the original logic for backward compatibility
-    TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
-    TrackingUtil.getInstance().trackResponse(conversationId, "", copilotApp, true, null);
-  }
 
   /**
    * Inspect a Copilot response for a missing {@code answer} field and throw an {@link OBException}
@@ -1111,31 +1096,7 @@ public class RestServiceUtil {
     }
   }
 
-  /**
-   * Return the date of the most recent conversation for the given user and app.
-   * When no conversation exists a fixed past date is returned to allow sorting.
-   *
-   * @param user
-   *     the user whose conversations will be queried
-   * @param copilotApp
-   *     the assistant application
-   * @return the last message timestamp or the creation date (or fixed fallback)
-   */
-  private static Date getLastConversation(User user, CopilotApp copilotApp) {
-    OBCriteria<Conversation> convCriteria = OBDal.getInstance().createCriteria(Conversation.class);
-    convCriteria.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, copilotApp));
-    convCriteria.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, user));
-    convCriteria.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
-    convCriteria.setMaxResults(1);
-    Conversation conversation = (Conversation) convCriteria.uniqueResult();
-    if (conversation == null) {
-      return Date.from(Instant.parse("2024-01-01T00:00:00Z"));
-    }
-    if (conversation.getLastMsg() == null) {
-      return conversation.getCreationDate();
-    }
-    return conversation.getLastMsg();
-  }
+
 
   /**
    * This method is used to save a file in the temp folder of the server. The file is saved with a
