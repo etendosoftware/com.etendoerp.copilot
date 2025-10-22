@@ -36,6 +36,7 @@ import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.ExtractedResponse;
 import com.etendoerp.copilot.util.TrackingUtil;
 
 class RestServiceUtilTest {
@@ -52,6 +53,14 @@ class RestServiceUtilTest {
   private static final String LIT_LANG1 = "lang1";
   private static final String LIT_RESPONSE_TEXT = "responseText";
   private static final String LIT_CONV_ID = "convId";
+  private static final String LIT_CONV2 = "conv2";
+  private static final String LIT_CONV3 = "conv3";
+  private static final String LIT_RESPONSE_WITH_METADATA = "response with metadata";
+  private static final String LIT_GPT4 = "gpt-4";
+  private static final String LIT_OPENAI = "openai";
+  private static final String LIT_PROVIDER = "provider";
+  private static final String LIT_MODEL = "model";
+  private static final String LIT_TIMESTAMP = "timestamp";
 
   // Setup and utility methods for mocks will go here
 
@@ -144,14 +153,14 @@ class RestServiceUtilTest {
       java.nio.file.Files.setPosixFilePermissions(tempPath, perms);
     } catch (UnsupportedOperationException | IOException ignore) {
       boolean ok;
-  ok = tempFile.setReadable(false, false);
-  if (!ok) testLog.warn("Failed to set non-owner readable on temp file: {}", tempFile.getAbsolutePath());
-  ok = tempFile.setWritable(false, false);
-  if (!ok) testLog.warn("Failed to set non-owner writable on temp file: {}", tempFile.getAbsolutePath());
-  ok = tempFile.setReadable(true, true);
-  if (!ok) testLog.warn("Failed to set owner-readable on temp file: {}", tempFile.getAbsolutePath());
-  ok = tempFile.setWritable(true, true);
-  if (!ok) testLog.warn("Failed to set owner-writable on temp file: {}", tempFile.getAbsolutePath());
+      ok = tempFile.setReadable(false, false);
+      if (!ok) testLog.warn("Failed to set non-owner readable on temp file: {}", tempFile.getAbsolutePath());
+      ok = tempFile.setWritable(false, false);
+      if (!ok) testLog.warn("Failed to set non-owner writable on temp file: {}", tempFile.getAbsolutePath());
+      ok = tempFile.setReadable(true, true);
+      if (!ok) testLog.warn("Failed to set owner-readable on temp file: {}", tempFile.getAbsolutePath());
+      ok = tempFile.setWritable(true, true);
+      if (!ok) testLog.warn("Failed to set owner-writable on temp file: {}", tempFile.getAbsolutePath());
     }
   }
 
@@ -213,7 +222,7 @@ class RestServiceUtilTest {
   void testAddTimestampToResponse() throws JSONException {
     JSONObject obj = new JSONObject();
     RestServiceUtil.addTimestampToResponse(obj);
-    Assertions.assertTrue(obj.has("timestamp"));
+    Assertions.assertTrue(obj.has(LIT_TIMESTAMP));
   }
 
   @Test
@@ -223,9 +232,39 @@ class RestServiceUtilTest {
     answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
     JSONObject finalResponseAsync = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
     JSONObject responseOriginal = new JSONObject();
-    String result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
-    Assertions.assertEquals(LIT_RESPONSE_TEXT, result);
+    ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal,
+        "");
+    Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
+    Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
     Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+    // Verify metadata is empty when not provided
+    Assertions.assertNotNull(result.getMetadata());
+    Assertions.assertEquals(0, result.getMetadata().length());
+  }
+
+  @Test
+  void testExtractResponseWithAnswerAndMetadata() throws JSONException {
+    JSONObject metadata = new JSONObject();
+    metadata.put(LIT_MODEL, LIT_GPT4);
+    metadata.put("tokens", 150);
+
+    JSONObject answer = new JSONObject();
+    answer.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_TEXT);
+    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
+    answer.put(RestServiceUtil.METADATA, metadata);
+    JSONObject finalResponseAsync = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
+    JSONObject responseOriginal = new JSONObject();
+    ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
+    Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
+    Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+    // Verify metadata is correctly extracted
+    Assertions.assertNotNull(result.getMetadata());
+    Assertions.assertEquals(LIT_GPT4, result.getMetadata().getString(LIT_MODEL));
+    Assertions.assertEquals(150, result.getMetadata().getInt("tokens"));
+    // Verify metadata is also added to responseOriginal
+    Assertions.assertTrue(responseOriginal.has(RestServiceUtil.METADATA));
+    Assertions.assertEquals(LIT_GPT4, responseOriginal.getJSONObject(RestServiceUtil.METADATA).getString(LIT_MODEL));
   }
 
   @Test
@@ -234,9 +273,56 @@ class RestServiceUtilTest {
     finalResponseAsync.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_TEXT);
     finalResponseAsync.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
     JSONObject responseOriginal = new JSONObject();
-    String result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
-    Assertions.assertEquals(LIT_RESPONSE_TEXT, result);
+    ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
+    Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
     Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+    // Verify metadata is empty when not provided
+    Assertions.assertNotNull(result.getMetadata());
+    Assertions.assertEquals(0, result.getMetadata().length());
+  }
+
+  @Test
+  void testExtractResponseWithResponseAndMetadata() throws JSONException {
+    JSONObject metadata = new JSONObject();
+    metadata.put(LIT_PROVIDER, LIT_OPENAI);
+    metadata.put("usage", 75);
+
+    JSONObject finalResponseAsync = new JSONObject();
+    finalResponseAsync.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_TEXT);
+    finalResponseAsync.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
+    finalResponseAsync.put(RestServiceUtil.METADATA, metadata);
+    JSONObject responseOriginal = new JSONObject();
+    ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
+    Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
+    Assertions.assertEquals(LIT_CONV_ID, responseOriginal.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+    // Verify metadata is correctly extracted
+    Assertions.assertNotNull(result.getMetadata());
+    Assertions.assertEquals(LIT_OPENAI, result.getMetadata().getString(LIT_PROVIDER));
+    Assertions.assertEquals(75, result.getMetadata().getInt("usage"));
+    // Verify metadata is also added to responseOriginal
+    Assertions.assertTrue(responseOriginal.has(RestServiceUtil.METADATA));
+    Assertions.assertEquals(LIT_OPENAI,
+        responseOriginal.getJSONObject(RestServiceUtil.METADATA).getString(LIT_PROVIDER));
+  }
+
+  @Test
+  void testExtractResponseWithNullMetadata() throws JSONException {
+    JSONObject answer = new JSONObject();
+    answer.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_TEXT);
+    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV_ID);
+    answer.put(RestServiceUtil.METADATA, (Object) null); // Explicitly null metadata
+    JSONObject finalResponseAsync = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
+    JSONObject responseOriginal = new JSONObject();
+    ExtractedResponse result = RestServiceUtil.extractResponse(finalResponseAsync, responseOriginal, "");
+    Assertions.assertEquals(LIT_RESPONSE_TEXT, result.getResponse());
+    Assertions.assertEquals(LIT_CONV_ID, result.getConversationId());
+    // Verify metadata is handled as empty when null
+    Assertions.assertNotNull(result.getMetadata());
+    Assertions.assertEquals(0, result.getMetadata().length());
+    // Verify null metadata is not added to responseOriginal
+    Assertions.assertFalse(responseOriginal.has(RestServiceUtil.METADATA));
   }
 
   @Test
@@ -456,13 +542,21 @@ class RestServiceUtilTest {
     Mockito.when(app.getId()).thenReturn(LIT_APP1);
 
     try (org.mockito.MockedStatic<TrackingUtil> mockTrack = org.mockito.Mockito.mockStatic(TrackingUtil.class)) {
+      // Mock the static method trackNullResponse since that's what's being called directly
+      mockTrack.when(() -> TrackingUtil.trackNullResponse(LIT_CONV1, "q", app))
+          .thenCallRealMethod();
+
       TrackingUtil tracker = Mockito.mock(TrackingUtil.class);
       mockTrack.when(TrackingUtil::getInstance).thenReturn(tracker);
 
       JSONObject result = RestServiceUtil.processResponseAndTrack(null, LIT_CONV1, "q", app);
       Assertions.assertNull(result);
+
+      // Verify the static method was called
+      mockTrack.verify(() -> TrackingUtil.trackNullResponse(LIT_CONV1, "q", app));
+      // Verify the instance methods were called through the static method
       Mockito.verify(tracker).trackQuestion(LIT_CONV1, "q", app);
-      Mockito.verify(tracker).trackResponse(LIT_CONV1, "", app, true);
+      Mockito.verify(tracker).trackResponse(LIT_CONV1, "", app, true, (JSONObject) null);
     }
   }
 
@@ -473,7 +567,7 @@ class RestServiceUtilTest {
 
     JSONObject answer = new JSONObject();
     answer.put(RestServiceUtil.PROP_RESPONSE, "ok");
-    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, "conv2");
+    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV2);
     JSONObject finalResp = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
 
     try (org.mockito.MockedStatic<TrackingUtil> mockTrack = org.mockito.Mockito.mockStatic(TrackingUtil.class)) {
@@ -484,12 +578,50 @@ class RestServiceUtilTest {
       Assertions.assertNotNull(out);
       Assertions.assertEquals(LIT_APP1, out.getString(RestServiceUtil.APP_ID));
       Assertions.assertEquals("ok", out.getString(RestServiceUtil.PROP_RESPONSE));
-      Assertions.assertEquals("conv2", out.getString(RestServiceUtil.PROP_CONVERSATION_ID));
-      Assertions.assertTrue(out.has("timestamp"));
-      // The method uses the conversationId parameter when tracking. Since we passed null
-      // the tracking calls are expected to be invoked with null as the conversation id.
-      Mockito.verify(tracker).trackQuestion((String) null, "q2", app);
-      Mockito.verify(tracker).trackResponse((String) null, "ok", app);
+      Assertions.assertEquals(LIT_CONV2, out.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+      Assertions.assertTrue(out.has(LIT_TIMESTAMP));
+      // The method now uses the conversationId extracted from the response JSON ("conv2")
+      // rather than the conversationId parameter (null) when tracking.
+      Mockito.verify(tracker).trackQuestion(LIT_CONV2, "q2", app);
+      // When no metadata is provided in input, an empty JSONObject is passed to trackResponse
+      Mockito.verify(tracker).trackResponse(Mockito.eq(LIT_CONV2), Mockito.eq("ok"), Mockito.eq(app),
+          Mockito.argThat(metadata -> metadata != null && metadata.length() == 0));
+    }
+  }
+
+  @Test
+  void testProcessResponseAndTrackValidAnswerWithMetadata() throws Exception {
+    CopilotApp app = Mockito.mock(CopilotApp.class);
+    Mockito.when(app.getId()).thenReturn(LIT_APP1);
+
+    JSONObject metadata = new JSONObject();
+    metadata.put(LIT_MODEL, "gpt-4o");
+    metadata.put("finish_reason", "stop");
+
+    JSONObject answer = new JSONObject();
+    answer.put(RestServiceUtil.PROP_RESPONSE, LIT_RESPONSE_WITH_METADATA);
+    answer.put(RestServiceUtil.PROP_CONVERSATION_ID, LIT_CONV3);
+    answer.put(RestServiceUtil.METADATA, metadata);
+    JSONObject finalResp = new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
+
+    try (org.mockito.MockedStatic<TrackingUtil> mockTrack = org.mockito.Mockito.mockStatic(TrackingUtil.class)) {
+      TrackingUtil tracker = Mockito.mock(TrackingUtil.class);
+      mockTrack.when(TrackingUtil::getInstance).thenReturn(tracker);
+
+      JSONObject out = RestServiceUtil.processResponseAndTrack(finalResp, null, "q3", app);
+      Assertions.assertNotNull(out);
+      Assertions.assertEquals(LIT_APP1, out.getString(RestServiceUtil.APP_ID));
+      Assertions.assertEquals(LIT_RESPONSE_WITH_METADATA, out.getString(RestServiceUtil.PROP_RESPONSE));
+      Assertions.assertEquals(LIT_CONV3, out.getString(RestServiceUtil.PROP_CONVERSATION_ID));
+      Assertions.assertTrue(out.has(LIT_TIMESTAMP));
+      // Verify metadata is included in the response
+      Assertions.assertTrue(out.has(RestServiceUtil.METADATA));
+      JSONObject outMetadata = out.getJSONObject(RestServiceUtil.METADATA);
+      Assertions.assertEquals("gpt-4o", outMetadata.getString(LIT_MODEL));
+      Assertions.assertEquals("stop", outMetadata.getString("finish_reason"));
+      // Verify tracking is called with the extracted metadata
+      Mockito.verify(tracker).trackQuestion(LIT_CONV3, "q3", app);
+      Mockito.verify(tracker).trackResponse(LIT_CONV3, LIT_RESPONSE_WITH_METADATA, app, metadata);
     }
   }
 
@@ -660,95 +792,6 @@ class RestServiceUtilTest {
       mockDal.when(OBDal::getInstance).thenReturn(dal);
 
       Assertions.assertThrows(org.openbravo.base.exception.OBException.class, RestServiceUtil::handleAssistants);
-    }
-  }
-
-  @Test
-  void testGetJSONLabelsModuleLanguageEquals() throws Exception {
-    // Setup OBContext with language
-    org.openbravo.dal.core.OBContext mockCtx = Mockito.mock(org.openbravo.dal.core.OBContext.class);
-    org.openbravo.model.ad.system.Language mockLang = Mockito.mock(org.openbravo.model.ad.system.Language.class);
-    Mockito.when(mockLang.getId()).thenReturn(LIT_LANG1);
-    Mockito.when(mockCtx.getLanguage()).thenReturn(mockLang);
-
-    // Module whose language equals current language
-    org.openbravo.model.ad.module.Module module = Mockito.mock(org.openbravo.model.ad.module.Module.class);
-    org.openbravo.model.ad.system.Language modLang = Mockito.mock(org.openbravo.model.ad.system.Language.class);
-    Mockito.when(modLang.getId()).thenReturn(LIT_LANG1);
-    Mockito.when(module.getLanguage()).thenReturn(modLang);
-
-    // OBDal and criteria for Message
-    OBDal dal = Mockito.mock(OBDal.class);
-    org.openbravo.dal.service.OBCriteria<org.openbravo.model.ad.ui.Message> crit = Mockito
-        .mock(org.openbravo.dal.service.OBCriteria.class);
-    Mockito.when(dal.get(org.openbravo.model.ad.module.Module.class, RestServiceUtil.COPILOT_MODULE_ID))
-        .thenReturn(module);
-    Mockito.when(dal.createCriteria(org.openbravo.model.ad.ui.Message.class)).thenReturn(crit);
-    Mockito.when(crit.add(org.mockito.ArgumentMatchers.any())).thenReturn(crit);
-
-    org.openbravo.model.ad.ui.Message msg = Mockito.mock(org.openbravo.model.ad.ui.Message.class);
-    Mockito.when(msg.getIdentifier()).thenReturn("id1");
-    Mockito.when(msg.getMessageText()).thenReturn("text1");
-    Mockito.when(crit.list()).thenReturn(List.of(msg));
-
-    try (org.mockito.MockedStatic<OBContext> mockOB = org.mockito.Mockito.mockStatic(OBContext.class);
-         org.mockito.MockedStatic<OBDal> mockDal = org.mockito.Mockito.mockStatic(OBDal.class)) {
-      mockOB.when(() -> OBContext.setAdminMode(false)).thenAnswer(i -> null);
-      mockOB.when(OBContext::getOBContext).thenReturn(mockCtx);
-      mockOB.when(OBContext::restorePreviousMode).thenAnswer(i -> null);
-
-      mockDal.when(OBDal::getInstance).thenReturn(dal);
-
-      JSONObject json = RestServiceUtil.getJSONLabels();
-      Assertions.assertNotNull(json);
-      Assertions.assertEquals("text1", json.getString("id1"));
-    }
-  }
-
-  @Test
-  void testGetJSONLabelsMessageTrlBranch() throws Exception {
-    // Setup OBContext with language different from module language
-    org.openbravo.dal.core.OBContext mockCtx = Mockito.mock(org.openbravo.dal.core.OBContext.class);
-    org.openbravo.model.ad.system.Language mockLang = Mockito.mock(org.openbravo.model.ad.system.Language.class);
-    Mockito.when(mockLang.getId()).thenReturn("lang2");
-    Mockito.when(mockCtx.getLanguage()).thenReturn(mockLang);
-
-    // Module whose language is different
-    org.openbravo.model.ad.module.Module module = Mockito.mock(org.openbravo.model.ad.module.Module.class);
-    org.openbravo.model.ad.system.Language modLang = Mockito.mock(org.openbravo.model.ad.system.Language.class);
-    Mockito.when(modLang.getId()).thenReturn(LIT_LANG1);
-    Mockito.when(module.getLanguage()).thenReturn(modLang);
-
-    // OBDal and criteria for MessageTrl
-    OBDal dal = Mockito.mock(OBDal.class);
-    org.openbravo.dal.service.OBCriteria<org.openbravo.model.ad.ui.MessageTrl> crit = Mockito
-        .mock(org.openbravo.dal.service.OBCriteria.class);
-    Mockito.when(dal.get(org.openbravo.model.ad.module.Module.class, RestServiceUtil.COPILOT_MODULE_ID))
-        .thenReturn(module);
-    Mockito.when(dal.createCriteria(org.openbravo.model.ad.ui.MessageTrl.class)).thenReturn(crit);
-    Mockito.when(crit.add(org.mockito.ArgumentMatchers.any())).thenReturn(crit);
-    // createAlias returns the criteria; mock it to return the same crit
-    Mockito.when(crit.createAlias(org.mockito.ArgumentMatchers.anyString(),
-        org.mockito.ArgumentMatchers.anyString())).thenReturn(crit);
-
-    org.openbravo.model.ad.ui.MessageTrl msgTrl = Mockito.mock(org.openbravo.model.ad.ui.MessageTrl.class);
-    org.openbravo.model.ad.ui.Message linkedMsg = Mockito.mock(org.openbravo.model.ad.ui.Message.class);
-    Mockito.when(linkedMsg.getIdentifier()).thenReturn("id2");
-    Mockito.when(msgTrl.getMessage()).thenReturn(linkedMsg);
-    Mockito.when(msgTrl.getMessageText()).thenReturn("text2");
-    Mockito.when(crit.list()).thenReturn(List.of(msgTrl));
-
-    try (org.mockito.MockedStatic<OBContext> mockOB = org.mockito.Mockito.mockStatic(OBContext.class);
-         org.mockito.MockedStatic<OBDal> mockDal = org.mockito.Mockito.mockStatic(OBDal.class)) {
-      mockOB.when(() -> OBContext.setAdminMode(false)).thenAnswer(i -> null);
-      mockOB.when(OBContext::getOBContext).thenReturn(mockCtx);
-      mockOB.when(OBContext::restorePreviousMode).thenAnswer(i -> null);
-
-      mockDal.when(OBDal::getInstance).thenReturn(dal);
-
-      JSONObject json = RestServiceUtil.getJSONLabels();
-      Assertions.assertNotNull(json);
-      Assertions.assertEquals("text2", json.getString("id2"));
     }
   }
 }

@@ -57,3 +57,8 @@ class ThreadContext:
     def set_data(cls, key, value):
         ctx = _request_context.get()
         ctx[key] = value
+
+    @classmethod
+    def has_data(cls, key):
+        """Check if a specific key exists in the context."""
+        return key in _request_context.get()

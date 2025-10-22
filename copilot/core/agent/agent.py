@@ -5,15 +5,14 @@ from enum import Enum
 from typing import Final, Optional
 
 from copilot.baseutils.logging_envvar import read_optional_env_var
-
-from .. import tool_installer
-from ..exceptions import (
+from copilot.core import tool_installer
+from copilot.core.exceptions import (
     OpenAIApiKeyNotFound,
     SystemPromptNotFound,
     ToolDependencyMismatch,
 )
-from ..schemas import QuestionSchema
-from ..tool_dependencies import Dependency
+from copilot.core.schemas import QuestionSchema
+from copilot.core.tool_dependencies import Dependency
 
 
 class AgentEnum(str, Enum):
@@ -29,6 +28,7 @@ class AssistantResponse:
     message_id: Optional[str] = None
     role: Optional[str] = None
     assistant_id: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 @dataclass
@@ -48,7 +48,7 @@ class CopilotAgent:
 
     def __init__(self):
         # Use lazy import to avoid circular dependency
-        from ..tool_loader import LangChainTools, ToolLoader
+        from copilot.core.tool_loader import LangChainTools, ToolLoader
 
         self._configured_tools: LangChainTools = ToolLoader().load_configured_tools()
 

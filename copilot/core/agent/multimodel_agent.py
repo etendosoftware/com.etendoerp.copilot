@@ -14,12 +14,20 @@ from copilot.core.agent.agent import (
     AssistantResponse,
     CopilotAgent,
 )
-from copilot.core.agent.agent_utils import get_checkpoint_file, process_local_files
+from copilot.core.agent.agent_utils import (
+    build_metadata,
+    get_checkpoint_file,
+    process_local_files,
+)
 from copilot.core.agent.eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
 from copilot.core.agent.langgraph_agent import build_config, handle_events
 from copilot.core.memory.memory_handler import MemoryHandler
 from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
 from copilot.core.threadcontext import ThreadContext
+from copilot.core.threadcontextutils import (
+    read_accum_usage_data,
+    read_accum_usage_data_from_msg_arr,
+)
 from copilot.core.utils import etendo_utils
 from copilot.core.utils.agent import get_full_question
 from copilot.core.utils.models import get_proxy_url
@@ -131,6 +139,7 @@ def get_llm(model, provider, temperature):
             temperature=temperature,
             streaming=True,
             base_url=f"{ollama_host}:{ollama_port}",
+            model_kwargs={"stream_options": {"include_usage": True}},
         )
 
     else:
@@ -139,6 +148,8 @@ def get_llm(model, provider, temperature):
             model=model,
             temperature=temperature,
             base_url=get_proxy_url(),
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
         )
     # Adjustments for specific models, because some models have different
     # default parameters
@@ -168,40 +179,40 @@ def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
 def _fix_array_schemas(schema):
     """
     Recursively fix array schemas by adding missing 'items' property.
-    
+
     Args:
         schema: The schema dictionary to fix
-        
+
     Returns:
         Fixed schema dictionary
     """
     if not isinstance(schema, dict):
         return schema
-    
+
     # Create a copy to avoid modifying the original
     fixed_schema = schema.copy()
-    
+
     # Fix array type missing items
     if fixed_schema.get("type") == "array" and "items" not in fixed_schema:
         fixed_schema["items"] = {"type": "string"}  # Default to string items
-    
+
     # Fix object type missing properties
     if fixed_schema.get("type") == "object" and "properties" not in fixed_schema:
         fixed_schema["properties"] = {}
-    
+
     # Recursively fix nested schemas
     if "properties" in fixed_schema:
         fixed_properties = {}
         for key, value in fixed_schema["properties"].items():
             fixed_properties[key] = _fix_array_schemas(value)
         fixed_schema["properties"] = fixed_properties
-    
+
     if "items" in fixed_schema:
         fixed_schema["items"] = _fix_array_schemas(fixed_schema["items"])
-    
+
     if "additionalProperties" in fixed_schema and isinstance(fixed_schema["additionalProperties"], dict):
         fixed_schema["additionalProperties"] = _fix_array_schemas(fixed_schema["additionalProperties"])
-    
+
     return fixed_schema
 
 
@@ -226,7 +237,7 @@ async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
 
         # Fix schema for tools with validation issues
         for tool in tools:
-            if hasattr(tool, 'args_schema'):
+            if hasattr(tool, "args_schema"):
                 schema = tool.args_schema
                 if schema is None:
                     # Set empty schema for tools without parameters
@@ -400,11 +411,13 @@ class MultimodelAgent(CopilotAgent):
                 {"system_prompt": question.system_prompt, "messages": messages}, config=config
             )
             new_ai_message = agent_response.get("messages")[-1]
-
+            usage_data = read_accum_usage_data_from_msg_arr(agent_response.get("messages"))
             return AgentResponse(
                 input=full_question,
                 output=AssistantResponse(
-                    response=new_ai_message.content, conversation_id=question.conversation_id
+                    response=new_ai_message.content,
+                    conversation_id=question.conversation_id,
+                    metadata=build_metadata(usage_data),
                 ),
             )
 
@@ -492,10 +505,13 @@ class MultimodelAgent(CopilotAgent):
                 continue
             output = event["data"]["output"]
             output_ = output.content
+            usage_data = read_accum_usage_data(output)
 
             # check if the output is a list
             msg = await self.get_messages(output_)
-            yield AssistantResponse(response=str(msg), conversation_id=conversation_id)
+            yield AssistantResponse(
+                response=str(msg), conversation_id=conversation_id, metadata=build_metadata(usage_data)
+            )
 
     async def get_messages(self, output_):
         msg = str(output_)
