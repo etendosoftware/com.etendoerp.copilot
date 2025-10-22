@@ -1,47 +1,16 @@
 package com.etendoerp.copilot.rest;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.List;
-import java.util.Properties;
-import java.util.UUID;
-import java.util.concurrent.TransferQueue;
 
-import javax.servlet.http.HttpServletResponse;
-
-import org.apache.commons.fileupload.FileItem;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.openbravo.base.exception.OBException;
-import org.openbravo.base.session.OBPropertiesProvider;
-import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.model.ad.access.Role;
-
-import com.etendoerp.copilot.data.CopilotApp;
-import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.data.CopilotRoleApp;
-import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
-import com.etendoerp.copilot.util.CopilotConstants;
-import com.etendoerp.copilot.util.CopilotUtils;
-import com.etendoerp.copilot.util.ExtractedResponse;
-import com.etendoerp.copilot.util.TrackingUtil;
 
 class RestServiceUtilTestLang {
-  private static final org.apache.logging.log4j.Logger testLog = org.apache.logging.log4j.LogManager
-      .getLogger(RestServiceUtilTestLang.class);
+
 
   private static final String LIT_LANG1 = "lang1";
 
