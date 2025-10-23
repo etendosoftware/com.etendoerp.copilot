@@ -1,6 +1,8 @@
 from copilot.baseutils.logging_envvar import copilot_debug_custom
 from copilot.core.threadcontext import ThreadContext
 
+RED = "\033[91m"
+
 
 def read_accum_usage_data(output) -> dict:
     """Reads and accumulates usage data from the output object.
@@ -18,13 +20,13 @@ def read_accum_usage_data(output) -> dict:
         copilot_debug_custom(
             f"Input tokens: {usage_data['input_tokens']}, Output tokens: {usage_data['output_tokens']}, \n Total tokens: {usage_data['input_tokens'] + usage_data['output_tokens']}",
             # RED
-            "\033[91m",
+            RED,
         )
         # Store usage data in the thread context
         ThreadContext.set_data("usage_data", usage_data)
         return usage_data
     except Exception as e:
-        copilot_debug_custom(f"Error reading usage data from output: {e}", "\033[91m")
+        copilot_debug_custom(f"Error reading usage data from output: {e}", RED)
         return {"input_tokens": 0, "output_tokens": 0}
 
 
@@ -53,12 +55,12 @@ def read_accum_usage_data_from_msg_arr(msg_arr) -> dict:
         copilot_debug_custom(
             f"Input tokens: {usage_data['input_tokens']}, Output tokens: {usage_data['output_tokens']}, \n Total tokens: {usage_data['input_tokens'] + usage_data['output_tokens']}",
             # RED
-            "\033[91m",
+            RED,
         )
         # Store usage data in the thread context
         ThreadContext.set_data("usage_data", usage_data)
         return usage_data
 
     except Exception as e:
-        copilot_debug_custom(f"Error reading usage data from message array: {e}", "\033[91m")
+        copilot_debug_custom(f"Error reading usage data from message array: {e}", RED)
         return {"input_tokens": 0, "output_tokens": 0}

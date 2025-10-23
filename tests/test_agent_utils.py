@@ -90,7 +90,12 @@ class TestGetLlm:
         result = get_llm("gpt-4", "openai", 0.7)
 
         mock_init_chat_model.assert_called_once_with(
-            model_provider="openai", model="gpt-4", temperature=0.7, base_url="https://proxy.example.com"
+            model_provider="openai",
+            model="gpt-4",
+            temperature=0.7,
+            base_url="https://proxy.example.com",
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
         )
         mock_get_model_config.assert_called_once_with("openai", "gpt-4")
         assert result == mock_llm
@@ -114,6 +119,8 @@ class TestGetLlm:
             model="gpt-3.5-turbo",
             temperature=0.5,
             base_url="https://proxy.example.com",
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
         )
         mock_get_model_config.assert_called_once_with("openai", "gpt-3.5-turbo")
         assert result == mock_llm
@@ -133,7 +140,12 @@ class TestGetLlm:
         result = get_llm("claude-3", None, 0.5)
 
         mock_init_chat_model.assert_called_once_with(
-            model_provider=None, model="claude-3", temperature=0.5, base_url="https://proxy.example.com"
+            model_provider=None,
+            model="claude-3",
+            temperature=0.5,
+            base_url="https://proxy.example.com",
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
         )
         mock_get_model_config.assert_called_once_with(None, "claude-3")
         assert result == mock_llm
@@ -155,6 +167,7 @@ class TestGetLlm:
             temperature=0.3,
             streaming=True,
             base_url="localhost:11434",
+            model_kwargs={"stream_options": {"include_usage": True}},
         )
         mock_get_model_config.assert_called_once_with("ollama", "llama2")
         assert result == mock_llm
@@ -171,7 +184,12 @@ class TestGetLlm:
         result = get_llm("llama2", "ollama", 0.8)
 
         mock_init_chat_model.assert_called_once_with(
-            model_provider="ollama", model="llama2", temperature=0.8, streaming=True, base_url="ollama:11434"
+            model_provider="ollama",
+            model="llama2",
+            temperature=0.8,
+            streaming=True,
+            base_url="ollama:11434",
+            model_kwargs={"stream_options": {"include_usage": True}},
         )
         assert result == mock_llm
 
@@ -409,6 +427,11 @@ class TestModuleIntegration:
 
         # Verify function calls
         mock_init_chat_model.assert_called_once_with(
-            model_provider="openai", model="gpt-4", temperature=0.7, base_url="https://api.openai.com/v1"
+            model_provider="openai",
+            model="gpt-4",
+            temperature=0.7,
+            base_url="https://api.openai.com/v1",
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
         )
         mock_get_model_config.assert_called_once_with("openai", "gpt-4")
