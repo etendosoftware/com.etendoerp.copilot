@@ -18,7 +18,9 @@ from copilot.core.langgraph.patterns.langsupervisor_pattern import LangSuperviso
 from copilot.core.memory.memory_handler import MemoryHandler
 from copilot.core.schema.graph_member import GraphMember
 from copilot.core.schemas import GraphQuestionSchema
-from copilot.core.threadcontextutils import read_accum_usage_data
+from copilot.core.threadcontextutils import (
+    read_accum_usage_data_from_msg_arr,
+)
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -101,8 +103,8 @@ async def _handle_on_chain_end(event, thread_id):
     response = None
     if len(event["parent_ids"]) == 0:
         output = event["data"]["output"]
-        usage_data = read_accum_usage_data(output)
         messages = output.get("messages", [])
+        usage_data = read_accum_usage_data_from_msg_arr(messages)
         if messages:
             message = messages[-1]
             if isinstance(message, (HumanMessage, AIMessage)):
@@ -268,8 +270,10 @@ class LanggraphAgent(CopilotAgent):
                     input=build_msg_input(full_question, image_payloads, other_file_paths),
                     config=build_config(thread_id),
                 )
-                usage_data = read_accum_usage_data(agent_response)
-                new_ai_message = agent_response.get("messages")[-1]
+
+                messages = agent_response.get("messages")
+                usage_data = read_accum_usage_data_from_msg_arr(messages)
+                new_ai_message = messages[-1]
 
                 return AgentResponse(
                     input=question.model_dump_json(),
