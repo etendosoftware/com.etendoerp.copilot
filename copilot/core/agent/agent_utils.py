@@ -120,3 +120,27 @@ def get_checkpoint_file(agent_id: str):
         base = "./checkpoints/"
     Path(base).mkdir(parents=True, exist_ok=True)
     return base + agent_id + "_checkpoints.sqlite"
+
+
+def build_metadata(usage_data):
+    """
+    Builds metadata dictionary from usage data.
+
+    Args:
+        usage_data (dict): A dictionary containing usage data with keys 'input_tokens'
+        and 'output_tokens'.
+
+    Returns:
+        dict: A dictionary containing 'input_tokens', 'output_tokens',
+        and 'total_tokens'.
+
+    If usage_data is None or empty, returns an empty dictionary.
+    """
+    metadata = {}
+    if usage_data:
+        metadata = {
+            "input_tokens": usage_data.get("input_tokens", 0),
+            "output_tokens": usage_data.get("output_tokens", 0),
+            "total_tokens": usage_data.get("input_tokens", 0) + usage_data.get("output_tokens", 0),
+        }
+    return metadata

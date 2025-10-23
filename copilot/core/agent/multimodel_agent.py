@@ -14,12 +14,20 @@ from copilot.core.agent.agent import (
     AssistantResponse,
     CopilotAgent,
 )
-from copilot.core.agent.agent_utils import get_checkpoint_file, process_local_files
+from copilot.core.agent.agent_utils import (
+    build_metadata,
+    get_checkpoint_file,
+    process_local_files,
+)
 from copilot.core.agent.eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
 from copilot.core.agent.langgraph_agent import build_config, handle_events
 from copilot.core.memory.memory_handler import MemoryHandler
 from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
 from copilot.core.threadcontext import ThreadContext
+from copilot.core.threadcontextutils import (
+    read_accum_usage_data,
+    read_accum_usage_data_from_msg_arr,
+)
 from copilot.core.utils.agent import get_full_question, get_llm
 from langchain.agents import (
     AgentExecutor,
@@ -333,11 +341,13 @@ class MultimodelAgent(CopilotAgent):
                 {"system_prompt": question.system_prompt, "messages": messages}, config=config
             )
             new_ai_message = agent_response.get("messages")[-1]
-
+            usage_data = read_accum_usage_data_from_msg_arr(agent_response.get("messages"))
             return AgentResponse(
                 input=full_question,
                 output=AssistantResponse(
-                    response=new_ai_message.content, conversation_id=question.conversation_id
+                    response=new_ai_message.content,
+                    conversation_id=question.conversation_id,
+                    metadata=build_metadata(usage_data),
                 ),
             )
 
@@ -425,10 +435,13 @@ class MultimodelAgent(CopilotAgent):
                 continue
             output = event["data"]["output"]
             output_ = output.content
+            usage_data = read_accum_usage_data(output)
 
             # check if the output is a list
             msg = await self.get_messages(output_)
-            yield AssistantResponse(response=str(msg), conversation_id=conversation_id)
+            yield AssistantResponse(
+                response=str(msg), conversation_id=conversation_id, metadata=build_metadata(usage_data)
+            )
 
     async def get_messages(self, output_):
         msg = str(output_)

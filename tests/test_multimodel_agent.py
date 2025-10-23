@@ -83,7 +83,14 @@ class TestMultimodelAgent:
 
         result = get_llm("gpt-4.1", "openai", 0.7)
 
-        mock_init_chat_model.assert_called_once()
+        mock_init_chat_model.assert_called_once_with(
+            model_provider="openai",
+            model="gpt-4.1",
+            temperature=0.7,
+            base_url=None,
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
+        )
         assert result == mock_model
 
     @patch("copilot.core.utils.agent.init_chat_model")
@@ -97,7 +104,14 @@ class TestMultimodelAgent:
 
         result = get_llm("llama2", "ollama", 0.5)
 
-        mock_init_chat_model.assert_called_once()
+        mock_init_chat_model.assert_called_once_with(
+            model_provider="ollama",
+            model="llama2",
+            temperature=0.5,
+            streaming=True,
+            base_url="localhost:11434",
+            model_kwargs={"stream_options": {"include_usage": True}},
+        )
         assert result == mock_model
 
     @patch("copilot.core.utils.etendo_utils.get_extra_info")

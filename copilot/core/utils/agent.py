@@ -40,6 +40,7 @@ def get_llm(model, provider, temperature):
             temperature=temperature,
             streaming=True,
             base_url=f"{ollama_host}:{ollama_port}",
+            model_kwargs={"stream_options": {"include_usage": True}},
         )
 
     else:
@@ -50,6 +51,8 @@ def get_llm(model, provider, temperature):
             model=model,
             temperature=temperature,
             base_url=get_proxy_url(),
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
         )
     # Adjustments for specific models, because some models have different
     # default parameters
