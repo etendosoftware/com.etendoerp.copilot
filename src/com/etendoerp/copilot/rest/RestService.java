@@ -14,6 +14,7 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TransferQueue;
 
 import javax.servlet.http.HttpServletRequest;
@@ -30,6 +31,7 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
@@ -37,17 +39,31 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.util.ConversationUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.telemetry.TelemetryUsageInfo;
 
+/**
+ * REST Service for handling Copilot requests.
+ */
 public class RestService {
   private static final Logger log4j = LogManager.getLogger(RestService.class);
   static final Map<String, TransferQueue<String>> asyncRequests = new HashMap<>();
   public static final String CACHED_QUESTION = "cachedQuestion";
+
+  // Configuration for tracking specific endpoints
+  private static final Set<String> TRACKED_GET_ENDPOINTS = Set.of(
+      AQUESTION
+  );
+
+  private static final Set<String> TRACKED_POST_ENDPOINTS = Set.of(
+      QUESTION     // for question handling
+  );
 
   public void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     String path = request.getPathInfo();
     try {
       OBContext.setAdminMode();
+      saveSessionInfo(request, path, "GET");
       if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
         handleAssistants(response);
       } else if (StringUtils.equalsIgnoreCase(path, "/conversations")) {
@@ -103,14 +119,14 @@ public class RestService {
       JSONObject result = new JSONObject();
       String appId = params.optString(CopilotConstants.PROP_APP_ID);
       if (StringUtils.isEmpty(appId)) {
-        throw new OBException("App ID is required"); //TODO: add to OBMessageUtils
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_AppIDRequired"));
       }
       CopilotApp assistant = CopilotUtils.getAssistantByIDOrName(appId);
       RestServiceUtil.generateAssistantStructure(assistant, result);
       return result;
     } catch (Exception e) {
       throw new OBException(
-          OBMessageUtils.messageBD("ETCOP_ErrorStructure") + e.getMessage()); //TODO: add to OBMessageUtils
+          OBMessageUtils.messageBD("ETCOP_ErrorStructure") + e.getMessage());
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -121,6 +137,7 @@ public class RestService {
     String path = request.getPathInfo();
     try {
       OBContext.setAdminMode();
+      saveSessionInfo(request, path, "POST");
       if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
         try {
           handleQuestion(request, response);
@@ -154,6 +171,58 @@ public class RestService {
     }
   }
 
+  /**
+   * Saves session information for the given HTTP request.
+   * This method checks if the request should be tracked based on its method and path.
+   * If tracking is enabled, it retrieves the session ID and command from the request
+   * and stores them in the SessionInfo. It also records the tracking information
+   * for the request in a static map.
+   *
+   * @param request
+   *     the HttpServletRequest object that contains the request the client made to the servlet
+   * @param path
+   *     the path of the request
+   * @param method
+   *     the HTTP method of the request (e.g., "GET", "POST")
+   */
+  private static void saveSessionInfo(HttpServletRequest request, String path, String method) {
+    if (!trackRequest(method, path)) {
+      return;
+    }
+    final VariablesSecureApp vars1 = new VariablesSecureApp(request, false);
+    TelemetryUsageInfo.getInstance().setSessionId(vars1.getSessionValue("#AD_Session_ID"));
+    TelemetryUsageInfo.getInstance().setCommand(method + " " + path);
+    TelemetryUsageInfo.getInstance().setTimeMillis(System.currentTimeMillis());
+  }
+
+  /**
+   * Determines whether to track the request based on its method and path.
+   *
+   * @param method
+   *     the HTTP method of the request (e.g., "GET", "POST")
+   * @param path
+   *     the path of the request
+   * @return {@code true} if the request should be tracked, {@code false} otherwise
+   */
+  private static boolean trackRequest(String method, String path) {
+    // Track requests based on configured endpoints
+    if (StringUtils.equals(method, "GET")) {
+      return TRACKED_GET_ENDPOINTS.contains(path);
+    }
+    if (StringUtils.equals(method, "POST")) {
+      return TRACKED_POST_ENDPOINTS.contains(path);
+    }
+    return false;
+  }
+
+  /**
+   * Checks the Etendo host configuration.
+   * This method sets the response status to OK if the host is properly configured,
+   * otherwise it sets the status to INTERNAL_SERVER_ERROR.
+   *
+   * @param response
+   *     the HttpServletResponse object that contains the response the servlet returns to the client
+   */
   private void checkEtendoHost(HttpServletResponse response) {
     try {
       response.setStatus(HttpServletResponse.SC_OK);

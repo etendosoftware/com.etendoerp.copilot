@@ -1,5 +1,8 @@
 package com.etendoerp.copilot.util;
 
+import static com.etendoerp.copilot.util.CopilotModelUtils.getAppModel;
+import static com.etendoerp.copilot.util.CopilotModelUtils.getProvider;
+
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -19,9 +22,13 @@ import org.openbravo.model.ad.access.User;
 import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.Message;
+import com.etendoerp.telemetry.TelemetryUsageInfo;
 
 public class TrackingUtil {
 
+  private static final org.apache.logging.log4j.Logger logger = org.apache.logging.log4j.LogManager.getLogger(
+      TrackingUtil.class);
+  public static final String COPILOT_MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
   private static TrackingUtil instance = null;
 
   private TrackingUtil() {
@@ -32,6 +39,121 @@ public class TrackingUtil {
       instance = new TrackingUtil();
     }
     return instance;
+  }
+
+  /**
+   * Sends usage data for a Copilot agent to the telemetry system for analytics and monitoring.
+   * This method collects comprehensive information about the agent including its configuration,
+   * model details, module association, and team member structure.
+   *
+   * <p>The telemetry data includes:
+   * <ul>
+   *   <li>Agent basic information (name, ID, type)</li>
+   *   <li>Model configuration (name and provider)</li>
+   *   <li>Module association (if any)</li>
+   *   <li>Team members structure (2-level hierarchy)</li>
+   * </ul>
+   *
+   * <p>This method fails silently if any error occurs during the telemetry data collection
+   * or transmission to avoid disrupting the main application flow.
+   *
+   * @param agent
+   *     the CopilotApp instance for which usage data should be sent
+   */
+  public static void sendUsageData(CopilotApp agent) {
+    try {
+      JSONObject jsonData = buildTelemetryJson(agent);
+      OBContext context = OBContext.getOBContext();
+      long time = System.currentTimeMillis() - TelemetryUsageInfo.getInstance().getTimeMillis();
+      TelemetryUsageInfo.getInstance().setModuleId(COPILOT_MODULE_ID);
+      TelemetryUsageInfo.getInstance().setUserId(context.getUser().getId());
+      TelemetryUsageInfo.getInstance().setObjectId(agent.getId());
+      TelemetryUsageInfo.getInstance().setClassname(TrackingUtil.class.getName());
+
+      TelemetryUsageInfo.getInstance().setTimeMillis(time);
+      TelemetryUsageInfo.getInstance().setJsonObject(jsonData);
+      TelemetryUsageInfo.getInstance().saveUsageAudit();
+    } catch (Exception e) {
+      //Fail silently
+      logger.error("Error sending Copilot usage data", e);
+    }
+  }
+
+  /**
+   * Builds the complete telemetry JSON structure for the given agent.
+   * This is the entry point for telemetry data construction, which includes
+   * the Langgraph agent data and all its team members in a 2-level hierarchy.
+   *
+   * @param agent
+   *     the CopilotApp instance to build telemetry data for
+   * @return a JSONObject containing the complete telemetry structure
+   */
+  private static JSONObject buildTelemetryJson(CopilotApp agent) {
+    return buildAgentData(agent, true);
+  }
+
+  /**
+   * Builds a standardized JSON representation of agent data for telemetry purposes.
+   * This method creates a consistent structure for both Langgraph agents and team members,
+   * ensuring all agents are represented with the same data format.
+   *
+   * <p>The generated JSON structure includes:
+   * <ul>
+   *   <li><code>agent_name</code> - The display name of the agent</li>
+   *   <li><code>agent_id</code> - The unique identifier of the agent</li>
+   *   <li><code>agent_type</code> - The type/category of the agent</li>
+   *   <li><code>model</code> - Model configuration with name and provider</li>
+   *   <li><code>module</code> - Associated module information (if any)</li>
+   *   <li><code>team_members</code> - Array of team member agents (only for Langgraph agent)</li>
+   * </ul>
+   *
+   * @param agent
+   *     the CopilotApp instance to build data for
+   * @param includeTeamMembers
+   *     if true, includes team members data; if false, excludes them
+   *     (used to create a 2-level hierarchy without infinite recursion)
+   * @return a JSONObject containing the agent's structured data for telemetry
+   */
+  private static JSONObject buildAgentData(CopilotApp agent, boolean includeTeamMembers) {
+    JSONObject jsonData = new JSONObject();
+    try {
+      jsonData.put("agent_name", agent.getName());
+      jsonData.put("agent_id", agent.getId());
+      jsonData.put("agent_type", agent.getAppType());
+
+      // Add model information with provider details
+      JSONObject modelData = new JSONObject();
+      modelData.put("model_name", getAppModel(agent));
+      modelData.put("model_provider", getProvider(agent));
+      jsonData.put("model", modelData);
+
+
+      // Add module information
+      if (agent.getModule() != null) {
+        JSONObject moduleData = new JSONObject();
+        moduleData.put("module_name", agent.getModule().getName());
+        moduleData.put("module_id", agent.getModule().getId());
+        jsonData.put("module", moduleData);
+      }
+
+      // Add team members information (only for the Langgraph agent, not for members)
+      if (includeTeamMembers) {
+        var tmL = agent.getETCOPTeamMemberList();
+        if (tmL != null && !tmL.isEmpty()) {
+          jsonData.put("team_members_qty", tmL.size());
+          JSONArray membersArray = new JSONArray();
+          for (var member : tmL) {
+            // Each member has the same structure as the Langgraph agent, but without their own team members
+            membersArray.put(buildAgentData(member.getCopilotApp(), false));
+          }
+          jsonData.put("team_members", membersArray);
+        }
+      }
+
+    } catch (JSONException e) {
+      logger.error("Error building telemetry JSON data for Copilot usage", e);
+    }
+    return jsonData;
   }
 
   private Conversation getConversation(String conversationId) {
