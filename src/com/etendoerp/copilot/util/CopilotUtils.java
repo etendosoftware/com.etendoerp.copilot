@@ -83,8 +83,7 @@ public class CopilotUtils {
   public static final String COPILOT_PORT = "COPILOT_PORT";
   public static final String COPILOT_HOST = "COPILOT_HOST";
   private static final String DEFAULT_PROMPT_PREFERENCE_KEY = "ETCOP_DefaultContextPrompt";
-  public static final String DEFAULT_MODELS_DATASET_URL = "https://raw.githubusercontent.com/etendosoftware/com.etendoerp.copilot/refs/heads/<BRANCH>/referencedata/standard/AI_Models_Dataset.xml";
-
+  public static final String DEFAULT_MODELS_DATASET_URL = "https://api.github.com/repos/etendosoftware/com.etendoerp.copilot/contents/referencedata/standard/AI_Models_Dataset.xml?ref=<BRANCH>";
 
   /**
    * Uploads a file to the vector database with specified parameters.
@@ -379,6 +378,14 @@ public class CopilotUtils {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
     }
 
+    //delete file after uploading to vectorDB
+    if (fileFromCopilotFile != null && fileFromCopilotFile.exists()) {
+      try {
+        Files.delete(fileFromCopilotFile.toPath());
+      } catch (IOException e) {
+        log.error("Temporary file {} could not be deleted: {}", fileFromCopilotFile.getAbsolutePath(), e.getMessage());
+      }
+    }
 
     OBDal.getInstance().flush();
   }
