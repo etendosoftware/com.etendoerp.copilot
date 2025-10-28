@@ -6,7 +6,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Date;
@@ -100,7 +102,23 @@ public class CopilotModelUtils {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String url = properties.getProperty("COPILOT_MODELS_DATASET_URL", CopilotUtils.DEFAULT_MODELS_DATASET_URL).replace(
         "<BRANCH>", properties.getProperty("COPILOT_MODELS_DATASET_BRANCH", "master"));
-    upsertModels(downloadFile(url));
+    String token = properties.getProperty("githubToken", null);
+    File datasetFile = null;
+    try {
+      datasetFile = downloadFile(url, token);
+      upsertModels(datasetFile);
+    } catch (Exception e) {
+      log.error("Error downloading models dataset from GitHub API. Errors: {}", e.getMessage());
+    } finally {
+      if (datasetFile != null && datasetFile.exists()) {
+        try {
+          Files.delete(datasetFile.toPath());
+          logIfDebug("Temporary dataset file deleted successfully");
+        } catch (IOException e) {
+          logIfDebug("Failed to delete temporary dataset file: " + e.getMessage());
+        }
+      }
+    }
   }
 
   /**
@@ -206,21 +224,37 @@ public class CopilotModelUtils {
    * Downloads a file from the specified URL.
    * <p>
    * This method creates a temporary file and downloads the content from the provided URL into the file.
+   * For GitHub API URLs, it includes the necessary headers to retrieve raw content and authorization.
    *
    * @param fileUrl
    *     The URL of the file to be downloaded.
+   * @param token
+   *     The GitHub API token for authorization (can be null).
    * @return The downloaded file.
    * @throws OBException
    *     If an error occurs while downloading the file.
    */
-  private static File downloadFile(String fileUrl) {
+  private static File downloadFile(String fileUrl, String token) {
     try {
       File tempFile = File.createTempFile("download", null);
-      try (InputStream in = new URL(fileUrl).openStream()) {
+      URI uri = new URI(fileUrl);
+      HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
+
+      // Add GitHub API headers for raw content
+      if (fileUrl.contains("api.github.com")) {
+        connection.setRequestProperty("Accept", "application/vnd.github.v3.raw");
+
+        // Add authorization header if token is provided
+        if (StringUtils.isNotEmpty(token)) {
+          connection.setRequestProperty("Authorization", "token " + token);
+        }
+      }
+
+      try (InputStream in = connection.getInputStream()) {
         Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
       }
       return tempFile;
-    } catch (IOException e) {
+    } catch (IOException | URISyntaxException e) {
       throw new OBException(e);
     }
   }
