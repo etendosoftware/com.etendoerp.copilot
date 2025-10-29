@@ -1,24 +1,25 @@
 import uuid
 from typing import AsyncGenerator
 
-from copilot.core.schema.graph_member import GraphMember
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
+from copilot.core.schema.graph_member import GraphMember
+from .agent import AgentResponse, AssistantResponse, CopilotAgent
+from .agent_utils import build_metadata, get_checkpoint_file, process_local_files
 from ..langgraph.members_util import MembersUtil
 from ..langgraph.patterns.langsupervisor_pattern import LangSupervisorPattern
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import GraphQuestionSchema
+from ..threadcontextutils import read_accum_usage_data
 from ..utils import (
     copilot_debug,
     copilot_debug_event,
     read_optional_env_var,
     read_optional_env_var_int,
 )
-from .agent import AgentResponse, AssistantResponse, CopilotAgent
-from .agent_utils import get_checkpoint_file, process_local_files
 
 
 def fullfill_question(local_file_ids, question):
@@ -69,11 +70,15 @@ async def _handle_on_chain_end(event, thread_id):
     response = None
     if len(event["parent_ids"]) == 0:
         output = event["data"]["output"]
+        usage_data = read_accum_usage_data(output)
         messages = output.get("messages", [])
         if messages:
             message = messages[-1]
             if isinstance(message, (HumanMessage, AIMessage)):
-                response = AssistantResponse(response=message.content, conversation_id=thread_id)
+                response = AssistantResponse(response=message.content,
+                                             conversation_id=thread_id,
+                                             metadata=build_metadata(usage_data)
+                                             )
     return response
 
 
@@ -234,11 +239,13 @@ class LanggraphAgent(CopilotAgent):
                 input=build_msg_input(full_question, image_payloads, other_file_paths),
                 config=build_config(thread_id),
             )
+            usage_data = read_accum_usage_data(agent_response)
             new_ai_message = agent_response.get("messages")[-1]
 
             return AgentResponse(
                 input=question.model_dump_json(),
-                output=AssistantResponse(response=new_ai_message.content, conversation_id=thread_id),
+                output=AssistantResponse(response=new_ai_message.content, conversation_id=thread_id,
+                                         metadata=build_metadata(usage_data))
             )
 
     async def aexecute(self, question: GraphQuestionSchema) -> AsyncGenerator[AgentResponse, None]:

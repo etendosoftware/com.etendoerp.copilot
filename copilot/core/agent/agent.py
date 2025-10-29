@@ -32,6 +32,7 @@ class AssistantResponse:
     message_id: Optional[str] = None
     role: Optional[str] = None
     assistant_id: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 @dataclass
