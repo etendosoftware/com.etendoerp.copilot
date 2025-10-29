@@ -12,10 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
-import kong.unirest.UnirestException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -62,6 +59,8 @@ import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.smf.securewebservices.utils.SecureWebServicesUtils;
 
+import kong.unirest.UnirestException;
+
 /**
  * CopilotUtils is a utility class that provides various methods for interacting with
  * the Copilot application, including sending requests to the Copilot service, handling
@@ -82,8 +81,7 @@ public class CopilotUtils {
   public static final String COPILOT_PORT = "COPILOT_PORT";
   public static final String COPILOT_HOST = "COPILOT_HOST";
   private static final String DEFAULT_PROMPT_PREFERENCE_KEY = "ETCOP_DefaultContextPrompt";
-  public static final String DEFAULT_MODELS_DATASET_URL = "https://raw.githubusercontent.com/etendosoftware/com.etendoerp.copilot/refs/heads/<BRANCH>/referencedata/standard/AI_Models_Dataset.xml";
-
+  public static final String DEFAULT_MODELS_DATASET_URL = "https://api.github.com/repos/etendosoftware/com.etendoerp.copilot/contents/referencedata/standard/AI_Models_Dataset.xml?ref=<BRANCH>";
 
   /**
    * Uploads a file to the vector database with specified parameters.
@@ -378,6 +376,14 @@ public class CopilotUtils {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
     }
 
+    //delete file after uploading to vectorDB
+    if (fileFromCopilotFile != null && fileFromCopilotFile.exists()) {
+      try {
+        Files.delete(fileFromCopilotFile.toPath());
+      } catch (IOException e) {
+        log.error("Temporary file {} could not be deleted: {}", fileFromCopilotFile.getAbsolutePath(), e.getMessage());
+      }
+    }
 
     OBDal.getInstance().flush();
   }
@@ -465,13 +471,6 @@ public class CopilotUtils {
 
     return CopilotVarReplacerUtil.replaceCopilotPromptVariables(promptBuilder.toString());
   }
-
-
-
-
-
-
-
 
 
   /**

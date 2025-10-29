@@ -361,10 +361,18 @@ def reset_vector_db(body: VectorDBInputSchema):
                 metadata = {}
             metadata["purge"] = True
             updated_metadatas.append(metadata)
-        # Perform a single batch update with all document IDs and their updated metadata
+        # Perform batch updates with all document IDs and their updated metadata
         # Check if there are documents to update
         if updated_metadatas:
-            collection.update(ids=document_ids, metadatas=updated_metadatas)
+            batch_size = 5000
+            total_docs = len(document_ids)
+            for i in range(0, total_docs, batch_size):
+                batch_ids = document_ids[i : i + batch_size]
+                batch_metadatas = updated_metadatas[i : i + batch_size]
+                collection.update(ids=batch_ids, metadatas=batch_metadatas)
+                copilot_debug(
+                    f"Updated batch {i//batch_size + 1}/{(total_docs + batch_size - 1)//batch_size} with {len(batch_ids)} documents."
+                )
             copilot_debug("All documents were successfully updated with 'purge': True in the metadata.")
             db_client.clear_system_cache()
     except Exception as e:
