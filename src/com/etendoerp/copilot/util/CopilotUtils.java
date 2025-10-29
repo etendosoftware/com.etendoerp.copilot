@@ -851,6 +851,7 @@ public class CopilotUtils {
     jsonRequestForCopilot.put(RestServiceUtil.PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
     jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
   }
 
   /**

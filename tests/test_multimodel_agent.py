@@ -10,8 +10,6 @@ from copilot.core.agent.agent import AgentResponse, AssistantResponse
 from copilot.core.agent.multimodel_agent import (
     MultimodelAgent,
     convert_mcp_servers_config,
-    get_llm,
-    get_model_config,
     is_code_act_enabled,
 )
 from copilot.core.schemas import (
@@ -20,6 +18,7 @@ from copilot.core.schemas import (
     QuestionSchema,
     ToolSchema,
 )
+from copilot.core.utils.agent import get_llm, get_model_config
 from langchain_core.messages import AIMessage, HumanMessage
 
 
@@ -74,25 +73,34 @@ class TestMultimodelAgent:
         assert multimodel_agent._memory is not None
         assert multimodel_agent._configured_tools is not None
 
-    @patch("copilot.core.agent.multimodel_agent.init_chat_model")
-    def test_get_llm_openai(self, mock_init_chat_model):
+    @patch("copilot.core.utils.agent.init_chat_model")
+    @patch("copilot.core.utils.agent.get_model_config")
+    def test_get_llm_openai(self, mock_get_model_config, mock_init_chat_model):
         """Test LLM initialization for OpenAI provider."""
         mock_model = MagicMock()
         mock_init_chat_model.return_value = mock_model
+        mock_get_model_config.return_value = {}
 
         result = get_llm("gpt-4.1", "openai", 0.7)
 
         mock_init_chat_model.assert_called_once_with(
-            model_provider="openai", model="gpt-4.1", temperature=0.7, base_url=None
+            model_provider="openai",
+            model="gpt-4.1",
+            temperature=0.7,
+            base_url=None,
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
         )
         assert result == mock_model
 
-    @patch("copilot.core.agent.multimodel_agent.init_chat_model")
+    @patch("copilot.core.utils.agent.init_chat_model")
+    @patch("copilot.core.utils.agent.get_model_config")
     @patch.dict("os.environ", {"COPILOT_OLLAMA_HOST": "localhost", "COPILOT_OLLAMA_PORT": "11434"})
-    def test_get_llm_ollama(self, mock_init_chat_model):
+    def test_get_llm_ollama(self, mock_get_model_config, mock_init_chat_model):
         """Test LLM initialization for Ollama provider."""
         mock_model = MagicMock()
         mock_init_chat_model.return_value = mock_model
+        mock_get_model_config.return_value = {}
 
         result = get_llm("llama2", "ollama", 0.5)
 
@@ -102,10 +110,11 @@ class TestMultimodelAgent:
             temperature=0.5,
             streaming=True,
             base_url="localhost:11434",
+            model_kwargs={"stream_options": {"include_usage": True}},
         )
         assert result == mock_model
 
-    @patch("copilot.core.agent.multimodel_agent.etendo_utils.get_extra_info")
+    @patch("copilot.core.utils.etendo_utils.get_extra_info")
     def test_get_model_config(self, mock_get_extra_info):
         """Test model configuration retrieval."""
         mock_get_extra_info.return_value = {
