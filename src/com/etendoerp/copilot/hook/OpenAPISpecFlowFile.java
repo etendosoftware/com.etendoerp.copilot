@@ -27,6 +27,7 @@ import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.util.FileUtils;
 import com.etendoerp.openapi.OpenAPIController;
 import com.etendoerp.openapi.data.OpenApiFlow;
 
@@ -63,7 +64,7 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
       File file = new File(path.toString());
       aim.upload(new HashMap<>(), COPILOT_FILE_TAB_ID, hookObject.getId(),
           hookObject.getOrganization().getId(), file);
-
+      FileUtils.cleanupTempFile(path, false);
     } catch (Exception e) {
       throw new OBException(
           String.format(OBMessageUtils.messageBD("ETCOP_GenFileError"), getFileName(hookObject, flow), e.getMessage()),

@@ -2,15 +2,11 @@ package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -90,10 +86,11 @@ public class CopilotModelUtils {
 
 
   /**
-   * Synchronizes the models by downloading the dataset file and updating the models in the database.
+   * Synchronizes the models by downloading the dataset from the URL and updating the models in the database.
    * <p>
-   * This method retrieves the URL for the models dataset from the properties, downloads the file,
-   * and calls the `upsertModels` method to update the models in the database.
+   * This method retrieves the URL for the models dataset from the properties, downloads the content
+   * directly into memory, and calls the `upsertModels` method to update the models in the database.
+   * No temporary files are created, avoiding potential file accumulation issues.
    *
    * @throws OBException
    *     If an error occurs during the synchronization process.
@@ -103,46 +100,65 @@ public class CopilotModelUtils {
     String url = properties.getProperty("COPILOT_MODELS_DATASET_URL", CopilotUtils.DEFAULT_MODELS_DATASET_URL).replace(
         "<BRANCH>", properties.getProperty("COPILOT_MODELS_DATASET_BRANCH", "master"));
     String token = properties.getProperty("githubToken", null);
-    File datasetFile = null;
+
     try {
-      datasetFile = downloadFile(url, token);
-      upsertModels(datasetFile);
+      logIfDebug("Starting models synchronization from URL: " + url);
+      upsertModelsFromStream(url, token);
+      logIfDebug("Models synchronization completed successfully");
     } catch (Exception e) {
-      log.error("Error downloading models dataset from GitHub API. Errors: {}", e.getMessage());
-    } finally {
-      if (datasetFile != null && datasetFile.exists()) {
-        try {
-          Files.delete(datasetFile.toPath());
-          logIfDebug("Temporary dataset file deleted successfully");
-        } catch (IOException e) {
-          logIfDebug("Failed to delete temporary dataset file: " + e.getMessage());
-        }
-      }
+      log.error("Error during models synchronization from URL: {}. Error: {}", url, e.getMessage());
+      throw new OBException("Failed to synchronize models: " + e.getMessage(), e);
     }
   }
 
   /**
-   * Updates the models in the database using the provided dataset file.
+   * Downloads the dataset from the specified URL and updates the models in the database.
    * <p>
-   * This method reads the dataset file, parses the XML to extract model elements,
-   * and calls the `upsertModel` method for each model element to update the database.
+   * This method downloads the content directly from the URL into memory, parses the XML
+   * to extract model elements, and calls the `upsertModel` method for each model element
+   * to update the database. No temporary files are created.
    *
-   * @param datasetFile
-   *     The dataset file containing the models to be updated.
+   * @param fileUrl
+   *     The URL of the dataset to be downloaded.
+   * @param token
+   *     The GitHub API token for authorization (can be null).
    * @throws OBException
-   *     If an error occurs while updating the models.
+   *     If an error occurs while downloading or updating the models.
    */
-  private static void upsertModels(File datasetFile) {
-    try (FileInputStream fis = new FileInputStream(datasetFile)) {
-      OBContext.setAdminMode(false);
-      List<Element> elementList = XMLUtil.getInstance().getRootElement(fis).elements("ETCOP_Openai_Model");
-      for (Element modelElem : elementList) {
-        logIfDebug(modelElem.toString());
-        upsertModel(modelElem);
+  private static void upsertModelsFromStream(String fileUrl, String token) {
+    try {
+      URI uri = new URI(fileUrl);
+      HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
+
+      try {
+        // Add GitHub API headers for raw content
+        if (fileUrl.contains("api.github.com")) {
+          connection.setRequestProperty("Accept", "application/vnd.github.v3.raw");
+
+          // Add authorization header if token is provided
+          if (StringUtils.isNotEmpty(token)) {
+            connection.setRequestProperty("Authorization", "token " + token);
+          }
+        }
+
+        // Process the XML directly from the input stream
+        try (InputStream inputStream = connection.getInputStream()) {
+          OBContext.setAdminMode(false);
+          List<Element> elementList = XMLUtil.getInstance().getRootElement(inputStream).elements("ETCOP_Openai_Model");
+          logIfDebug("Processing " + elementList.size() + " model elements from dataset");
+
+          for (Element modelElem : elementList) {
+            logIfDebug("Processing model: " + modelElem.elementText("searchkey"));
+            upsertModel(modelElem);
+          }
+          OBDal.getInstance().flush();
+          logIfDebug("Successfully processed all model elements");
+        }
+      } finally {
+        connection.disconnect();
       }
-      OBDal.getInstance().flush();
-    } catch (IOException e) {
-      throw new OBException(e);
+    } catch (IOException | URISyntaxException e) {
+      throw new OBException("Failed to download and process models dataset: " + e.getMessage(), e);
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -183,9 +199,9 @@ public class CopilotModelUtils {
       model.setUpdatedBy(OBDal.getInstance().get(User.class, "0"));
       model.setCreationDate(new Date());
       model.setUpdated(new Date());
-      model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
-      model.setClient(OBDal.getInstance().get(Client.class, "0"));
     }
+    model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
+    model.setClient(OBDal.getInstance().get(Client.class, "0"));
     model.setActive(Boolean.parseBoolean(modelElem.elementText("active")));
     model.setSearchkey(modelElem.elementText("searchkey"));
     model.setName(modelElem.elementText("name"));
@@ -217,45 +233,6 @@ public class CopilotModelUtils {
     for (CopilotModel modelrep : models) {
       modelrep.setActive(false);
       OBDal.getInstance().save(modelrep);
-    }
-  }
-
-  /**
-   * Downloads a file from the specified URL.
-   * <p>
-   * This method creates a temporary file and downloads the content from the provided URL into the file.
-   * For GitHub API URLs, it includes the necessary headers to retrieve raw content and authorization.
-   *
-   * @param fileUrl
-   *     The URL of the file to be downloaded.
-   * @param token
-   *     The GitHub API token for authorization (can be null).
-   * @return The downloaded file.
-   * @throws OBException
-   *     If an error occurs while downloading the file.
-   */
-  private static File downloadFile(String fileUrl, String token) {
-    try {
-      File tempFile = File.createTempFile("download", null);
-      URI uri = new URI(fileUrl);
-      HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
-
-      // Add GitHub API headers for raw content
-      if (fileUrl.contains("api.github.com")) {
-        connection.setRequestProperty("Accept", "application/vnd.github.v3.raw");
-
-        // Add authorization header if token is provided
-        if (StringUtils.isNotEmpty(token)) {
-          connection.setRequestProperty("Authorization", "token " + token);
-        }
-      }
-
-      try (InputStream in = connection.getInputStream()) {
-        Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      }
-      return tempFile;
-    } catch (IOException | URISyntaxException e) {
-      throw new OBException(e);
     }
   }
 
