@@ -696,7 +696,9 @@ public class CopilotUtils {
     } else {
       tempFile = FileUtils.getFileFromCopilotFile(appSource.getFile());
     }
-    return Files.readString(tempFile.toPath());
+    String content = Files.readString(tempFile.toPath());
+    FileUtils.cleanupTempFile(tempFile.toPath(), false);
+    return content;
   }
 
   /**

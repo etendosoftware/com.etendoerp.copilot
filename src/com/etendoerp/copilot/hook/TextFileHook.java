@@ -1,7 +1,6 @@
 package com.etendoerp.copilot.hook;
 
 
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -41,8 +40,9 @@ public class TextFileHook implements CopilotFileHook {
       log.debug(String.format("TextFileHook for file: %s executed start", hookObject.getName()));
     }
     String text = hookObject.getText();
-    String fileName = StringUtils.isNotEmpty(hookObject.getFilename())?hookObject.getFilename(): hookObject.getName();
-    if( !StringUtils.endsWithIgnoreCase(fileName, ".txt") ){
+    String fileName = StringUtils.isNotEmpty(
+        hookObject.getFilename()) ? hookObject.getFilename() : hookObject.getName();
+    if (!StringUtils.endsWithIgnoreCase(fileName, ".txt")) {
       fileName = fileName + ".txt";
     }
     //download the file from the URL, preserving the original name, if filename is not empty, use it instead. The file must be
@@ -52,31 +52,35 @@ public class TextFileHook implements CopilotFileHook {
     FileUtils.removeAttachment(aim, hookObject);
     File file = new File(path.toString());
     FileUtils.attachFile(hookObject, aim, file);
+    FileUtils.cleanupTempFile(path, false);
 
   }
 
- /**
- * Generates a temporary text file with the given content and file name.
- *
- * This method creates a temporary file with the specified file name and writes the provided text content to it.
- * If an IOException occurs during file creation or writing, an OBException is thrown.
- *
- * @param text The text content to be written to the file.
- * @param fileName The name of the file to be created.
- * @return The Path to the generated temporary file.
- * @throws OBException If an error occurs while generating the text file.
- */
-private Path generateTextFile(String text, String fileName) {
-  try {
-    Path tempFile = Files.createTempFile(fileName, ".txt");
-    try (FileOutputStream fos = new FileOutputStream(tempFile.toFile())) {
-      fos.write(text.getBytes());
+  /**
+   * Generates a temporary text file with the given content and file name.
+   * <p>
+   * This method creates a temporary file with the specified file name and writes the provided text content to it.
+   * If an IOException occurs during file creation or writing, an OBException is thrown.
+   *
+   * @param text
+   *     The text content to be written to the file.
+   * @param fileName
+   *     The name of the file to be created.
+   * @return The Path to the generated temporary file.
+   * @throws OBException
+   *     If an error occurs while generating the text file.
+   */
+  private Path generateTextFile(String text, String fileName) {
+    try {
+      Path tempFile = Files.createTempFile(fileName, ".txt");
+      try (FileOutputStream fos = new FileOutputStream(tempFile.toFile())) {
+        fos.write(text.getBytes());
+      }
+      return tempFile;
+    } catch (IOException e) {
+      throw new OBException("Error generating text file", e);
     }
-    return tempFile;
-  } catch (IOException e) {
-    throw new OBException("Error generating text file", e);
   }
-}
 
   /**
    * Checks if the hook is applicable for the given type.

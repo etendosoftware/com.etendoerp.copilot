@@ -120,6 +120,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
       OpenAIUtils.getModelList(openaiApiKey);
       // Sync knowledge files to each assistant
       result = syncKnowledgeFiles(appList, openaiApiKey);
+      OBDal.getInstance().flush();
     } catch (Exception e) {
       log.error("Error in process", e);
       try {
