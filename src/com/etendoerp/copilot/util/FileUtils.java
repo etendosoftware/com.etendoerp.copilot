@@ -6,10 +6,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.stream.Stream;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
@@ -31,6 +36,7 @@ import com.etendoerp.copilot.hook.ProcessHQLAppSource;
  */
 
 public class FileUtils {
+  private static final Logger log = LogManager.getLogger(FileUtils.class);
 
   private FileUtils() {
     // Private constructor to prevent instantiation
@@ -42,7 +48,7 @@ public class FileUtils {
    * This method fetches the attachment corresponding to the provided {@link CopilotFile},
    * downloads its content, and creates a temporary file with the same name and extension.
    * If the attachment is missing or the file lacks an extension, appropriate exceptions
-   * are thrown. The temporary file is marked for deletion upon JVM exit.
+   * are thrown.
    *
    * @param fileToSync
    *     The {@link CopilotFile} instance for which the associated file is to be retrieved.
@@ -55,29 +61,43 @@ public class FileUtils {
    */
   public static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
     AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
+
+    // Query the attachment related to the given CopilotFile
     OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
     attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
     Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
     if (attach == null) {
       throwMissingAttachException(fileToSync);
     }
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    aim.download(attach.getId(), os);
-    // create a temp file
+
+    // Get original filename and validate extension
     String filename = attach.getName();
     if (filename.lastIndexOf(".") < 0) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingExtension"), filename));
     }
 
+    // Extract name and extension
     String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
     String extension = filename.substring(filename.lastIndexOf(".") + 1);
 
-    File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
+    // Create a temporary file
+    File tempFile = File.createTempFile("attach_down_" + fileWithoutExtension, "." + extension);
     boolean setW = tempFile.setWritable(true);
     if (!setW) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorTempFile"), fileToSync.getName()));
     }
-    os.writeTo(new FileOutputStream(tempFile));
+
+    // Download content into memory, then write it to the temp file
+    try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+      aim.download(attach.getId(), os);
+
+      // Ensure the output stream is properly closed after writing
+      try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+        os.writeTo(fos);
+      }
+    }
+
+    // Return the file, now fully written and closed
     return tempFile;
   }
 
@@ -194,6 +214,42 @@ public class FileUtils {
     Attachment attachment = getAttachment(hookObject);
     if (attachment != null) {
       aim.delete(attachment);
+    }
+  }
+
+  /**
+   * Cleans up a temporary file and optionally its containing directory if empty.
+   * <p>
+   * This method safely deletes the specified file and, if requested, removes the parent
+   * directory if it becomes empty after the file deletion. The method handles null paths
+   * gracefully and logs any I/O errors that occur during the cleanup process.
+   *
+   * @param path
+   *     The {@link Path} to the temporary file to be deleted. If null, the method returns immediately.
+   * @param deleteContainerIfEmpty
+   *     If true, the parent directory will be deleted if it becomes empty after
+   *     removing the file. If false, only the file itself is deleted.
+   */
+  public static void cleanupTempFile(Path path, boolean deleteContainerIfEmpty) {
+    if (path == null) return;
+
+    try {
+      // Delete the file itself
+      Files.deleteIfExists(path);
+
+      // Optionally delete the containing folder if empty
+      if (deleteContainerIfEmpty) {
+        Path parentDir = path.getParent();
+        if (parentDir != null && Files.isDirectory(parentDir)) {
+          try (Stream<Path> files = Files.list(parentDir)) {
+            if (files.findAny().isEmpty()) {
+              Files.deleteIfExists(parentDir);
+            }
+          }
+        }
+      }
+    } catch (IOException e) {
+      log.error("Failed to delete temporary file or folder: {}", e.getMessage());
     }
   }
 }

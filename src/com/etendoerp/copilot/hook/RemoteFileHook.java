@@ -54,6 +54,7 @@ public class RemoteFileHook implements CopilotFileHook {
       FileUtils.removeAttachment(aim, hookObject);
       File file = new File(path.toString());
       FileUtils.attachFile(hookObject, aim, file);
+      FileUtils.cleanupTempFile(path, true);
 
     } catch (IOException e) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileDownErr"), url), e);
@@ -78,7 +79,7 @@ public class RemoteFileHook implements CopilotFileHook {
     String finalName = getFinalName(customName, url);
 
     // Create a temporary directory
-    Path tempDirectory = Files.createTempDirectory("temporary_downloads");
+    Path tempDirectory = Files.createTempDirectory("CopilotRemoteFile");
 
     // Full path of the file in the temporary directory
     Path destinationPath = tempDirectory.resolve(finalName);
