@@ -19,7 +19,6 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.util.CopilotVarReplacerUtil;
 import com.etendoerp.copilot.util.FileUtils;
 
 /**
