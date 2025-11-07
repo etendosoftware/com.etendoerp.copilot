@@ -57,9 +57,6 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <foreign-key foreignTable="ETCOP_APP" name="ETCOP_CONV_APP_FK" onDelete="setnull">
-        <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
-      </foreign-key>
       <foreign-key foreignTable="AD_CLIENT" name="ETCOP_CONV_CLIENT">
         <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
       </foreign-key>
@@ -69,6 +66,9 @@
       <foreign-key foreignTable="AD_USER" name="ETCOP_CONV_USR">
         <reference local="AD_USER_ID" foreign="AD_USER_ID"/>
       </foreign-key>
+      <index name="ETCOP_CONV_APP_IDX" unique="false">
+        <index-column name="ETCOP_APP_ID"/>
+      </index>
       <unique name="ETCOP_CONV_EXTID_UNIQUE">
         <unique-column name="EXTERNAL_ID"/>
       </unique>

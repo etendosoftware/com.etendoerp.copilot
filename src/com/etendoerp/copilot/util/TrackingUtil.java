@@ -51,7 +51,7 @@ public class TrackingUtil {
       conversation.setOrganization(context.getCurrentOrganization());
       conversation.setNewOBObject(true);
       conversation.setExternalID(conversationId);
-      conversation.setCopilotApp(app);
+      conversation.setCopilotApp(app.getId());
       conversation.setUserContact(context.getUser());
       OBDal.getInstance().save(conversation);
     }
