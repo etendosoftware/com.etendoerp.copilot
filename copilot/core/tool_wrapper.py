@@ -144,6 +144,7 @@ class ToolWrapper(CopilotTool, metaclass=abc.ABCMeta):
     """
 
     handle_validation_error: bool = True
+    agent_id: Optional[str] = None  # ID of the agent using this tool instance
 
     @abc.abstractmethod
     def run(self, input_params: Dict = None, *args, **kwarg) -> ToolOutput:

@@ -5,6 +5,7 @@ from typing import Any, Dict, Final, List, Optional, TypeAlias
 
 import toml
 from copilot.baseutils.logging_envvar import (
+    copilot_debug,
     copilot_info,
     print_green,
     print_yellow,
@@ -323,6 +324,14 @@ class ToolLoader:
         # Add OpenAPI generated tools if requested
         if include_openapi_tools:
             self._add_openapi_tools(all_tools, agent_configuration)
+
+        # Set agent_id on all tools if provided from agent_configuration
+        if agent_configuration and hasattr(agent_configuration, "assistant_id"):
+            agent_id = agent_configuration.assistant_id
+            for tool in all_tools:
+                if hasattr(tool, "agent_id"):
+                    tool.agent_id = agent_id
+                    copilot_debug(f"Set agent_id={agent_id} on tool {tool.name}")
 
         return all_tools
 
