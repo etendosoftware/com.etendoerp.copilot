@@ -169,6 +169,7 @@ public class AgentMemoryHook implements OpenAIPromptHook {
 
     while (!queue.isEmpty()) {
       Role currentRole = queue.poll();
+      currentRole = OBDal.getInstance().get(Role.class, currentRole.getId());
       OBDal.getInstance().refresh(currentRole);
       for (RoleInheritance ri : currentRole.getADRoleInheritanceList()) {
         if (Boolean.TRUE.equals(ri.isActive())) {
