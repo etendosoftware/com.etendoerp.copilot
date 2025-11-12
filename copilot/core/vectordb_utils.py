@@ -9,7 +9,11 @@ import zipfile
 import chromadb
 import pymupdf
 from chromadb import Settings
-from copilot.baseutils.logging_envvar import copilot_debug
+from copilot.baseutils.logging_envvar import (
+    copilot_debug,
+    is_debug_enabled,
+    read_optional_env_var,
+)
 from copilot.core.schemas import SplitterConfig
 from copilot.core.utils.models import get_proxy_url
 from langchain.text_splitter import CharacterTextSplitter, MarkdownTextSplitter
@@ -29,10 +33,37 @@ IMAGES_COLLECTION_NAME = "IMAGES"
 
 
 def get_embedding():
+    """
+    Creates and returns an OpenAI embeddings instance configured for the copilot.
+
+    Returns:
+        OpenAIEmbeddings: An instance of OpenAIEmbeddings configured with:
+            - disallowed_special: Empty tuple (allows all special characters)
+            - show_progress_bar: True (displays progress during embedding generation)
+            - base_url: Proxy URL from configuration
+
+    Notes:
+        The base URL is retrieved using get_proxy_url() to route requests through the configured proxy.
+    """
     return OpenAIEmbeddings(disallowed_special=(), show_progress_bar=True, base_url=get_proxy_url())
 
 
 def get_vector_db_path(vector_db_id):
+    """
+    Retrieves or constructs the file system path for a vector database.
+
+    Args:
+        vector_db_id (str): Unique identifier for the vector database.
+
+    Returns:
+        str: Full path to the vector database file (with .db extension).
+
+    Notes:
+        - In Docker environments (when /app exists), uses /app/vectordbs as the base directory.
+        - In local environments, uses ./vectordbs as the base directory.
+        - Creates the vectordbs directory if it doesn't exist.
+        - The returned path follows the pattern: <base_folder>/<vector_db_id>.db
+    """
     try:
         cwd = os.getcwd()
     except Exception:
@@ -49,6 +80,21 @@ def get_vector_db_path(vector_db_id):
 
 
 def get_chroma_settings(db_path=None):
+    """
+    Creates and configures ChromaDB settings for persistent storage.
+
+    Args:
+        db_path (str, optional): Path to the database directory. If None, ChromaDB uses its default location.
+
+    Returns:
+        Settings: Configured ChromaDB Settings object with:
+            - persist_directory: Set to db_path if provided
+            - is_persistent: True (enables data persistence)
+            - allow_reset: True (allows database reset operations)
+
+    Notes:
+        These settings ensure that vector data is stored persistently on disk and can be reset if needed.
+    """
     settings = Settings()
     if db_path is not None:
         settings.persist_directory = db_path
@@ -58,6 +104,24 @@ def get_chroma_settings(db_path=None):
 
 
 def handle_zip_file(zip_file_path, chroma_client, splitter_config: SplitterConfig):
+    """
+    Extracts and indexes all supported files from a ZIP archive into ChromaDB.
+
+    Args:
+        zip_file_path (str): Path to the ZIP file to process.
+        chroma_client: ChromaDB client instance for storing indexed documents.
+        splitter_config (SplitterConfig): Configuration for text splitting during indexing.
+
+    Returns:
+        list[Document]: List of all Document objects created from files in the ZIP archive.
+
+    Notes:
+        - Extracts the ZIP file to a temporary directory.
+        - Recursively walks through all subdirectories.
+        - Only processes files with extensions in ALLOWED_EXTENSIONS.
+        - Silently skips files that fail to process (logs error but continues).
+        - Cleans up the temporary directory after processing.
+    """
     temp_dir = tempfile.mkdtemp()
     acum_texts = []
     with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
@@ -120,6 +184,25 @@ def hash_splitter_config(config: SplitterConfig) -> str:
 
 
 def index_file(ext, item_path, chroma_client, splitter_config: SplitterConfig):
+    """
+    Indexes a file into ChromaDB collection, handling duplicates and text splitting.
+
+    Args:
+        ext (str): File extension (e.g., 'pdf', 'txt', 'md').
+        item_path (str): Full path to the file to index.
+        chroma_client: ChromaDB client instance for database operations.
+        splitter_config (SplitterConfig): Configuration for text splitting behavior.
+
+    Returns:
+        list[Document]: List of Document objects ready to be added to the vector store.
+                       Returns empty list if file already exists in the collection.
+
+    Notes:
+        - Calculates file MD5 hash (including splitter config hash) for duplicate detection.
+        - If file already exists (same MD5), unmarks it from purge and returns empty list.
+        - If file is new, processes it and optionally splits into chunks based on config.
+        - All indexed documents are marked with 'purge': False to prevent deletion.
+    """
     # Process the file and get its content and MD5
     file_content, md5 = process_file(item_path, ext)
     # If there is a splitter config, we need to add the config to the md5, so
@@ -450,10 +533,6 @@ def find_similar_reference(
         - image_base64_or_None: Base64 string if stored in ChromaDB, None otherwise
     """
     try:
-        from copilot.baseutils.logging_envvar import (
-            is_debug_enabled,
-            read_optional_env_var,
-        )
         from PIL import Image
         from sentence_transformers import SentenceTransformer
 
@@ -465,15 +544,7 @@ def find_similar_reference(
         db_path = get_vector_db_path("KB_" + agent_id)
         collection_name = IMAGES_COLLECTION_NAME
 
-        # Get similarity threshold from env var if not provided
-        if similarity_threshold is None:
-            threshold_str = read_optional_env_var("COPILOT_REFERENCE_SIMILARITY_THRESHOLD", None)
-            if threshold_str:
-                try:
-                    similarity_threshold = float(threshold_str)
-                except ValueError:
-                    copilot_debug(f"Invalid similarity threshold value: {threshold_str}, ignoring")
-                    similarity_threshold = None
+        similarity_threshold = get_sim_threshold(similarity_threshold)
 
         copilot_debug(f"Searching for reference in agent {agent_id}, collection: {collection_name}")
         if similarity_threshold is not None:
@@ -498,58 +569,7 @@ def find_similar_reference(
         # Query for most similar reference
         results = reference_collection.query(query_embeddings=[query_embedding], n_results=1)
 
-        copilot_debug("Reference search results:")
-        if is_debug_enabled():
-            if results["ids"] and results["ids"][0]:
-                for i, result_id in enumerate(results["ids"][0]):
-                    copilot_debug(f"  ID: {result_id}")
-                    if results["metadatas"] and results["metadatas"][0]:
-                        copilot_debug(f"  Metadata: {results['metadatas'][0][i]}")
-
-        if results["ids"] and results["ids"][0]:
-            # Get distance/similarity score
-            distance = (
-                results["distances"][0][0] if results.get("distances") and results["distances"][0] else None
-            )
-            copilot_debug(f"Distance from reference search: {results.get('distances', 'N/A')}")
-            ref_metadata = results["metadatas"][0][0]
-            reference_image_path = ref_metadata.get("path")
-            # Get base64 from documents instead of metadata
-            reference_image_base64 = (
-                results["documents"][0][0] if results.get("documents") and results["documents"][0] else None
-            )
-
-            # Check if distance is available and threshold is set
-            if similarity_threshold is not None and distance is not None:
-                # For L2 distance: lower is better (more similar)
-                # Threshold represents maximum acceptable distance
-                if distance > similarity_threshold:
-                    copilot_debug(
-                        f"Reference found but similarity too low: distance={distance:.4f} > threshold={similarity_threshold}. "
-                        f"Reference: {reference_image_path}"
-                    )
-                    copilot_debug("No suitable reference found, will use standard OCR without reference")
-                    return None, None
-                else:
-                    copilot_debug(
-                        f"Using similar reference: {reference_image_path} "
-                        f"(distance={distance:.4f}, threshold={similarity_threshold})"
-                    )
-            else:
-                copilot_debug(f"Using most similar reference: {reference_image_path}")
-                if distance is not None:
-                    copilot_debug(f"Similarity distance: {distance:.4f}")
-
-            # Log if image is stored in ChromaDB
-            if reference_image_base64:
-                copilot_debug("Reference image retrieved from ChromaDB (base64 available)")
-            else:
-                copilot_debug("Reference image will be read from disk")
-
-            return reference_image_path, reference_image_base64
-        else:
-            copilot_debug("No reference found in database.")
-            return None, None
+        return filter_by_distance(results, similarity_threshold)
 
     except ImportError as e:
         copilot_debug(f"Required libraries not available for reference search: {e}")
@@ -557,3 +577,129 @@ def find_similar_reference(
     except Exception as e:
         copilot_debug(f"Error finding similar reference: {e}")
         return None, None
+
+
+def filter_by_distance(results, similarity_threshold):
+    """
+    Filters search results based on similarity distance threshold.
+
+    Args:
+        results (dict): ChromaDB query results containing ids, distances, metadatas, and documents.
+        similarity_threshold (float, optional): Maximum acceptable L2 distance for similarity match.
+                                               Lower values mean stricter matching.
+
+    Returns:
+        tuple: (reference_image_path, reference_image_base64) or (None, None) if no match.
+            - reference_image_path (str): File path to the reference image.
+            - reference_image_base64 (str): Base64 encoded image data if stored in ChromaDB.
+
+    Notes:
+        - Uses L2 distance metric where lower values indicate higher similarity.
+        - If threshold is set and distance exceeds it, returns (None, None).
+        - Logs detailed information about the matching process.
+    """
+    debug_metadata(results)
+    if not results["ids"] or not results["ids"][0]:
+        copilot_debug("No reference found in database.")
+        return None, None
+
+    # Get distance/similarity score
+    distance = results["distances"][0][0] if results.get("distances") and results["distances"][0] else None
+    copilot_debug(f"Distance from reference search: {results.get('distances', 'N/A')}")
+    ref_metadata = results["metadatas"][0][0]
+    reference_image_path = ref_metadata.get("path")
+    # Get base64 from documents instead of metadata
+    reference_image_base64 = (
+        results["documents"][0][0] if results.get("documents") and results["documents"][0] else None
+    )
+
+    # Check if distance is available and threshold is set
+    if similarity_threshold is not None and distance is not None:
+        # For L2 distance: lower is better (more similar)
+        # Threshold represents maximum acceptable distance
+        if distance > similarity_threshold:
+            copilot_debug(
+                f"Reference found but similarity too low: distance={distance:.4f} > threshold={similarity_threshold}. "
+                f"Reference: {reference_image_path}"
+            )
+            copilot_debug("No suitable reference found, will use standard OCR without reference")
+            return None, None
+        else:
+            copilot_debug(
+                f"Using similar reference: {reference_image_path} "
+                f"(distance={distance:.4f}, threshold={similarity_threshold})"
+            )
+    else:
+        copilot_debug(f"Using most similar reference: {reference_image_path}")
+        if distance is not None:
+            copilot_debug(f"Similarity distance: {distance:.4f}")
+
+    log_image_origin(reference_image_base64)
+
+    return reference_image_path, reference_image_base64
+
+
+def log_image_origin(reference_image_base64):
+    """
+    Logs the storage location of a reference image for debugging purposes.
+
+    Args:
+        reference_image_base64 (str, optional): Base64 encoded image data, or None if not stored in database.
+
+    Notes:
+        - If base64 data is present, logs that image was retrieved from ChromaDB.
+        - If base64 data is None, logs that image will be read from disk.
+    """
+    # Log if image is stored in ChromaDB
+    if reference_image_base64:
+        copilot_debug("Reference image retrieved from ChromaDB (base64 available)")
+    else:
+        copilot_debug("Reference image will be read from disk")
+
+
+def debug_metadata(results):
+    """
+    Logs detailed metadata from ChromaDB search results for debugging.
+
+    Args:
+        results (dict): ChromaDB query results containing ids and metadatas.
+
+    Notes:
+        - Only logs when debug mode is enabled.
+        - Iterates through all result IDs and their associated metadata.
+        - Useful for troubleshooting vector search operations.
+    """
+    copilot_debug("Reference search results:")
+    if is_debug_enabled() and results["ids"] and results["ids"][0]:
+        for i, result_id in enumerate(results["ids"][0]):
+            copilot_debug(f"  ID: {result_id}")
+            if results["metadatas"] and results["metadatas"][0]:
+                copilot_debug(f"  Metadata: {results['metadatas'][0][i]}")
+
+
+def get_sim_threshold(similarity_threshold):
+    """
+    Retrieves similarity threshold from environment variable if not explicitly provided.
+
+    Args:
+        similarity_threshold (float, optional): Explicitly provided threshold value.
+
+    Returns:
+        float or None: Similarity threshold value, or None if not set or invalid.
+
+    Notes:
+        - If similarity_threshold is provided, returns it unchanged.
+        - If None, attempts to read from COPILOT_REFERENCE_SIMILARITY_THRESHOLD env var.
+        - Validates that the environment variable contains a valid float value.
+        - Returns None if the environment variable contains an invalid value.
+    """
+    # Get similarity threshold from env var if not provided
+    if similarity_threshold is None:
+        threshold_str = read_optional_env_var("COPILOT_REFERENCE_SIMILARITY_THRESHOLD", None)
+        if threshold_str:
+            try:
+                similarity_threshold = float(threshold_str)
+            except ValueError:
+                copilot_debug(f"Invalid similarity threshold value: {threshold_str}, ignoring")
+                similarity_threshold = None
+    return similarity_threshold

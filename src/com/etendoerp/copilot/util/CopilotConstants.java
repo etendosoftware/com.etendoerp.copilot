@@ -41,7 +41,7 @@ public class CopilotConstants {
   public static final String PROP_FILE = "file";
 
   protected static final String[] KB_FILE_VALID_EXTENSIONS = {
-      "pdf", "md", "markdown", "txt", "zip", "java", "py", "js", "xml", "json","png", "jpg", "jpeg"
+      "pdf", "md", "markdown", "txt", "zip", "java", "py", "js", "xml", "json", "png", "jpg", "jpeg"
   };
 
   public static boolean isSystemPromptBehaviour(CopilotAppSource source) {
