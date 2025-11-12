@@ -94,8 +94,11 @@ public class AgentMemoryHook implements OpenAIPromptHook {
       User user = obContext.getUser();
       Role currentRole = obContext.getRole();
 
-      Set<Role> roles = getRolesByInheritance(currentRole);
-      var roleIds = roles.stream().map(Role::getId).collect(Collectors.toSet());
+      Set<String> roleIds = new HashSet<>();
+      if (currentRole != null) {
+        Set<Role> roles = getRolesByInheritance(currentRole);
+        roleIds = roles.stream().map(Role::getId).collect(Collectors.toSet());
+      }
 
       // Build the HQL query
       StringBuilder hql = new StringBuilder();
@@ -160,6 +163,9 @@ public class AgentMemoryHook implements OpenAIPromptHook {
    * @return A Set containing the child role and all roles it inherits from (directly or transitively)
    */
   private Set<Role> getRolesByInheritance(Role childRole) {
+    if (childRole == null) {
+      return new HashSet<>();
+    }
 
     Set<Role> visited = new HashSet<>();
     Queue<Role> queue = new LinkedList<>();

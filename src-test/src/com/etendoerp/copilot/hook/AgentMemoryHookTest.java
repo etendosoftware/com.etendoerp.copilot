@@ -130,6 +130,10 @@ public class AgentMemoryHookTest extends WeldBaseTest {
     when(mockOBDal.get(eq(Organization.class), eq(TEST_ORG_ID))).thenReturn(mockOrganization);
     when(mockOBDal.get(eq(Organization.class), eq(PARENT_ORG_ID))).thenReturn(parentOrg);
 
+    // Setup role mocks - important for getRolesByInheritance
+    when(mockOBDal.get(eq(Role.class), eq(TEST_ROLE_ID))).thenReturn(mockRole);
+    doNothing().when(mockOBDal).refresh(any(Role.class));
+
     // Setup role inheritance (no inheritance by default)
     when(mockRole.getADRoleInheritanceList()).thenReturn(Collections.emptyList());
 
@@ -210,12 +214,14 @@ public class AgentMemoryHookTest extends WeldBaseTest {
     when(parentRole.getId()).thenReturn(PARENT_ROLE_ID);
     when(parentRole.getADRoleInheritanceList()).thenReturn(Collections.emptyList());
 
+    // Setup OBDal.get() for parent role
+    when(mockOBDal.get(eq(Role.class), eq(PARENT_ROLE_ID))).thenReturn(parentRole);
+
     RoleInheritance roleInheritance = mock(RoleInheritance.class);
     when(roleInheritance.isActive()).thenReturn(true);
     when(roleInheritance.getInheritFrom()).thenReturn(parentRole);
 
     when(mockRole.getADRoleInheritanceList()).thenReturn(Collections.singletonList(roleInheritance));
-    doNothing().when(mockOBDal).refresh(any(Role.class));
 
     AgentMemory memory = mock(AgentMemory.class);
     when(memory.getTextField()).thenReturn(TEST_MEMORY_TEXT);
@@ -317,8 +323,13 @@ public class AgentMemoryHookTest extends WeldBaseTest {
     when(parentRole.getId()).thenReturn(PARENT_ROLE_ID);
 
     Role grandparentRole = mock(Role.class);
-    when(grandparentRole.getId()).thenReturn("grandparent-role-id");
+    String grandparentRoleId = "grandparent-role-id";
+    when(grandparentRole.getId()).thenReturn(grandparentRoleId);
     when(grandparentRole.getADRoleInheritanceList()).thenReturn(Collections.emptyList());
+
+    // Setup OBDal.get() for all roles in the hierarchy
+    when(mockOBDal.get(eq(Role.class), eq(PARENT_ROLE_ID))).thenReturn(parentRole);
+    when(mockOBDal.get(eq(Role.class), eq(grandparentRoleId))).thenReturn(grandparentRole);
 
     RoleInheritance parentInheritance = mock(RoleInheritance.class);
     when(parentInheritance.isActive()).thenReturn(true);
@@ -331,7 +342,6 @@ public class AgentMemoryHookTest extends WeldBaseTest {
     when(roleInheritance.getInheritFrom()).thenReturn(parentRole);
 
     when(mockRole.getADRoleInheritanceList()).thenReturn(Collections.singletonList(roleInheritance));
-    doNothing().when(mockOBDal).refresh(any(Role.class));
 
     AgentMemory memory = mock(AgentMemory.class);
     when(memory.getTextField()).thenReturn(TEST_MEMORY_TEXT);
@@ -418,8 +428,14 @@ public class AgentMemoryHookTest extends WeldBaseTest {
     Role roleA = mock(Role.class);
     Role roleB = mock(Role.class);
 
-    when(roleA.getId()).thenReturn("role-a-id");
-    when(roleB.getId()).thenReturn("role-b-id");
+    String roleAId = "role-a-id";
+    String roleBId = "role-b-id";
+    when(roleA.getId()).thenReturn(roleAId);
+    when(roleB.getId()).thenReturn(roleBId);
+
+    // Setup OBDal.get() for circular roles
+    when(mockOBDal.get(eq(Role.class), eq(roleAId))).thenReturn(roleA);
+    when(mockOBDal.get(eq(Role.class), eq(roleBId))).thenReturn(roleB);
 
     RoleInheritance inheritanceAtoB = mock(RoleInheritance.class);
     when(inheritanceAtoB.isActive()).thenReturn(true);
@@ -432,8 +448,6 @@ public class AgentMemoryHookTest extends WeldBaseTest {
     when(roleA.getADRoleInheritanceList()).thenReturn(Collections.singletonList(inheritanceAtoB));
     when(roleB.getADRoleInheritanceList()).thenReturn(Collections.singletonList(inheritanceBtoA));
     when(mockRole.getADRoleInheritanceList()).thenReturn(Collections.singletonList(inheritanceAtoB));
-
-    doNothing().when(mockOBDal).refresh(any(Role.class));
 
     AgentMemory memory = mock(AgentMemory.class);
     when(memory.getTextField()).thenReturn(TEST_MEMORY_TEXT);
