@@ -1,1 +1,0 @@
-../.././com.etendoerp.copilot.toolpack/tools/OCRAdvancedTool.py
