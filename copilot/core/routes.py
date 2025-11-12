@@ -18,6 +18,7 @@ import chromadb
 import requests
 from copilot.baseutils.logging_envvar import (
     copilot_debug,
+    copilot_error,
     copilot_info,
     is_docker,
     read_optional_env_var,
@@ -349,37 +350,55 @@ def reset_vector_db(body: VectorDBInputSchema):
 
         # Initialize the database client
         db_client = chromadb.Client(settings=get_chroma_settings(db_path))
-        # Fetch the collection, creating it if it doesn't exist
-        collection = db_client.get_or_create_collection(LANGCHAIN_DEFAULT_COLLECTION_NAME)
-        # Retrieve all documents from the collection
-        documents = collection.get()
-        document_ids = documents["ids"]
-        metadatas = documents["metadatas"]
-        # Ensure all documents have a 'purge': True in their metadata
-        updated_metadatas = []
-        for metadata in metadatas:
-            if metadata is None:
-                metadata = {}
-            metadata["purge"] = True
-            updated_metadatas.append(metadata)
-        # Perform batch updates with all document IDs and their updated metadata
-        # Check if there are documents to update
-        if updated_metadatas:
-            batch_size = 5000
-            total_docs = len(document_ids)
-            for i in range(0, total_docs, batch_size):
-                batch_ids = document_ids[i : i + batch_size]
-                batch_metadatas = updated_metadatas[i : i + batch_size]
-                collection.update(ids=batch_ids, metadatas=batch_metadatas)
-                copilot_debug(
-                    f"Updated batch {i//batch_size + 1}/{(total_docs + batch_size - 1)//batch_size} with {len(batch_ids)} documents."
-                )
-            copilot_debug("All documents were successfully updated with 'purge': True in the metadata.")
-            db_client.clear_system_cache()
+
+        # Import IMAGES_COLLECTION_NAME
+        from copilot.core.vectordb_utils import IMAGES_COLLECTION_NAME
+
+        # Process both collections: documents and images
+        collection_names = [LANGCHAIN_DEFAULT_COLLECTION_NAME, IMAGES_COLLECTION_NAME]
+        total_marked = 0
+
+        for collection_name in collection_names:
+            try:
+                collection = db_client.get_or_create_collection(collection_name)
+                copilot_debug(f"Processing collection: {collection.name}")
+
+                # Retrieve all documents from the collection
+                documents = collection.get()
+                document_ids = documents["ids"]
+                metadatas = documents["metadatas"]
+
+                # Ensure all documents have a 'purge': True in their metadata
+                updated_metadatas = []
+                for metadata in metadatas:
+                    if metadata is None:
+                        metadata = {}
+                    metadata["purge"] = True
+                    updated_metadatas.append(metadata)
+
+                # Perform batch updates with all document IDs and their updated metadata
+                if updated_metadatas:
+                    batch_size = 5000
+                    total_docs = len(document_ids)
+                    for i in range(0, total_docs, batch_size):
+                        batch_ids = document_ids[i : i + batch_size]
+                        batch_metadatas = updated_metadatas[i : i + batch_size]
+                        collection.update(ids=batch_ids, metadatas=batch_metadatas)
+                        copilot_debug(
+                            f"Updated batch {i//batch_size + 1}/{(total_docs + batch_size - 1)//batch_size} "
+                            f"in collection {collection_name} with {len(batch_ids)} documents"
+                        )
+                    total_marked += total_docs
+                    copilot_debug(f"Collection {collection_name}: {total_docs} documents marked for purge")
+            except Exception as e:
+                copilot_debug(f"Error processing collection {collection_name}: {e}")
+
+        copilot_debug(f"All documents marked for purge. Total: {total_marked}")
+        db_client.clear_system_cache()
     except Exception as e:
         copilot_debug(f"Error resetting VectorDB: {e}")
         raise e
-    return {"answer": "VectorDB marked for purge successfully."}
+    return {"answer": f"VectorDB marked for purge successfully. {total_marked} documents marked."}
 
 
 @core_router.post("/addToVectorDB")
@@ -393,6 +412,11 @@ def process_text_to_vector_db(
     max_chunk_size: int = Form(None),
     chunk_overlap: int = Form(None),
 ):
+    from copilot.core.vectordb_utils import (
+        IMAGE_EXTENSIONS,
+        index_image_file,
+    )
+
     db_path = get_vector_db_path(kb_vectordb_id)
     splitter_config = SplitterConfig(
         skip_splitting=skip_splitting, max_chunk_size=max_chunk_size, chunk_overlap=chunk_overlap
@@ -409,10 +433,30 @@ def process_text_to_vector_db(
             with file_path.open("wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
             chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
+            # Check if this is an image by extension
+            if extension.lower() in IMAGE_EXTENSIONS:
+                copilot_debug(f"Processing image reference: {file.filename}")
+                # Use IMAGES collection for image references
+                from copilot.core.vectordb_utils import IMAGES_COLLECTION_NAME
+
+                result = index_image_file(file_path, chroma_client, IMAGES_COLLECTION_NAME, kb_vectordb_id)
+
+                if result.get("status") == "error":
+                    success = False
+                    message = result.get("message", "Error processing image")
+                else:
+                    success = True
+                    status = result.get("status", "unknown")
+                    filename_result = result.get("filename", file.filename)
+                    message = f"Image {filename_result} {status} in collection {IMAGES_COLLECTION_NAME}"
+
+                copilot_debug(message)
+                return {"answer": message, "success": success, "db_path": db_path, "result": result}
+
+            # Process text/document files
             if extension == "zip":
                 # Process the ZIP file
                 texts = handle_zip_file(file_path, chroma_client, splitter_config)
-
             else:
                 texts = index_file(extension, file_path, chroma_client, splitter_config)
                 # Remove the temporary file after use
@@ -425,7 +469,7 @@ def process_text_to_vector_db(
                     max_length = len(texts[0].page_content)
             if len(texts) > 0:
                 total_texts = len(texts)
-                # Add texts in batches                of 100
+                # Add texts in batches of 20
                 for i in range(0, total_texts, 20):
                     batch_texts = texts[i : i + 20]
                     # Add the batch of texts to the vector store
@@ -441,8 +485,8 @@ def process_text_to_vector_db(
             copilot_debug(message)
     except Exception as e:
         success = False
-        message = f"Error processing text to VectorDb: {e}"
-        copilot_debug(message)
+        message = f"Error processing to VectorDb: {e}"
+        copilot_error(message)
         db_path = ""
 
     return {"answer": message, "success": success, "db_path": db_path}
@@ -455,20 +499,40 @@ def purge_vectordb(body: VectorDBInputSchema):
         db_path = get_vector_db_path(kb_vectordb_id)
 
         db_client = chromadb.Client(settings=get_chroma_settings(db_path))
-        collection = db_client.get_or_create_collection(LANGCHAIN_DEFAULT_COLLECTION_NAME)
-        copilot_debug(f"Collection: {collection.id}")
-        # count the number of documents to be purged
-        documents = collection.get(where={"purge": True})
-        num_docs = len(documents["ids"])
-        copilot_debug(f"Number of documents to be purged: {num_docs}")
-        # Get all the documents from the collection that purged
-        collection.delete(where={"purge": True})
 
+        # Import IMAGES_COLLECTION_NAME
+        from copilot.core.vectordb_utils import IMAGES_COLLECTION_NAME
+
+        # Process both collections: documents and images
+        collection_names = [LANGCHAIN_DEFAULT_COLLECTION_NAME, IMAGES_COLLECTION_NAME]
+        total_purged = 0
+
+        for collection_name in collection_names:
+            try:
+                collection = db_client.get_or_create_collection(collection_name)
+                copilot_debug(f"Processing collection: {collection.name}")
+
+                # Count the number of documents to be purged
+                documents = collection.get(where={"purge": True})
+                num_docs = len(documents["ids"])
+                copilot_debug(f"Collection {collection_name}: {num_docs} documents to be purged")
+
+                # Delete all documents marked for purge
+                if num_docs > 0:
+                    collection.delete(where={"purge": True})
+                    copilot_debug(f"Purged {num_docs} documents from collection {collection_name}")
+                    total_purged += num_docs
+                else:
+                    copilot_debug(f"No documents to purge in collection {collection_name}")
+            except Exception as e:
+                copilot_debug(f"Error processing collection {collection_name}: {e}")
+
+        copilot_debug(f"Total documents purged across all collections: {total_purged}")
         db_client.clear_system_cache()
     except Exception as e:
         copilot_debug(f"Error purging VectorDB: {e}")
         raise e
-    return {"answer": "Documents marked for purge have been removed."}
+    return {"answer": f"Documents marked for purge have been removed. Total purged: {total_purged}"}
 
 
 @core_router.get("/runningCheck")

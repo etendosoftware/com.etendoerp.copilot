@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import os
 import shutil
@@ -21,8 +22,10 @@ from langchain_text_splitters import (
 )
 
 ALLOWED_EXTENSIONS = ["pdf", "txt", "md", "markdown", "java", "js", "py", "xml", "json"]
+IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "bmp", "tiff", "gif", "webp"]
 
 LANGCHAIN_DEFAULT_COLLECTION_NAME = "langchain"
+IMAGES_COLLECTION_NAME = "IMAGES"
 
 
 def get_embedding():
@@ -291,3 +294,266 @@ def process_pdf(pdf_data):
     for page in doc:
         content += page.get_text()
     return content
+
+
+def image_to_base64(image_path):
+    """
+    Converts an image file to base64 encoding.
+
+    Args:
+        image_path (str): Path to the image file.
+
+    Returns:
+        str: Base64 encoded string of the image.
+    """
+    with open(image_path, "rb") as image_file:
+        image_binary_data = image_file.read()
+        base64_encoded = base64.b64encode(image_binary_data).decode("utf-8")
+        return base64_encoded
+
+
+def calculate_file_md5(file_path, chunk_size=4096):
+    """
+    Calculates the MD5 hash of a file.
+
+    Args:
+        file_path (str): Path to the file.
+        chunk_size (int): Size of chunks to read (default: 4096 bytes).
+
+    Returns:
+        str: MD5 hash as hexadecimal string.
+    """
+    md5_hash = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(chunk_size), b""):
+            md5_hash.update(chunk)
+    return md5_hash.hexdigest()
+
+
+def index_image_file(image_path, chroma_client, collection_name, agent_id=None):
+    """
+    Indexes an image file into ChromaDB using CLIP embeddings.
+
+    Args:
+        image_path (str): Path to the image file.
+        chroma_client: ChromaDB client instance.
+        collection_name (str): Name of the collection to store the image.
+        agent_id (str, optional): Agent ID for metadata tracking.
+
+    Returns:
+        dict: Result with status information.
+    """
+    try:
+        from PIL import Image
+        from sentence_transformers import SentenceTransformer
+
+        # Calculate MD5 of the file
+        file_md5 = calculate_file_md5(image_path)
+        filename = os.path.basename(image_path)
+
+        # Get or create collection
+        collection = chroma_client.get_or_create_collection(collection_name)
+
+        # Check if image already exists (by MD5)
+        result = collection.get(where={"md5": file_md5})
+
+        if result and len(result["ids"]) > 0:
+            # Image already exists, unmark from purge
+            copilot_debug(
+                f"Image {filename} with MD5 {file_md5[:8]}... already indexed. Unmarking from purge."
+            )
+            collection.update(
+                ids=result["ids"], metadatas=[{"purge": False, "md5": file_md5} for _ in result["ids"]]
+            )
+            return {"status": "exists", "md5": file_md5, "filename": filename}
+
+        # Load CLIP model for embeddings
+        copilot_debug(f"Loading CLIP model for image {filename}...")
+        clip_model = SentenceTransformer("clip-ViT-B-32")
+
+        # Generate embedding
+        img = Image.open(image_path)
+        embedding = clip_model.encode(img).tolist()
+
+        # Generate unique ID
+        file_id = os.path.splitext(filename)[0]
+        existing_ids = collection.get()["ids"]
+        if file_id in existing_ids:
+            file_id = f"{file_id}_{file_md5[:8]}"
+
+        # Convert image to base64 for storage
+        img_b64 = image_to_base64(image_path)
+
+        # Build metadata (convert path to string for ChromaDB compatibility)
+        metadata = {
+            "path": str(image_path),
+            "md5": file_md5,
+            "filename": filename,
+            "purge": False,
+        }
+        if agent_id:
+            metadata["agent_id"] = agent_id
+
+        # Add to collection
+        collection.add(
+            embeddings=[embedding],
+            ids=[file_id],
+            metadatas=[metadata],
+            documents=[img_b64],  # Store base64 in documents field
+        )
+
+        copilot_debug(f"✓ Added image {filename} to collection {collection_name}")
+        return {"status": "added", "md5": file_md5, "filename": filename, "id": file_id}
+
+    except ImportError as e:
+        error_msg = f"Required libraries not available for image indexing: {e}"
+        copilot_debug(error_msg)
+        return {"status": "error", "message": error_msg}
+    except Exception as e:
+        error_msg = f"Error indexing image {image_path}: {e}"
+        copilot_debug(error_msg)
+        return {"status": "error", "message": error_msg}
+
+
+def get_image_collection_name(agent_id):
+    """
+    Gets the collection name for image references of a specific agent.
+
+    Args:
+        agent_id (str): The agent identifier.
+
+    Returns:
+        str: Collection name for the agent's image references.
+    """
+    return f"AGENT_{agent_id}_IMAGES"
+
+
+def find_similar_reference(
+    first_image_path,
+    agent_id,
+    similarity_threshold=None,
+):
+    """
+    Finds the most similar reference image in the agent's ChromaDB vector database.
+
+    Args:
+        first_image_path (str): Path to the first page/image of the document to process.
+        agent_id (str): Agent identifier to get the correct database and collection.
+        similarity_threshold (float, optional): Minimum similarity score to accept a reference.
+                            ChromaDB uses distance metrics, so lower distance = higher similarity.
+                            Default is None (use env var or no threshold).
+                            Recommended: 0.15-0.30 for L2 distance.
+
+    Returns:
+        Tuple of (reference_image_path, image_base64_or_None):
+        - reference_image_path: Path to the reference image file, or None if not found
+        - image_base64_or_None: Base64 string if stored in ChromaDB, None otherwise
+    """
+    try:
+        from copilot.baseutils.logging_envvar import (
+            is_debug_enabled,
+            read_optional_env_var,
+        )
+        from PIL import Image
+        from sentence_transformers import SentenceTransformer
+
+        if not agent_id:
+            copilot_debug("No agent_id provided, cannot search for reference")
+            return None, None
+
+        # Get database path from agent_id and use IMAGES collection for image references
+        db_path = get_vector_db_path("KB_" + agent_id)
+        collection_name = IMAGES_COLLECTION_NAME
+
+        # Get similarity threshold from env var if not provided
+        if similarity_threshold is None:
+            threshold_str = read_optional_env_var("COPILOT_REFERENCE_SIMILARITY_THRESHOLD", None)
+            if threshold_str:
+                try:
+                    similarity_threshold = float(threshold_str)
+                except ValueError:
+                    copilot_debug(f"Invalid similarity threshold value: {threshold_str}, ignoring")
+                    similarity_threshold = None
+
+        copilot_debug(f"Searching for reference in agent {agent_id}, collection: {collection_name}")
+        if similarity_threshold is not None:
+            copilot_debug(f"Using similarity threshold: {similarity_threshold}")
+
+        # Load CLIP model for embeddings
+        clip_model = SentenceTransformer("clip-ViT-B-32")
+
+        # Open the query image
+        query_img = Image.open(first_image_path)
+        query_embedding = clip_model.encode(query_img).tolist()
+
+        # Connect to ChromaDB
+        chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
+
+        try:
+            reference_collection = chroma_client.get_collection(collection_name)
+        except Exception as e:
+            copilot_debug(f"Reference collection '{collection_name}' not found: {e}")
+            return None, None
+
+        # Query for most similar reference
+        results = reference_collection.query(query_embeddings=[query_embedding], n_results=1)
+
+        copilot_debug("Reference search results:")
+        if is_debug_enabled():
+            if results["ids"] and results["ids"][0]:
+                for i, result_id in enumerate(results["ids"][0]):
+                    copilot_debug(f"  ID: {result_id}")
+                    if results["metadatas"] and results["metadatas"][0]:
+                        copilot_debug(f"  Metadata: {results['metadatas'][0][i]}")
+
+        if results["ids"] and results["ids"][0]:
+            # Get distance/similarity score
+            distance = (
+                results["distances"][0][0] if results.get("distances") and results["distances"][0] else None
+            )
+            copilot_debug(f"Distance from reference search: {results.get('distances', 'N/A')}")
+            ref_metadata = results["metadatas"][0][0]
+            reference_image_path = ref_metadata.get("path")
+            # Get base64 from documents instead of metadata
+            reference_image_base64 = (
+                results["documents"][0][0] if results.get("documents") and results["documents"][0] else None
+            )
+
+            # Check if distance is available and threshold is set
+            if similarity_threshold is not None and distance is not None:
+                # For L2 distance: lower is better (more similar)
+                # Threshold represents maximum acceptable distance
+                if distance > similarity_threshold:
+                    copilot_debug(
+                        f"Reference found but similarity too low: distance={distance:.4f} > threshold={similarity_threshold}. "
+                        f"Reference: {reference_image_path}"
+                    )
+                    copilot_debug("No suitable reference found, will use standard OCR without reference")
+                    return None, None
+                else:
+                    copilot_debug(
+                        f"Using similar reference: {reference_image_path} "
+                        f"(distance={distance:.4f}, threshold={similarity_threshold})"
+                    )
+            else:
+                copilot_debug(f"Using most similar reference: {reference_image_path}")
+                if distance is not None:
+                    copilot_debug(f"Similarity distance: {distance:.4f}")
+
+            # Log if image is stored in ChromaDB
+            if reference_image_base64:
+                copilot_debug("Reference image retrieved from ChromaDB (base64 available)")
+            else:
+                copilot_debug("Reference image will be read from disk")
+
+            return reference_image_path, reference_image_base64
+        else:
+            copilot_debug("No reference found in database.")
+            return None, None
+
+    except ImportError as e:
+        copilot_debug(f"Required libraries not available for reference search: {e}")
+        return None, None
+    except Exception as e:
+        copilot_debug(f"Error finding similar reference: {e}")
+        return None, None
