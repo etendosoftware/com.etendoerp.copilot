@@ -85,13 +85,24 @@ public class AgentMemoryHook implements OpenAIPromptHook {
     try {
       // Obtain the organization structure provider
       OBContext obContext = OBContext.getOBContext();
+      Organization currentOrg = obContext.getCurrentOrganization();
+      if (currentOrg == null) {
+        log.warn("Current organization is null in OBContext, returning empty memory context");
+        return "";
+      }
+
       OrganizationStructureProvider osp = obContext
           .getOrganizationStructureProvider();
-      List<Organization> orgList = osp.getParentList(obContext.getCurrentOrganization().getId(),
+      List<Organization> orgList = osp.getParentList(currentOrg.getId(),
           true).stream().map(
           orgId -> OBDal.getInstance().get(Organization.class, orgId)).collect(Collectors.toList());
       var orgIds = orgList.stream().map(Organization::getId).collect(Collectors.toSet());
       User user = obContext.getUser();
+      if (user == null) {
+        log.warn("Current user is null in OBContext, returning empty memory context");
+        return "";
+      }
+
       Role currentRole = obContext.getRole();
 
       Set<String> roleIds = new HashSet<>();
