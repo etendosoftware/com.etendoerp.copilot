@@ -66,6 +66,7 @@ import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.ExtractedResponse;
+import com.etendoerp.copilot.util.MemoryUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.TrackingUtil;
 import com.etendoerp.copilot.util.WebhookPermissionUtils;
@@ -562,6 +563,10 @@ public class RestServiceUtil {
 
     if (StringUtils.isEmpty(conversationId) && jsonRequestForCopilot.has(PROP_CONVERSATION_ID)) {
       conversationId = jsonRequestForCopilot.getString(PROP_CONVERSATION_ID);
+    }
+    // If starts with "#MEMORY#", save this as  a memory.
+    if (StringUtils.startsWith(question, CopilotConstants.MEMORY_TAG)) {
+      MemoryUtils.saveMemoryFromQuestion(question.substring(CopilotConstants.MEMORY_TAG.length()), copilotApp);
     }
     // Get response from Copilot
     JSONObject finalResponseAsync = sendRequestToCopilot(asyncRequest, queue, jsonRequestForCopilot, copilotApp);
