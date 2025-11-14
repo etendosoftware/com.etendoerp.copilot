@@ -101,17 +101,21 @@ def get_extra_info():
     return {}
 
 
-def build_headers(access_token: str) -> dict:
+def build_headers(access_token: str, content_type: str = APPLICATION_JSON) -> dict:
     """
     Builds headers for an HTTP request with the given access token.
 
     Args:
         access_token (str): The access token to include in the Authorization header.
+        content_type (str): The Content-Type header value. Defaults to application/json.
 
     Returns:
         dict: A dictionary representing the headers with the normalized Authorization field.
     """
-    return {"Authorization": normalize_etendo_token(access_token)}
+    return {
+        "Authorization": normalize_etendo_token(access_token),
+        "Content-Type": content_type,
+    }
 
 
 def call_etendo(method: str, url: str, endpoint: str, body_params, access_token: str):
