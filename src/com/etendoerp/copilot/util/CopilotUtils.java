@@ -282,7 +282,8 @@ public class CopilotUtils {
    */
   public static void resetVectorDB(CopilotApp app) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String dbName = "KB_" + app.getId();
+    String orgId = OBContext.getOBContext().getCurrentOrganization().getId();
+    String dbName = "KB_" + app.getId() + "_" + orgId;
     JSONObject jsonRequestForCopilot = new JSONObject();
 
     jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
@@ -357,7 +358,8 @@ public class CopilotUtils {
     }
 
     // Prepare database and synchronization parameters
-    String dbName = "KB_" + appSource.getEtcopApp().getId();
+    String orgId = OBContext.getOBContext().getCurrentOrganization().getId();
+    String dbName = "KB_" + appSource.getEtcopApp().getId() + "_" + orgId;
     boolean skipSplitting = appSource.getFile().isSkipSplitting();
     Long maxChunkSize = appSource.getFile().getMaxChunkSize();
     Long chunkOverlap = appSource.getFile().getChunkOverlap();
@@ -640,7 +642,8 @@ public class CopilotUtils {
    */
   public static void purgeVectorDB(CopilotApp app) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String dbName = "KB_" + app.getId();
+    String orgId = OBContext.getOBContext().getCurrentOrganization().getId();
+    String dbName = "KB_" + app.getId() + "_" + orgId;
     JSONObject jsonRequestForCopilot = new JSONObject();
 
     jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
@@ -992,7 +995,8 @@ public class CopilotUtils {
     jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
     jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
     jsonRequestForCopilot.put(RestServiceUtil.PROP_CODE_EXECUTION, copilotApp.isCodeInterpreter());
-    jsonRequestForCopilot.put(RestServiceUtil.PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
+    String orgId = OBContext.getOBContext().getCurrentOrganization().getId();
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId() + "_" + orgId);
     jsonRequestForCopilot.put(RestServiceUtil.PROP_KB_SEARCH_K,
         copilotApp.getSearchResultQty() != null ? copilotApp.getSearchResultQty().intValue() : 4);
     String promptApp = getAssistantPrompt(copilotApp);
