@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.etendoerp.copilot.util.CopilotModelUtils;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItem;
 import org.apache.commons.lang.StringUtils;
@@ -61,6 +60,7 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.TrackingUtil;
@@ -94,6 +94,7 @@ public class RestServiceUtil {
   public static final String PROP_TOOLS = "tools";
   public static final String PROP_KB_VECTORDB_ID = "kb_vectordb_id";
   public static final String PROP_KB_SEARCH_K = "kb_search_k";
+  public static final String METADATA = "metadata";
 
   private RestServiceUtil() {
   }
@@ -487,7 +488,7 @@ public class RestServiceUtil {
       boolean isError = finalResponseAsync.has("role") && StringUtils.equalsIgnoreCase(
           finalResponseAsync.optString("role"), "error");
       TrackingUtil.getInstance().trackResponse(finalResponseAsync.optString(PROP_CONVERSATION_ID),
-          finalResponseAsync.optString(PROP_RESPONSE), copilotApp, isError);
+          finalResponseAsync.optString(PROP_RESPONSE), copilotApp, isError, null);
       return null;
     }
     JSONObject responseOriginal = new JSONObject();
@@ -505,6 +506,7 @@ public class RestServiceUtil {
       }
     }
     String response = null;
+    JSONObject metadata = new JSONObject();
     if (finalResponseAsync.has("answer")) {
       JSONObject answer = (JSONObject) finalResponseAsync.get("answer");
       handleErrorMessagesIfExists(answer);
@@ -514,12 +516,14 @@ public class RestServiceUtil {
       }
       responseOriginal.put(PROP_RESPONSE, answer.get(PROP_RESPONSE));
       response = responseOriginal.getString(PROP_RESPONSE);
+      metadata = answer.optJSONObject(METADATA);
     } else if (finalResponseAsync.has(PROP_RESPONSE)) {
       response = finalResponseAsync.getString(PROP_RESPONSE);
       if (finalResponseAsync.has(PROP_CONVERSATION_ID)) {
         responseOriginal.put(PROP_CONVERSATION_ID, finalResponseAsync.get(PROP_CONVERSATION_ID));
         conversationId = finalResponseAsync.optString(PROP_CONVERSATION_ID);
       }
+      metadata = finalResponseAsync.optJSONObject(METADATA);
     }
     if (StringUtils.isEmpty(response)) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_CopilotError"), "Empty response"));
@@ -528,7 +532,7 @@ public class RestServiceUtil {
     Timestamp tms = new Timestamp(date.getTime());
     responseOriginal.put("timestamp", tms.toString());
     TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
-    TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp);
+    TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp, metadata);
     return responseOriginal;
   }
 

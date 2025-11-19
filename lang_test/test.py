@@ -164,7 +164,7 @@ Prompt = ChatPromptTemplate.from_messages(
     ]
 ).partial(time=str(datetime.now()))
 
-model = init_chat_model(model=model, temperature=0, base_url=get_proxy_url())
+model = init_chat_model(model=model, temperature=0, base_url=get_proxy_url(), model_kwargs={"stream_options": {"include_usage": True}})
 response_generator = Prompt | model | StrOutputParser()
 
 # The full chain looks like the followinP

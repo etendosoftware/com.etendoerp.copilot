@@ -4,17 +4,6 @@ from typing import AsyncGenerator, Final, Optional, Union
 
 import langchain_core.tools
 import langgraph_codeact
-from copilot.core.agent.agent import (
-    AgentResponse,
-    AssistantResponse,
-    CopilotAgent,
-    get_kb_tool,
-)
-from copilot.core.agent.agent_utils import (
-    acheckpointer_has_thread,
-    checkpointer_has_thread,
-    get_checkpoint_file,
-)
 from langchain.agents import (
     AgentExecutor,
     AgentOutputParser,
@@ -31,15 +20,28 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.prebuilt import create_react_agent
 from langgraph_codeact import create_default_prompt
 
+from copilot.core.agent.agent import (
+    AgentResponse,
+    AssistantResponse,
+    CopilotAgent,
+    get_kb_tool,
+)
+from copilot.core.agent.agent_utils import (
+    acheckpointer_has_thread,
+    build_metadata, checkpointer_has_thread,
+    get_checkpoint_file,
+)
+from .agent_utils import process_local_files
+from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
+from .langgraph_agent import build_config, handle_events
 from .. import etendo_utils, utils
 from ..langgraph.tool_utils.ApiTool import generate_tools_from_openapi
 from ..memory.memory_handler import MemoryHandler
 from ..schemas import AssistantSchema, QuestionSchema, ToolSchema
 from ..threadcontext import ThreadContext
+from ..threadcontextutils import read_accum_usage_data, \
+    read_accum_usage_data_from_msg_arr
 from ..utils import get_full_question, get_proxy_url, is_debug_enabled
-from .agent_utils import process_local_files
-from .eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
-from .langgraph_agent import build_config, handle_events
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 tools_loaded = {}
@@ -100,11 +102,15 @@ def get_llm(model, provider, temperature):
             temperature=temperature,
             streaming=True,
             base_url=f"{ollama_host}:{ollama_port}",
+            model_kwargs={"stream_options": {"include_usage": True}}
         )
 
     else:
         llm = init_chat_model(
-            model_provider=provider, model=model, temperature=temperature, base_url=get_proxy_url()
+            model_provider=provider, model=model, temperature=temperature,
+            base_url=get_proxy_url(),
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
         )
     # Adjustments for specific models, because some models have different
     # default parameters
@@ -260,11 +266,13 @@ class MultimodelAgent(CopilotAgent):
                 {"system_prompt": question.system_prompt, "messages": messages}, config=config
             )
             new_ai_message = agent_response.get("messages")[-1]
-
+            usage_data = read_accum_usage_data_from_msg_arr(agent_response.get("messages"))
             return AgentResponse(
                 input=full_question,
                 output=AssistantResponse(
-                    response=new_ai_message.content, conversation_id=question.conversation_id
+                    response=new_ai_message.content,
+                    conversation_id=question.conversation_id,
+                    metadata=build_metadata(usage_data)
                 ),
             )
 
@@ -328,10 +336,13 @@ class MultimodelAgent(CopilotAgent):
                         continue
                     output = event["data"]["output"]
                     output_ = output.content
+                    usage_data = read_accum_usage_data(output)
 
                     # check if the output is a list
                     msg = await self.get_messages(output_)
-                    yield AssistantResponse(response=str(msg), conversation_id=question.conversation_id)
+                    yield AssistantResponse(response=str(msg), conversation_id=question.conversation_id,
+                                            metadata=build_metadata(usage_data)
+                                            )
             except Exception as e:
                 yield AssistantResponse(
                     response=str(e), conversation_id=question.conversation_id, role="error"
