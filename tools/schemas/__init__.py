@@ -21,7 +21,7 @@ from typing import Optional, Type
 from pydantic import BaseModel
 
 
-def load_schema(schema_name: str) -> Optional[Type[BaseModel]]:
+def load_schema(schema_name: Optional[str]) -> Optional[Type[BaseModel]]:
     """
     Dynamically loads a schema by name.
 
