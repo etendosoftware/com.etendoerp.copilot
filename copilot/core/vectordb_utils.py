@@ -427,8 +427,7 @@ def index_image_file(image_path, chroma_client, collection_name, agent_id=None):
         dict: Result with status information.
     """
     try:
-        from PIL import Image
-        from sentence_transformers import SentenceTransformer
+        from fastembed import ImageEmbedding
 
         # Calculate MD5 of the file
         file_md5 = calculate_file_md5(image_path)
@@ -452,11 +451,10 @@ def index_image_file(image_path, chroma_client, collection_name, agent_id=None):
 
         # Load CLIP model for embeddings
         copilot_debug(f"Loading CLIP model for image {filename}...")
-        clip_model = SentenceTransformer("clip-ViT-B-32")
+        clip_model = ImageEmbedding(model_name="Qdrant/clip-ViT-B-32-vision")
 
         # Generate embedding
-        img = Image.open(image_path)
-        embedding = clip_model.encode(img).tolist()
+        embedding = list(clip_model.embed([image_path]))[0].tolist()
 
         # Generate unique ID
         file_id = os.path.splitext(filename)[0]
@@ -534,8 +532,7 @@ def find_similar_reference(
         - image_base64_or_None: Base64 string if stored in ChromaDB, None otherwise
     """
     try:
-        from PIL import Image
-        from sentence_transformers import SentenceTransformer
+        from fastembed import ImageEmbedding
 
         if not agent_id:
             copilot_debug("No agent_id provided, cannot search for reference")
@@ -554,11 +551,10 @@ def find_similar_reference(
             copilot_debug(f"Using similarity threshold: {similarity_threshold}")
 
         # Load CLIP model for embeddings
-        clip_model = SentenceTransformer("clip-ViT-B-32")
+        clip_model = ImageEmbedding(model_name="Qdrant/clip-ViT-B-32-vision")
 
         # Open the query image
-        query_img = Image.open(first_image_path)
-        query_embedding = clip_model.encode(query_img).tolist()
+        query_embedding = list(clip_model.embed([first_image_path]))[0].tolist()
 
         # Connect to ChromaDB
         chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
