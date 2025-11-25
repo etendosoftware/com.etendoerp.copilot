@@ -6,13 +6,38 @@ These tests use a real SQLite database to ensure complete coverage.
 import io
 import os
 import shutil
+import sys
 import tempfile
+import types
 
 import pytest
 from copilot.core.routes import core_router
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
+
+# Ensure fastembed is available during tests (stub if not installed)
+if "fastembed" not in sys.modules:
+    fake_mod = types.ModuleType("fastembed")
+
+    class _FakeEmbedResult:
+        def __init__(self, values=None):
+            self._values = values or [0.1, 0.2, 0.3]
+
+        def tolist(self):
+            return self._values
+
+    class _FakeImageEmbedding:
+        def __init__(self, *args, **kwargs):
+            # no-op constructor for test stub
+            self._args = args
+
+        def embed(self, paths):
+            return [_FakeEmbedResult() for _ in paths]
+
+    fake_mod.ImageEmbedding = _FakeImageEmbedding
+    sys.modules["fastembed"] = fake_mod
+
 
 app = FastAPI()
 app.include_router(core_router)

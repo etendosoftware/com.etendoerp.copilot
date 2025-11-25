@@ -5,6 +5,10 @@ Comprehensive coverage of all functions in copilot/core/vectordb_utils.py.
 
 import base64
 import hashlib
+
+# Ensure fastembed is importable for tests that patch it
+import sys
+import types
 import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, mock_open, patch
@@ -41,6 +45,26 @@ from copilot.core.vectordb_utils import (
     process_pdf,
 )
 from langchain_core.documents import Document
+
+if "fastembed" not in sys.modules:
+    fake_fastembed = types.ModuleType("fastembed")
+
+    class _DummyEmbed:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, items):
+            class _R:
+                def __init__(self, vals):
+                    self._vals = vals
+
+                def tolist(self):
+                    return self._vals
+
+            return [_R([0.1, 0.2, 0.3]) for _ in items]
+
+    fake_fastembed.ImageEmbedding = _DummyEmbed
+    sys.modules["fastembed"] = fake_fastembed
 
 
 class TestGetEmbedding:
@@ -642,7 +666,7 @@ class TestCalculateFileMd5:
 class TestIndexImageFile:
     """Tests for index_image_file function."""
 
-    @patch("sentence_transformers.SentenceTransformer")
+    @patch("fastembed.ImageEmbedding")
     @patch("PIL.Image.open")
     @patch("copilot.core.vectordb_utils.image_to_base64")
     @patch("copilot.core.vectordb_utils.calculate_file_md5")
@@ -661,8 +685,9 @@ class TestIndexImageFile:
         mock_image_open.return_value = mock_img
 
         mock_model = Mock()
-        mock_model.encode.return_value = Mock()
-        mock_model.encode.return_value.tolist.return_value = [0.1, 0.2, 0.3]
+        embed_res = Mock()
+        embed_res.tolist.return_value = [0.1, 0.2, 0.3]
+        mock_model.embed.return_value = [embed_res]
         mock_sentence_transformer.return_value = mock_model
 
         mock_collection = Mock()
@@ -696,8 +721,8 @@ class TestIndexImageFile:
         """Test handling of missing dependencies."""
         mock_calc_md5.return_value = "test_md5"
 
-        # Mock the import to fail
-        with patch("builtins.__import__", side_effect=ImportError("PIL not available")):
+        # Mock the import to fail for fastembed
+        with patch("builtins.__import__", side_effect=ImportError("fastembed not available")):
             mock_client = Mock()
             result = index_image_file("test_image.png", mock_client, "test_collection")
 
@@ -728,7 +753,7 @@ class TestFindSimilarReference:
     """Tests for find_similar_reference function."""
 
     @patch("copilot.core.vectordb_utils.get_chroma_settings")
-    @patch("sentence_transformers.SentenceTransformer")
+    @patch("fastembed.ImageEmbedding")
     @patch("PIL.Image.open")
     @patch("copilot.core.vectordb_utils.chromadb.Client")
     @patch("copilot.core.vectordb_utils.get_vector_db_path")
@@ -761,7 +786,7 @@ class TestFindSimilarReference:
         mock_model = Mock()
         mock_encode_result = Mock()
         mock_encode_result.tolist.return_value = [0.1, 0.2, 0.3]
-        mock_model.encode.return_value = mock_encode_result
+        mock_model.embed.return_value = [mock_encode_result]
         mock_sentence_transformer.return_value = mock_model
 
         # Mock the collection and client
@@ -793,7 +818,7 @@ class TestFindSimilarReference:
         assert ref_b64 is None
 
     @patch("copilot.core.vectordb_utils.get_chroma_settings")
-    @patch("sentence_transformers.SentenceTransformer")
+    @patch("fastembed.ImageEmbedding")
     @patch("PIL.Image.open")
     @patch("copilot.core.vectordb_utils.chromadb.Client")
     @patch("copilot.core.vectordb_utils.get_vector_db_path")
@@ -824,7 +849,7 @@ class TestFindSimilarReference:
         mock_model = Mock()
         mock_encode_result = Mock()
         mock_encode_result.tolist.return_value = [0.1, 0.2, 0.3]
-        mock_model.encode.return_value = mock_encode_result
+        mock_model.embed.return_value = [mock_encode_result]
         mock_sentence_transformer.return_value = mock_model
 
         # Mock the collection and client
