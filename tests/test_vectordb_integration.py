@@ -29,7 +29,9 @@ if "fastembed" not in sys.modules:
 
     class _FakeImageEmbedding:
         def __init__(self, *args, **kwargs):
-            # no-op constructor for test stub
+            # No-op constructor: this is a lightweight test stub used to emulate
+            # the third-party `fastembed.ImageEmbedding` API for unit tests.
+            # It intentionally does not perform any initialization.
             self._args = args
 
         def embed(self, paths):

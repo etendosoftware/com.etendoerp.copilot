@@ -51,7 +51,9 @@ if "fastembed" not in sys.modules:
 
     class _DummyEmbed:
         def __init__(self, *args, **kwargs):
-            pass
+            # No-op constructor: stub for tests, real implementation not required
+            # The presence of this no-op is intentional to allow patching in tests.
+            return None
 
         def embed(self, items):
             class _R:
