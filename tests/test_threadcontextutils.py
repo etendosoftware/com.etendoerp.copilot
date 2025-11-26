@@ -160,6 +160,72 @@ class TestReadAccumUsageData:
         }
         assert result == expected_result
 
+    @patch("copilot.core.threadcontextutils.ThreadContext")
+    @patch("copilot.core.threadcontextutils.copilot_debug_custom")
+    def test_read_accum_usage_data_attribute_error(self, mock_debug, mock_thread_context):
+        """Test reading usage data when output object doesn't have usage_metadata attribute."""
+        # Setup
+        mock_thread_context.has_data.return_value = False
+
+        # Create mock output object without usage_metadata attribute
+        mock_output = Mock(spec=[])  # Empty spec means no attributes
+
+        # Execute
+        result = read_accum_usage_data(mock_output)
+
+        # Verify - should return default values and log error
+        expected_result = {"input_tokens": 0, "output_tokens": 0}
+        assert result == expected_result
+
+        # Verify error was logged
+        assert mock_debug.call_count == 1
+        error_call = mock_debug.call_args_list[0]
+        assert "Error reading usage data:" in error_call[0][0]
+
+    @patch("copilot.core.threadcontextutils.ThreadContext")
+    @patch("copilot.core.threadcontextutils.copilot_debug_custom")
+    def test_read_accum_usage_data_thread_context_error(self, mock_debug, mock_thread_context):
+        """Test reading usage data when ThreadContext raises an exception."""
+        # Setup
+        mock_thread_context.has_data.side_effect = Exception("ThreadContext error")
+
+        # Create mock output object
+        mock_output = Mock()
+        mock_output.usage_metadata = {"input_tokens": 50, "output_tokens": 30}
+
+        # Execute
+        result = read_accum_usage_data(mock_output)
+
+        # Verify - should return default values and log error
+        expected_result = {"input_tokens": 0, "output_tokens": 0}
+        assert result == expected_result
+
+        # Verify error was logged
+        assert mock_debug.call_count == 1
+        error_call = mock_debug.call_args_list[0]
+        assert "Error reading usage data:" in error_call[0][0]
+        assert "ThreadContext error" in error_call[0][0]
+
+    @patch("copilot.core.threadcontextutils.ThreadContext")
+    @patch("copilot.core.threadcontextutils.copilot_debug_custom")
+    def test_read_accum_usage_data_type_error(self, mock_debug, mock_thread_context):
+        """Test reading usage data when usage_metadata has wrong type."""
+        # Setup
+        mock_thread_context.has_data.return_value = False
+
+        # Create mock output object with non-dict usage_metadata
+        mock_output = Mock()
+        mock_output.usage_metadata = "not a dict"
+
+        # Execute
+        result = read_accum_usage_data(mock_output)
+
+        # Verify - should return default values and log error
+        expected_result = {"input_tokens": 0, "output_tokens": 0}
+        assert result == expected_result
+
+        # Verify error was logged
+        assert mock_debug.call_count == 1
 
 class TestReadAccumUsageDataFromMsgArr:
     """Test cases for the read_accum_usage_data_from_msg_arr function."""
@@ -568,3 +634,106 @@ class TestReadAccumUsageDataFromMsgArr:
         # Verify - should process no messages (no messages after last human)
         expected_result = {"input_tokens": 0, "output_tokens": 0}
         assert result == expected_result
+
+    @patch("copilot.core.threadcontextutils.ThreadContext")
+    @patch("copilot.core.threadcontextutils.copilot_debug_custom")
+    def test_read_accum_usage_data_from_msg_arr_exception_in_processing(self, mock_debug, mock_thread_context):
+        """Test reading usage data when exception occurs during message processing."""
+        # Setup
+        mock_thread_context.has_data.return_value = False
+
+        # Create mock message where accessing usage_metadata raises an exception
+        human_msg = Mock()
+        human_msg.type = "human"
+
+        ai_msg = Mock()
+        ai_msg.type = "ai"
+        # Make usage_metadata raise an exception when accessed
+        type(ai_msg).usage_metadata = property(lambda self: (_ for _ in ()).throw(Exception("Metadata error")))
+
+        msg_arr = [human_msg, ai_msg]
+
+        # Execute
+        result = read_accum_usage_data_from_msg_arr(msg_arr)
+
+        # Verify - should return default values and log error
+        expected_result = {"input_tokens": 0, "output_tokens": 0}
+        assert result == expected_result
+
+        # Verify error was logged
+        assert mock_debug.call_count == 1
+        error_call = mock_debug.call_args_list[0]
+        assert "Error reading usage data from message array:" in error_call[0][0]
+
+    @patch("copilot.core.threadcontextutils.ThreadContext")
+    @patch("copilot.core.threadcontextutils.copilot_debug_custom")
+    def test_read_accum_usage_data_from_msg_arr_thread_context_error(self, mock_debug, mock_thread_context):
+        """Test reading usage data when ThreadContext raises an exception."""
+        # Setup
+        mock_thread_context.has_data.side_effect = Exception("ThreadContext error")
+
+        # Create mock messages
+        human_msg = Mock()
+        human_msg.type = "human"
+
+        ai_msg = Mock()
+        ai_msg.type = "ai"
+        ai_msg.usage_metadata = {"input_tokens": 50, "output_tokens": 30}
+
+        msg_arr = [human_msg, ai_msg]
+
+        # Execute
+        result = read_accum_usage_data_from_msg_arr(msg_arr)
+
+        # Verify - should return default values and log error
+        expected_result = {"input_tokens": 0, "output_tokens": 0}
+        assert result == expected_result
+
+        # Verify error was logged
+        assert mock_debug.call_count == 1
+        error_call = mock_debug.call_args_list[0]
+        assert "Error reading usage data from message array:" in error_call[0][0]
+        assert "ThreadContext error" in error_call[0][0]
+
+    @patch("copilot.core.threadcontextutils.ThreadContext")
+    @patch("copilot.core.threadcontextutils.copilot_debug_custom")
+    def test_read_accum_usage_data_from_msg_arr_type_error_on_message(self, mock_debug, mock_thread_context):
+        """Test reading usage data when message doesn't have type attribute."""
+        # Setup
+        mock_thread_context.has_data.return_value = False
+
+        # Create mock message without type attribute
+        msg_without_type = Mock(spec=[])  # Empty spec means no attributes
+
+        msg_arr = [msg_without_type]
+
+        # Execute
+        result = read_accum_usage_data_from_msg_arr(msg_arr)
+
+        # Verify - should return default values and log error
+        expected_result = {"input_tokens": 0, "output_tokens": 0}
+        assert result == expected_result
+
+        # Verify error was logged
+        assert mock_debug.call_count == 1
+        error_call = mock_debug.call_args_list[0]
+        assert "Error reading usage data from message array:" in error_call[0][0]
+
+    @patch("copilot.core.threadcontextutils.ThreadContext")
+    @patch("copilot.core.threadcontextutils.copilot_debug_custom")
+    def test_read_accum_usage_data_from_msg_arr_none_input(self, mock_debug, mock_thread_context):
+        """Test reading usage data when None is passed as message array."""
+        # Setup
+        mock_thread_context.has_data.return_value = False
+
+        # Execute
+        result = read_accum_usage_data_from_msg_arr(None)
+
+        # Verify - should return default values and log error
+        expected_result = {"input_tokens": 0, "output_tokens": 0}
+        assert result == expected_result
+
+        # Verify error was logged
+        assert mock_debug.call_count == 1
+        error_call = mock_debug.call_args_list[0]
+        assert "Error reading usage data from message array:" in error_call[0][0]
