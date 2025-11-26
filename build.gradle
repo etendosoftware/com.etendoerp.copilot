@@ -57,6 +57,7 @@ dependencies {
     implementation('com.etendoerp:docker:2.8.1')
     implementation('com.etendoerp:openapi:2.4.0')
     implementation('com.etendoerp:task:3.11.1')
+    implementation('com.etendoerp:telemetry:3.0.0')
 
     implementation('com.etendoerp.platform:etendo-core:[25.1.0,25.4.0)')
 }

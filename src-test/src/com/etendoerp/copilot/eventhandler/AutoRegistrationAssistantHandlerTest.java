@@ -1,11 +1,9 @@
 package com.etendoerp.copilot.eventhandler;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
@@ -16,18 +14,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Restrictions;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
-import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
-import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
@@ -41,12 +34,6 @@ import com.etendoerp.copilot.data.CopilotRoleApp;
  * AutoRegistrationAssistantHandler test class.
  */
 public class AutoRegistrationAssistantHandlerTest {
-
-  /**
-   * The Expected exception.
-   */
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
 
   private AutoRegistrationAssistantHandler handler;
   private AutoCloseable mocks;
@@ -77,13 +64,20 @@ public class AutoRegistrationAssistantHandlerTest {
   private static final String TEST_ROLE_ID = "testRoleId123";
   private static final String TEST_APP_NAME = "Test Copilot App";
   private static final String ERROR_ROLE_NOT_ADDED = "Role could not be added";
+  private static final String RESULT_NOT_NULL_MESSAGE = "Result should not be null";
+  private static final String APP_ID_JSON_FORMAT = "{\"appId\":\"%s\"}";
+  private static final String SUCCESS_KEY = "success";
+  private static final String MESSAGE_KEY = "message";
+  private static final String RESULT_SHOULD_INDICATE_FAILURE = "Result should indicate failure";
+  private static final String RESULT_SHOULD_CONTAIN_ERROR_MESSAGE = "Result should contain error message";
+  private static final String ERROR_PREFIX = "Error:";
 
   /**
    * Sets up the test environment before each test.
    *
    * @throws Exception if setup fails
    */
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     mocks = MockitoAnnotations.openMocks(this);
     handler = new AutoRegistrationAssistantHandler();
@@ -134,7 +128,7 @@ public class AutoRegistrationAssistantHandlerTest {
    *
    * @throws Exception if teardown fails
    */
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     if (mocks != null) {
       mocks.close();
@@ -156,13 +150,12 @@ public class AutoRegistrationAssistantHandlerTest {
   /**
    * Test execute with successful new role app registration.
    *
-   * @throws Exception if test fails
    */
   @Test
-  public void testExecuteSuccessfulNewRegistration() throws Exception {
+  public void testExecuteSuccessfulNewRegistration() {
     // Given
     Map<String, Object> parameters = new HashMap<>();
-    String content = String.format("{\"appId\":\"%s\"}", TEST_APP_ID);
+    String content = String.format(APP_ID_JSON_FORMAT, TEST_APP_ID);
 
     // No existing role app found
     when(mockCriteria.uniqueResult()).thenReturn(null);
@@ -171,7 +164,7 @@ public class AutoRegistrationAssistantHandlerTest {
     JSONObject result = handler.execute(parameters, content);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(result, RESULT_NOT_NULL_MESSAGE);
     verify(obDal, times(1)).get(CopilotApp.class, TEST_APP_ID);
     verify(mockCriteria, times(2)).add(any());
     verify(mockCriteria, times(1)).setMaxResults(1);
@@ -188,13 +181,12 @@ public class AutoRegistrationAssistantHandlerTest {
   /**
    * Test execute when role app already exists.
    *
-   * @throws Exception if test fails
    */
   @Test
-  public void testExecuteRoleAppAlreadyExists() throws Exception {
+  public void testExecuteRoleAppAlreadyExists() {
     // Given
     Map<String, Object> parameters = new HashMap<>();
-    String content = String.format("{\"appId\":\"%s\"}", TEST_APP_ID);
+    String content = String.format(APP_ID_JSON_FORMAT, TEST_APP_ID);
 
     // Existing role app found
     when(mockCriteria.uniqueResult()).thenReturn(mockExistingRoleApp);
@@ -203,7 +195,7 @@ public class AutoRegistrationAssistantHandlerTest {
     JSONObject result = handler.execute(parameters, content);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(result, RESULT_NOT_NULL_MESSAGE);
     verify(obDal, times(1)).get(CopilotApp.class, TEST_APP_ID);
     verify(mockCriteria, times(1)).uniqueResult();
 
@@ -216,10 +208,9 @@ public class AutoRegistrationAssistantHandlerTest {
   /**
    * Test execute with invalid JSON content.
    *
-   * @throws Exception if test fails
    */
   @Test
-  public void testExecuteWithInvalidJSON() throws Exception {
+  public void testExecuteWithInvalidJSON() {
     // Given
     Map<String, Object> parameters = new HashMap<>();
     String content = "invalid json";
@@ -228,19 +219,18 @@ public class AutoRegistrationAssistantHandlerTest {
     JSONObject result = handler.execute(parameters, content);
 
     // Then
-    assertNotNull("Result should not be null", result);
-    assertFalse("Result should indicate failure", result.optBoolean("success", true));
-    assertTrue("Result should contain error message",
-        result.optString("message", "").contains("Error:"));
+    assertNotNull(result, RESULT_NOT_NULL_MESSAGE);
+    assertFalse(result.optBoolean(SUCCESS_KEY, true), RESULT_SHOULD_INDICATE_FAILURE);
+    assertTrue(result.optString(MESSAGE_KEY, "").contains(ERROR_PREFIX),
+        RESULT_SHOULD_CONTAIN_ERROR_MESSAGE);
   }
 
   /**
    * Test execute with missing appId in content.
    *
-   * @throws Exception if test fails
    */
   @Test
-  public void testExecuteWithMissingAppId() throws Exception {
+  public void testExecuteWithMissingAppId() {
     // Given
     Map<String, Object> parameters = new HashMap<>();
     String content = "{}";
@@ -249,21 +239,20 @@ public class AutoRegistrationAssistantHandlerTest {
     JSONObject result = handler.execute(parameters, content);
 
     // Then
-    assertNotNull("Result should not be null", result);
-    assertFalse("Result should indicate failure", result.optBoolean("success", true));
-    assertTrue("Result should contain error message",
-        result.optString("message", "").contains("Error:"));
+    assertNotNull(result, RESULT_NOT_NULL_MESSAGE);
+    assertFalse(result.optBoolean(SUCCESS_KEY, true), RESULT_SHOULD_INDICATE_FAILURE);
+    assertTrue(result.optString(MESSAGE_KEY, "").contains(ERROR_PREFIX),
+        RESULT_SHOULD_CONTAIN_ERROR_MESSAGE);
   }
   /**
    * Test execute verifies criteria filters are correct.
    *
-   * @throws Exception if test fails
    */
   @Test
-  public void testExecuteVerifiesCriteriaFilters() throws Exception {
+  public void testExecuteVerifiesCriteriaFilters() {
     // Given
     Map<String, Object> parameters = new HashMap<>();
-    String content = String.format("{\"appId\":\"%s\"}", TEST_APP_ID);
+    String content = String.format(APP_ID_JSON_FORMAT, TEST_APP_ID);
 
     when(mockCriteria.uniqueResult()).thenReturn(null);
 
@@ -280,10 +269,9 @@ public class AutoRegistrationAssistantHandlerTest {
   /**
    * Test execute with empty content.
    *
-   * @throws Exception if test fails
    */
   @Test
-  public void testExecuteWithEmptyContent() throws Exception {
+  public void testExecuteWithEmptyContent() {
     // Given
     Map<String, Object> parameters = new HashMap<>();
     String content = "";
@@ -292,22 +280,21 @@ public class AutoRegistrationAssistantHandlerTest {
     JSONObject result = handler.execute(parameters, content);
 
     // Then
-    assertNotNull("Result should not be null", result);
-    assertFalse("Result should indicate failure", result.optBoolean("success", true));
-    assertTrue("Result should contain error message",
-        result.optString("message", "").contains("Error:"));
+    assertNotNull(result, RESULT_NOT_NULL_MESSAGE);
+    assertFalse(result.optBoolean(SUCCESS_KEY, true), RESULT_SHOULD_INDICATE_FAILURE);
+    assertTrue(result.optString(MESSAGE_KEY, "").contains(ERROR_PREFIX),
+        RESULT_SHOULD_CONTAIN_ERROR_MESSAGE);
   }
 
   /**
    * Test execute verifies role from context.
    *
-   * @throws Exception if test fails
    */
   @Test
-  public void testExecuteVerifiesRoleFromContext() throws Exception {
+  public void testExecuteVerifiesRoleFromContext() {
     // Given
     Map<String, Object> parameters = new HashMap<>();
-    String content = String.format("{\"appId\":\"%s\"}", TEST_APP_ID);
+    String content = String.format(APP_ID_JSON_FORMAT, TEST_APP_ID);
 
     when(mockCriteria.uniqueResult()).thenReturn(null);
 

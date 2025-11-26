@@ -1,8 +1,9 @@
 package com.etendoerp.copilot.process;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -13,13 +14,13 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -43,8 +44,19 @@ public class SyncModelsProcessHandlerTest {
   private static final String RESULT_NOT_NULL_MSG = "Result should not be null";
   private static final String SUCCESS_MSG = "Success";
   private static final String ERROR_MSG = "Error";
+  private static final String SHOULD_HAVE_RESPONSE_ACTIONS = "Should have responseActions";
+  private static final String RESPONSE_ACTIONS_KEY = "responseActions";
+  private static final String MESSAGE_KEY = "message";
 
-  @Before
+  /**
+   * Sets up the test environment before each test execution.
+   * Initializes the SyncModelsProcessHandler instance and configures all static mocks
+   * including OBContext, CopilotModelUtils, OBMessageUtils, OBDal, and DbUtility.
+   * Sets up default behaviors for admin mode management and message translations.
+   *
+   * @throws Exception if there's an error during mock initialization
+   */
+  @BeforeEach
   public void setUp() throws Exception {
     handler = new SyncModelsProcessHandler();
 
@@ -60,12 +72,19 @@ public class SyncModelsProcessHandlerTest {
     mockedOBContext.when(OBContext::restorePreviousMode).then(invocation -> null);
 
     // Configure OBMessageUtils mock
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("Success")).thenReturn(SUCCESS_MSG);
+    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(SUCCESS_MSG)).thenReturn(SUCCESS_MSG);
     mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("success")).thenReturn(SUCCESS_MSG);
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("Error")).thenReturn(ERROR_MSG);
+    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(ERROR_MSG)).thenReturn(ERROR_MSG);
   }
 
-  @After
+  /**
+   * Cleans up resources after each test execution.
+   * Closes all static mocks in reverse order of initialization to prevent
+   * memory leaks and ensure proper test isolation.
+   *
+   * @throws Exception if there's an error during resource cleanup
+   */
+  @AfterEach
   public void tearDown() throws Exception {
     if (mockedDbUtility != null) {
       mockedDbUtility.close();
@@ -86,6 +105,10 @@ public class SyncModelsProcessHandlerTest {
 
   /**
    * Test doExecute with successful model synchronization.
+   * Verifies that when model synchronization succeeds, the method returns
+   * a proper JSON response with responseActions array containing success message.
+   *
+   * @throws Exception if there's an error during test execution
    */
   @Test
   public void testDoExecuteSuccess() throws Exception {
@@ -100,16 +123,20 @@ public class SyncModelsProcessHandlerTest {
     JSONObject result = handler.doExecute(parameters, content);
 
     // Then
-    assertNotNull(RESULT_NOT_NULL_MSG, result);
-    assertTrue("Should have responseActions", result.has("responseActions"));
+    assertNotNull(result, RESULT_NOT_NULL_MSG);
+    assertTrue(result.has(RESPONSE_ACTIONS_KEY), SHOULD_HAVE_RESPONSE_ACTIONS);
 
     // Verify the response structure
-    assertTrue("ResponseActions should be a JSONArray",
-        result.get("responseActions") instanceof org.codehaus.jettison.json.JSONArray);
+    assertInstanceOf(JSONArray.class, result.get(RESPONSE_ACTIONS_KEY), "ResponseActions should be a JSONArray");
   }
 
   /**
    * Test doExecute when syncModels throws an exception.
+   * Verifies that when a RuntimeException occurs during synchronization,
+   * the method handles it gracefully by performing a database rollback
+   * and returning an error response with appropriate severity and message.
+   *
+   * @throws Exception if there's an error during test execution
    */
   @Test
   public void testDoExecuteWithException() throws Exception {
@@ -140,16 +167,22 @@ public class SyncModelsProcessHandlerTest {
     JSONObject result = handler.doExecute(parameters, content);
 
     // Then
-    assertNotNull(RESULT_NOT_NULL_MSG, result);
-    assertTrue("Should have message", result.has("message"));
+    assertNotNull(result, RESULT_NOT_NULL_MSG);
+    assertTrue(result.has(MESSAGE_KEY), "Should have message");
 
-    JSONObject message = result.getJSONObject("message");
-    assertEquals("Should be error severity", "error", message.getString("severity"));
-    assertEquals("Should have error title", ERROR_MSG, message.getString("title"));
+    JSONObject message = result.getJSONObject(MESSAGE_KEY);
+    assertEquals("error", message.getString("severity"), "Should be error severity");
+    assertEquals(ERROR_MSG, message.getString("title"), "Should have error title");
   }
 
   /**
    * Test doExecute when syncModels throws SQLException.
+   * Verifies that when a SQLException wrapped in an OBException occurs,
+   * the method extracts the underlying SQLException, translates the error
+   * message, performs a database rollback, and returns a properly formatted
+   * error response.
+   *
+   * @throws Exception if there's an error during test execution
    */
   @Test
   public void testDoExecuteWithSQLException() throws Exception {
@@ -183,16 +216,21 @@ public class SyncModelsProcessHandlerTest {
     JSONObject result = handler.doExecute(parameters, content);
 
     // Then
-    assertNotNull(RESULT_NOT_NULL_MSG, result);
-    assertTrue("Should have message", result.has("message"));
+    assertNotNull(result, RESULT_NOT_NULL_MSG);
+    assertTrue(result.has(MESSAGE_KEY), "Should have message");
 
-    JSONObject message = result.getJSONObject("message");
-    assertEquals("Should be error severity", "error", message.getString("severity"));
-    assertTrue("Should have error text", message.has("text"));
+    JSONObject message = result.getJSONObject(MESSAGE_KEY);
+    assertEquals("error", message.getString("severity"), "Should be error severity");
+    assertTrue(message.has("text"), "Should have error text");
   }
 
   /**
    * Test doExecute when rollback also fails.
+   * Verifies that when both the synchronization and the subsequent database
+   * rollback fail, the method handles both exceptions gracefully and still
+   * returns a valid JSON response without propagating the exceptions.
+   *
+   * @throws Exception if there's an error during test execution
    */
   @Test
   public void testDoExecuteWithRollbackException() throws Exception {
@@ -215,15 +253,19 @@ public class SyncModelsProcessHandlerTest {
     JSONObject result = handler.doExecute(parameters, content);
 
     // Then
-    assertNotNull(RESULT_NOT_NULL_MSG, result);
+    assertNotNull(result, RESULT_NOT_NULL_MSG);
     // The handler catches the rollback exception, so result should still be a valid JSON
   }
 
   /**
    * Test doExecute ensures restorePreviousMode is always called.
+   * Verifies that regardless of success or failure, the OBContext.restorePreviousMode()
+   * method is always invoked to properly restore the context state, ensuring
+   * proper cleanup even in the presence of exceptions.
+   *
    */
   @Test
-  public void testDoExecuteRestoresPreviousMode() throws Exception {
+  public void testDoExecuteRestoresPreviousMode() {
     // Given
     Map<String, Object> parameters = new HashMap<>();
     String content = "";
@@ -241,9 +283,13 @@ public class SyncModelsProcessHandlerTest {
 
   /**
    * Test doExecute with empty parameters.
+   * Verifies that the method handles empty parameter maps correctly
+   * and still performs successful model synchronization, returning
+   * a valid response with responseActions.
+   *
    */
   @Test
-  public void testDoExecuteWithEmptyParameters() throws Exception {
+  public void testDoExecuteWithEmptyParameters() {
     // Given
     Map<String, Object> parameters = new HashMap<>();
     String content = "";
@@ -255,15 +301,18 @@ public class SyncModelsProcessHandlerTest {
     JSONObject result = handler.doExecute(parameters, content);
 
     // Then
-    assertNotNull(RESULT_NOT_NULL_MSG, result);
-    assertTrue("Should have responseActions", result.has("responseActions"));
+    assertNotNull(result, RESULT_NOT_NULL_MSG);
+    assertTrue(result.has(RESPONSE_ACTIONS_KEY), SHOULD_HAVE_RESPONSE_ACTIONS);
   }
 
   /**
    * Test doExecute with null content.
+   * Verifies that the method handles null content parameter gracefully
+   * and still performs successful model synchronization without errors.
+   *
    */
   @Test
-  public void testDoExecuteWithNullContent() throws Exception {
+  public void testDoExecuteWithNullContent() {
     // Given
     Map<String, Object> parameters = new HashMap<>();
     String content = null;
@@ -275,12 +324,18 @@ public class SyncModelsProcessHandlerTest {
     JSONObject result = handler.doExecute(parameters, content);
 
     // Then
-    assertNotNull(RESULT_NOT_NULL_MSG, result);
-    assertTrue("Should have responseActions", result.has("responseActions"));
+    assertNotNull(result, RESULT_NOT_NULL_MSG);
+    assertTrue(result.has(RESPONSE_ACTIONS_KEY), SHOULD_HAVE_RESPONSE_ACTIONS);
   }
 
   /**
    * Test buildMessage structure through successful doExecute.
+   * Verifies the complete structure of the success message returned by doExecute,
+   * including the presence of responseActions array, message type, title,
+   * and wait flag. Ensures the message follows the expected JSON schema
+   * for process view notifications.
+   *
+   * @throws Exception if there's an error during test execution
    */
   @Test
   public void testBuildMessageStructure() throws Exception {
@@ -295,18 +350,18 @@ public class SyncModelsProcessHandlerTest {
     JSONObject result = handler.doExecute(parameters, content);
 
     // Then
-    assertNotNull(RESULT_NOT_NULL_MSG, result);
-    assertTrue("Should have responseActions", result.has("responseActions"));
+    assertNotNull(result, RESULT_NOT_NULL_MSG);
+    assertTrue(result.has(RESPONSE_ACTIONS_KEY), SHOULD_HAVE_RESPONSE_ACTIONS);
 
-    org.codehaus.jettison.json.JSONArray actions = result.getJSONArray("responseActions");
-    assertTrue("Should have at least one action", actions.length() > 0);
+    org.codehaus.jettison.json.JSONArray actions = result.getJSONArray(RESPONSE_ACTIONS_KEY);
+    assertTrue(actions.length() > 0, "Should have at least one action");
 
     JSONObject action = actions.getJSONObject(0);
-    assertTrue("Should have showMsgInProcessView", action.has("showMsgInProcessView"));
+    assertTrue(action.has("showMsgInProcessView"), "Should have showMsgInProcessView");
 
     JSONObject showMsg = action.getJSONObject("showMsgInProcessView");
-    assertEquals("Should be success message type", "success", showMsg.getString("msgType"));
-    assertEquals("Should have success title", SUCCESS_MSG, showMsg.getString("msgTitle"));
-    assertTrue("Should have wait flag", showMsg.getBoolean("wait"));
+    assertEquals("success", showMsg.getString("msgType"), "Should be success message type");
+    assertEquals(SUCCESS_MSG, showMsg.getString("msgTitle"), "Should have success title");
+    assertTrue(showMsg.getBoolean("wait"), "Should have wait flag");
   }
 }

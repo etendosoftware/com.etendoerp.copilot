@@ -94,6 +94,7 @@ public class TrackingUtilTest {
   private static final String TEST_MODULE_NAME = "Test Module";
   private static final String TEST_MODEL_NAME = "gpt-4";
   private static final String TEST_PROVIDER = "OpenAI";
+  private static final String RESULT_NOT_NULL_MESSAGE = "Result should not be null";
 
   /**
    * Sets up the test environment before each test.
@@ -338,7 +339,7 @@ public class TrackingUtilTest {
     Date result = TrackingUtil.getLastConversation(mockUser, mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should return last message date", testDate, result);
   }
 
@@ -359,7 +360,7 @@ public class TrackingUtilTest {
     Date result = TrackingUtil.getLastConversation(mockUser, mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should return creation date", creationDate, result);
   }
 
@@ -377,7 +378,7 @@ public class TrackingUtilTest {
     Date result = TrackingUtil.getLastConversation(mockUser, mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     Date expectedDate = Date.from(Instant.parse("2024-01-01T00:00:00Z"));
     assertEquals("Should return fallback date", expectedDate, result);
   }
@@ -407,7 +408,7 @@ public class TrackingUtilTest {
     when(mockApp.getETCOPTeamMemberList()).thenReturn(teamMembers);
 
     mockedCopilotModelUtils.when(() -> CopilotModelUtils.getAppModel(memberApp)).thenReturn("gpt-3.5");
-    mockedCopilotModelUtils.when(() -> CopilotModelUtils.getProvider(memberApp)).thenReturn("OpenAI");
+    mockedCopilotModelUtils.when(() -> CopilotModelUtils.getProvider(memberApp)).thenReturn(TEST_PROVIDER);
 
     // When
     TrackingUtil.sendUsageData(mockApp);

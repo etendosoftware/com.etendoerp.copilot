@@ -54,7 +54,6 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
 
 import kong.unirest.HttpResponse;
-import kong.unirest.HttpStatus;
 import kong.unirest.Unirest;
 
 /**
@@ -93,6 +92,8 @@ public class OpenAIUtilsTest extends WeldBaseTest {
   private static final String TEST_VECTORDB_ID = "vectordb_123";
   private static final String TEST_APP_NAME = "Test App";
   private static final String TEST_MODEL = "gpt-4";
+  private static final String PROPERTIES_KEY = "properties";
+  private static final String TEST_FILE_NAME = "test.txt";
 
   /**
    * Sets up the necessary mocks and spies before each test.
@@ -188,8 +189,8 @@ public class OpenAIUtilsTest extends WeldBaseTest {
 
     assertNotNull(result);
     assertEquals("object", result.getString("type"));
-    assertTrue(result.has("properties"));
-    JSONObject properties = result.getJSONObject("properties");
+    assertTrue(result.has(PROPERTIES_KEY));
+    JSONObject properties = result.getJSONObject(PROPERTIES_KEY);
     assertTrue(properties.has("name"));
     assertTrue(properties.has("age"));
   }
@@ -205,7 +206,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
 
     assertNotNull(result);
     assertEquals("object", result.getString("type"));
-    assertTrue(result.has("properties"));
+    assertTrue(result.has(PROPERTIES_KEY));
   }
 
   /**
@@ -299,7 +300,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
   public void testUploadFileToOpenAISuccess() throws Exception {
     // Given
     File mockFileToUpload = mock(File.class);
-    when(mockFileToUpload.getName()).thenReturn("test.txt");
+    when(mockFileToUpload.getName()).thenReturn(TEST_FILE_NAME);
 
     JSONObject successResponse = new JSONObject();
     successResponse.put("id", TEST_FILE_ID);
@@ -336,7 +337,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
   public void testUploadFileToOpenAIWithError() throws Exception {
     // Given
     File mockFileToUpload = mock(File.class);
-    when(mockFileToUpload.getName()).thenReturn("test.txt");
+    when(mockFileToUpload.getName()).thenReturn(TEST_FILE_NAME);
 
     JSONObject errorResponse = new JSONObject();
     JSONObject error = new JSONObject();
@@ -366,8 +367,6 @@ public class OpenAIUtilsTest extends WeldBaseTest {
     }
   }
 
-  // ============ getModelList Tests ============
-
   /**
    * Test getModelList retrieves models successfully.
    */
@@ -375,7 +374,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
   public void testGetModelListSuccess() throws Exception {
     // Given
     JSONArray models = new JSONArray();
-    models.put(new JSONObject().put("id", "gpt-4"));
+    models.put(new JSONObject().put("id", TEST_MODEL));
     models.put(new JSONObject().put("id", "gpt-3.5-turbo"));
 
     JSONObject response = new JSONObject();
@@ -420,8 +419,6 @@ public class OpenAIUtilsTest extends WeldBaseTest {
       assertThrows(OBException.class, () -> OpenAIUtils.getModelList(TEST_API_KEY));
     }
   }
-
-  // ============ syncAssistant Tests ============
 
   /**
    * Test syncAssistant with successful synchronization.
@@ -479,8 +476,6 @@ public class OpenAIUtilsTest extends WeldBaseTest {
     assertThrows(OBException.class, () -> OpenAIUtils.syncAssistant(TEST_API_KEY, mockApp));
   }
 
-  // ============ syncAppSource Tests ============
-
   /**
    * Test syncAppSource when file hasn't changed.
    */
@@ -488,7 +483,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
   public void testSyncAppSourceFileNotChanged() throws Exception {
     // Given
     when(mockAppSource.getFile()).thenReturn(mockFile);
-    when(mockFile.getName()).thenReturn("test.txt");
+    when(mockFile.getName()).thenReturn(TEST_FILE_NAME);
     when(mockFile.getOpenaiIdFile()).thenReturn(TEST_FILE_ID);
     when(mockFile.getLastSync()).thenReturn(new Date(System.currentTimeMillis() + 10000));
     when(mockFile.getUpdated()).thenReturn(new Date());
@@ -519,7 +514,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
     // Given
     when(mockAppSource.getFile()).thenReturn(mockFile);
     when(mockAppSource.getOpenaiIdFile()).thenReturn("");
-    when(mockFile.getName()).thenReturn("test.txt");
+    when(mockFile.getName()).thenReturn(TEST_FILE_NAME);
     when(mockFile.getOpenaiIdFile()).thenReturn("");
     when(mockFile.getType()).thenReturn(CopilotConstants.KBF_TYPE_ATTACHED);
 
@@ -529,7 +524,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
     doNothing().when(mockHookManager).executeHooks(any());
 
     File tempFile = mock(File.class);
-    when(tempFile.getName()).thenReturn("test.txt");
+    when(tempFile.getName()).thenReturn(TEST_FILE_NAME);
 
     try (MockedStatic<OpenAIUtils> mockedOpenAIUtils = mockStatic(OpenAIUtils.class, CALLS_REAL_METHODS)) {
       mockedOpenAIUtils.when(() -> OpenAIUtils.getFileFromCopilotFile(mockFile))
@@ -582,7 +577,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
   public void testGetFileFromCopilotFileMissingAttachment() {
     // Given
     when(mockFile.getId()).thenReturn("file123");
-    when(mockFile.getName()).thenReturn("test.txt");
+    when(mockFile.getName()).thenReturn(TEST_FILE_NAME);
 
     OBCriteria<Attachment> mockCriteria = mock(OBCriteria.class);
     when(mockDal.createCriteria(Attachment.class)).thenReturn(mockCriteria);

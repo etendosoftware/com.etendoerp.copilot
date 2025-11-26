@@ -49,6 +49,13 @@ public class ToolsUtilTest {
 
   private MockedStatic<OBDal> mockedOBDal;
 
+  private static final String RESULT_NOT_NULL_MESSAGE = "Result should not be null";
+  private static final String SHOULD_HAVE_ONE_TOOL = "Should have one tool";
+  private static final String SHOULD_HAVE_CORRECT_TYPE = "Should have correct type";
+  private static final String SHOULD_HAVE_FUNCTION_OBJECT = "Should have function object";
+  private static final String SHOULD_HAVE_CORRECT_FUNCTION_NAME = "Should have correct function name";
+  private static final String FUNCTION_TYPE = "function";
+
   private static final String TEST_APP_ID = "testAppId123";
   private static final String TEST_TOOL_NAME = "testTool";
   private static final String TEST_TOOL_JSON = "{\"type\":\"function\",\"function\":{\"name\":\"testTool\",\"description\":\"Test tool description\"}}";
@@ -112,7 +119,7 @@ public class ToolsUtilTest {
     JSONArray result = ToolsUtil.getToolSet(mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Result should be empty", 0, result.length());
     verify(mockCriteria, times(1)).add(any());
     verify(mockCriteria, times(1)).list();
@@ -135,15 +142,15 @@ public class ToolsUtilTest {
     JSONArray result = ToolsUtil.getToolSet(mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
-    assertEquals("Should have one tool", 1, result.length());
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
+    assertEquals(SHOULD_HAVE_ONE_TOOL, 1, result.length());
 
     JSONObject toolJson = result.getJSONObject(0);
-    assertEquals("Should have correct type", "function", toolJson.getString("type"));
-    assertTrue("Should have function object", toolJson.has("function"));
+    assertEquals(SHOULD_HAVE_CORRECT_TYPE, FUNCTION_TYPE, toolJson.getString("type"));
+    assertTrue(SHOULD_HAVE_FUNCTION_OBJECT, toolJson.has(FUNCTION_TYPE));
 
-    JSONObject functionJson = toolJson.getJSONObject("function");
-    assertEquals("Should have correct function name", TEST_TOOL_NAME, functionJson.getString("name"));
+    JSONObject functionJson = toolJson.getJSONObject(FUNCTION_TYPE);
+    assertEquals(SHOULD_HAVE_CORRECT_FUNCTION_NAME, TEST_TOOL_NAME, functionJson.getString("name"));
     assertEquals("Should have description", "Test tool description", functionJson.getString("description"));
   }
 
@@ -164,15 +171,15 @@ public class ToolsUtilTest {
     JSONArray result = ToolsUtil.getToolSet(mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
-    assertEquals("Should have one tool", 1, result.length());
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
+    assertEquals(SHOULD_HAVE_ONE_TOOL, 1, result.length());
 
     JSONObject toolJson = result.getJSONObject(0);
-    assertEquals("Should have correct type", "function", toolJson.getString("type"));
-    assertTrue("Should have function object", toolJson.has("function"));
+    assertEquals(SHOULD_HAVE_CORRECT_TYPE, FUNCTION_TYPE, toolJson.getString("type"));
+    assertTrue(SHOULD_HAVE_FUNCTION_OBJECT, toolJson.has(FUNCTION_TYPE));
 
-    JSONObject functionJson = toolJson.getJSONObject("function");
-    assertEquals("Should have correct function name", TEST_TOOL_NAME, functionJson.getString("name"));
+    JSONObject functionJson = toolJson.getJSONObject(FUNCTION_TYPE);
+    assertEquals(SHOULD_HAVE_CORRECT_FUNCTION_NAME, TEST_TOOL_NAME, functionJson.getString("name"));
   }
 
   /**
@@ -192,15 +199,15 @@ public class ToolsUtilTest {
     JSONArray result = ToolsUtil.getToolSet(mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
-    assertEquals("Should have one tool", 1, result.length());
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
+    assertEquals(SHOULD_HAVE_ONE_TOOL, 1, result.length());
 
     JSONObject toolJson = result.getJSONObject(0);
-    assertEquals("Should have correct type", "function", toolJson.getString("type"));
-    assertTrue("Should have function object", toolJson.has("function"));
+    assertEquals(SHOULD_HAVE_CORRECT_TYPE, FUNCTION_TYPE, toolJson.getString("type"));
+    assertTrue(SHOULD_HAVE_FUNCTION_OBJECT, toolJson.has(FUNCTION_TYPE));
 
-    JSONObject functionJson = toolJson.getJSONObject("function");
-    assertEquals("Should have correct function name", TEST_TOOL_NAME, functionJson.getString("name"));
+    JSONObject functionJson = toolJson.getJSONObject(FUNCTION_TYPE);
+    assertEquals(SHOULD_HAVE_CORRECT_FUNCTION_NAME, TEST_TOOL_NAME, functionJson.getString("name"));
   }
 
   /**
@@ -227,16 +234,16 @@ public class ToolsUtilTest {
     JSONArray result = ToolsUtil.getToolSet(mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have two tools", 2, result.length());
 
     JSONObject tool1Json = result.getJSONObject(0);
     assertEquals("First tool should have correct name", TEST_TOOL_NAME,
-        tool1Json.getJSONObject("function").getString("name"));
+        tool1Json.getJSONObject(FUNCTION_TYPE).getString("name"));
 
     JSONObject tool2Json = result.getJSONObject(1);
     assertEquals("Second tool should have correct name", "secondTool",
-        tool2Json.getJSONObject("function").getString("name"));
+        tool2Json.getJSONObject(FUNCTION_TYPE).getString("name"));
   }
 
   /**
@@ -263,18 +270,18 @@ public class ToolsUtilTest {
     JSONArray result = ToolsUtil.getToolSet(mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have two tools", 2, result.length());
 
     // First tool has full JSON with description
     JSONObject tool1Json = result.getJSONObject(0);
     assertTrue("First tool should have description",
-        tool1Json.getJSONObject("function").has("description"));
+        tool1Json.getJSONObject(FUNCTION_TYPE).has("description"));
 
     // Second tool has minimal JSON without description
     JSONObject tool2Json = result.getJSONObject(1);
     assertEquals("Second tool should have correct name", "simpleTool",
-        tool2Json.getJSONObject("function").getString("name"));
+        tool2Json.getJSONObject(FUNCTION_TYPE).getString("name"));
   }
 
   /**
@@ -296,8 +303,8 @@ public class ToolsUtilTest {
     JSONArray result = ToolsUtil.getToolSet(mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
-    assertEquals("Should have one tool", 1, result.length());
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
+    assertEquals(SHOULD_HAVE_ONE_TOOL, 1, result.length());
 
     JSONObject toolJson = result.getJSONObject(0);
     // The JSON "  {}  " gets parsed as an empty object, so it won't have "type" field
@@ -346,14 +353,14 @@ public class ToolsUtilTest {
     JSONArray result = ToolsUtil.getToolSet(mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
-    assertEquals("Should have one tool", 1, result.length());
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
+    assertEquals(SHOULD_HAVE_ONE_TOOL, 1, result.length());
 
     JSONObject toolJson = result.getJSONObject(0);
-    assertEquals("Should have correct type", "function", toolJson.getString("type"));
+    assertEquals(SHOULD_HAVE_CORRECT_TYPE, FUNCTION_TYPE, toolJson.getString("type"));
 
-    JSONObject functionJson = toolJson.getJSONObject("function");
-    assertEquals("Should have correct function name", "complexTool", functionJson.getString("name"));
+    JSONObject functionJson = toolJson.getJSONObject(FUNCTION_TYPE);
+    assertEquals(SHOULD_HAVE_CORRECT_FUNCTION_NAME, "complexTool", functionJson.getString("name"));
     assertTrue("Should have parameters object", functionJson.has("parameters"));
 
     JSONObject parametersJson = functionJson.getJSONObject("parameters");
@@ -399,17 +406,17 @@ public class ToolsUtilTest {
     JSONArray result = ToolsUtil.getToolSet(mockApp);
 
     // Then
-    assertNotNull("Result should not be null", result);
-    assertEquals("Should have one tool", 1, result.length());
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
+    assertEquals(SHOULD_HAVE_ONE_TOOL, 1, result.length());
 
     JSONObject toolJson = result.getJSONObject(0);
 
     // Verify structure
     assertTrue("Should have 'type' field", toolJson.has("type"));
-    assertEquals("Type should be 'function'", "function", toolJson.getString("type"));
+    assertEquals("Type should be 'function'", FUNCTION_TYPE, toolJson.getString("type"));
 
-    assertTrue("Should have 'function' field", toolJson.has("function"));
-    JSONObject functionJson = toolJson.getJSONObject("function");
+    assertTrue("Should have 'function' field", toolJson.has(FUNCTION_TYPE));
+    JSONObject functionJson = toolJson.getJSONObject(FUNCTION_TYPE);
 
     assertTrue("Function should have 'name' field", functionJson.has("name"));
     assertEquals("Function name should match tool value", TEST_TOOL_NAME, functionJson.getString("name"));

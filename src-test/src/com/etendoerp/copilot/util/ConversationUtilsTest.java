@@ -87,6 +87,9 @@ public class ConversationUtilsTest {
   private static final String TEST_USER_ID = "testUserId123";
   private static final String ERROR_CONVERSATION_REQUIRED = "Conversation ID is required";
   private static final String ERROR_APP_ID_REQUIRED = "App ID is required";
+  private static final String TITLE_KEY = "title";
+  private static final String GENERATED_TITLE = "Generated Title";
+  private static final String RESULT_NOT_NULL_MESSAGE = "Result should not be null";
 
   /**
    * Sets up the test environment before each test.
@@ -360,11 +363,11 @@ public class ConversationUtilsTest {
     JSONArray result = ConversationUtils.getConversations(mockAssistant);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have one conversation", 1, result.length());
     JSONObject convJson = result.getJSONObject(0);
     assertEquals("Should have correct external ID", TEST_EXTERNAL_ID, convJson.getString("id"));
-    assertEquals("Should have correct title", TEST_TITLE, convJson.getString("title"));
+    assertEquals("Should have correct title", TEST_TITLE, convJson.getString(TITLE_KEY));
   }
 
   /**
@@ -384,7 +387,7 @@ public class ConversationUtilsTest {
     JSONArray result = ConversationUtils.getConversations(mockAssistant);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have no conversations (empty external ID skipped)", 0, result.length());
   }
 
@@ -420,7 +423,7 @@ public class ConversationUtilsTest {
     when(mockConversation.getETCOPMessageList()).thenReturn(messages);
 
     JSONObject responseObject = new JSONObject();
-    responseObject.put("response", "Generated Title");
+    responseObject.put("response", GENERATED_TITLE);
     mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(
         anyBoolean(), any(), any(JSONObject.class))).thenReturn(responseObject);
 
@@ -430,8 +433,8 @@ public class ConversationUtilsTest {
     String result = ConversationUtils.getTitleConversation(TEST_CONVERSATION_ID);
 
     // Then
-    assertEquals("Should return generated title", "Generated Title", result);
-    verify(mockConversation, times(1)).setTitle("Generated Title");
+    assertEquals("Should return generated title", GENERATED_TITLE, result);
+    verify(mockConversation, times(1)).setTitle(GENERATED_TITLE);
     verify(obDal, times(1)).save(mockConversation);
     verify(obDal, times(1)).flush();
   }
@@ -488,7 +491,7 @@ public class ConversationUtilsTest {
     JSONArray result = ConversationUtils.getConversationMessages(TEST_CONVERSATION_ID);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have one message", 1, result.length());
     JSONObject msgJson = result.getJSONObject(0);
     assertEquals("Should have correct role", "user", msgJson.getString("role"));
@@ -510,7 +513,7 @@ public class ConversationUtilsTest {
     JSONArray result = ConversationUtils.getConversationMessages(TEST_CONVERSATION_ID);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should return empty array on exception", 0, result.length());
   }
 
@@ -545,7 +548,7 @@ public class ConversationUtilsTest {
     JSONArray result = ConversationUtils.getConversationMessages(TEST_CONVERSATION_ID);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have two messages", 2, result.length());
     // Messages should be sorted by line number
     assertEquals("First message should be msg2", "msg2", result.getJSONObject(0).getString("id"));
@@ -569,12 +572,12 @@ public class ConversationUtilsTest {
     JSONArray result = ConversationUtils.getConversations(mockAssistant);
 
     // Then
-    assertNotNull("Result should not be null", result);
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have one conversation", 1, result.length());
     JSONObject convJson = result.getJSONObject(0);
     assertEquals("Should have correct external ID", TEST_EXTERNAL_ID, convJson.getString("id"));
     // Title should not be present
-    assertTrue("Should not have title field", !convJson.has("title") || convJson.isNull("title"));
+    assertTrue("Should not have title field", !convJson.has(TITLE_KEY) || convJson.isNull(TITLE_KEY));
   }
 
   /**

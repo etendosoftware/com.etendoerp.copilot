@@ -77,6 +77,7 @@ public class BulkTaskExecTest {
   private static final String TEST_TASK_ID_1 = "testTaskId1";
   private static final String TEST_TASK_ID_2 = "testTaskId2";
   private static final int EXPECTED_BATCH_SIZE = 10;
+  private static final String BULK_TASK_EXEC_STARTED = "BulkTaskExec started\n";
 
   /**
    * Sets up the test environment before each test.
@@ -167,7 +168,7 @@ public class BulkTaskExecTest {
     bulkTaskExec.doExecute(processBundle);
 
     // Then
-    verify(mockLogger, times(1)).log("BulkTaskExec started\n");
+    verify(mockLogger, times(1)).log(BULK_TASK_EXEC_STARTED);
     verify(mockLogger, times(1)).log("Found 1 tasks\n");
     verify(mockTask1, times(1)).setStatus(mockStatus);
     verify(obDal, times(1)).save(mockTask1);
@@ -196,7 +197,7 @@ public class BulkTaskExecTest {
     bulkTaskExec.doExecute(processBundle);
 
     // Then
-    verify(mockLogger, times(1)).log("BulkTaskExec started\n");
+    verify(mockLogger, times(1)).log(BULK_TASK_EXEC_STARTED);
     verify(mockLogger, times(1)).log("Found 2 tasks\n");
 
     // Verify both tasks were updated to IN_PROGRESS status
@@ -234,7 +235,7 @@ public class BulkTaskExecTest {
     bulkTaskExec.doExecute(processBundle);
 
     // Then
-    verify(mockLogger, times(1)).log("BulkTaskExec started\n");
+    verify(mockLogger, times(1)).log(BULK_TASK_EXEC_STARTED);
     verify(mockLogger, times(1)).log("Found 10 tasks\n");
     verify(mockCriteria, times(1)).setMaxResults(EXPECTED_BATCH_SIZE);
     verify(obDal, times(EXPECTED_BATCH_SIZE)).save(any(Task.class));

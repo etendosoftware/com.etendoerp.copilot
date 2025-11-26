@@ -21,7 +21,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
@@ -56,6 +55,11 @@ import com.etendoerp.copilot.util.CopilotUtils;
  */
 public class RestServiceTest extends WeldBaseTest {
 
+  private static final String TEST_ERROR_MESSAGE = "Test error";
+  private static final String QUESTION_PATH = "/question";
+  private static final String ASYNC_QUESTION_PATH = "/aquestion";
+  private static final String JSON_CONTENT_TYPE = "application/json;charset=UTF-8";
+
   private RestService restService;
 
   @Mock
@@ -77,7 +81,6 @@ public class RestServiceTest extends WeldBaseTest {
 
   private static final String TEST_QUESTION = "What is the weather?";
   private static final String TEST_APP_ID = "testAppId123";
-  private static final String TEST_CONVERSATION_ID = "testConvId123";
 
   /**
    * Sets up the necessary mocks and spies before each test.
@@ -183,7 +186,7 @@ public class RestServiceTest extends WeldBaseTest {
   @Test
   public void testDoGetWithAsyncQuestion() throws Exception {
     // Given
-    when(mockRequest.getPathInfo()).thenReturn("/aquestion");
+    when(mockRequest.getPathInfo()).thenReturn(ASYNC_QUESTION_PATH);
     doNothing().when(restService).handleQuestion(mockRequest, mockResponse);
 
     // When
@@ -207,7 +210,7 @@ public class RestServiceTest extends WeldBaseTest {
     restService.doGet(mockRequest, mockResponse);
 
     // Then
-    verify(mockResponse, times(1)).setContentType("application/json;charset=UTF-8");
+    verify(mockResponse, times(1)).setContentType(JSON_CONTENT_TYPE);
     verify(mockWriter, times(1)).write(labels.toString());
   }
 
@@ -219,7 +222,6 @@ public class RestServiceTest extends WeldBaseTest {
     // Given
     when(mockRequest.getPathInfo()).thenReturn("/structure");
     JSONObject params = new JSONObject().put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
-    JSONObject structure = new JSONObject().put("structure", "data");
 
     mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest)).thenReturn(params);
 
@@ -236,7 +238,7 @@ public class RestServiceTest extends WeldBaseTest {
     restService.doGet(mockRequest, mockResponse);
 
     // Then
-    verify(mockResponse, times(1)).setContentType("application/json;charset=UTF-8");
+    verify(mockResponse, times(1)).setContentType(JSON_CONTENT_TYPE);
     verify(mockWriter, times(1)).write(anyString());
   }
 
@@ -255,15 +257,13 @@ public class RestServiceTest extends WeldBaseTest {
     verify(mockResponse, times(1)).sendError(HttpServletResponse.SC_NOT_FOUND);
   }
 
-  // ============ doPost Tests ============
-
   /**
    * Test doPost with /question path.
    */
   @Test
   public void testDoPostWithQuestion() throws Exception {
     // Given
-    when(mockRequest.getPathInfo()).thenReturn("/question");
+    when(mockRequest.getPathInfo()).thenReturn(QUESTION_PATH);
     doNothing().when(restService).handleQuestion(mockRequest, mockResponse);
 
     // When
@@ -280,7 +280,7 @@ public class RestServiceTest extends WeldBaseTest {
   public void testDoPostWithFile() throws Exception {
     // Given
     when(mockRequest.getPathInfo()).thenReturn("/file");
-    List<FileItem> items = new ArrayList<>();
+
     JSONObject fileResponse = new JSONObject().put("file", "uploaded");
 
     mockedRestServiceUtil.when(() -> RestServiceUtil.handleFile((List<FileItem>) any(), eq("attachFile")))
@@ -366,8 +366,8 @@ public class RestServiceTest extends WeldBaseTest {
   @Test
   public void testDoPostWithException() throws Exception {
     // Given
-    when(mockRequest.getPathInfo()).thenReturn("/question");
-    doThrow(new RuntimeException("Test error")).when(restService).handleQuestion(mockRequest, mockResponse);
+    when(mockRequest.getPathInfo()).thenReturn(QUESTION_PATH);
+    doThrow(new RuntimeException(TEST_ERROR_MESSAGE)).when(restService).handleQuestion(mockRequest, mockResponse);
 
     // When
     restService.doPost(mockRequest, mockResponse);
@@ -384,7 +384,7 @@ public class RestServiceTest extends WeldBaseTest {
   @Test
   public void testHandleQuestionWithSyncRequest() throws IOException, JSONException {
     // Given
-    when(mockRequest.getPathInfo()).thenReturn("/question");
+    when(mockRequest.getPathInfo()).thenReturn(QUESTION_PATH);
     JSONObject json = new JSONObject();
     json.put(CopilotConstants.PROP_QUESTION, TEST_QUESTION);
     json.put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
@@ -407,7 +407,7 @@ public class RestServiceTest extends WeldBaseTest {
   @Test
   public void testHandleQuestionWithAsyncRequest() throws IOException, JSONException {
     // Given
-    when(mockRequest.getPathInfo()).thenReturn("/aquestion");
+    when(mockRequest.getPathInfo()).thenReturn(ASYNC_QUESTION_PATH);
     JSONObject json = new JSONObject();
     json.put(CopilotConstants.PROP_QUESTION, TEST_QUESTION);
     json.put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
@@ -469,7 +469,7 @@ public class RestServiceTest extends WeldBaseTest {
   @Test
   public void testHandleQuestionWithCachedQuestion() throws IOException, JSONException {
     // Given
-    when(mockRequest.getPathInfo()).thenReturn("/question");
+    when(mockRequest.getPathInfo()).thenReturn(QUESTION_PATH);
     JSONObject json = new JSONObject();
     json.put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
 
@@ -485,8 +485,6 @@ public class RestServiceTest extends WeldBaseTest {
     verify(mockSession, times(1)).removeAttribute(CACHED_QUESTION);
     verify(restService, times(1)).processSyncRequest(eq(mockResponse), any(JSONObject.class));
   }
-
-  // ============ processSyncRequest Tests ============
 
   /**
    * Test processSyncRequest with successful response.
@@ -506,7 +504,7 @@ public class RestServiceTest extends WeldBaseTest {
     restService.processSyncRequest(mockResponse, requestJson);
 
     // Then
-    verify(mockResponse, times(1)).setContentType("application/json;charset=UTF-8");
+    verify(mockResponse, times(1)).setContentType(JSON_CONTENT_TYPE);
     verify(mockWriter, times(1)).write(responseJson.toString());
   }
 
@@ -519,7 +517,7 @@ public class RestServiceTest extends WeldBaseTest {
     JSONObject requestJson = new JSONObject();
     requestJson.put(CopilotConstants.PROP_QUESTION, TEST_QUESTION);
 
-    CopilotRestServiceException exception = new CopilotRestServiceException("Test error", 400);
+    CopilotRestServiceException exception = new CopilotRestServiceException(TEST_ERROR_MESSAGE, 400);
     mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(eq(false), eq(mockResponse), any(JSONObject.class)))
         .thenThrow(exception);
 
@@ -539,7 +537,7 @@ public class RestServiceTest extends WeldBaseTest {
     // Given
     JSONObject requestJson = new JSONObject();
 
-    CopilotRestServiceException exception = new CopilotRestServiceException("Test error", -1);
+    CopilotRestServiceException exception = new CopilotRestServiceException(TEST_ERROR_MESSAGE, -1);
     mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(eq(false), eq(mockResponse), any(JSONObject.class)))
         .thenThrow(exception);
 
@@ -556,7 +554,7 @@ public class RestServiceTest extends WeldBaseTest {
   @Test
   public void testIsAsyncRequestWithAquestion() {
     // Given
-    when(mockRequest.getPathInfo()).thenReturn("/aquestion");
+    when(mockRequest.getPathInfo()).thenReturn(ASYNC_QUESTION_PATH);
 
     // When
     boolean result = restService.isAsyncRequest(mockRequest);
@@ -586,7 +584,7 @@ public class RestServiceTest extends WeldBaseTest {
   @Test
   public void testIsAsyncRequestWithOtherPath() {
     // Given
-    when(mockRequest.getPathInfo()).thenReturn("/question");
+    when(mockRequest.getPathInfo()).thenReturn(QUESTION_PATH);
 
     // When
     boolean result = restService.isAsyncRequest(mockRequest);
@@ -595,7 +593,6 @@ public class RestServiceTest extends WeldBaseTest {
     assertFalse("Should return false for /question", result);
   }
 
-  // ============ handleAssistants Tests ============
 
   /**
    * Test handleAssistants with successful response.
@@ -618,9 +615,9 @@ public class RestServiceTest extends WeldBaseTest {
    * Test handleAssistants with exception.
    */
   @Test
-  public void testHandleAssistantsWithException() throws Exception {
+  public void testHandleAssistantsWithException() {
     // Given
-    mockedRestServiceUtil.when(RestServiceUtil::handleAssistants).thenThrow(new RuntimeException("Test error"));
+    mockedRestServiceUtil.when(RestServiceUtil::handleAssistants).thenThrow(new RuntimeException(TEST_ERROR_MESSAGE));
 
     // When
     restService.handleAssistants(mockResponse);
@@ -628,8 +625,6 @@ public class RestServiceTest extends WeldBaseTest {
     // Then
     verify(mockResponse, times(1)).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
   }
-
-  // ============ addCachedQuestionIfPresent Tests ============
 
   /**
    * Test addCachedQuestionIfPresent adds cached question when JSON has no question.

@@ -41,10 +41,26 @@ import com.etendoerp.openapi.OpenAPIController;
 import com.etendoerp.openapi.data.OpenApiFlow;
 
 /**
- * OpenAPISpecFlowFile test class.
- * Tests the OpenAPI specification flow file hook implementation.
+ * Test class for {@link OpenAPISpecFlowFile}.
+ *
+ * <p>This test class validates the functionality of the OpenAPISpecFlowFile hook,
+ * which handles the generation and attachment of OpenAPI specification files for
+ * Copilot flows. It tests type checking, filename generation, attachment retrieval,
+ * and execution of the file generation process.</p>
+ *
+ * <p>The tests use extensive mocking to isolate the unit under test from external
+ * dependencies such as database access, file I/O, and web services.</p>
+ *
+ * @see OpenAPISpecFlowFile
  */
 public class OpenAPISpecFlowFileTest {
+
+  private static final String CUSTOM_NAME = "custom";
+  private static final String TEST_FILE_ID = "fileId";
+  private static final String TEST_FILE_NAME = "Test File";
+  private static final String TEST_FLOW_NAME = "TestFlow";
+  private static final String MESSAGE_KEY_GEN_FILE_ERROR = "ETCOP_GenFileError";
+  private static final String ERROR_GENERATING_FILE_FORMAT = "Error generating file %s: %s";
 
   private OpenAPISpecFlowFile hook;
   private AutoCloseable mocks;
@@ -73,6 +89,18 @@ public class OpenAPISpecFlowFileTest {
   private MockedStatic<OBDal> mockedOBDal;
   private MockedStatic<Files> mockedFiles;
 
+  /**
+   * Sets up the test environment before each test method execution.
+   *
+   * <p>This method initializes all mock objects using Mockito annotations,
+   * creates a fresh instance of the OpenAPISpecFlowFile hook, and sets up
+   * static mock instances for utility classes that are used across multiple tests.</p>
+   *
+   * <p>The static mocks are essential for isolating the tests from external
+   * dependencies and ensuring predictable test behavior.</p>
+   *
+   * @throws Exception if there is an error during mock initialization
+   */
   @Before
   public void setUp() throws Exception {
     mocks = MockitoAnnotations.openMocks(this);
@@ -87,6 +115,18 @@ public class OpenAPISpecFlowFileTest {
     mockedFiles = mockStatic(Files.class);
   }
 
+  /**
+   * Cleans up the test environment after each test method execution.
+   *
+   * <p>This method closes all static mocks and releases resources allocated
+   * during test setup. It is crucial to close static mocks to prevent memory
+   * leaks and interference between test methods.</p>
+   *
+   * <p>The cleanup is performed in reverse order of initialization to ensure
+   * proper resource deallocation.</p>
+   *
+   * @throws Exception if there is an error during cleanup of mock resources
+   */
   @After
   public void tearDown() throws Exception {
     if (mockedFiles != null) {
@@ -113,7 +153,10 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test typeCheck returns true for FLOW type.
+   * Tests that {@link OpenAPISpecFlowFile#typeCheck(String)} returns true for FLOW type.
+   *
+   * <p>This test verifies that the hook correctly identifies "FLOW" as a supported
+   * type for processing.</p>
    */
   @Test
   public void testTypeCheckWithFlowType() {
@@ -125,7 +168,9 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test typeCheck returns false for non-FLOW type.
+   * Tests that {@link OpenAPISpecFlowFile#typeCheck(String)} returns false for non-FLOW type.
+   *
+   * <p>This test verifies that the hook correctly rejects types other than "FLOW".</p>
    */
   @Test
   public void testTypeCheckWithNonFlowType() {
@@ -137,7 +182,10 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test typeCheck returns false for null type.
+   * Tests that {@link OpenAPISpecFlowFile#typeCheck(String)} returns false for null type.
+   *
+   * <p>This test verifies that the hook handles null input gracefully without
+   * throwing a {@link NullPointerException}.</p>
    */
   @Test
   public void testTypeCheckWithNullType() {
@@ -149,7 +197,9 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test typeCheck returns false for empty type.
+   * Tests that {@link OpenAPISpecFlowFile#typeCheck(String)} returns false for empty type.
+   *
+   * <p>This test verifies that the hook correctly rejects empty strings as invalid types.</p>
    */
   @Test
   public void testTypeCheckWithEmptyType() {
@@ -161,13 +211,18 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test getFinalName with custom name and extension in URL.
+   * Tests {@link OpenAPISpecFlowFile#getFinalName(String, URL)} with custom name and extension in URL.
+   *
+   * <p>This test verifies that when a custom name without extension is provided and the URL
+   * contains a file with an extension, the extension is appended to the custom name.</p>
+   *
+   * @throws Exception if URL parsing fails
    */
   @Test
   public void testGetFinalNameWithCustomNameAndExtension() throws Exception {
     // Given
     URL url = new URL("http://example.com/file.json");
-    String customName = "custom";
+    String customName = CUSTOM_NAME;
 
     // When
     String result = OpenAPISpecFlowFile.getFinalName(customName, url);
@@ -177,7 +232,12 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test getFinalName with custom name that already has extension.
+   * Tests {@link OpenAPISpecFlowFile#getFinalName(String, URL)} with custom name that already has extension.
+   *
+   * <p>This test verifies that when a custom name already includes an extension,
+   * it is preserved as-is regardless of the URL's extension.</p>
+   *
+   * @throws Exception if URL parsing fails
    */
   @Test
   public void testGetFinalNameWithCustomNameWithExtension() throws Exception {
@@ -193,7 +253,12 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test getFinalName with null custom name uses original filename.
+   * Tests {@link OpenAPISpecFlowFile#getFinalName(String, URL)} with null custom name uses original filename.
+   *
+   * <p>This test verifies that when no custom name is provided (null), the method
+   * falls back to using the original filename from the URL.</p>
+   *
+   * @throws Exception if URL parsing fails
    */
   @Test
   public void testGetFinalNameWithNullCustomName() throws Exception {
@@ -209,7 +274,12 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test getFinalName with empty custom name uses original filename.
+   * Tests {@link OpenAPISpecFlowFile#getFinalName(String, URL)} with empty custom name uses original filename.
+   *
+   * <p>This test verifies that when an empty string is provided as custom name,
+   * the method treats it as invalid and falls back to the original filename from the URL.</p>
+   *
+   * @throws Exception if URL parsing fails
    */
   @Test
   public void testGetFinalNameWithEmptyCustomName() throws Exception {
@@ -225,28 +295,36 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test getFinalName with URL without extension.
+   * Tests {@link OpenAPISpecFlowFile#getFinalName(String, URL)} with URL without extension.
+   *
+   * <p>This test verifies that when the URL contains no file extension and a custom
+   * name is provided, the custom name is used as-is without appending any extension.</p>
+   *
+   * @throws Exception if URL parsing fails
    */
   @Test
   public void testGetFinalNameWithNoExtension() throws Exception {
     // Given
     URL url = new URL("http://example.com/file");
-    String customName = "custom";
+    String customName = CUSTOM_NAME;
 
     // When
     String result = OpenAPISpecFlowFile.getFinalName(customName, url);
 
     // Then
-    assertEquals("Should keep custom name without extension", "custom", result);
+    assertEquals("Should keep custom name without extension", CUSTOM_NAME, result);
   }
 
   /**
-   * Test getAttachment returns attachment when found.
+   * Tests {@link OpenAPISpecFlowFile#getAttachment(CopilotFile)} returns attachment when found.
+   *
+   * <p>This test verifies that when an attachment exists for a given CopilotFile,
+   * the method successfully retrieves and returns it.</p>
    */
   @Test
   public void testGetAttachmentFound() {
     // Given
-    when(mockCopilotFile.getId()).thenReturn("fileId");
+    when(mockCopilotFile.getId()).thenReturn(TEST_FILE_ID);
     mockedOBDal.when(OBDal::getInstance).thenReturn(mockOBDal);
     when(mockOBDal.createCriteria(Attachment.class)).thenReturn(mockCriteria);
     when(mockOBDal.get(Table.class, OpenAPISpecFlowFile.COPILOT_FILE_AD_TABLE_ID)).thenReturn(mockTable);
@@ -263,11 +341,14 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test getAttachment returns null when not found.
+   * Tests {@link OpenAPISpecFlowFile#getAttachment(CopilotFile)} returns null when not found.
+   *
+   * <p>This test verifies that when no attachment exists for a given CopilotFile,
+   * the method returns null instead of throwing an exception.</p>
    */
   @Test
   public void testGetAttachmentNotFound() {
-    when(mockCopilotFile.getId()).thenReturn("fileId");
+    when(mockCopilotFile.getId()).thenReturn(TEST_FILE_ID);
     mockedOBDal.when(OBDal::getInstance).thenReturn(mockOBDal);
     when(mockOBDal.createCriteria(Attachment.class)).thenReturn(mockCriteria);
     when(mockOBDal.get(Table.class, OpenAPISpecFlowFile.COPILOT_FILE_AD_TABLE_ID)).thenReturn(mockTable);
@@ -281,18 +362,25 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test exec with custom filename.
+   * Tests {@link OpenAPISpecFlowFile#exec(CopilotFile)} with custom filename.
+   *
+   * <p>This test verifies that the exec method processes a CopilotFile with a custom
+   * filename correctly. Due to the complexity of mocking the OpenAPIController instantiation,
+   * this test validates that the method handles the execution flow and may throw an
+   * {@link OBException} in the unit test environment.</p>
+   *
+   * @throws Exception if there are errors during test execution
    */
   @Test
   public void testExecWithCustomFilename() throws Exception {
     // Given
     when(mockCopilotFile.getOpenAPIFlow()).thenReturn(mockFlow);
     when(mockCopilotFile.getFilename()).thenReturn("custom.json");
-    when(mockCopilotFile.getId()).thenReturn("fileId");
-    when(mockCopilotFile.getName()).thenReturn("Test File");
+    when(mockCopilotFile.getId()).thenReturn(TEST_FILE_ID);
+    when(mockCopilotFile.getName()).thenReturn(TEST_FILE_NAME);
     when(mockCopilotFile.getOrganization()).thenReturn(mockOrganization);
     when(mockOrganization.getId()).thenReturn("orgId");
-    when(mockFlow.getName()).thenReturn("TestFlow");
+    when(mockFlow.getName()).thenReturn(TEST_FLOW_NAME);
 
     // Mock OpenAPIController
     OpenAPIController mockController = mock(OpenAPIController.class);
@@ -335,19 +423,25 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test exec with null filename uses flow name.
+   * Tests {@link OpenAPISpecFlowFile#exec(CopilotFile)} with null filename uses flow name.
+   *
+   * <p>This test verifies that when no filename is provided (null), the exec method
+   * generates a filename based on the flow name with the pattern "{FlowName}OpenAPISpec.json".</p>
+   *
+   * <p>The test expects an {@link OBException} to be thrown due to mocking limitations
+   * but validates that the error message references the generated filename.</p>
    */
   @Test
   public void testExecWithNullFilenameUsesFlowName() {
     // Given
     when(mockCopilotFile.getOpenAPIFlow()).thenReturn(mockFlow);
     when(mockCopilotFile.getFilename()).thenReturn(null);
-    when(mockCopilotFile.getId()).thenReturn("fileId");
-    when(mockCopilotFile.getName()).thenReturn("Test File");
-    when(mockFlow.getName()).thenReturn("TestFlow");
+    when(mockCopilotFile.getId()).thenReturn(TEST_FILE_ID);
+    when(mockCopilotFile.getName()).thenReturn(TEST_FILE_NAME);
+    when(mockFlow.getName()).thenReturn(TEST_FLOW_NAME);
 
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_GenFileError"))
-        .thenReturn("Error generating file %s: %s");
+    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(MESSAGE_KEY_GEN_FILE_ERROR))
+        .thenReturn(ERROR_GENERATING_FILE_FORMAT);
 
     // This will throw an exception because we can't mock OpenAPIController instantiation
     // But we can verify the filename logic
@@ -361,36 +455,49 @@ public class OpenAPISpecFlowFileTest {
   }
 
   /**
-   * Test exec throws OBException on error.
+   * Tests {@link OpenAPISpecFlowFile#exec(CopilotFile)} throws OBException on error.
+   *
+   * <p>This test verifies that when the exec method encounters an error during execution,
+   * it properly wraps and throws an {@link OBException} with an appropriate error message.</p>
+   *
+   * <p>The exception contains a localized error message from the message bundle
+   * "ETCOP_GenFileError" that includes the filename and error details.</p>
    */
   @Test
   public void testExecThrowsOBException() {
     // Given
     when(mockCopilotFile.getOpenAPIFlow()).thenReturn(mockFlow);
     when(mockCopilotFile.getFilename()).thenReturn("test.json");
-    when(mockCopilotFile.getName()).thenReturn("Test File");
-    when(mockFlow.getName()).thenReturn("TestFlow");
+    when(mockCopilotFile.getName()).thenReturn(TEST_FILE_NAME);
+    when(mockFlow.getName()).thenReturn(TEST_FLOW_NAME);
 
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_GenFileError"))
-        .thenReturn("Error generating file %s: %s");
+    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(MESSAGE_KEY_GEN_FILE_ERROR))
+        .thenReturn(ERROR_GENERATING_FILE_FORMAT);
 
     // When & Then
     assertThrows(OBException.class, () -> hook.exec(mockCopilotFile));
   }
 
   /**
-   * Test exec with empty filename.
+   * Tests {@link OpenAPISpecFlowFile#exec(CopilotFile)} with empty filename.
+   *
+   * <p>This test verifies that when an empty string is provided as filename,
+   * the exec method treats it as invalid and generates a filename based on the flow name,
+   * similar to the null filename case.</p>
+   *
+   * <p>The test expects an {@link OBException} and validates that the error message
+   * references the flow-based filename pattern "{FlowName}OpenAPISpec.json".</p>
    */
   @Test
   public void testExecWithEmptyFilename() {
     // Given
     when(mockCopilotFile.getOpenAPIFlow()).thenReturn(mockFlow);
     when(mockCopilotFile.getFilename()).thenReturn("");
-    when(mockCopilotFile.getName()).thenReturn("Test File");
-    when(mockFlow.getName()).thenReturn("TestFlow");
+    when(mockCopilotFile.getName()).thenReturn(TEST_FILE_NAME);
+    when(mockFlow.getName()).thenReturn(TEST_FLOW_NAME);
 
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_GenFileError"))
-        .thenReturn("Error generating file %s: %s");
+    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(MESSAGE_KEY_GEN_FILE_ERROR))
+        .thenReturn(ERROR_GENERATING_FILE_FORMAT);
 
     // When & Then
     try {
