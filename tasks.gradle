@@ -5,14 +5,6 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
-// Try to import InteractiveSetupManager, but don't fail if not available
-def InteractiveSetupManager = null
-try {
-    InteractiveSetupManager = Class.forName('com.etendoerp.legacy.interactive.InteractiveSetupManager')
-} catch (ClassNotFoundException e) {
-    // InteractiveSetupManager not available, will use fallback behavior
-}
-
 final String TRUE = 'true'
 final String SH = 'sh'
 final String DASH_C = '-c'
@@ -672,16 +664,18 @@ task 'copilot.variables.setup' {
         }
 
 
-        // Use the reusable function for JSON output (if called from interactive setup)
+        // Use the reusable function for JSON output (if available on the project)
         boolean wasWrittenAsJson = false
-        if (InteractiveSetupManager != null) {
+        if (project.hasProperty('writeResultsForInteractiveSetup')) {
             try {
-                wasWrittenAsJson = InteractiveSetupManager.writeResultsForInteractiveSetup(project, properties)
+                wasWrittenAsJson = project.writeResultsForInteractiveSetup(properties)
             } catch (Exception e) {
-                // Fallback if the method call fails - assume direct execution
-                project.logger.debug("Failed to call InteractiveSetupManager.writeResultsForInteractiveSetup: ${e.message}")
+                // Fallback if the closure call fails - assume direct execution
+                project.logger.debug("Failed to call project.writeResultsForInteractiveSetup: ${e.message}")
                 wasWrittenAsJson = false
             }
+        } else {
+            project.logger.lifecycle("Interactive setup writer not registered on project; proceeding with console output.")
         }
 
         // If not written as JSON (direct execution), handle display here
