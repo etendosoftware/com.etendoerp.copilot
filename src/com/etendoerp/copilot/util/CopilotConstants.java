@@ -31,6 +31,7 @@ public class CopilotConstants {
   // Tab ID for CopilotFile
   public static final String COPILOT_FILE_TAB_ID = "09F802E423924081BC2947A64DDB5AF5";
   public static final String COPILOT_FILE_AD_TABLE_ID = "6B246B1B3A6F4DE8AFC208E07DB29CE2";
+  public static final String MEMORY_TAG = "#MEMORY#";
   private static final String FILE_TYPE_HQL = "HQL";
   public static final String PROVIDER_OPENAI = "openai";
   public static final String PROVIDER_GEMINI = "gemini";
@@ -41,7 +42,7 @@ public class CopilotConstants {
   public static final String PROP_FILE = "file";
 
   protected static final String[] KB_FILE_VALID_EXTENSIONS = {
-      "pdf", "md", "markdown", "txt", "zip", "java", "py", "js", "xml", "json"
+      "pdf", "md", "markdown", "txt", "zip", "java", "py", "js", "xml", "json", "png", "jpg", "jpeg"
   };
 
   public static boolean isSystemPromptBehaviour(CopilotAppSource source) {

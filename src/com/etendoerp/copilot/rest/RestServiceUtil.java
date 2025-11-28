@@ -23,7 +23,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
@@ -44,7 +43,6 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
@@ -54,13 +52,11 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
-import org.openbravo.model.ad.access.User;
 import org.openbravo.model.ad.module.Module;
 import org.openbravo.model.ad.system.Language;
 import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
 
-import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
@@ -70,9 +66,11 @@ import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.ExtractedResponse;
+import com.etendoerp.copilot.util.MemoryUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.TrackingUtil;
 import com.etendoerp.copilot.util.WebhookPermissionUtils;
+import com.etendoerp.telemetry.TelemetryUsageInfo;
 
 /**
  * Utility class providing REST service operations for Copilot integration.
@@ -559,8 +557,16 @@ public class RestServiceUtil {
     // Build request JSON
     JSONObject jsonRequestForCopilot = buildRequestJson(copilotApp, conversationId, question, questionAttachedFileIds);
 
+    if (TelemetryUsageInfo.getInstance().getSessionId() != null) {
+      TrackingUtil.sendUsageData(copilotApp);
+    }
+
     if (StringUtils.isEmpty(conversationId) && jsonRequestForCopilot.has(PROP_CONVERSATION_ID)) {
       conversationId = jsonRequestForCopilot.getString(PROP_CONVERSATION_ID);
+    }
+    // If starts with "#MEMORY#", save this as  a memory.
+    if (StringUtils.startsWith(question, CopilotConstants.MEMORY_TAG)) {
+      MemoryUtils.saveMemoryFromQuestion(question.substring(CopilotConstants.MEMORY_TAG.length()), copilotApp);
     }
     // Get response from Copilot
     JSONObject finalResponseAsync = sendRequestToCopilot(asyncRequest, queue, jsonRequestForCopilot, copilotApp);
@@ -568,6 +574,7 @@ public class RestServiceUtil {
     // Process and return response
     return processResponseAndTrack(finalResponseAsync, conversationId, question, copilotApp);
   }
+
 
   /**
    * Build the JSON payload that will be sent to the Copilot backend for a question.
@@ -1095,7 +1102,6 @@ public class RestServiceUtil {
       }
     }
   }
-
 
 
   /**
