@@ -31,14 +31,22 @@ def graph_question_payload():
             "assistants": [
                 {
                     "name": "SQLExpert",
-                    "type": "openai-assistant",
+                    "type": "langchain",
                     "assistant_id": "asst_xtery992WunjICv1Pjbrrp4v",
+                    "tools": [],
+                    "provider": "openai",
+                    "model": "gpt-4o",
+                    "system_prompt": "You are a SQL expert assistant.",
                     "description": "Its a SQL expert assistant",
                 },
                 {
                     "name": "Ticketgenerator",
-                    "type": "openai-assistant",
+                    "type": "langchain",
                     "assistant_id": "asst_7xpJ0v7UxjzWlhkQyPYbseC6",
+                    "tools": [],
+                    "provider": "openai",
+                    "model": "gpt-4o",
+                    "system_prompt": "You are a ticket generator assistant.",
                     "description": "Its a ticket generator assistant.",
                 },
                 {
@@ -93,9 +101,10 @@ class TestCopilotLangGraph(unittest.TestCase):
 
     @patch("langchain_core.messages.HumanMessage")
     @patch("copilot.core.langgraph.patterns.SupervisorPattern")
-    @patch("langgraph.graph.graph.CompiledGraph")
-    def test_invoke(self, MockHumanMessage, MockSupervisorPattern, MockCompiledGraph):
+    # @patch("langgraph.graph.graph.CompiledGraph")
+    def test_invoke(self, MockHumanMessage, MockSupervisorPattern):  # , MockCompiledGraph
         # Mocking components
+
         members = ["member1", "member2"]
         assistant_graph = MagicMock()
         pattern = MockSupervisorPattern()
@@ -108,11 +117,6 @@ class TestCopilotLangGraph(unittest.TestCase):
         memory = SqliteSaver.from_conn_string(":memory:")
         # Creating instance
         CopilotLangGraph(members, assistant_graph, pattern, memory)
-
-    @patch("copilot.core.agent.assistant_agent.AssistantAgent")
-    @patch("copilot.core.agent.langgraph_agent.MembersUtil.get_assistant_agent")
-    def test_payload(self, mockAssistantAgent, mock_get_assistant_agent):
-        mock_get_assistant_agent.return_value = mockAssistantAgent
 
 
 def test_copilot_lang_graph(graph_question_payload):

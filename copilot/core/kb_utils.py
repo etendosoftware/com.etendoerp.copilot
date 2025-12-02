@@ -1,7 +1,7 @@
 """Knowledge Base utilities to avoid circular imports."""
+
 import os
 
-from langchain.tools.retriever import create_retriever_tool
 from langchain_chroma.vectorstores import Chroma
 
 from .schemas import AssistantSchema
@@ -30,9 +30,8 @@ def get_kb_tool(agent_config: AssistantSchema = None):
             retriever = db.as_retriever(
                 search_kwargs={"k": kb_search_k},
             )
-            kb_tool = create_retriever_tool(
-                retriever,
-                "KnowledgeBaseSearch",
-                "Search in the knowledge base for a term or question.",
+            kb_tool = retriever.as_tool(
+                name="KnowledgeBaseSearch",
+                description="Search in the knowledge base for a term or question.",
             )
     return kb_tool

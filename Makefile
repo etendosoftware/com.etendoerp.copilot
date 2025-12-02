@@ -1,6 +1,12 @@
 .EXPORT_ALL_VARIABLES:
 .PHONY: venv install pre-commit clean
 
+.PHONY: get-versions
+get-versions:
+	@echo "Getting latest PyPI versions (from pyproject.toml)..."
+	@python3 get_versions.py --all --output=versions.txt
+	@echo "Wrote versions.txt"
+
 setup: venv install pre-commit
 
 install: ${LOCAL_PYTHON}

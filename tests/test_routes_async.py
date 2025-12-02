@@ -75,13 +75,21 @@ def graph_question_payload():
             "assistants": [
                 {
                     "name": "SQLExpert",
-                    "type": "openai-assistant",
+                    "type": "langchain",
                     "assistant_id": "asst_xtery992WunjICv1Pjbrrp4v",
+                    "tools": [],
+                    "provider": "openai",
+                    "model": "gpt-4o",
+                    "system_prompt": "You are a SQL expert assistant.",
                 },
                 {
                     "name": "Ticketgenerator",
-                    "type": "openai-assistant",
+                    "type": "langchain",
                     "assistant_id": "asst_7xpJ0v7UxjzWlhkQyPYbseC6",
+                    "tools": [],
+                    "provider": "openai",
+                    "model": "gpt-4o",
+                    "system_prompt": "You are a ticket generator assistant.",
                 },
                 {
                     "name": "Emojiswriter",

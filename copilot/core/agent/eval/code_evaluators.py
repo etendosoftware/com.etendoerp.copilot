@@ -5,8 +5,7 @@ import io
 from typing import Any, Dict, Tuple
 
 from copilot.core.threadcontext import ThreadContext
-from langchain_sandbox import PyodideSandbox
-from langgraph_codeact import EvalCoroutine
+from core.agent.codeact import EvalCoroutine
 from rizaio import Riza
 
 SANDBOX_PY = "sandbox.py"
@@ -66,6 +65,8 @@ def create_pyodide_eval_fn(sandbox_dir: str = "./sessions", session_id: str | No
     Returns:
         A function that evaluates code using PyodideSandbox
     """
+    from langchain_sandbox import PyodideSandbox
+
     sandbox = PyodideSandbox(sandbox_dir, allow_net=True)
 
     async def async_eval_fn(code: str, _locals: dict[str, Any]) -> tuple[str, dict[str, Any]]:

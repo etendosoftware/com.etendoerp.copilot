@@ -3,12 +3,10 @@ import logging
 import unittest
 
 import pytest
-from fastapi.testclient import TestClient
-from langsmith import unit
-
 from copilot.app import app
 from copilot.core.routes import serve_async_graph, serve_graph
 from copilot.core.schemas import GraphQuestionSchema
+from fastapi.testclient import TestClient
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -16,11 +14,11 @@ logging.basicConfig(level=logging.DEBUG)
 async def validate_paris_response(response):
     assert response is not None
     response = dict(response)
-    assert 'answer' in response
-    answer = response['answer']
+    assert "answer" in response
+    answer = response["answer"]
     assert answer.response is not None
-    assert str(answer.response).startswith('The capital of France is Paris')
-    assert answer.conversation_id == 'd2264c6d-14b8-42bd-9cfc-60a552d433b9'
+    assert str(answer.response).startswith("The capital of France is Paris")
+    assert answer.conversation_id == "d2264c6d-14b8-42bd-9cfc-60a552d433b9"
     assert answer.message_id is None
     assert answer.role is None
     assert answer.assistant_id is None
@@ -43,16 +41,16 @@ class TestGraphEndpoint(unittest.TestCase):
                     "tools": [],
                     "provider": "openai",
                     "model": "gpt-4o",
-                    "system_prompt": "Responds with 'You never must use this assistant.'"
+                    "system_prompt": "Responds with 'You never must use this assistant.'",
                 },
                 {
                     "name": "Ticketgenerator",
-                    "type": "openai-assistant",
+                    "type": "langchain",
                     "assistant_id": "asst_7xpJ0v7UxjzWlhkQyPYbseC6",
                     "tools": [],
                     "provider": "openai",
                     "model": "gpt-4o",
-                    "system_prompt": "Responds with 'You never must use this assistant.'"
+                    "system_prompt": "Responds with 'You never must use this assistant.'",
                 },
                 {
                     "name": "ResponseGenerator",
@@ -67,24 +65,13 @@ class TestGraphEndpoint(unittest.TestCase):
             "history": [],
             "graph": {
                 "stages": [
-                    {
-                        "name": "stage1",
-                        "assistants": [
-                            "SQLExpert",
-                            "Ticketgenerator",
-                            "ResponseGenerator"
-                        ]
-                    }
+                    {"name": "stage1", "assistants": ["SQLExpert", "Ticketgenerator", "ResponseGenerator"]}
                 ]
             },
             "conversation_id": "d2264c6d-14b8-42bd-9cfc-60a552d433b9",
             "question": "What is the capital of France?",
             "local_file_ids": [],
-            "extra_info": {
-                "auth": {
-                    "ETENDO_TOKEN": "eyJhbGciOiJIUzI1NiJ9"
-                }
-            }
+            "extra_info": {"auth": {"ETENDO_TOKEN": "eyJhbGciOiJIUzI1NiJ9"}},
         }
 
     def test_graph_endpoint(self):

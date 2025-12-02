@@ -1,4 +1,3 @@
-import functools
 import re
 from typing import List, Sequence
 
@@ -8,12 +7,11 @@ from copilot.baseutils.logging_envvar import (
     copilot_debug_custom,
     is_debug_enabled,
 )
-from copilot.core.agent import AssistantAgent
 from copilot.core.schema.graph_member import GraphMember
 from copilot.core.schemas import AssistantSchema
-from langchain.agents import AgentExecutor
+from langchain.agents import create_agent
+from langchain_classic.agents import AgentExecutor
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-from langgraph.prebuilt.chat_agent_executor import create_react_agent
 
 
 def debug_messages(messages):
@@ -95,13 +93,7 @@ class MembersUtil:
     def get_member(self, assistant: AssistantSchema):
         member = None
         if assistant.type == "openai-assistant":
-            agent: AssistantAgent = self.get_assistant_agent()
-            _agent = agent.get_agent(assistant.assistant_id)
-            agent_executor = agent.get_agent_executor(_agent)
-            model_node = functools.partial(
-                self.model_openai_invoker(), _agent=agent_executor, _name=assistant.name
-            )
-            member = GraphMember(assistant.name, model_node)
+            raise NotImplementedError("OpenAI Assistant type is not longer supported.")
         else:
             # Use the unified tool loader to get all tools
             from copilot.core.tool_loader import ToolLoader
@@ -119,17 +111,14 @@ class MembersUtil:
 
             llm = get_llm(assistant.model, assistant.provider, assistant.temperature)
 
-            member = create_react_agent(
+            member = create_agent(
                 model=llm,
                 tools=tools,
                 name=codify_name(assistant.name),
-                prompt=assistant.system_prompt,
+                system_prompt=assistant.system_prompt,
                 # , debug=True
             )
         return member
-
-    def get_assistant_agent(self):
-        return AssistantAgent()
 
     def get_assistant_supervisor_info(self, assistant_name, full_question):
         if full_question is None:

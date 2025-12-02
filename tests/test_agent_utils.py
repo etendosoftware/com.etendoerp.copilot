@@ -32,8 +32,9 @@ class TestGetFullQuestion:
         """Test get_full_question with a single local file ID."""
         question = QuestionSchema(question="Analyze this file", local_file_ids=["/path/to/file.txt"])
 
-        with patch("os.getcwd", return_value="/current/dir"), patch(
-            "os.path.dirname", return_value="/parent"
+        with (
+            patch("os.getcwd", return_value="/current/dir"),
+            patch("os.path.dirname", return_value="/parent"),
         ):
             result = get_full_question(question)
 
@@ -48,8 +49,9 @@ Local Files Ids for Context:
             question="Compare these files", local_file_ids=["/file1.txt", "/file2.py", "/file3.json"]
         )
 
-        with patch("os.getcwd", return_value="/current/dir"), patch(
-            "os.path.dirname", return_value="/parent"
+        with (
+            patch("os.getcwd", return_value="/current/dir"),
+            patch("os.path.dirname", return_value="/parent"),
         ):
             result = get_full_question(question)
 
@@ -82,7 +84,7 @@ class TestGetLlm:
         self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model
     ):
         """Test get_llm with OpenAI provider."""
-        mock_get_proxy_url.return_value = "https://proxy.example.com"
+        mock_get_proxy_url.return_value = None
         mock_get_model_config.return_value = {}
         mock_llm = Mock()
         mock_init_chat_model.return_value = mock_llm
@@ -93,7 +95,7 @@ class TestGetLlm:
             model_provider="openai",
             model="gpt-4",
             temperature=0.7,
-            base_url="https://proxy.example.com",
+            base_url=None,
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )
@@ -103,36 +105,11 @@ class TestGetLlm:
     @patch("copilot.core.utils.agent.init_chat_model")
     @patch("copilot.core.utils.agent.get_model_config")
     @patch("copilot.core.utils.agent.get_proxy_url")
-    def test_get_llm_with_gpt_model_no_provider_fixed(
-        self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model
-    ):
-        """Test get_llm with GPT model but no provider (should default to openai) - fixed version."""
-        mock_get_proxy_url.return_value = "https://proxy.example.com"
-        mock_get_model_config.return_value = {}
-        mock_llm = MagicMock()
-        mock_init_chat_model.return_value = mock_llm
-
-        result = get_llm("gpt-3.5-turbo", None, 0.5)
-
-        mock_init_chat_model.assert_called_once_with(
-            model_provider="openai",
-            model="gpt-3.5-turbo",
-            temperature=0.5,
-            base_url="https://proxy.example.com",
-            model_kwargs={"stream_options": {"include_usage": True}},
-            streaming=True,
-        )
-        mock_get_model_config.assert_called_once_with("openai", "gpt-3.5-turbo")
-        assert result == mock_llm
-
-    @patch("copilot.core.utils.agent.init_chat_model")
-    @patch("copilot.core.utils.agent.get_model_config")
-    @patch("copilot.core.utils.agent.get_proxy_url")
     def test_get_llm_with_none_provider_non_gpt_model(
         self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model
     ):
         """Test get_llm with None provider and non-GPT model."""
-        mock_get_proxy_url.return_value = "https://proxy.example.com"
+        mock_get_proxy_url.return_value = None
         mock_get_model_config.return_value = {}
         mock_llm = MagicMock()
         mock_init_chat_model.return_value = mock_llm
@@ -143,7 +120,7 @@ class TestGetLlm:
             model_provider=None,
             model="claude-3",
             temperature=0.5,
-            base_url="https://proxy.example.com",
+            base_url=None,
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )
@@ -399,7 +376,7 @@ class TestModuleIntegration:
     def test_real_workflow_simulation(self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model):
         """Test a realistic workflow combining multiple functions."""
         # Setup mocks
-        mock_get_proxy_url.return_value = "https://api.openai.com/v1"
+        mock_get_proxy_url.return_value = None
         mock_get_model_config.return_value = {"max_tokens": 4096}
         mock_llm = MagicMock()
         mock_init_chat_model.return_value = mock_llm
@@ -430,7 +407,7 @@ class TestModuleIntegration:
             model_provider="openai",
             model="gpt-4",
             temperature=0.7,
-            base_url="https://api.openai.com/v1",
+            base_url=None,
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )

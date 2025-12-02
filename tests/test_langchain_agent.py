@@ -32,14 +32,11 @@ def test_execute(langchain_agent):
     )
     with (
         patch.object(langchain_agent, "get_agent") as mock_get_agent,
-        patch.object(langchain_agent, "get_agent_executor") as mock_get_agent_executor,
         patch.object(langchain_agent._memory, "get_memory") as mock_get_memory,
-        patch("langchain.agents.AgentExecutor.invoke") as mock_invoke,
+        patch("langchain_classic.agents.AgentExecutor.invoke") as mock_invoke,
     ):
         mock_agent = MagicMock()
-        mock_executor = MagicMock()
         mock_get_agent.return_value = mock_agent
-        mock_get_agent_executor.return_value = mock_executor
         mock_get_memory.return_value = []
         mock_invoke.return_value = {"output": "mock output"}
 
@@ -60,14 +57,11 @@ async def test_aexecute():
     )
     with (
         patch.object(langchain_agent, "get_agent") as mock_get_agent,
-        patch.object(langchain_agent, "get_agent_executor") as mock_get_agent_executor,
         patch.object(langchain_agent._memory, "get_memory") as mock_get_memory,
-        patch("langchain.agents.AgentExecutor.astream_events") as mock_astream_events,
+        patch("langchain_classic.agents.AgentExecutor.astream_events") as mock_astream_events,
     ):
         mock_agent = MagicMock()
-        mock_executor = MagicMock()
         mock_get_agent.return_value = mock_agent
-        mock_get_agent_executor.return_value = mock_executor
         mock_get_memory.return_value = []
         mock_astream_events.return_value = [
             {"event": "on_tool_start", "name": "tool", "parent_ids": [1]},
