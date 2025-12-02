@@ -445,23 +445,19 @@ class TestCodeActIntegration:
     """Test cases for CodeAct integration."""
 
     @patch("copilot.core.agent.codeact.create_codeact")
-    @patch("copilot.core.agent.eval.code_evaluators.create_pyodide_eval_fn")
     @patch.dict("os.environ", {"COPILOT_USE_PYDOIDE": "true"})
-    def test_create_code_act_agent_pyodide(self, mock_pyodide_eval, mock_create_codeact, multimodel_agent):
+    def test_create_code_act_agent_pyodide(self, mock_create_codeact, multimodel_agent):
         """Test CodeAct agent creation with Pyodide evaluator."""
         mock_llm = MagicMock()
         mock_tools = []
         system_prompt = "Test prompt"
 
-        mock_eval_fn = MagicMock()
-        mock_pyodide_eval.return_value = mock_eval_fn
         mock_agent = MagicMock()
         mock_create_codeact.return_value = mock_agent
 
         with patch("copilot.core.threadcontext.ThreadContext.get_data", return_value="test_conversation"):
             result = multimodel_agent._create_code_act_agent(mock_llm, mock_tools, system_prompt)
 
-        mock_pyodide_eval.assert_called_once()
         mock_create_codeact.assert_called_once()
         assert result == mock_agent
 
