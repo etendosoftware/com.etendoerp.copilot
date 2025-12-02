@@ -16,15 +16,14 @@ from copilot.core.agent.agent_utils import (
     get_checkpoint_file,
     process_local_files,
 )
+from copilot.core.agent.codeact import create_default_prompt
 from copilot.core.agent.langgraph_agent import build_config, handle_events
 from copilot.core.memory.memory_handler import MemoryHandler
 from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
-from copilot.core.threadcontext import ThreadContext
 from copilot.core.threadcontextutils import (
     read_accum_usage_data_from_msg_arr,
 )
 from copilot.core.utils.agent import get_full_question, get_llm
-from core.agent.codeact import create_default_prompt
 from langchain.agents import create_agent
 from langchain_classic.agents import AgentOutputParser
 from langchain_core.agents import AgentAction, AgentFinish
@@ -223,15 +222,9 @@ class MultimodelAgent(CopilotAgent):
         ]
         from copilot.core.agent.eval.code_evaluators import (
             CodeExecutor,
-            create_pyodide_eval_fn,
         )
 
-        use_pydoide = read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
-        eval_fn = (
-            create_pyodide_eval_fn("./sessions", ThreadContext.get_data("conversation_id"))
-            if use_pydoide
-            else CodeExecutor("original").execute
-        )
+        eval_fn = CodeExecutor("original").execute
         from copilot.core.agent.codeact import create_codeact
 
         return create_codeact(
