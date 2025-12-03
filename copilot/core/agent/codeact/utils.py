@@ -1,6 +1,6 @@
 import re
 
-BACKTICK_PATTERN = r"(?:^|\n)```(.*?)(?:```(?:\n|$))"
+BACKTICK_PATTERN = r"(?:^|\n)```(.*?)```(?:\n|$)"
 
 
 def extract_and_combine_codeblocks(text: str) -> str:

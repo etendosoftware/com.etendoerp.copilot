@@ -102,12 +102,12 @@ class TestCopilotLangGraph(unittest.TestCase):
     @patch("langchain_core.messages.HumanMessage")
     @patch("copilot.core.langgraph.patterns.SupervisorPattern")
     # @patch("langgraph.graph.graph.CompiledGraph")
-    def test_invoke(self, MockHumanMessage, MockSupervisorPattern):  # , MockCompiledGraph
+    def test_invoke(self, mock_human_message, mock_supervisor_pattern):  # , MockCompiledGraph
         # Mocking components
 
         members = ["member1", "member2"]
         assistant_graph = MagicMock()
-        pattern = MockSupervisorPattern()
+        pattern = mock_supervisor_pattern()
         pattern.construct_nodes.return_value = MagicMock()
         pattern.connect_graph.return_value = None
         graph = MagicMock()

@@ -23,7 +23,7 @@ class ExampleTool(CopilotTool):
 
     args_schema: Type[BaseModel] = ExampleToolInput
 
-    def _run(self, n: int, opt: Optional[int] = None, obj: People = None) -> Dict[str, str]:
+    def _run(self, n: int, opt: Optional[int] = None, obj: Optional[People] = None) -> Dict[str, str]:
         """
         Example tool implementation that takes a number, an optional number, and a model object.
         It's just an example Tool.

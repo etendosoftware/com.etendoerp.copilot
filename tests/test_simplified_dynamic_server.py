@@ -252,7 +252,7 @@ class TestDynamicMCPInstanceSetupTools:
                 agent_config=mock_agent_config,
             )
 
-            assert instance is not None
+            assert instance
 
     def test_setup_tools_direct_mode(self, mock_etendo_token, mock_agent_config):
         """Test tool setup in direct mode."""
@@ -492,11 +492,6 @@ class TestDynamicMCPInstanceTTLExpiry:
         dynamic_instance.port = test_port
         dynamic_instance.server_ref.available_ports.discard(test_port)
         dynamic_instance.server_ref.used_ports.add(test_port)
-
-        # Setup mock server task that can be awaited - but don't raise CancelledError immediately
-        # to allow the rest of _handle_ttl_expiry to run
-        async def mock_task_coro():
-            await asyncio.sleep(0.01)
 
         # For complete flow test, set server_task to None (already stopped)
         # This allows the method to complete without raising CancelledError
