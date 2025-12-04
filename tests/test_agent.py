@@ -14,12 +14,6 @@ def test_langchain_agent_is_instanciated():
     assert isinstance(copilot_agent, agent.MultimodelAgent)
 
 
-def test_assistant_agent_is_instanciated():
-    agent.AGENT_TYPE_ENVAR = agent.AgentEnum.OPENAI_ASSISTANT.value
-    copilot_agent = agent._get_agent_executors()[agent.AGENT_TYPE_ENVAR]
-    assert isinstance(copilot_agent, agent.assistant_agent.AssistantAgent)
-
-
 def test_unnsupported_agent():
     agent.AGENT_TYPE_ENVAR = "unexistent_agent"
     with pytest.raises(KeyError, match="'unexistent_agent'"):

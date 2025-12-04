@@ -23,7 +23,6 @@ from copilot.baseutils.logging_envvar import (
     is_docker,
     read_optional_env_var,
 )
-from copilot.core.agent import AssistantAgent
 from copilot.core.agent.agent import AgentEnum, AgentResponse, AssistantResponse
 from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import CopilotException, UnsupportedAgent
@@ -336,10 +335,7 @@ def get_chat_history():
 
 @core_router.get("/assistant")
 def serve_assistant():
-    if not isinstance(current_agent, AssistantAgent):
-        raise CopilotException("Copilot is not using AssistantAgent")
-
-    return {"assistant_id": current_agent.get_assistant_id()}
+    raise CopilotException("Copilot no longer supports OpenAI Assistant type.")
 
 
 @core_router.post("/ResetVectorDB")
@@ -468,18 +464,13 @@ def process_text_to_vector_db(
                 if len(texts[0].page_content) > max_length:
                     max_length = len(texts[0].page_content)
             if len(texts) > 0:
-                total_texts = len(texts)
-                # Add texts in batches of 20
-                for i in range(0, total_texts, 20):
-                    batch_texts = texts[i : i + 20]
-                    # Add the batch of texts to the vector store
-                    Chroma.from_documents(
-                        batch_texts,
-                        get_embedding(),
-                        persist_directory=db_path,
-                        client_settings=get_chroma_settings(),
-                        client=chroma_client,
-                    )
+                Chroma.from_documents(
+                    texts,
+                    get_embedding(),
+                    persist_directory=db_path,
+                    client_settings=get_chroma_settings(),
+                    client=chroma_client,
+                )
             success = True
             message = f"Database {kb_vectordb_id} created and loaded successfully."
             copilot_debug(message)

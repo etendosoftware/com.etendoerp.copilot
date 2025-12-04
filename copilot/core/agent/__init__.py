@@ -1,13 +1,12 @@
 from copilot.baseutils.logging_envvar import print_green
 
 from .agent import AgentEnum, AgentResponse
-from .assistant_agent import AssistantAgent
 from .multimodel_agent import MultimodelAgent
 
 
 def _get_agent_executors():
     _agents = {
-        AgentEnum.OPENAI_ASSISTANT.value: AssistantAgent.__name__,
+        AgentEnum.OPENAI_ASSISTANT.value: MultimodelAgent.__name__,
         AgentEnum.LANGCHAIN.value: MultimodelAgent.__name__,
         AgentEnum.MULTIMODEL.value: MultimodelAgent.__name__,
     }

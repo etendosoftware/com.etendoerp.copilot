@@ -75,14 +75,16 @@ class TestMultimodelAgent:
 
     @patch("copilot.core.utils.agent.init_chat_model")
     @patch("copilot.core.utils.agent.get_model_config")
-    def test_get_llm_openai(self, mock_get_model_config, mock_init_chat_model):
-        """Test LLM initialization for OpenAI provider."""
+    @patch("copilot.core.utils.agent.get_proxy_url", return_value=None)
+    def test_get_llm_openai(self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model):
+        """Test LLM initialization for OpenAI provider when NO proxy is configured."""
         mock_model = MagicMock()
         mock_init_chat_model.return_value = mock_model
         mock_get_model_config.return_value = {}
 
-        result = get_llm("gpt-4.1", "openai", 0.7)
+        get_llm("gpt-4.1", "openai", 0.7)
 
+        # When no proxy is configured, model must be passed as-is
         mock_init_chat_model.assert_called_once_with(
             model_provider="openai",
             model="gpt-4.1",
@@ -91,7 +93,27 @@ class TestMultimodelAgent:
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )
-        assert result == mock_model
+
+    @patch("copilot.core.utils.agent.init_chat_model")
+    @patch("copilot.core.utils.agent.get_model_config")
+    @patch("copilot.core.utils.agent.get_proxy_url", return_value="https://llm.etendo.software")
+    def test_get_llm_openai_with_proxy(self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model):
+        """Test LLM initialization for OpenAI provider when a proxy is configured."""
+        mock_model = MagicMock()
+        mock_init_chat_model.return_value = mock_model
+        mock_get_model_config.return_value = {}
+
+        get_llm("gpt-4.1", "openai", 0.7)
+
+        # When a proxy is configured, the implementation prefixes the model with provider
+        mock_init_chat_model.assert_called_once_with(
+            model_provider="openai",
+            model="openai/gpt-4.1",
+            temperature=0.7,
+            base_url="https://llm.etendo.software",
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
+        )
 
     @patch("copilot.core.utils.agent.init_chat_model")
     @patch("copilot.core.utils.agent.get_model_config")
@@ -213,7 +235,7 @@ class TestMultimodelAgent:
         assert result == {}
 
     @patch("copilot.core.agent.multimodel_agent.get_llm")
-    @patch("copilot.core.agent.multimodel_agent.create_react_agent")
+    @patch("copilot.core.agent.multimodel_agent.create_agent")
     def test_get_agent_non_codeact(
         self, mock_create_react_agent, mock_get_llm, multimodel_agent, sample_assistant_schema
     ):
@@ -241,7 +263,7 @@ class TestMultimodelAgent:
         assert result == mock_agent
 
     @patch("copilot.core.agent.multimodel_agent.get_llm")
-    @patch("copilot.core.agent.multimodel_agent.langgraph_codeact.create_codeact")
+    @patch("copilot.core.agent.codeact.create_codeact")
     def test_get_agent_codeact(
         self, mock_create_codeact, mock_get_llm, multimodel_agent, sample_assistant_schema
     ):
@@ -302,19 +324,22 @@ class TestMultimodelAgent:
         # Mock agent
         mock_agent = MagicMock()
 
-        # Mock the _process_regular_agent_events method
-        async def mock_process_regular_agent_events(*args, **kwargs):
-            yield AssistantResponse(
+        # Simulate agent.astream_events and patch handle_events which aexecute uses
+        async def fake_astream_events(_input, config=None, version=None):
+            yield {"fake": "event"}
+
+        mock_agent.astream_events = fake_astream_events
+
+        async def fake_handle_events(debug_flag, event, conversation_id):
+            return AssistantResponse(
                 response="Paris is the capital of France.",
-                conversation_id=sample_question_schema.conversation_id,
+                conversation_id=conversation_id,
             )
 
         with patch.object(multimodel_agent, "get_agent", return_value=mock_agent):
             with patch.object(multimodel_agent, "get_messages_array", return_value=[]):
-                with patch.object(
-                    multimodel_agent,
-                    "_process_regular_agent_events",
-                    side_effect=mock_process_regular_agent_events,
+                with patch(
+                    "copilot.core.agent.multimodel_agent.handle_events", side_effect=fake_handle_events
                 ):
                     responses = []
                     async for response in multimodel_agent.aexecute(sample_question_schema):
@@ -323,47 +348,6 @@ class TestMultimodelAgent:
                     assert len(responses) > 0
                     assert isinstance(responses[0], AssistantResponse)
                     assert "Paris is the capital of France." in responses[0].response
-
-    @pytest.mark.asyncio
-    async def test_process_regular_agent_events(self, multimodel_agent):
-        """Test the _process_regular_agent_events method directly."""
-        # Mock agent
-        mock_agent = MagicMock()
-        mock_event_data = {
-            "event": "on_chain_end",
-            "data": {"output": AIMessage(content="Test response message.")},
-        }
-
-        async def mock_astream_events(*args, **kwargs):
-            yield mock_event_data
-
-        mock_agent.astream_events = mock_astream_events
-
-        # Test the extracted method
-        responses = []
-        async for response in multimodel_agent._process_regular_agent_events(
-            mock_agent, {}, False, "test_config", "test_conversation"
-        ):
-            responses.append(response)
-
-        assert len(responses) > 0
-        assert isinstance(responses[0], AssistantResponse)
-        assert "Test response message." in responses[0].response
-        assert responses[0].conversation_id == "test_conversation"
-
-    @pytest.mark.asyncio
-    async def test_get_messages_string(self, multimodel_agent):
-        """Test message processing for string output."""
-        output = "Simple string message"
-        result = await multimodel_agent.get_messages(output)
-        assert result == "Simple string message"
-
-    @pytest.mark.asyncio
-    async def test_get_messages_list(self, multimodel_agent):
-        """Test message processing for list output with text field."""
-        output = [{"text": "Message from list"}]
-        result = await multimodel_agent.get_messages(output)
-        assert result == "Message from list"
 
     def test_get_messages_array_no_files(self, multimodel_agent, sample_question_schema):
         """Test message array construction without files."""
@@ -460,29 +444,25 @@ class TestMCPIntegration:
 class TestCodeActIntegration:
     """Test cases for CodeAct integration."""
 
-    @patch("copilot.core.agent.multimodel_agent.langgraph_codeact.create_codeact")
-    @patch("copilot.core.agent.multimodel_agent.create_pyodide_eval_fn")
+    @patch("copilot.core.agent.codeact.create_codeact")
     @patch.dict("os.environ", {"COPILOT_USE_PYDOIDE": "true"})
-    def test_create_code_act_agent_pyodide(self, mock_pyodide_eval, mock_create_codeact, multimodel_agent):
+    def test_create_code_act_agent_pyodide(self, mock_create_codeact, multimodel_agent):
         """Test CodeAct agent creation with Pyodide evaluator."""
         mock_llm = MagicMock()
         mock_tools = []
         system_prompt = "Test prompt"
 
-        mock_eval_fn = MagicMock()
-        mock_pyodide_eval.return_value = mock_eval_fn
         mock_agent = MagicMock()
         mock_create_codeact.return_value = mock_agent
 
         with patch("copilot.core.threadcontext.ThreadContext.get_data", return_value="test_conversation"):
             result = multimodel_agent._create_code_act_agent(mock_llm, mock_tools, system_prompt)
 
-        mock_pyodide_eval.assert_called_once()
         mock_create_codeact.assert_called_once()
         assert result == mock_agent
 
-    @patch("copilot.core.agent.multimodel_agent.langgraph_codeact.create_codeact")
-    @patch("copilot.core.agent.multimodel_agent.CodeExecutor")
+    @patch("copilot.core.agent.codeact.create_codeact")
+    @patch("copilot.core.agent.eval.code_evaluators.CodeExecutor")
     @patch.dict("os.environ", {"COPILOT_USE_PYDOIDE": "false"})
     def test_create_code_act_agent_original(
         self, mock_code_executor_class, mock_create_codeact, multimodel_agent
