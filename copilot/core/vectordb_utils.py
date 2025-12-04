@@ -428,8 +428,7 @@ def index_image_file(image_path, chroma_client, collection_name, agent_id=None):
         dict: Result with status information.
     """
     try:
-        from PIL import Image
-        from sentence_transformers import SentenceTransformer
+        from fastembed import ImageEmbedding
 
         # Calculate MD5 of the file
         file_md5 = calculate_file_md5(image_path)
@@ -453,11 +452,10 @@ def index_image_file(image_path, chroma_client, collection_name, agent_id=None):
 
         # Load CLIP model for embeddings
         copilot_debug(f"Loading CLIP model for image {filename}...")
-        clip_model = SentenceTransformer("clip-ViT-B-32")
+        clip_model = ImageEmbedding(model_name="Qdrant/clip-ViT-B-32-vision")
 
         # Generate embedding
-        img = Image.open(image_path)
-        embedding = clip_model.encode(img).tolist()
+        embedding = list(clip_model.embed([image_path]))[0].tolist()
 
         # Generate unique ID
         file_id = os.path.splitext(filename)[0]
@@ -516,6 +514,7 @@ def find_similar_reference(
     first_image_path,
     agent_id,
     similarity_threshold=None,
+    ignore_env_threshold: bool = False,
 ):
     """
     Finds the most similar reference image in the agent's ChromaDB vector database.
@@ -534,8 +533,7 @@ def find_similar_reference(
         - image_base64_or_None: Base64 string if stored in ChromaDB, None otherwise
     """
     try:
-        from PIL import Image
-        from sentence_transformers import SentenceTransformer
+        from fastembed import ImageEmbedding
 
         if not agent_id:
             copilot_debug("No agent_id provided, cannot search for reference")
@@ -545,18 +543,19 @@ def find_similar_reference(
         db_path = get_vector_db_path("KB_" + agent_id)
         collection_name = IMAGES_COLLECTION_NAME
 
-        similarity_threshold = get_sim_threshold(similarity_threshold)
+        similarity_threshold = get_sim_threshold_with_ignore(
+            similarity_threshold, ignore_env=ignore_env_threshold
+        )
 
         copilot_debug(f"Searching for reference in agent {agent_id}, collection: {collection_name}")
         if similarity_threshold is not None:
             copilot_debug(f"Using similarity threshold: {similarity_threshold}")
 
         # Load CLIP model for embeddings
-        clip_model = SentenceTransformer("clip-ViT-B-32")
+        clip_model = ImageEmbedding(model_name="Qdrant/clip-ViT-B-32-vision")
 
         # Open the query image
-        query_img = Image.open(first_image_path)
-        query_embedding = clip_model.encode(query_img).tolist()
+        query_embedding = list(clip_model.embed([first_image_path]))[0].tolist()
 
         # Connect to ChromaDB
         chroma_client = chromadb.Client(settings=get_chroma_settings(db_path))
@@ -694,6 +693,25 @@ def get_sim_threshold(similarity_threshold):
         - Validates that the environment variable contains a valid float value.
         - Returns None if the environment variable contains an invalid value.
     """
+    return get_sim_threshold_with_ignore(similarity_threshold, ignore_env=False)
+
+
+def get_sim_threshold_with_ignore(similarity_threshold, ignore_env: bool = False):
+    """
+    Retrieves similarity threshold from environment variable if not explicitly provided,
+    unless ignore_env is True.
+
+    Args:
+        similarity_threshold (float|None): Explicit threshold provided.
+        ignore_env (bool): If True, do not read environment variable and keep similarity_threshold as-is.
+
+    Returns:
+        float or None: similarity threshold or None.
+    """
+    # If caller wants to ignore environment variable, just return provided value
+    if ignore_env:
+        return similarity_threshold
+
     # Get similarity threshold from env var if not provided
     if similarity_threshold is None:
         threshold_str = read_optional_env_var("COPILOT_REFERENCE_SIMILARITY_THRESHOLD", None)

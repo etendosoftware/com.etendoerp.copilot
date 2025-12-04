@@ -115,8 +115,9 @@ public class AgentMemoryHook implements OpenAIPromptHook {
       StringBuilder hql = new StringBuilder();
       hql.append("select am from etcop_memory as am where ");
 
+      hql.append("am.active = true ");
       // Agent filter: must match exactly
-      hql.append("am.agent.id = :agentId ");
+      hql.append("and am.agent.id = :agentId ");
 
       // User filter: if userContact is set it must be the current user; if null, include
       hql.append("and (am.userContact.id = :userId or am.userContact is null) ");
@@ -126,6 +127,7 @@ public class AgentMemoryHook implements OpenAIPromptHook {
 
       // Organization filter: if org is set it must be in the parent list; if null, include
       hql.append("and (am.organization.id in :orgIds or am.organization is null)");
+      hql.append(" order by am.creationDate  ");
 
       Query<AgentMemory> query = OBDal.getInstance()
           .getSession()
