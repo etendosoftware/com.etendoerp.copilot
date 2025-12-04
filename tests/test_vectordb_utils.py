@@ -45,6 +45,7 @@ from copilot.core.vectordb_utils import (
     process_pdf,
 )
 from langchain_core.documents import Document
+from langchain_text_splitters import CharacterTextSplitter, MarkdownTextSplitter
 
 if "fastembed" not in sys.modules:
     fake_fastembed = types.ModuleType("fastembed")
@@ -209,7 +210,6 @@ class TestGetTextSplitter:
 
     def test_get_text_splitter_markdown(self):
         """Test text splitter for markdown files."""
-        from langchain.text_splitter import MarkdownTextSplitter
 
         config = SplitterConfig()
         splitter = get_text_splitter("md", config)
@@ -218,7 +218,6 @@ class TestGetTextSplitter:
 
     def test_get_text_splitter_markdown_extension(self):
         """Test text splitter for .markdown extension."""
-        from langchain.text_splitter import MarkdownTextSplitter
 
         config = SplitterConfig()
         splitter = get_text_splitter("markdown", config)
@@ -227,7 +226,6 @@ class TestGetTextSplitter:
 
     def test_get_text_splitter_plain_text(self):
         """Test text splitter for plain text files."""
-        from langchain.text_splitter import CharacterTextSplitter
 
         config = SplitterConfig()
         splitter = get_text_splitter("txt", config)
@@ -236,7 +234,6 @@ class TestGetTextSplitter:
 
     def test_get_text_splitter_pdf(self):
         """Test text splitter for PDF files."""
-        from langchain.text_splitter import CharacterTextSplitter
 
         config = SplitterConfig()
         splitter = get_text_splitter("pdf", config)
@@ -245,7 +242,6 @@ class TestGetTextSplitter:
 
     def test_get_text_splitter_xml(self):
         """Test text splitter for XML files."""
-        from langchain.text_splitter import CharacterTextSplitter
 
         config = SplitterConfig()
         splitter = get_text_splitter("xml", config)
@@ -302,7 +298,6 @@ class TestGetPlainTextSplitter:
 
     def test_get_plain_text_splitter_default(self):
         """Test plain text splitter with default config."""
-        from langchain.text_splitter import CharacterTextSplitter
 
         config = SplitterConfig()
         splitter = get_plain_text_splitter(config)
