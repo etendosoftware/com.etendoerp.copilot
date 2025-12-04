@@ -16,11 +16,12 @@ from copilot.baseutils.logging_envvar import (
 )
 from copilot.core.schemas import SplitterConfig
 from copilot.core.utils.models import get_proxy_url
-from langchain.text_splitter import CharacterTextSplitter, MarkdownTextSplitter
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import (
+    CharacterTextSplitter,
     Language,
+    MarkdownTextSplitter,
     RecursiveCharacterTextSplitter,
     RecursiveJsonSplitter,
 )

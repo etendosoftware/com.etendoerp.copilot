@@ -3,11 +3,8 @@ import os
 from typing import AsyncGenerator, Final, Union
 
 import langchain_core.tools
-import langgraph_codeact
 from copilot.baseutils.logging_envvar import (
     read_optional_env_var,
-    read_optional_env_var_float,
-    read_optional_env_var_int,
 )
 from copilot.core.agent.agent import (
     AgentResponse,
@@ -19,31 +16,23 @@ from copilot.core.agent.agent_utils import (
     get_checkpoint_file,
     process_local_files,
 )
-from copilot.core.agent.eval.code_evaluators import CodeExecutor, create_pyodide_eval_fn
+from copilot.core.agent.codeact import create_default_prompt
 from copilot.core.agent.langgraph_agent import build_config, handle_events
 from copilot.core.memory.memory_handler import MemoryHandler
 from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
-from copilot.core.threadcontext import ThreadContext
 from copilot.core.threadcontextutils import (
-    read_accum_usage_data,
     read_accum_usage_data_from_msg_arr,
 )
 from copilot.core.utils.agent import get_full_question, get_llm
-from langchain.agents import (
-    AgentExecutor,
-    AgentOutputParser,
-)
-from langchain.prompts import MessagesPlaceholder
+from langchain.agents import create_agent
+from langchain_classic.agents import AgentOutputParser
 from langchain_core.agents import AgentAction, AgentFinish
-from langchain_core.messages import AIMessage, HumanMessage
-from langchain_core.prompts.chat import ChatPromptTemplate
-from langchain_core.runnables import AddableDict
+from langchain_core.messages import HumanMessage
+from langchain_core.prompts.chat import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import StructuredTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langgraph.prebuilt import create_react_agent
-from langgraph_codeact import create_default_prompt
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 tools_loaded = {}
@@ -231,14 +220,14 @@ class MultimodelAgent(CopilotAgent):
             t if isinstance(t, StructuredTool) else langchain_core.tools.convert_runnable_to_tool(t)
             for t in enabled_tools
         ]
-        use_pydoide = read_optional_env_var("COPILOT_USE_PYDOIDE", "false").lower() == "true"
-        eval_fn = (
-            create_pyodide_eval_fn("./sessions", ThreadContext.get_data("conversation_id"))
-            if use_pydoide
-            else CodeExecutor("original").execute
+        from copilot.core.agent.eval.code_evaluators import (
+            CodeExecutor,
         )
 
-        return langgraph_codeact.create_codeact(
+        eval_fn = CodeExecutor("original").execute
+        from copilot.core.agent.codeact import create_codeact
+
+        return create_codeact(
             model=llm,
             tools=conv_tools,
             eval_fn=eval_fn,
@@ -295,24 +284,10 @@ class MultimodelAgent(CopilotAgent):
             agent = agent.compile(checkpointer=checkpointer)
             agent.get_graph().print_ascii()
         else:
-            agent = create_react_agent(
-                model=llm, tools=_enabled_tools, prompt=system_prompt, checkpointer=checkpointer
+            agent = create_agent(
+                model=llm, tools=_enabled_tools, system_prompt=system_prompt, checkpointer=checkpointer
             )
         return agent
-
-    def get_agent_executor(self, agent) -> AgentExecutor:
-        agent_exec = AgentExecutor(
-            agent=agent,
-            tools=self._configured_tools,
-            verbose=True,
-            log=True,
-            handle_parsing_errors=True,
-            debug=True,
-        )
-        agent_exec.max_iterations = read_optional_env_var_int("COPILOT_MAX_ITERATIONS", 100)
-        max_exec_time = read_optional_env_var_float("COPILOT_EXECUTION_TIMEOUT", 0)
-        agent_exec.max_execution_time = None if max_exec_time == 0 else max_exec_time
-        return agent_exec
 
     def execute(self, question: QuestionSchema) -> AgentResponse:
         with SqliteSaver.from_conn_string(get_checkpoint_file(question.assistant_id)) as checkpointer:
@@ -396,60 +371,15 @@ class MultimodelAgent(CopilotAgent):
                 "thread_id": question.conversation_id,
             }
             try:
-                if is_code_act_enabled(agent_configuration=question):
-                    async for event in agent.astream_events(_input, config=config, version="v2"):
-                        response = await handle_events(copilot_stream_debug, event, question.conversation_id)
-                        if response is not None:
-                            yield response
-                    return
-                async for response in self._process_regular_agent_events(
-                    agent,
-                    _input,
-                    copilot_stream_debug,
-                    config=config,
-                    conversation_id=question.conversation_id,
-                ):
-                    yield response
+                async for event in agent.astream_events(_input, config=config, version="v2"):
+                    response = await handle_events(copilot_stream_debug, event, question.conversation_id)
+                    if response is not None:
+                        yield response
+                return
             except Exception as e:
                 yield AssistantResponse(
                     response=str(e), conversation_id=question.conversation_id, role="error"
                 )
-
-    async def _process_regular_agent_events(
-        self, agent, _input, copilot_stream_debug, config, conversation_id
-    ):
-        """Process events for regular (non-code-act) agents."""
-        async for event in agent.astream_events(_input, config=config, version="v2"):
-            if copilot_stream_debug:
-                yield AssistantResponse(response=str(event), conversation_id="", role="debug")
-                continue
-            kind = event["event"]
-            if kind == "on_tool_start":
-                yield AssistantResponse(response=event["name"], conversation_id="", role="tool")
-                continue
-            if (
-                kind != "on_chain_end"
-                or (type(event["data"]["output"]) == AddableDict)
-                or (type(event["data"]["output"]) != AIMessage)
-            ):
-                continue
-            output = event["data"]["output"]
-            output_ = output.content
-            usage_data = read_accum_usage_data(output)
-
-            # check if the output is a list
-            msg = await self.get_messages(output_)
-            yield AssistantResponse(
-                response=str(msg), conversation_id=conversation_id, metadata=build_metadata(usage_data)
-            )
-
-    async def get_messages(self, output_):
-        msg = str(output_)
-        if type(output_) == list:
-            o = output_[-1]
-            if "text" in o:
-                msg = str(o["text"])
-        return msg
 
     def get_messages_array(self, full_question, image_payloads, other_file_paths, question, has_thread):
         """
@@ -463,9 +393,12 @@ class MultimodelAgent(CopilotAgent):
             has_thread (bool): True if a thread exists in the checkpointer, False otherwise.
 
         Returns:
-            list: A list of message objects (HumanMessage, AIMessage) ready for the agent.
-                 - If has_thread is True: Only includes the new question with attachments.
-                 - If has_thread is False: Includes conversation history + new question with attachments.
+            list: A list of message objects (HumanMessage, AIMessage) ready for
+            the agent.
+                 - If has_thread is True: Only includes the new question with
+                 attachments.
+                 - If has_thread is False: Includes conversation history + new
+                 question with attachments.
         """
         if has_thread:
             messages = []

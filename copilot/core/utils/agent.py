@@ -44,11 +44,17 @@ def get_llm(model, provider, temperature):
         )
 
     else:
-        if provider is None and model.startswith("gpt-"):
-            provider = "openai"
+        provider_to_use = provider
+        model_to_use = model
+        if get_proxy_url() is not None:
+            model_to_use = provider_to_use + "/" + model
+            provider_to_use = "openai"
+
         llm = init_chat_model(
-            model_provider=provider,
-            model=model,
+            # If a proxy URL is set, we always use OpenAI as the provider to use
+            # the OpenAI compatible API
+            model_provider=provider_to_use,
+            model=model_to_use,
             temperature=temperature,
             base_url=get_proxy_url(),
             model_kwargs={"stream_options": {"include_usage": True}},

@@ -3,6 +3,7 @@ from typing import Final
 from copilot.baseutils.logging_envvar import read_optional_env_var
 from copilot.core.utils.models import get_proxy_url
 from langchain.chat_models import init_chat_model
+from langchain_core.output_parsers.openai_functions import JsonOutputFunctionsParser
 
 
 def build_system_prompt(members_descriptions, members_names, system_prompt):
@@ -71,7 +72,6 @@ class SupervisorNode:
     OPENAI_MODEL: Final[str] = read_optional_env_var("OPENAI_MODEL", "gpt-4o-mini")
 
     def build(self, members_names, members_descriptions=None, system_prompt=None, temperature=0):
-        from langchain.output_parsers.openai_functions import JsonOutputFunctionsParser
         from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
         system_prompt = build_system_prompt(members_descriptions, members_names, system_prompt)
@@ -113,10 +113,9 @@ class SupervisorNode:
         llm = init_chat_model(
             model=self.OPENAI_MODEL, temperature=temperature, streaming=False, base_url=get_proxy_url()
         )
+
         supervisor_chain = (
-            prompt
-            | llm.bind_functions(functions=[function_def], function_call="route")
-            | JsonOutputFunctionsParser()
+            prompt | llm.bind_tools(tools=[function_def], function_call="route") | JsonOutputFunctionsParser()
         )
 
         return supervisor_chain

@@ -83,6 +83,8 @@ def get_subgraph_name(metadata) -> str:
             subgraph_name = " : "
 
         subgraph_name = subgraph_name.split(":")[0]
+        if subgraph_name == "model" or subgraph_name == "tools":
+            subgraph_name = "The agent"
         return subgraph_name
     except Exception as e:
         copilot_debug(f"Error extracting subgraph name: {str(e)}")
@@ -148,18 +150,27 @@ async def _handle_on_chain_start(event, thread_id):
         if graph_step:
             node = metadata["langgraph_node"]
             subgraph_name = get_subgraph_name(metadata)
-            if node.startswith("__start__"):
-                message = "Starting..."
-            elif node.startswith("agent"):
-                message = f"{subgraph_name} is thinking..."
-            elif node.startswith("tool"):
-                message = f"{subgraph_name} is using his tools..."
-            elif node == "output":
-                message = "Got it! Writing the answer ..."
-            else:
-                message = f"Asking for this to the agent '{subgraph_name}/{node}'"
+            message = get_message(event, node, subgraph_name)
             response = AssistantResponse(response=message, conversation_id=thread_id, role="node")
     return response
+
+
+def get_message(event, node, subgraph_name):
+    if node.startswith("__start__"):
+        message = "Starting..."
+    elif node.startswith("agent") or node.startswith("model"):
+        message = f"{subgraph_name} is thinking..."
+    elif node.startswith("tool"):
+        try:
+            tool_name = event["data"]["input"]["tool_call"]["name"]
+            message = f"{subgraph_name} is using the tool '{tool_name}'..."
+        except Exception:
+            message = f"{subgraph_name} is using his tools..."
+    elif node == "output":
+        message = "Got it! Writing the answer ..."
+    else:
+        message = f"Asking for this to the agent '{subgraph_name}/{node}'"
+    return message
 
 
 async def handle_events(copilot_stream_debug, event, thread_id):
