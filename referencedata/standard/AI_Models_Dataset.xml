@@ -98,6 +98,17 @@
     <syncmodels>false</syncmodels>
     <etendoMaintained>true</etendoMaintained>
   </ETCOP_Openai_Model>
+  <ETCOP_Openai_Model id="5F7C9A44775C4BA3BD22FAEB5AFC56D0" identifier="gemini - gemini-3-pro-preview">
+    <id>5F7C9A44775C4BA3BD22FAEB5AFC56D0</id>
+    <active>true</active>
+    <searchkey>gemini-3-pro-preview</searchkey>
+    <name>gemini-3-pro-preview</name>
+    <provider>gemini</provider>
+    <maxTokens xsi:nil="true"/>
+    <default>false</default>
+    <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
+  </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="6243F2706DA04753880C2A85E41DA922" identifier="gemini - gemini-2.5-flash">
     <id>6243F2706DA04753880C2A85E41DA922</id>
     <active>true</active>
