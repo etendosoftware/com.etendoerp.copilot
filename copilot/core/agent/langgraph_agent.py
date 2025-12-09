@@ -103,16 +103,23 @@ async def _handle_on_chain_end(event, thread_id):
         AssistantResponse or None: The response generated from the event, or None if no response is generated.
     """
     response = None
-    if len(event["parent_ids"]) == 0:
-        output = event["data"]["output"]
-        messages = output.get("messages", [])
-        usage_data = read_accum_usage_data_from_msg_arr(messages)
-        if messages:
-            message = messages[-1]
-            if isinstance(message, (HumanMessage, AIMessage)):
-                response = AssistantResponse(
-                    response=message.content, conversation_id=thread_id, metadata=build_metadata(usage_data)
-                )
+    output = event["data"]["output"]
+    messages = output.get("messages", [])
+    usage_data = read_accum_usage_data_from_msg_arr(messages)
+    if len(event["parent_ids"]) != 0:
+        return None
+    if messages:
+        message = messages[-1]
+        if isinstance(message, (HumanMessage, AIMessage)):
+            response = AssistantResponse(
+                response=message.content, conversation_id=thread_id, metadata=build_metadata(usage_data)
+            )
+    if output.get("structured_response"):
+        response = AssistantResponse(
+            response=output["structured_response"],
+            conversation_id=thread_id,
+            metadata=build_metadata(usage_data),
+        )
     return response
 
 
@@ -284,12 +291,14 @@ class LanggraphAgent(CopilotAgent):
 
                 messages = agent_response.get("messages")
                 usage_data = read_accum_usage_data_from_msg_arr(messages)
-                new_ai_message = messages[-1]
-
+                if agent_response.get("structured_response"):
+                    new_ai_message = agent_response.get("structured_response")
+                else:
+                    new_ai_message = messages[-1].content
                 return AgentResponse(
                     input=question.model_dump_json(),
                     output=AssistantResponse(
-                        response=new_ai_message.content,
+                        response=new_ai_message,
                         conversation_id=thread_id,
                         metadata=build_metadata(usage_data),
                     ),

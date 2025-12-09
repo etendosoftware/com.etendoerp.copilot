@@ -854,6 +854,8 @@ public class CopilotUtils {
     jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
     jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_STRUCTURED_OUTPUT_JSON_SCHEMA,
+        copilotApp.getStructuredOutputJSONSchema());
   }
 
   /**
@@ -993,6 +995,8 @@ public class CopilotUtils {
     jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
     jsonRequestForCopilot.put(RestServiceUtil.PROP_CODE_EXECUTION, copilotApp.isCodeInterpreter());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_STRUCTURED_OUTPUT_JSON_SCHEMA,
+        copilotApp.getStructuredOutputJSONSchema());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_KB_SEARCH_K,
         copilotApp.getSearchResultQty() != null ? copilotApp.getSearchResultQty().intValue() : 4);
     String promptApp = getAssistantPrompt(copilotApp);
