@@ -7,8 +7,13 @@ This module tests the utility functions for agent configuration and model initia
 import os
 from unittest.mock import MagicMock, Mock, patch
 
-from copilot.core.schemas import QuestionSchema
-from copilot.core.utils.agent import get_full_question, get_llm, get_model_config
+from copilot.core.schemas import AssistantSchema, QuestionSchema
+from copilot.core.utils.agent import (
+    get_full_question,
+    get_llm,
+    get_model_config,
+    get_structured_output,
+)
 
 
 class TestGetFullQuestion:
@@ -412,3 +417,196 @@ class TestModuleIntegration:
             streaming=True,
         )
         mock_get_model_config.assert_called_once_with("openai", "gpt-4")
+
+
+class TestGetStructuredOutput:
+    """Test cases for get_structured_output function."""
+
+    def test_get_structured_output_with_none_schema(self):
+        """Test get_structured_output when structured_output_json_schema is None."""
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=None)
+
+        result = get_structured_output(agent_config)
+
+        assert result is None
+
+    def test_get_structured_output_with_valid_json_schema(self):
+        """Test get_structured_output with a valid JSON schema string."""
+        json_schema_str = (
+            '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}'
+        )
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        result = get_structured_output(agent_config)
+
+        expected = {"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}
+        assert result == expected
+
+    def test_get_structured_output_with_complex_nested_schema(self):
+        """Test get_structured_output with a complex nested JSON schema."""
+        json_schema_str = """{
+            "type": "object",
+            "properties": {
+                "user": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "address": {
+                            "type": "object",
+                            "properties": {
+                                "street": {"type": "string"},
+                                "city": {"type": "string"}
+                            }
+                        }
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                }
+            }
+        }"""
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        result = get_structured_output(agent_config)
+
+        assert result is not None
+        assert result["type"] == "object"
+        assert "user" in result["properties"]
+        assert "items" in result["properties"]
+        assert result["properties"]["user"]["properties"]["address"]["properties"]["city"]["type"] == "string"
+        assert result["properties"]["items"]["type"] == "array"
+
+    def test_get_structured_output_with_invalid_json(self):
+        """Test get_structured_output with malformed JSON string."""
+        json_schema_str = '{"type": "object", "properties": {'  # Invalid JSON - missing closing braces
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        with patch("copilot.core.utils.agent.copilot_error") as mock_error:
+            result = get_structured_output(agent_config)
+
+            assert result is None
+            mock_error.assert_called_once()
+            call_args = mock_error.call_args[0][0]
+            assert "Error parsing structured output schema" in call_args
+            assert "falling back to default" in call_args
+
+    def test_get_structured_output_with_empty_string(self):
+        """Test get_structured_output with empty string."""
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema="")
+
+        with patch("copilot.core.utils.agent.copilot_error") as mock_error:
+            result = get_structured_output(agent_config)
+
+            assert result is None
+            mock_error.assert_called_once()
+
+    def test_get_structured_output_with_json_array(self):
+        """Test get_structured_output with a JSON array schema."""
+        json_schema_str = '[{"type": "string"}, {"type": "number"}]'
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        result = get_structured_output(agent_config)
+
+        expected = [{"type": "string"}, {"type": "number"}]
+        assert result == expected
+
+    def test_get_structured_output_with_json_primitive(self):
+        """Test get_structured_output with a primitive JSON value."""
+        json_schema_str = '"simple_string"'
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        result = get_structured_output(agent_config)
+
+        assert result == "simple_string"
+
+    def test_get_structured_output_with_boolean_value(self):
+        """Test get_structured_output with boolean JSON value."""
+        json_schema_str = "true"
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        result = get_structured_output(agent_config)
+
+        assert result is True
+
+    def test_get_structured_output_with_null_value(self):
+        """Test get_structured_output with null JSON value."""
+        json_schema_str = "null"
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        result = get_structured_output(agent_config)
+
+        assert result is None
+
+    def test_get_structured_output_with_numeric_value(self):
+        """Test get_structured_output with numeric JSON value."""
+        json_schema_str = "42"
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        result = get_structured_output(agent_config)
+
+        assert result == 42
+
+    def test_get_structured_output_with_unicode_characters(self):
+        """Test get_structured_output with Unicode characters in JSON."""
+        json_schema_str = '{"message": "Hello 世界 🌍", "emoji": "🚀"}'
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        result = get_structured_output(agent_config)
+
+        assert result["message"] == "Hello 世界 🌍"
+        assert result["emoji"] == "🚀"
+
+    def test_get_structured_output_with_escaped_characters(self):
+        """Test get_structured_output with escaped characters in JSON."""
+        json_schema_str = r'{"path": "C:\\Users\\test", "quote": "She said \"Hello\""}'
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        result = get_structured_output(agent_config)
+
+        assert result["path"] == r"C:\Users\test"
+        assert result["quote"] == 'She said "Hello"'
+
+    def test_get_structured_output_with_whitespace(self):
+        """Test get_structured_output with extra whitespace in JSON."""
+        json_schema_str = """
+        {
+            "type"  :  "object"  ,
+            "properties"  :  {
+                "name"  :  {  "type"  :  "string"  }
+            }
+        }
+        """
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        result = get_structured_output(agent_config)
+
+        assert result["type"] == "object"
+        assert "properties" in result
+        assert result["properties"]["name"]["type"] == "string"
+
+    def test_get_structured_output_error_handling_preserves_error_message(self):
+        """Test that error handling includes the original error message."""
+        json_schema_str = '{"invalid": }'  # Invalid JSON
+        agent_config = AssistantSchema(name="test_agent", structured_output_json_schema=json_schema_str)
+
+        with patch("copilot.core.utils.agent.copilot_error") as mock_error:
+            result = get_structured_output(agent_config)
+
+            assert result is None
+            mock_error.assert_called_once()
+            error_message = mock_error.call_args[0][0]
+            assert "Error parsing structured output schema" in error_message
+            assert "Error:" in error_message
+
+    def test_get_structured_output_with_question_schema(self):
+        """Test get_structured_output with QuestionSchema (inherits from AssistantSchema)."""
+        json_schema_str = '{"type": "response", "format": "text"}'
+        question_config = QuestionSchema(
+            question="Test question", structured_output_json_schema=json_schema_str
+        )
+
+        result = get_structured_output(question_config)
+
+        expected = {"type": "response", "format": "text"}
+        assert result == expected
