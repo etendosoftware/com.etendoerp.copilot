@@ -103,5 +103,5 @@ def get_structured_output(agent_configuration):
         json_schema_obj = json.loads(agent_configuration.structured_output_json_schema)
         return json_schema_obj
     except Exception as e:
-        copilot_error("Error parsing structured output schema, falling back to default." " Error: " + str(e))
+        copilot_error("Error parsing structured output schema, falling back to default. Error: " + str(e))
         return None
