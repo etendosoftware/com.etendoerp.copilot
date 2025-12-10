@@ -6,20 +6,17 @@ import org.apache.log4j.Logger;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
-import org.openbravo.base.model.Property;
 import org.openbravo.client.kernel.event.EntityDeleteEvent;
 import org.openbravo.client.kernel.event.EntityNewEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEventObserver;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
-import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.module.Module;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
-import com.etendoerp.copilot.util.CopilotConstants;
-import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.CopilotAppInfoUtils;
+import com.etendoerp.copilot.util.CopilotUtils;
 
 /**
  * This class handles the synchronization status updates for CopilotAppSource entities.
@@ -127,8 +124,9 @@ public class AssistantKBSyncStatusHandler extends EntityPersistenceEventObserver
     if (assistantModule == null) {
       return;
     }
-    Module fileModule = currentAppSource.getFile().getModule();
-    if (fileModule == null) {
+    boolean moduleInRel = (currentAppSource.getModule() != null);
+    boolean moduleInFile = (currentAppSource.getFile() != null && currentAppSource.getFile().getModule() != null);
+    if (moduleInRel && !moduleInFile) {
       throw new OBException(
           String.format(OBMessageUtils.messageBD("ETCOP_FileNotBelonging"), currentAppSource.getFile().getName()));
     }
