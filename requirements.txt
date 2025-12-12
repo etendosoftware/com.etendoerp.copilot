@@ -338,7 +338,7 @@ langchain-mcp-adapters==0.2.1
     # via etendo-copilot-core
 langchain-ollama==1.0.0
     # via etendo-copilot-core
-langchain-openai==1.1.1
+langchain-openai==1.1.2
     # via
     #   etendo-copilot-core
     #   langchain-deepseek
@@ -608,7 +608,7 @@ pyjwt==2.10.1
     # via mcp
 pylint==3.3.9
     # via etendo-copilot-core
-pymupdf==1.26.6
+pymupdf==1.26.7
     # via etendo-copilot-core
 pyparsing==3.2.5
     # via grandalf
