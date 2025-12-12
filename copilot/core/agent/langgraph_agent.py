@@ -294,7 +294,10 @@ class LanggraphAgent(CopilotAgent):
                 if agent_response.get("structured_response"):
                     new_ai_message = agent_response.get("structured_response")
                 else:
-                    new_ai_message = messages[-1].content
+                    if messages and len(messages) > 0:
+                        new_ai_message = messages[-1].content
+                    else:
+                        new_ai_message = ""
                 return AgentResponse(
                     input=question.model_dump_json(),
                     output=AssistantResponse(
