@@ -90,7 +90,7 @@ public class SyncToolStructure extends BaseProcessActionHandler {
           funtionJson.put(DESCRIPTION, descriptionOfTool);
           funtionJson.put("parameters", wrappWithJSONSchema(toolInfo.getJSONObject("parameters")));
           toolInfoJson.put("function", funtionJson);
-          erpTool.setJsonStructure(toolInfoJson.toString(2));
+          erpTool.setJSONStructure(toolInfoJson.toString(2));
           erpTool.setDescription(descriptionOfTool);
           OBDal.getInstance().save(erpTool);
         }
