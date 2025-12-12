@@ -45,6 +45,10 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="MODEL" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="ETCOP_APP" name="ETCOP_APP_TOOL_APP_FK" onDelete="cascade">
         <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
       </foreign-key>
