@@ -51,6 +51,7 @@ class AssistantSchema(BaseModel):
     mcp_servers: Optional[list[dict]] = None
     ad_user_id: Optional[str] = None
     assistants: Optional[list["AssistantSchema"]] = None  # For supervisors - team members
+    structured_output_json_schema: Optional[str] = None
 
 
 class QuestionSchema(AssistantSchema):
@@ -81,6 +82,7 @@ class GraphQuestionSchema(BaseModel):
     name: Optional[str] = None
     model: Optional[str] = None
     provider: Optional[str] = None
+    structured_output_json_schema: Optional[str] = None
 
 
 class VectorDBInputSchema(BaseModel):

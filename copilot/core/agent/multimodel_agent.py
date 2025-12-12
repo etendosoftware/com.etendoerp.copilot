@@ -23,7 +23,7 @@ from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
 from copilot.core.threadcontextutils import (
     read_accum_usage_data_from_msg_arr,
 )
-from copilot.core.utils.agent import get_full_question, get_llm
+from copilot.core.utils.agent import get_full_question, get_llm, get_structured_output
 from langchain.agents import create_agent
 from langchain_classic.agents import AgentOutputParser
 from langchain_core.agents import AgentAction, AgentFinish
@@ -285,7 +285,11 @@ class MultimodelAgent(CopilotAgent):
             agent.get_graph().print_ascii()
         else:
             agent = create_agent(
-                model=llm, tools=_enabled_tools, system_prompt=system_prompt, checkpointer=checkpointer
+                model=llm,
+                tools=_enabled_tools,
+                system_prompt=system_prompt,
+                checkpointer=checkpointer,
+                response_format=get_structured_output(agent_configuration),
             )
         return agent
 
