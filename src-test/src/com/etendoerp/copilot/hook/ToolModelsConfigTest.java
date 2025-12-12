@@ -390,11 +390,9 @@ public class ToolModelsConfigTest extends WeldBaseTest {
 
     // Create JSON object and execute
     JSONObject json = createJsonWithExtraInfo();
-    toolModelsConfig.exec(mockApp, json);
 
-    // Verify - tool_config might not exist or be partial due to exception
-    // The important thing is that no exception is thrown
-    assertTrue("Should complete without throwing exception", true);
+    // Verify that OBException is thrown when an exception occurs
+    assertThrows(OBException.class, () -> toolModelsConfig.exec(mockApp, json));
   }
 
   /**
