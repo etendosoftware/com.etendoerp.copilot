@@ -40,7 +40,7 @@ attrs==25.4.0
     #   cyclopts
     #   jsonschema
     #   referencing
-authlib==1.6.5
+authlib==1.6.6
     # via fastmcp
 backoff==2.2.1
     # via posthog
@@ -52,7 +52,7 @@ beartype==0.22.8
     # via
     #   py-key-value-aio
     #   py-key-value-shared
-black==25.11.0
+black==25.12.0
     # via etendo-copilot-core
 build==1.3.0
     # via chromadb
@@ -75,7 +75,7 @@ chardet==5.2.0
     # via tox
 charset-normalizer==3.4.4
     # via requests
-chromadb==1.3.5
+chromadb==1.3.6
     # via
     #   etendo-copilot-core
     #   langchain-chroma
@@ -98,7 +98,7 @@ colorama==0.4.6
     #   uvicorn
 coloredlogs==15.0.1
     # via onnxruntime
-coverage==7.12.0
+coverage==7.13.0
     # via pytest-cov
 cryptography==46.0.3
     # via
@@ -112,7 +112,7 @@ cyclopts==4.3.0
     # via fastmcp
 dataclasses-json==0.6.7
     # via langchain-community
-debugpy==1.8.17
+debugpy==1.8.18
     # via etendo-copilot-core
 decorator==5.2.1
     # via ipython
@@ -291,7 +291,7 @@ keyring==25.7.0
     # via py-key-value-aio
 kubernetes==34.1.0
     # via chromadb
-langchain==1.1.0
+langchain==1.1.3
     # via
     #   etendo-copilot-core
     #   langmem
@@ -308,7 +308,7 @@ langchain-community==0.4.1
     # via
     #   etendo-copilot-core
     #   langchain-experimental
-langchain-core==1.1.0
+langchain-core==1.1.3
     # via
     #   etendo-copilot-core
     #   langchain
@@ -330,15 +330,15 @@ langchain-core==1.1.0
     #   langmem
 langchain-deepseek==1.0.1
     # via etendo-copilot-core
-langchain-experimental==0.4.0
+langchain-experimental==0.4.1
     # via etendo-copilot-core
 langchain-google-genai==3.2.0
     # via etendo-copilot-core
-langchain-mcp-adapters==0.1.14
+langchain-mcp-adapters==0.2.1
     # via etendo-copilot-core
 langchain-ollama==1.0.0
     # via etendo-copilot-core
-langchain-openai==1.1.0
+langchain-openai==1.1.2
     # via
     #   etendo-copilot-core
     #   langchain-deepseek
@@ -362,17 +362,17 @@ langgraph-checkpoint==3.0.1
     #   langgraph-checkpoint-sqlite
     #   langgraph-prebuilt
     #   langmem
-langgraph-checkpoint-sqlite==3.0.0
+langgraph-checkpoint-sqlite==3.0.1
     # via etendo-copilot-core
 langgraph-prebuilt==1.0.5
     # via langgraph
-langgraph-sdk==0.2.12
+langgraph-sdk==0.2.15
     # via langgraph
 langgraph-supervisor==0.0.31
     # via etendo-copilot-core
 langmem==0.0.30
     # via etendo-copilot-core
-langsmith==0.4.53
+langsmith==0.4.59
     # via
     #   etendo-copilot-core
     #   langchain-classic
@@ -390,7 +390,7 @@ matplotlib-inline==0.2.1
     # via ipython
 mccabe==0.7.0
     # via pylint
-mcp==1.23.1
+mcp==1.23.3
     # via
     #   fastmcp
     #   langchain-mcp-adapters
@@ -454,27 +454,27 @@ openapi-pydantic==0.5.1
     # via fastmcp
 openevals==0.0.20
     # via etendo-copilot-core
-opentelemetry-api==1.39.0
+opentelemetry-api==1.39.1
     # via
     #   chromadb
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
-opentelemetry-exporter-otlp-proto-common==1.39.0
+opentelemetry-exporter-otlp-proto-common==1.39.1
     # via opentelemetry-exporter-otlp-proto-grpc
-opentelemetry-exporter-otlp-proto-grpc==1.39.0
+opentelemetry-exporter-otlp-proto-grpc==1.39.1
     # via chromadb
-opentelemetry-proto==1.39.0
+opentelemetry-proto==1.39.1
     # via
     #   opentelemetry-exporter-otlp-proto-common
     #   opentelemetry-exporter-otlp-proto-grpc
-opentelemetry-sdk==1.39.0
+opentelemetry-sdk==1.39.1
     # via
     #   chromadb
     #   opentelemetry-exporter-otlp-proto-grpc
-opentelemetry-semantic-conventions==0.60b0
+opentelemetry-semantic-conventions==0.60b1
     # via opentelemetry-sdk
-orjson==3.11.4
+orjson==3.11.5
     # via
     #   chromadb
     #   langgraph-sdk
@@ -514,7 +514,7 @@ pillow==10.4.0
     #   fastembed
 pip==25.3
     # via etendo-copilot-core
-platformdirs==4.5.0
+platformdirs==4.5.1
     # via
     #   black
     #   fastmcp
@@ -539,7 +539,7 @@ proto-plus==1.26.1
     # via
     #   google-ai-generativelanguage
     #   google-api-core
-protobuf==6.33.1
+protobuf==6.33.2
     # via
     #   google-ai-generativelanguage
     #   google-api-core
@@ -567,7 +567,7 @@ pyasn1==0.6.1
     #   rsa
 pyasn1-modules==0.4.2
     # via google-auth
-pybase64==1.4.2
+pybase64==1.4.3
     # via chromadb
 pycparser==2.23 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
     # via cffi
@@ -608,7 +608,7 @@ pyjwt==2.10.1
     # via mcp
 pylint==3.3.9
     # via etendo-copilot-core
-pymupdf==1.26.6
+pymupdf==1.26.7
     # via etendo-copilot-core
 pyparsing==3.2.5
     # via grandalf
@@ -739,7 +739,7 @@ sniffio==1.3.1
     #   rizaio
 snowballstemmer==2.2.0
     # via fastembed
-sqlalchemy==2.0.44
+sqlalchemy==2.0.45
     # via
     #   langchain-classic
     #   langchain-community
@@ -850,7 +850,9 @@ urllib3==2.3.0
     #   kubernetes
     #   requests
 uuid-utils==0.12.0
-    # via langsmith
+    # via
+    #   langchain-core
+    #   langsmith
 uvicorn==0.34.3
     # via
     #   chromadb

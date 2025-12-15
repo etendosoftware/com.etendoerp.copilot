@@ -41,6 +41,14 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="AD_MODULE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="MODEL" primaryKey="false" required="false" type="VARCHAR" size="200" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="ETCOP_APP" name="ETCOP_APP_TOOL_APP_FK" onDelete="cascade">
         <reference local="ETCOP_APP_ID" foreign="ETCOP_APP_ID"/>
       </foreign-key>
@@ -52,6 +60,9 @@
       </foreign-key>
       <foreign-key foreignTable="ETCOP_TOOL" name="ETCOP_APP_TOOL_TOOL_FK" onDelete="cascade">
         <reference local="ETCOP_TOOL_ID" foreign="ETCOP_TOOL_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_MODULE" name="ETCOP_APPTOOL_MOD_FK">
+        <reference local="AD_MODULE_ID" foreign="AD_MODULE_ID"/>
       </foreign-key>
       <check name="ETCOP_APP_TOOL_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
     </table>

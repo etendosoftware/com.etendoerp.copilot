@@ -44,7 +44,7 @@ public class ToolsUtil {
     //make petition to /copilot
     for (CopilotAppTool appTool : appToolsList) {
       CopilotTool erpTool = appTool.getCopilotTool();
-      String toolInfo = erpTool.getJsonStructure();
+      String toolInfo = erpTool.getJSONStructure();
       if (toolInfo != null && !StringUtils.equals("{}", toolInfo)) {
         result.put(new JSONObject(toolInfo));
       } else {
