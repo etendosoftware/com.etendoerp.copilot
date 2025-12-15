@@ -1,6 +1,6 @@
 FROM python:3.12.9-slim
 RUN apt update && \
-    apt install -y curl libzbar0 nodejs && \
+    apt install -y build-essential curl libzbar0 nodejs && \
     curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
     apt install -y nodejs && \
     npm install -g npm@latest && \
