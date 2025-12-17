@@ -73,10 +73,10 @@ else
                     # Only link python files or json/yaml schema files
                     if [[ "$schema_name" == *.py || "$schema_name" == *.json || "$schema_name" == *.yaml || "$schema_name" == *.yml ]]; then
                         if [ ! -e "$dest" ]; then
-                            ln -s "../../$schema_file" "$dest"
+                            ln -s "../../../$schema_file" "$dest"
                             echo "Symbolic link created for schema $schema_name"
                         elif [ -L "$dest" ]; then
-                            ln -sf "../../$schema_file" "$dest"
+                            ln -sf "../../../$schema_file" "$dest"
                             echo "Symbolic link updated for schema $schema_name"
                         fi
                     fi
