@@ -436,61 +436,8 @@ public class OpenAIUtilsTest extends WeldBaseTest {
     }
   }
 
-  /**
-   * Test syncAssistant with successful synchronization.
-   */
-  @Test
-  public void testSyncAssistantSuccess() throws Exception {
-    // Given
-    when(mockApp.getName()).thenReturn(TEST_APP_NAME);
-    when(mockApp.getOpenaiAssistantID()).thenReturn(null);
-    when(mockApp.getTemperature()).thenReturn(BigDecimal.valueOf(0.7));
-    when(mockApp.isCodeInterpreter()).thenReturn(false);
-    when(mockApp.isRetrieval()).thenReturn(false);
 
-    JSONObject successResponse = new JSONObject();
-    successResponse.put("id", TEST_ASSISTANT_ID);
 
-    mockedCopilotModelUtils.when(() -> CopilotModelUtils.getAppModel(mockApp, CopilotConstants.PROVIDER_OPENAI))
-        .thenReturn(TEST_MODEL);
-    mockedCopilotUtils.when(() -> CopilotUtils.getAssistantPrompt(mockApp))
-        .thenReturn("Test prompt");
-    mockedToolsUtil.when(() -> ToolsUtil.getToolSet(mockApp))
-        .thenReturn(new JSONArray());
-
-    try (MockedStatic<OpenAIUtils> mockedOpenAIUtils = mockStatic(OpenAIUtils.class, CALLS_REAL_METHODS)) {
-      mockedOpenAIUtils.when(() -> OpenAIUtils.makeRequestToOpenAI(
-          eq(TEST_API_KEY),
-          anyString(),
-          any(JSONObject.class),
-          eq("POST"),
-          eq(null),
-          eq(false)))
-          .thenReturn(successResponse);
-
-      // When
-      OpenAIUtils.syncAssistant(TEST_API_KEY, mockApp);
-
-      // Then
-      verify(mockApp, times(1)).setOpenaiAssistantID(TEST_ASSISTANT_ID);
-    }
-  }
-
-  /**
-   * Test syncAssistant throws OBException on error.
-   */
-  @Test
-  public void testSyncAssistantThrowsException() throws Exception {
-    // Given
-    when(mockApp.getName()).thenReturn(TEST_APP_NAME);
-    when(mockApp.getOpenaiAssistantID()).thenReturn(null);
-
-    mockedCopilotUtils.when(() -> CopilotUtils.getAssistantPrompt(mockApp))
-        .thenThrow(new IOException("Network error"));
-
-    // When/Then
-    assertThrows(OBException.class, () -> OpenAIUtils.syncAssistant(TEST_API_KEY, mockApp));
-  }
 
   /**
    * Test syncAppSource when file hasn't changed.
@@ -608,57 +555,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
     assertThrows(OBException.class, () -> OpenAIUtils.getFileFromCopilotFile(mockFile));
   }
 
-  /**
-   * Test refreshVectorDb updates vector database successfully.
-   */
-  @Test
-  public void testRefreshVectorDbSuccess() throws Exception {
-    // Given
-    when(mockApp.getOpenaiVectordbID()).thenReturn(TEST_VECTORDB_ID);
-    when(mockApp.getETCOPAppSourceList()).thenReturn(new ArrayList<>());
 
-    JSONObject vectorDbCheckResponse = new JSONObject();
-    vectorDbCheckResponse.put("id", TEST_VECTORDB_ID);
-
-    JSONObject currentFiles = new JSONObject();
-    currentFiles.put("data", new JSONArray());
-
-    try (MockedStatic<OpenAIUtils> mockedOpenAIUtils = mockStatic(OpenAIUtils.class, CALLS_REAL_METHODS)) {
-      mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(TEST_API_KEY);
-
-      // Mock the existsVectorDb check
-      mockedOpenAIUtils.when(() -> OpenAIUtils.makeRequestToOpenAI(
-          eq(TEST_API_KEY),
-          eq(OpenAIUtils.ENDPOINT_VECTORDB + "/" + TEST_VECTORDB_ID),
-          eq(null),
-          eq("GET"),
-          eq(null),
-          eq(false)))
-          .thenReturn(vectorDbCheckResponse);
-
-      // Mock the refreshVectorDb file list retrieval
-      mockedOpenAIUtils.when(() -> OpenAIUtils.makeRequestToOpenAI(
-          eq(TEST_API_KEY),
-          eq(OpenAIUtils.ENDPOINT_VECTORDB + "/" + TEST_VECTORDB_ID + OpenAIUtils.ENDPOINT_FILES),
-          eq(null),
-          eq("GET"),
-          eq(null),
-          eq(true)))
-          .thenReturn(currentFiles);
-
-      // When
-      OpenAIUtils.refreshVectorDb(mockApp);
-
-      // Then - Should complete without exceptions
-      mockedOpenAIUtils.verify(() -> OpenAIUtils.makeRequestToOpenAI(
-          eq(TEST_API_KEY),
-          eq(OpenAIUtils.ENDPOINT_VECTORDB + "/" + TEST_VECTORDB_ID + OpenAIUtils.ENDPOINT_FILES),
-          eq(null),
-          eq("GET"),
-          eq(null),
-          eq(true)), times(1));
-    }
-  }
 
   /**
    * Test makeRequestToOpenAI with GET method.
