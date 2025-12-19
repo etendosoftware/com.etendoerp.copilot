@@ -332,7 +332,6 @@ public class CopilotUtils {
 
     // Retrieve the file to be synchronized
     CopilotFile fileToSync = appSource.getFile();
-    WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
     logIfDebug("Uploading file " + fileToSync.getName());
 
     // Extract the file name and determine its extension
