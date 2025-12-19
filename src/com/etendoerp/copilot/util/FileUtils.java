@@ -2,14 +2,15 @@ package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.util.CopilotConstants.KB_FILE_VALID_EXTENSIONS;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
@@ -18,16 +19,19 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.weld.WeldUtils;
+import org.openbravo.base.provider.OBProvider;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.datamodel.Table;
+import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.ad.utility.Attachment;
+import org.openbravo.model.common.enterprise.Organization;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.KnowledgeBaseFileVariant;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
 /**
@@ -60,46 +64,22 @@ public class FileUtils {
    *     cannot be made writable.
    */
   public static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
-    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-
-    // Query the attachment related to the given CopilotFile
-    OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
-    attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
-    Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
-    if (attach == null) {
-      throwMissingAttachException(fileToSync);
+    var variant = getOrCreateVariant(fileToSync, fileToSync.getClient());
+    if (StringUtils.isNotEmpty( variant.getInternalPath())) {
+      return new File(variant.getInternalPath());
+    } //so the file is stored in the DB
+    var fileName = fileToSync.getFilename(); //includes extension
+    File result = Files.createTempFile(null, "_" + fileName).toFile();
+    try {
+      Files.write(result.toPath(), variant.getFiledata());
+    } catch (IOException e) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_TempFileErr"), fileName), e);
     }
-
-    // Get original filename and validate extension
-    String filename = attach.getName();
-    if (filename.lastIndexOf(".") < 0) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingExtension"), filename));
+    if (!result.setWritable(true)) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_TempFilePermErr"), fileName));
     }
-
-    // Extract name and extension
-    String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
-    String extension = filename.substring(filename.lastIndexOf(".") + 1);
-
-    // Create a temporary file
-    File tempFile = File.createTempFile("attach_down_" + fileWithoutExtension, "." + extension);
-    boolean setW = tempFile.setWritable(true);
-    if (!setW) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorTempFile"), fileToSync.getName()));
-    }
-
-    // Download content into memory, then write it to the temp file
-    try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-      aim.download(attach.getId(), os);
-
-      // Ensure the output stream is properly closed after writing
-      try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-        os.writeTo(fos);
-      }
-    }
-
-    // Return the file, now fully written and closed
-    return tempFile;
-  }
+    return result;
+   }
 
   /**
    * Checks if the given file extension is valid.
@@ -251,5 +231,60 @@ public class FileUtils {
     } catch (IOException e) {
       log.error("Failed to delete temporary file or folder: {}", e.getMessage());
     }
+  }
+
+  public static void refreshFileForNonMultiClient(CopilotFile hookObject, Map<Client, Path> clientPathMap) throws IOException {
+    for (Map.Entry<Client, Path> entry : clientPathMap.entrySet()) {
+      Client client = entry.getKey();
+      Path path = entry.getValue();
+      if (useFileFromTemp(hookObject)) {
+        //Store only the internal path to the file
+        savePathInVariant(hookObject, client, path);
+      } else { //any type of behavior except the KB
+        //Persist the file in the database as attachment
+        //save data in variant
+        saveDataInVariant(hookObject, client, path);
+      }
+      OBDal.getInstance().flush();
+    }
+  }
+
+  public static void savePathInVariant(CopilotFile hookObject, Client client, Path path) {
+    var variant = getOrCreateVariant(hookObject, client);
+    variant.setFiledata(null);
+    variant.setInternalPath(path.toString());
+    OBDal.getInstance().save(variant);
+  }
+
+  private static KnowledgeBaseFileVariant getOrCreateVariant(CopilotFile hookObject, Client client) {
+    KnowledgeBaseFileVariant variant = (KnowledgeBaseFileVariant) OBDal.getInstance().createCriteria(
+            KnowledgeBaseFileVariant.class)
+        .add(Restrictions.eq(KnowledgeBaseFileVariant.PROPERTY_CLIENT, client))
+        .add(Restrictions.eq(KnowledgeBaseFileVariant.PROPERTY_KBFILE, hookObject)).uniqueResult();
+    if (variant != null) {
+      return variant;
+    }
+    variant = OBProvider.getInstance().get(KnowledgeBaseFileVariant.class);
+    variant.setNewOBObject(true);
+    variant.setClient(client);
+    variant.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
+    variant.setKBFile(hookObject);
+    OBDal.getInstance().save(variant);
+    OBDal.getInstance().flush();
+    return variant;
+  }
+
+  private static void saveDataInVariant(CopilotFile hookObject, Client client, Path path) throws IOException {
+    var variant = getOrCreateVariant(hookObject, client);
+    variant.setInternalPath(null);
+    variant.setFiledata(Files.readAllBytes(path));
+    OBDal.getInstance().save(variant);
+  }
+
+  public static boolean useFileFromTemp(CopilotFile hookObject) {
+    //If all app sources are of KB behavior, we can use from the temp path, not saving in DB. The file will be deleted after Sync.
+    return hookObject.getETCOPAppSourceList().stream().allMatch(appSource ->
+        StringUtils.equals(appSource.getBehaviour(), CopilotConstants.FILE_BEHAVIOUR_KB)
+    );
   }
 }

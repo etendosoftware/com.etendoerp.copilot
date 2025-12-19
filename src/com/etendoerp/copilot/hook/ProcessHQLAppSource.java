@@ -45,7 +45,7 @@ public class ProcessHQLAppSource {
       String hql = appSource.getFile().getHql();
       hql = hql.replaceAll("\\r\\n|\\r|\\n", " ");
 
-      String result = getHQLResult(hql, "e", extension);
+      String result = getHQLResult(hql, "e", extension, OBContext.getOBContext().getCurrentClient().getId());
 
       return createAttachment(fileName, result);
     } catch (IOException e) {
@@ -111,13 +111,13 @@ public class ProcessHQLAppSource {
     return new File(tempFile.toString());
   }
 
-  private String getHQLResult(String hql, String entityAlias, String extension) {
+  public static String getHQLResult(String hql, String entityAlias, String extension, String clientId) {
     boolean isCsv = StringUtils.equalsIgnoreCase(extension, "csv");
     final org.hibernate.Session session = OBDal.getInstance().getSession();
     Map<String, String> parameters = new HashMap<>();
     String additionalFilter = entityAlias + ".client.id in ('0', :clientId)";
     // client filter
-    parameters.put(CLIENT_ID, OBContext.getOBContext().getCurrentClient().getId());
+    parameters.put(CLIENT_ID, clientId);
 
     // organization filter
     final String orgs = DataSourceUtils.getOrgs(parameters.get(JsonConstants.ORG_PARAMETER));
@@ -153,7 +153,7 @@ public class ProcessHQLAppSource {
       }
       final Object[] values = (Object[]) resultObject;
       var listColumnValues = Arrays.stream(values)
-          .map(this::printObject).collect(Collectors.toList());
+          .map(ProcessHQLAppSource::printObject).collect(Collectors.toList());
       if (!isCsv) {
         addAliasesForColumns(listColumnValues, headersArray);
       }
@@ -183,7 +183,7 @@ public class ProcessHQLAppSource {
   }
 
 
-  private String printObject(Object value) {
+  private static String printObject(Object value) {
     if (value == null) {
       return "NULL";
     }
@@ -193,7 +193,7 @@ public class ProcessHQLAppSource {
     return value.toString();
   }
 
-  private String printBaseOBObject(BaseOBObject bob) {
+  private static String printBaseOBObject(BaseOBObject bob) {
     final boolean derivedReadable = OBContext.getOBContext()
         .getEntityAccessChecker()
         .isDerivedReadable(bob.getEntity());
@@ -219,7 +219,7 @@ public class ProcessHQLAppSource {
     return "[entity: " + bob.getEntityName() + ", " + properties + "]";
   }
 
-  private String getEntityLink(BaseOBObject bob, String title) {
+  private static  String  getEntityLink(BaseOBObject bob, String title) {
     String contextName = OBPropertiesProvider.getInstance()
         .getOpenbravoProperties()
         .getProperty("context.name");

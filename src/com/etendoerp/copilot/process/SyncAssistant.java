@@ -25,6 +25,7 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.common.plm.Product;
 import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -38,6 +39,7 @@ import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.copilot.util.CopilotAppInfoUtils;
+import com.etendoerp.etendorx.utils.ElasticsearchUtils;
 import com.etendoerp.openapi.data.OpenApiFlowPoint;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
@@ -118,6 +120,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
         throw new OBException(OBMessageUtils.messageBD("ETCOP_ApiKeyNotFound"));
       }
       OpenAIUtils.getModelList(openaiApiKey);
+
       // Sync knowledge files to each assistant
       result = syncKnowledgeFiles(appList, openaiApiKey);
       OBDal.getInstance().flush();
@@ -140,6 +143,20 @@ public class SyncAssistant extends BaseProcessActionHandler {
       OBContext.restorePreviousMode();
     }
     return result;
+  }
+
+  private void doSyncElastic() {
+    var productList  = OBDal.getInstance().createCriteria(Product.class);
+    for (Product product : productList.list()) {
+      try{
+      var json = new JSONObject();
+      json.put("id", product.getId());
+      json.put("identifier", product.getIdentifier());
+        ElasticsearchUtils.indexDocument("Product",json);
+      } catch (Exception e){
+        log.error("Error syncing product to elasticsearch: " + product.getIdentifier(), e);
+      }
+    }
   }
 
   /**
@@ -196,6 +213,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
     for (CopilotAppSource as : appSourcesToRefresh) {
       log.debug("Syncing file {}", as.getFile().getName());
       CopilotFile fileToSync = as.getFile();
+
       WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
     }
   }
@@ -370,8 +388,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
       // Handle synchronization based on the application type
       switch (app.getAppType()) {
         case CopilotConstants.APP_TYPE_OPENAI:
-          syncKBFilesToOpenAI(app, knowledgeBaseFiles, openaiApiKey);
-          break;
+          throw new OBException("OpenAI sync is disabled. Change the agent type to Multi-Model.");
         case CopilotConstants.APP_TYPE_LANGCHAIN:
         case CopilotConstants.APP_TYPE_MULTIMODEL:
           syncKBFilesToLangChain(app, knowledgeBaseFiles);
@@ -389,44 +406,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
     return buildMessage(syncCount, appList.size());
   }
 
-  /**
-   * This method synchronizes knowledge base files with the OpenAI API for a given {@link CopilotApp}.
-   * It processes the list of provided {@link CopilotAppSource} instances, sending each one to
-   * the OpenAI API for synchronization. The method also performs additional steps to refresh
-   * the application's state and synchronize the assistant configuration.
-   *
-   * <p>If the application is configured for OpenAI but the knowledge base files are present,
-   * and it is neither a code interpreter nor retrieval-enabled, an {@link OBException} is thrown
-   * to indicate that the knowledge base files are ignored for the given app configuration.
-   *
-   * <p>After synchronizing each knowledge base file, the application's state is refreshed from
-   * the database, the vector database is updated, and the assistant configuration is synchronized
-   * with the OpenAI API.
-   *
-   * @param app
-   *     The {@link CopilotApp} instance for which knowledge base files are being synchronized.
-   * @param knowledgeBaseFiles
-   *     A list of {@link CopilotAppSource} objects representing the knowledge base files to be synchronized.
-   * @param openaiApiKey
-   *     The API key used for authentication with the OpenAI API.
-   * @throws JSONException
-   *     If an error occurs while processing JSON data.
-   * @throws IOException
-   *     If an input/output error occurs during the synchronization process.
-   * @throws OBException
-   *     If the application's configuration does not allow for knowledge base synchronization.
-   */
-  private void syncKBFilesToOpenAI(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles,
-      String openaiApiKey) throws JSONException, IOException {
-    OpenAIUtils.checkIfAppCanUseAttachedFiles(app, knowledgeBaseFiles);
-    for (CopilotAppSource appSource : knowledgeBaseFiles) {
-      OpenAIUtils.syncAppSource(appSource, openaiApiKey);
-    }
-    OBDal.getInstance().refresh(app);
-    OpenAIUtils.refreshVectorDb(app);
-    OBDal.getInstance().refresh(app);
-    OpenAIUtils.syncAssistant(openaiApiKey, app);
-  }
+
 
   /**
    * This method synchronizes knowledge base files with the LangChain API for a given {@link CopilotApp}.
