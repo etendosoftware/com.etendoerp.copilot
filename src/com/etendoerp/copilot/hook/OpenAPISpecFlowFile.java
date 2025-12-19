@@ -1,15 +1,17 @@
 package com.etendoerp.copilot.hook;
 
 import static com.etendoerp.copilot.util.CopilotUtils.getEtendoHostDocker;
+import static com.etendoerp.copilot.util.FileUtils.refreshFileForNonMultiClient;
 
 import java.io.BufferedInputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -18,16 +20,15 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.datamodel.Table;
+import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.util.FileUtils;
 import com.etendoerp.openapi.OpenAPIController;
 import com.etendoerp.openapi.data.OpenApiFlow;
 
@@ -59,12 +60,16 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
     String fileName = getFileName(hookObject, flow);
     try {
       Path path = getOpenAPIFile(flow, fileName);
-      AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-      removeAttachment(aim, hookObject);
-      File file = new File(path.toString());
-      aim.upload(new HashMap<>(), COPILOT_FILE_TAB_ID, hookObject.getId(),
-          hookObject.getOrganization().getId(), file);
-      FileUtils.cleanupTempFile(path, false);
+      Map<Client, Path> clientPathMap = new HashMap<>();
+      if (isMultiClient()) {
+        List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
+        for (Client client : clientList) {
+          clientPathMap.put(client, path);
+        }
+      } else {
+        clientPathMap.put(hookObject.getClient(), path);
+      }
+      refreshFileForNonMultiClient(hookObject, clientPathMap);
     } catch (Exception e) {
       throw new OBException(
           String.format(OBMessageUtils.messageBD("ETCOP_GenFileError"), getFileName(hookObject, flow), e.getMessage()),

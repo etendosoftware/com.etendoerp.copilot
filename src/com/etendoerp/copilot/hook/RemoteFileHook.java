@@ -1,24 +1,27 @@
 package com.etendoerp.copilot.hook;
 
+import static com.etendoerp.copilot.util.FileUtils.refreshFileForNonMultiClient;
+
 import java.io.BufferedInputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.weld.WeldUtils;
-import org.openbravo.client.application.attachment.AttachImplementationManager;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.system.Client;
 
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.util.CopilotVarReplacerUtil;
-import com.etendoerp.copilot.util.FileUtils;
 
 /**
  * This class implements the CopilotFileHook interface and provides functionality
@@ -49,17 +52,23 @@ public class RemoteFileHook implements CopilotFileHook {
     //stored in a temporary folder.
     try {
       Path path = downloadFile(url, fileName);
-      AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-      FileUtils.removeAttachment(aim, hookObject);
-      File file = new File(path.toString());
-      FileUtils.attachFile(hookObject, aim, file);
-      FileUtils.cleanupTempFile(path, true);
-
+      Map<Client, Path> clientPathMap = new HashMap<>();
+      if (isMultiClient()) {
+        List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
+        for (Client client : clientList) {
+          clientPathMap.put(client, path);
+        }
+      } else {
+        clientPathMap.put(hookObject.getClient(), path);
+      }
+      refreshFileForNonMultiClient(hookObject, clientPathMap);
     } catch (IOException e) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileDownErr"), url), e);
     }
 
   }
+
+
 
 
   /**

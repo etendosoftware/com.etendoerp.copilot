@@ -1,18 +1,20 @@
 package com.etendoerp.copilot.hook;
 
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.weld.WeldUtils;
-import org.openbravo.client.application.attachment.AttachImplementationManager;
+import org.openbravo.dal.service.OBDal;
+import org.openbravo.model.ad.system.Client;
 
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.util.FileUtils;
@@ -48,12 +50,21 @@ public class TextFileHook implements CopilotFileHook {
     //download the file from the URL, preserving the original name, if filename is not empty, use it instead. The file must be
     //stored in a temporary folder.
     Path path = generateTextFile(text, fileName);
-    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-    FileUtils.removeAttachment(aim, hookObject);
-    File file = new File(path.toString());
-    FileUtils.attachFile(hookObject, aim, file);
-    FileUtils.cleanupTempFile(path, false);
-
+    Map<Client, Path> clientPathMap = new HashMap<>();
+    if (isMultiClient()) {
+      List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
+      for (Client client : clientList) {
+        clientPathMap.put(client, path);
+      }
+    } else {
+      clientPathMap.put(hookObject.getClient(), path);
+    }
+    try {
+      FileUtils.refreshFileForNonMultiClient(hookObject, clientPathMap);
+    } catch (Exception e) {
+      log.error("Error refreshing file", e);
+      throw new OBException("Error refreshing file", e);
+    }
   }
 
   /**
