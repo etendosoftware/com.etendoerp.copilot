@@ -75,8 +75,19 @@ def _is_etendo_headless_get(method: str, path: str) -> bool:
 
 
 def _is_etendo_headless_put(method: str, path: str) -> bool:
-    """Check if this is an Etendo Headless PUT endpoint."""
+    """
+    Check if this is an Etendo Headless PUT endpoint.
+    These endpoints require PATCH-like behavior (exclude_unset=True).
+    """
     return method.lower() == "put" and path.startswith(ETENDO_HEADLESS_PATH_PREFIX)
+
+
+def _is_etendo_headless_post(method: str, path: str) -> bool:
+    """
+    Check if this is an Etendo Headless POST endpoint.
+    These endpoints require PATCH-like behavior (exclude_unset=True).
+    """
+    return method.lower() == "post" and path.startswith(ETENDO_HEADLESS_PATH_PREFIX)
 
 
 def _process_etendo_headless_param(original_name: str, param: Dict) -> tuple:
@@ -278,7 +289,9 @@ def _generate_function_code(
         token_logic = 'auth_token = token if "token" in locals() and token is not None else None'
 
     # Choose the appropriate model_dump method
-    if _is_etendo_headless_put(method, path):
+    # For Etendo Headless PUT and POST, we use exclude_unset=True to achieve PATCH-like behavior,
+    # ensuring only explicitly provided fields are sent to the API.
+    if _is_etendo_headless_put(method, path) or _is_etendo_headless_post(method, path):
         model_dump_method = "body_params.model_dump(exclude_unset=True)"
     else:
         model_dump_method = "body_params.model_dump()"
@@ -415,10 +428,6 @@ def _process_single_operation(
         logger.info(f"  - URL: {url}")
         logger.info(f"  - Endpoint: {path}")
 
-    if _is_etendo_headless_put(method, path):
-        logger.info("Etendo Headless PUT endpoint detected - using PATCH-like behavior")
-        logger.info("  - Will use exclude_unset=True for body serialization")
-
     # Log information
     logger.info(f"Generating OpenAPI tool: {tool_name}")
     logger.info(f"  - Method: {method.upper()}")
@@ -427,8 +436,9 @@ def _process_single_operation(
     logger.info(f"  - Parameters: {param_names}")
     if param_mapping:
         logger.info(f"  - Parameter mapping: {param_mapping}")
-    if _is_etendo_headless_put(method, path):
-        logger.info("  - Body serialization: exclude_unset=True (PATCH-like)")
+
+    if _is_etendo_headless_put(method, path) or _is_etendo_headless_post(method, path):
+        logger.info(f"  - Etendo Headless {method.upper()} detected: using exclude_unset=True (PATCH-like)")
     else:
         logger.info("  - Body serialization: standard model_dump()")
 
