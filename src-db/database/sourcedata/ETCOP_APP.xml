@@ -30,7 +30,7 @@
 - You only have to answer with the category/classification of the answer received:
 
 - "CO: The request was completed successfully. 
-- "REQ": If the request failed or if it is requiring additional information to be entered.
+- "REQ": If the request failed, manual validation/correction is necessary or additional information needs to be entered.
 
 - You should only respond with the type key.]]></PROMPT>
 <!--3A583408E7484BF48ED8E45DF09A6044-->  <APPTYPE><![CDATA[multimodel]]></APPTYPE>
