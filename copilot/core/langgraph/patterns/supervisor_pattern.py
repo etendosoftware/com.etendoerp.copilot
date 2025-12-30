@@ -40,7 +40,7 @@ class SupervisorPattern(BasePattern):
                 )
                 workflow.add_node("supervisor-" + stage.name, supervisor_chain)
         if len(assistant_graph.stages[-1].assistants) > 1:
-            workflow.add_node("output", OutputNode().build(temperature=sv_temperature).nodes["agent"])
+            workflow.add_node("output", OutputNode().build(temperature=sv_temperature))
         return workflow
 
     def connect_graph(self, assistant_graph, workflow):

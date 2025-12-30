@@ -6,7 +6,7 @@ from copilot.core.langgraph.special_nodes.supervisor_node import (
     get_supervisor_system_prompt,
 )
 from copilot.core.langgraph.tool_utils.TaskManagementTool import task_management_tool
-from copilot.core.utils.agent import get_llm
+from copilot.core.utils.agent import get_llm, get_structured_output
 from langgraph.prebuilt.chat_agent_executor import AgentState
 from langgraph_supervisor import create_supervisor
 
@@ -15,6 +15,7 @@ class LangSupervisorState(AgentState):
     tasks_to_process: List[str]  # pending
     current_task: str  # current
     done_tasks: List[str]  # Already done
+    structured_response: str  # Final structured response
 
 
 class LangSupervisorPattern(BasePattern):
@@ -49,6 +50,7 @@ class LangSupervisorPattern(BasePattern):
                 codify_name(full_question.name) if full_question.name is not None else "Supervisor"
             ),
             state_schema=LangSupervisorState,
+            response_format=get_structured_output(full_question),
         )
 
         # Compile and run

@@ -152,7 +152,7 @@ public class ToolsUtilTest {
     List<CopilotAppTool> toolsList = new ArrayList<>();
     toolsList.add(mockAppTool);
     when(mockCriteria.list()).thenReturn(toolsList);
-    when(mockTool.getJsonStructure()).thenReturn(TEST_TOOL_JSON);
+    when(mockTool.getJSONStructure()).thenReturn(TEST_TOOL_JSON);
 
     // When
     JSONArray result = ToolsUtil.getToolSet(mockApp);
@@ -181,7 +181,7 @@ public class ToolsUtilTest {
     List<CopilotAppTool> toolsList = new ArrayList<>();
     toolsList.add(mockAppTool);
     when(mockCriteria.list()).thenReturn(toolsList);
-    when(mockTool.getJsonStructure()).thenReturn(null);
+    when(mockTool.getJSONStructure()).thenReturn(null);
 
     // When
     JSONArray result = ToolsUtil.getToolSet(mockApp);
@@ -209,7 +209,7 @@ public class ToolsUtilTest {
     List<CopilotAppTool> toolsList = new ArrayList<>();
     toolsList.add(mockAppTool);
     when(mockCriteria.list()).thenReturn(toolsList);
-    when(mockTool.getJsonStructure()).thenReturn("{}");
+    when(mockTool.getJSONStructure()).thenReturn("{}");
 
     // When
     JSONArray result = ToolsUtil.getToolSet(mockApp);
@@ -238,13 +238,13 @@ public class ToolsUtilTest {
     CopilotTool mockTool2 = mock(CopilotTool.class);
     when(mockAppTool2.getCopilotTool()).thenReturn(mockTool2);
     when(mockTool2.getValue()).thenReturn("secondTool");
-    when(mockTool2.getJsonStructure()).thenReturn("{\"type\":\"function\",\"function\":{\"name\":\"secondTool\"}}");
+    when(mockTool2.getJSONStructure()).thenReturn("{\"type\":\"function\",\"function\":{\"name\":\"secondTool\"}}");
 
     List<CopilotAppTool> toolsList = new ArrayList<>();
     toolsList.add(mockAppTool);
     toolsList.add(mockAppTool2);
     when(mockCriteria.list()).thenReturn(toolsList);
-    when(mockTool.getJsonStructure()).thenReturn(TEST_TOOL_JSON);
+    when(mockTool.getJSONStructure()).thenReturn(TEST_TOOL_JSON);
 
     // When
     JSONArray result = ToolsUtil.getToolSet(mockApp);
@@ -274,13 +274,13 @@ public class ToolsUtilTest {
     CopilotTool mockTool2 = mock(CopilotTool.class);
     when(mockAppTool2.getCopilotTool()).thenReturn(mockTool2);
     when(mockTool2.getValue()).thenReturn("simpleTool");
-    when(mockTool2.getJsonStructure()).thenReturn(null); // This one has no JSON structure
+    when(mockTool2.getJSONStructure()).thenReturn(null); // This one has no JSON structure
 
     List<CopilotAppTool> toolsList = new ArrayList<>();
     toolsList.add(mockAppTool);
     toolsList.add(mockAppTool2);
     when(mockCriteria.list()).thenReturn(toolsList);
-    when(mockTool.getJsonStructure()).thenReturn(TEST_TOOL_JSON); // This one has full JSON
+    when(mockTool.getJSONStructure()).thenReturn(TEST_TOOL_JSON); // This one has full JSON
 
     // When
     JSONArray result = ToolsUtil.getToolSet(mockApp);
@@ -313,7 +313,7 @@ public class ToolsUtilTest {
     List<CopilotAppTool> toolsList = new ArrayList<>();
     toolsList.add(mockAppTool);
     when(mockCriteria.list()).thenReturn(toolsList);
-    when(mockTool.getJsonStructure()).thenReturn("  {}  ");
+    when(mockTool.getJSONStructure()).thenReturn("  {}  ");
 
     // When
     JSONArray result = ToolsUtil.getToolSet(mockApp);
@@ -363,7 +363,7 @@ public class ToolsUtilTest {
     List<CopilotAppTool> toolsList = new ArrayList<>();
     toolsList.add(mockAppTool);
     when(mockCriteria.list()).thenReturn(toolsList);
-    when(mockTool.getJsonStructure()).thenReturn(complexJson);
+    when(mockTool.getJSONStructure()).thenReturn(complexJson);
 
     // When
     JSONArray result = ToolsUtil.getToolSet(mockApp);
@@ -397,7 +397,7 @@ public class ToolsUtilTest {
     List<CopilotAppTool> toolsList = new ArrayList<>();
     toolsList.add(mockAppTool);
     when(mockCriteria.list()).thenReturn(toolsList);
-    when(mockTool.getJsonStructure()).thenReturn("");
+    when(mockTool.getJSONStructure()).thenReturn("");
 
     // When - This should throw JSONException because "" cannot be parsed as JSON
     ToolsUtil.getToolSet(mockApp);
@@ -416,7 +416,7 @@ public class ToolsUtilTest {
     List<CopilotAppTool> toolsList = new ArrayList<>();
     toolsList.add(mockAppTool);
     when(mockCriteria.list()).thenReturn(toolsList);
-    when(mockTool.getJsonStructure()).thenReturn(null);
+    when(mockTool.getJSONStructure()).thenReturn(null);
 
     // When
     JSONArray result = ToolsUtil.getToolSet(mockApp);

@@ -3,7 +3,7 @@ from abc import abstractmethod
 from typing import Annotated, Final, Sequence, TypedDict
 
 from copilot.baseutils.logging_envvar import read_optional_env_var
-from langchain.agents import AgentExecutor, create_openai_tools_agent
+from langchain_classic.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
@@ -26,7 +26,7 @@ class BasePattern:
         workflow = StateGraph(AgentState)
         for member in members:
             if isinstance(member, CompiledStateGraph):
-                workflow.add_node(member.name, member.nodes["agent"])
+                workflow.add_node(member.name, member)
             else:
                 workflow.add_node(member.name, member.node)
         return workflow

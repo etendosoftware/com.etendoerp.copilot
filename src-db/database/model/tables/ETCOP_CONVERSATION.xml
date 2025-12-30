@@ -69,6 +69,14 @@
       <foreign-key foreignTable="AD_USER" name="ETCOP_CONV_USR">
         <reference local="AD_USER_ID" foreign="AD_USER_ID"/>
       </foreign-key>
+      <index name="ETCOP_CONV_IDX" unique="false">
+        <index-column name="ETCOP_APP_ID"/>
+        <index-column name="AD_USER_ID"/>
+        <index-column name="AD_CLIENT_ID"/>
+        <index-column name="AD_ORG_ID"/>
+        <index-column name="ISACTIVE"/>
+        <index-column name="LAST_MSG"/>
+      </index>
       <unique name="ETCOP_CONV_EXTID_UNIQUE">
         <unique-column name="EXTERNAL_ID"/>
       </unique>

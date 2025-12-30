@@ -1,5 +1,7 @@
+import json
 import os
 
+from copilot.baseutils.logging_envvar import copilot_error
 from copilot.core.schemas import QuestionSchema
 from copilot.core.utils import etendo_utils
 from copilot.core.utils.models import get_proxy_url
@@ -44,11 +46,17 @@ def get_llm(model, provider, temperature):
         )
 
     else:
-        if provider is None and model.startswith("gpt-"):
-            provider = "openai"
+        provider_to_use = provider
+        model_to_use = model
+        if get_proxy_url() is not None:
+            model_to_use = provider_to_use + "/" + model
+            provider_to_use = "openai"
+
         llm = init_chat_model(
-            model_provider=provider,
-            model=model,
+            # If a proxy URL is set, we always use OpenAI as the provider to use
+            # the OpenAI compatible API
+            model_provider=provider_to_use,
+            model=model_to_use,
             temperature=temperature,
             base_url=get_proxy_url(),
             model_kwargs={"stream_options": {"include_usage": True}},
@@ -84,3 +92,16 @@ def get_model_config(provider, model):
     provider_searchkey = provider or "null"  # if provider is None, set it to "null"
     provider_configs = model_configs.get(provider_searchkey, {})
     return provider_configs.get(model, {})
+
+
+def get_structured_output(agent_configuration):
+    """Get structured output format based on agent configuration."""
+    if agent_configuration.structured_output_json_schema is None:
+        return None
+    try:
+        # convert string to json
+        json_schema_obj = json.loads(agent_configuration.structured_output_json_schema)
+        return json_schema_obj
+    except Exception as e:
+        copilot_error("Error parsing structured output schema, falling back to default. Error: " + str(e))
+        return None

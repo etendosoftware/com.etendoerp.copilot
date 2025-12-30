@@ -83,6 +83,8 @@ def get_subgraph_name(metadata) -> str:
             subgraph_name = " : "
 
         subgraph_name = subgraph_name.split(":")[0]
+        if subgraph_name == "model" or subgraph_name == "tools":
+            subgraph_name = "The agent"
         return subgraph_name
     except Exception as e:
         copilot_debug(f"Error extracting subgraph name: {str(e)}")
@@ -101,16 +103,23 @@ async def _handle_on_chain_end(event, thread_id):
         AssistantResponse or None: The response generated from the event, or None if no response is generated.
     """
     response = None
-    if len(event["parent_ids"]) == 0:
-        output = event["data"]["output"]
-        messages = output.get("messages", [])
-        usage_data = read_accum_usage_data_from_msg_arr(messages)
-        if messages:
-            message = messages[-1]
-            if isinstance(message, (HumanMessage, AIMessage)):
-                response = AssistantResponse(
-                    response=message.content, conversation_id=thread_id, metadata=build_metadata(usage_data)
-                )
+    output = event["data"]["output"]
+    messages = output.get("messages", [])
+    usage_data = read_accum_usage_data_from_msg_arr(messages)
+    if len(event["parent_ids"]) != 0:
+        return None
+    if messages:
+        message = messages[-1]
+        if isinstance(message, (HumanMessage, AIMessage)):
+            response = AssistantResponse(
+                response=message.content, conversation_id=thread_id, metadata=build_metadata(usage_data)
+            )
+    if output.get("structured_response"):
+        response = AssistantResponse(
+            response=output["structured_response"],
+            conversation_id=thread_id,
+            metadata=build_metadata(usage_data),
+        )
     return response
 
 
@@ -148,18 +157,27 @@ async def _handle_on_chain_start(event, thread_id):
         if graph_step:
             node = metadata["langgraph_node"]
             subgraph_name = get_subgraph_name(metadata)
-            if node.startswith("__start__"):
-                message = "Starting..."
-            elif node.startswith("agent"):
-                message = f"{subgraph_name} is thinking..."
-            elif node.startswith("tool"):
-                message = f"{subgraph_name} is using his tools..."
-            elif node == "output":
-                message = "Got it! Writing the answer ..."
-            else:
-                message = f"Asking for this to the agent '{subgraph_name}/{node}'"
+            message = get_message(event, node, subgraph_name)
             response = AssistantResponse(response=message, conversation_id=thread_id, role="node")
     return response
+
+
+def get_message(event, node, subgraph_name):
+    if node.startswith("__start__"):
+        message = "Starting..."
+    elif node.startswith("agent") or node.startswith("model"):
+        message = f"{subgraph_name} is thinking..."
+    elif node.startswith("tool"):
+        try:
+            tool_name = event["data"]["input"]["tool_call"]["name"]
+            message = f"{subgraph_name} is using the tool '{tool_name}'..."
+        except Exception:
+            message = f"{subgraph_name} is using his tools..."
+    elif node == "output":
+        message = "Got it! Writing the answer ..."
+    else:
+        message = f"Asking for this to the agent '{subgraph_name}/{node}'"
+    return message
 
 
 async def handle_events(copilot_stream_debug, event, thread_id):
@@ -273,12 +291,17 @@ class LanggraphAgent(CopilotAgent):
 
                 messages = agent_response.get("messages")
                 usage_data = read_accum_usage_data_from_msg_arr(messages)
-                new_ai_message = messages[-1]
-
+                if agent_response.get("structured_response"):
+                    new_ai_message = agent_response.get("structured_response")
+                else:
+                    if messages and len(messages) > 0:
+                        new_ai_message = messages[-1].content
+                    else:
+                        new_ai_message = ""
                 return AgentResponse(
                     input=question.model_dump_json(),
                     output=AssistantResponse(
-                        response=new_ai_message.content,
+                        response=new_ai_message,
                         conversation_id=thread_id,
                         metadata=build_metadata(usage_data),
                     ),

@@ -62,6 +62,26 @@ else
                     echo "Symbolic link updated for $tool_name in tools"
                 fi
             done
+            # Also handle tools/schemas directory if present
+            if [ -d "$module/tools/schemas" ]; then
+                echo "Creating symbolic links for tools/schemas from $module"
+                # Ensure destination directory exists
+                mkdir -p "$main_module/tools/schemas"
+                for schema_file in "$module/tools/schemas"/*; do
+                    schema_name=$(basename "$schema_file")
+                    dest="$main_module/tools/schemas/$schema_name"
+                    # Only link python files or json/yaml schema files
+                    if [[ "$schema_name" == *.py || "$schema_name" == *.json || "$schema_name" == *.yaml || "$schema_name" == *.yml ]]; then
+                        if [ ! -e "$dest" ]; then
+                            ln -s "../../../$schema_file" "$dest"
+                            echo "Symbolic link created for schema $schema_name"
+                        elif [ -L "$dest" ]; then
+                            ln -sf "../../../$schema_file" "$dest"
+                            echo "Symbolic link updated for schema $schema_name"
+                        fi
+                    fi
+                done
+            fi
         fi
 
         # Create symbolic links in the tests folder of the main_module

@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from copilot.core import core_router
-from copilot.core.agent import AssistantAgent
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.tool_input import ToolField, ToolInput
 from copilot.core.tool_wrapper import ToolWrapper
@@ -82,13 +81,6 @@ def mock_langchain_agent():
 @fixture
 def mock_chat_history():
     return {"messages": ["Hello", "How are you?"]}
-
-
-@fixture
-def mock_assistant_agent():
-    mock_agent = MagicMock(spec=AssistantAgent)
-    mock_agent.get_assistant_id.return_value = "assistant_12345"
-    return mock_agent
 
 
 @patch("copilot.core.routes.select_copilot_agent")

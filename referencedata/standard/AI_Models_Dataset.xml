@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?><ob:Openbravo xmlns:ob="http://www.openbravo.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <ETCOP_Openai_Model id="0795B15A54DF45EEB36D4DD90FD85B99" identifier="gemini - gemini-2.5-pro">
+    <id>0795B15A54DF45EEB36D4DD90FD85B99</id>
+    <active>true</active>
+    <searchkey>gemini-2.5-pro</searchkey>
+    <name>gemini-2.5-pro</name>
+    <provider>gemini</provider>
+    <maxTokens xsi:nil="true"/>
+    <default>false</default>
+    <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
+  </ETCOP_Openai_Model>
   <ETCOP_Openai_Model id="0C6D2FC40E1147F393B9FC57B65F7FDD" identifier="anthropic - claude-3-7-sonnet-20250219">
     <id>0C6D2FC40E1147F393B9FC57B65F7FDD</id>
     <active>true</active>
@@ -6,6 +17,17 @@
     <name>claude-3-7-sonnet-20250219</name>
     <provider>anthropic</provider>
     <maxTokens>8000</maxTokens>
+    <default>false</default>
+    <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
+  </ETCOP_Openai_Model>
+  <ETCOP_Openai_Model id="105EF40DDC664CE095A4045B53A3DBDF" identifier="gemini - gemini-3-flash-preview">
+    <id>105EF40DDC664CE095A4045B53A3DBDF</id>
+    <active>true</active>
+    <searchkey>gemini-3-flash-preview</searchkey>
+    <name>gemini-3-flash-preview</name>
+    <provider>gemini</provider>
+    <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>
     <etendoMaintained>true</etendoMaintained>
@@ -82,6 +104,28 @@
     <searchkey>o1-preview</searchkey>
     <name>o1-preview</name>
     <provider>openai</provider>
+    <maxTokens xsi:nil="true"/>
+    <default>false</default>
+    <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
+  </ETCOP_Openai_Model>
+  <ETCOP_Openai_Model id="5F7C9A44775C4BA3BD22FAEB5AFC56D0" identifier="gemini - gemini-3-pro-preview">
+    <id>5F7C9A44775C4BA3BD22FAEB5AFC56D0</id>
+    <active>true</active>
+    <searchkey>gemini-3-pro-preview</searchkey>
+    <name>gemini-3-pro-preview</name>
+    <provider>gemini</provider>
+    <maxTokens xsi:nil="true"/>
+    <default>false</default>
+    <syncmodels>false</syncmodels>
+    <etendoMaintained>true</etendoMaintained>
+  </ETCOP_Openai_Model>
+  <ETCOP_Openai_Model id="6243F2706DA04753880C2A85E41DA922" identifier="gemini - gemini-2.5-flash">
+    <id>6243F2706DA04753880C2A85E41DA922</id>
+    <active>true</active>
+    <searchkey>gemini-2.5-flash</searchkey>
+    <name>gemini-2.5-flash</name>
+    <provider>gemini</provider>
     <maxTokens xsi:nil="true"/>
     <default>false</default>
     <syncmodels>false</syncmodels>

@@ -211,6 +211,10 @@ function App() {
     const currentContextTitle = contextTitle;
 
     let _text = message.response ?? message.text;
+    // Convert to string if it's an object
+    if (typeof _text === 'object' && _text !== null) {
+      _text = JSON.stringify(_text, null, 2);
+    }
     if (role === ROLE_WAIT) {
       _text = '⏳ ' + _text + '';
     }

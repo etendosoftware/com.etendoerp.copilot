@@ -5,7 +5,7 @@ import aiohttp
 import requests
 from copilot.baseutils.logging_envvar import copilot_debug, read_optional_env_var
 from langchain.tools import BaseTool
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, ConfigDict, Field, create_model
 
 
 def schema_to_pydantic_type(schema: Dict[str, Any]) -> Any:
@@ -198,12 +198,20 @@ class ApiTool(BaseTool, BaseModel):
             content = self.request_body.get("content", {}).get("application/json", {})
             body_schema = content.get("schema", {})
 
-            item_schema_type = schema_to_pydantic_type(body_schema)
+            # Body must accept both single objects and arrays of objects
+            # We skip strict model validation here to allow flexible input
+            # build_payload() handles serialization for both cases
+            fields["body"] = (
+                Any,
+                Field(..., description="Request body - can be a single item or a list of items")
+            )
 
-            fields["body"] = (Union[item_schema_type, List[item_schema_type]], ...)
-            self.args_schema = create_model(f"{name}Args", **fields)
-
-        self.args_schema = create_model(f"{name}Args", **fields)
+        # Create the args schema with arbitrary_types_allowed to bypass strict validation
+        self.args_schema = create_model(
+            f"{name}Args",
+            __config__=ConfigDict(arbitrary_types_allowed=True),
+            **fields
+        )
 
     def _run(self, **kwargs: Any) -> str:
         path_params = {p["name"]: kwargs[f"path_{p['name']}"] for p in self.parameters if p["in"] == "path"}
