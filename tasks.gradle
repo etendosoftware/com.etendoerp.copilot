@@ -602,16 +602,17 @@ task 'copilot.variables.setup' {
         }
 
         if (!tomcatPort && tomcatMode != "docker") {
+            def defaultPort = tomcatMode == "server" ? "80" : "8080"
             if (tomcatMode == "server") {
                 println "${yellow}\n💡 Tip: You can check the server port with:${reset}"
                 println "${green}    sudo cat /etc/apache2/ports.conf \n${reset}"
             }
 
-            System.out.print("${yellow}\n💬 Please enter the Tomcat port manually: \n${reset}")
+            System.out.print("${yellow}\n💬 Please enter the Tomcat port manually (default: ${defaultPort}): \n${reset}")
             System.out.flush()
             tomcatPort = reader.readLine()?.trim()
             if (!tomcatPort) {
-                throw new GradleException("${red}❌ ERROR: 'tomcatPort' is required when Tomcat is not dockerized.${reset}")
+                tomcatPort = defaultPort
             }
         }
 
