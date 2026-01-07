@@ -7,6 +7,7 @@ on:
       - develop
       - experimental
       - 'epic/*'
+      - 'release/*'
 
 jobs:
   docker:
@@ -30,7 +31,7 @@ jobs:
       - name: Determine Image Tag
         id: image_tag
         run: |
-          sanitizedBranchName=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9_-]/_/g')
+          sanitizedBranchName=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9_-]/-/g')
           echo "branch_name=${sanitizedBranchName}" >> $GITHUB_ENV
         shell: bash
 

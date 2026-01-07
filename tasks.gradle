@@ -487,7 +487,7 @@ task 'copilot.env.file' {
         def copilotHost = project.hasProperty("COPILOT_HOST") ? project.property("COPILOT_HOST").toString() : getDefaultCopilotHost(tomcatEnabled, copilotEnabled)
         def copilotPort = project.hasProperty("COPILOT_PORT") ? project.property("COPILOT_PORT").toString() : "5005"
         def copilotPortDebug = project.hasProperty("COPILOT_PORT_DEBUG") ? project.property("COPILOT_PORT_DEBUG").toString() : "5100"
-        def copilotImageTag = project.hasProperty("COPILOT_IMAGE_TAG") ? project.property("COPILOT_IMAGE_TAG").toString() : "master"
+        def copilotImageTag = project.hasProperty("COPILOT_IMAGE_TAG") ? project.property("COPILOT_IMAGE_TAG").toString() : "release-24-4"
         def copilotPullImage = project.hasProperty("COPILOT_PULL_IMAGE") ? project.property("COPILOT_PULL_IMAGE").toString() : "true"
         def copilotOllamaHost = project.hasProperty("COPILOT_OLLAMA_HOST") ? project.property("COPILOT_OLLAMA_HOST").toString() : getDefaultOllamaHost(copilotEnabled, ollamaEnabled)
         def copilotOllamaPort = project.hasProperty("COPILOT_OLLAMA_PORT") ? project.property("COPILOT_OLLAMA_PORT").toString() : "11434"
