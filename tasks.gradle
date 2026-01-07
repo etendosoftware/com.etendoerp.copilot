@@ -593,7 +593,7 @@ task 'copilot.variables.setup' {
         }
 
         // === TOMCAT PORT ===
-        def tomcatPort = project.findProperty("tomcatPort")
+        def tomcatPort = project.findProperty("tomcat.port")
         if (!tomcatPort) {
             try {
                 tomcatPort = envFile().property("TOMCAT_PORT")?.toString()
