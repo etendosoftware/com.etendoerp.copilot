@@ -10,6 +10,10 @@ on:
       tag:
         description: 'Tag for the image (leave empty to use build.gradle version)'
         required: false
+      is_latest:
+        description: 'Tag as latest?'
+        type: boolean
+        default: false
 
 jobs:
   build-base:
@@ -32,8 +36,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Determine Tag
-        id: determine_tag
+      - name: Determine Tags
+        id: determine_tags
         run: |
           USER_TAG="${{ github.event.inputs.tag }}"
           if [ -z "$USER_TAG" ]; then
@@ -43,7 +47,13 @@ jobs:
             VERSION=$USER_TAG
             echo "Using user provided tag: $VERSION"
           fi
-          echo "tag=${VERSION}" >> $GITHUB_OUTPUT
+
+          TAGS="etendo/etendo_copilot_base:${VERSION}"
+          if [[ "${{ github.event.inputs.is_latest }}" == "true" ]]; then
+            TAGS="${TAGS},etendo/etendo_copilot_base:latest"
+          fi
+
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Build and push base image
@@ -53,6 +63,4 @@ jobs:
           file: base.Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            etendo/etendo_copilot_base:${{ steps.determine_tag.outputs.tag }}
-            etendo/etendo_copilot_base:latest
+          tags: ${{ steps.determine_tags.outputs.tags }}
