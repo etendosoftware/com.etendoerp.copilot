@@ -1,9 +1,11 @@
 import asyncio
 import os
+import platform
 from typing import AsyncGenerator, Final, Union
 
 import langchain_core.tools
 from copilot.baseutils.logging_envvar import (
+    copilot_debug,
     read_optional_env_var,
 )
 from copilot.core.agent.agent import (
@@ -38,6 +40,16 @@ SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
 tools_loaded = {}
 
 
+def get_default_user_agent() -> str:
+    """Builds a credible User-Agent based on the current OS."""
+    system = platform.system()
+    if system == "Darwin":
+        return "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+    elif system == "Windows":
+        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+    return "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+
+
 def convert_mcp_servers_config(mcp_servers_list: list) -> dict:
     """
     Convert MCP servers list from QuestionSchema to the format expected by MultiServerMCPClient.
@@ -52,6 +64,9 @@ def convert_mcp_servers_config(mcp_servers_list: list) -> dict:
         return {}
 
     mcp_config = {}
+    # Use the credible User-Agent from env or autodetected
+    default_ua = os.getenv("MCP_USER_AGENT", get_default_user_agent())
+
     for server_config in mcp_servers_list:
         server_name = server_config.get("name", f"server_{len(mcp_config)}")
 
@@ -61,9 +76,50 @@ def convert_mcp_servers_config(mcp_servers_list: list) -> dict:
         # Create a copy of the server config without the 'name' field
         config_copy = {k: v for k, v in server_config.items() if k != "name"}
 
-        # Set default transport to stdio if not provided
-        if "transport" not in config_copy:
-            config_copy["transport"] = "stdio"
+        # Map 'type' to 'transport' (common in MCP manifests like Claude Desktop)
+        if "type" in config_copy and "transport" not in config_copy:
+            config_copy["transport"] = config_copy.pop("type")
+
+        # Infer transport from URL if missing
+        transport = config_copy.get("transport")
+        if not transport:
+            if "url" in config_copy:
+                transport = "streamable-http"
+            else:
+                transport = "stdio"
+
+        config_copy["transport"] = transport
+
+        # Apply default headers for HTTP-based transports (SSE or streamable-http)
+        if transport in ["sse", "streamable-http", "http"]:
+            headers = config_copy.get("headers", {})
+
+            # Normalize header keys to lowercase for checking but keep original casing for the final dict if possible
+            lower_headers = {k.lower(): v for k, v in headers.items()}
+
+            # Force/Override User-Agent with a credible one if it's generic or missing
+            # This implements the "pisándolo" (overwriting) requested by the user
+            current_ua = lower_headers.get("user-agent")
+            if (
+                not current_ua
+                or "python-httpx" in current_ua.lower()
+                or "mcp-python-sdk" in current_ua.lower()
+            ):
+                headers["User-Agent"] = default_ua
+
+            # Ensure Accept header includes text/event-stream (required by Algolia and others)
+            current_accept = lower_headers.get("accept")
+            if not current_accept:
+                headers["Accept"] = "application/json, text/event-stream"
+            elif "text/event-stream" not in current_accept:
+                # Add to existing accept header
+                headers["Accept"] = f"{headers.get('Accept', headers.get('accept'))}, text/event-stream"
+
+            # Ensure Content-Type is set for POST requests (streamable-http initialization often needs it)
+            if "content-type" not in lower_headers:
+                headers["Content-Type"] = "application/json"
+
+            config_copy["headers"] = headers
 
         mcp_config[server_name] = config_copy
 
@@ -151,10 +207,12 @@ async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
     # Create new MCP client for each request
     try:
         client = MultiServerMCPClient(mcp_servers_config)
+
         # Get tools with timeout
-        tools = await asyncio.wait_for(client.get_tools(), timeout=45.0)
+        tools = await asyncio.wait_for(client.get_tools(), timeout=60.0)
 
         # Fix schema for tools with validation issues
+        copilot_debug(f"Retrieved {len(tools)} MCP tools.")
         for tool in tools:
             if hasattr(tool, "args_schema"):
                 schema = tool.args_schema
