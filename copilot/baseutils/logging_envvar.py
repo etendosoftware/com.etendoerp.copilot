@@ -138,7 +138,7 @@ def is_docker():
     if read_optional_env_var_bool("docker_com.etendoerp.copilot", False):
         return True
     cwd = os.getcwd()
-    if cwd.startswith("/app/"):
+    if cwd == "/app" or cwd.startswith("/app/"):
         copilot_debug(f"Current working directory is {cwd}, indicating a Docker environment.")
         return True
 

@@ -70,14 +70,25 @@ def get_vector_db_path(vector_db_id):
     except Exception:
         cwd = "unknown"
     copilot_debug(f"Retrieving vector db path for {vector_db_id}, the current working directory is {cwd}")
-    # check if exists /app
-    if os.path.exists("/app"):
+
+    from copilot.baseutils.logging_envvar import is_docker
+
+    # check if exists /app or if we are in docker
+    if is_docker() or os.path.exists("/app"):
         vectordb_folder = "/app/vectordbs"
     else:
-        vectordb_folder = "./vectordbs"
+        vectordb_folder = os.path.join(os.getcwd(), "vectordbs")
+
     if not os.path.exists(vectordb_folder):
-        os.makedirs(vectordb_folder, exist_ok=True)
-    return vectordb_folder + "/" + vector_db_id + ".db"
+        try:
+            os.makedirs(vectordb_folder, exist_ok=True)
+        except Exception as e:
+            copilot_debug(f"Warning: Could not create vectordbs folder {vectordb_folder}: {e}")
+            # Fallback to a local path or temporary directory
+            vectordb_folder = os.path.join(tempfile.gettempdir(), "copilot_vectordbs")
+            os.makedirs(vectordb_folder, exist_ok=True)
+
+    return os.path.join(vectordb_folder, f"{vector_db_id}.db")
 
 
 def get_chroma_settings(db_path=None):

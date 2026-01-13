@@ -13,12 +13,10 @@ def get_kb_tool(agent_config: AssistantSchema = None):
     kb_tool = None
     kb_search_k = agent_config.kb_search_k if agent_config else 4
     kb_vectordb_id = agent_config.kb_vectordb_id if agent_config else None
-    if (
-        kb_vectordb_id is not None
-        and os.path.exists(get_vector_db_path(kb_vectordb_id))
-        and os.listdir(get_vector_db_path(kb_vectordb_id))
-    ):
-        db_path = get_vector_db_path(kb_vectordb_id)
+    if kb_vectordb_id is None:
+        return None
+    db_path = get_vector_db_path(kb_vectordb_id)
+    if os.path.isdir(db_path) and os.listdir(db_path):
         db = Chroma(
             persist_directory=db_path,
             embedding_function=get_embedding(),
