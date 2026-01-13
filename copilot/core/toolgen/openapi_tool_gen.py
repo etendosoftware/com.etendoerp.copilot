@@ -4,15 +4,19 @@ import re
 from typing import Any, Dict, List, Optional, Union
 
 from copilot.core.tool_wrapper import CopilotTool
+from copilot.core.toolgen.api_tool_util import (
+    ETENDO_HEADLESS_PATH_PREFIX,
+    do_request,
+    is_etendo_headless_get,
+    is_etendo_headless_post,
+    is_etendo_headless_put,
+)
 from copilot.core.utils.etendo_utils import get_etendo_host, get_etendo_token
-from pydantic import BaseModel, Field, create_model
-
-from .api_tool_util import do_request
+from pydantic import BaseModel, ConfigDict, Field, create_model
 
 logger = logging.getLogger(__name__)
 
 # Constants
-ETENDO_HEADLESS_PATH_PREFIX = "/sws/com.etendoerp.etendorx.datasource"
 ETENDO_HEADLESS_PAGINATION_PARAMS = {"_startRow": "startRow", "_endRow": "endRow"}
 
 
@@ -69,27 +73,6 @@ def _get_type_mapping():
     }
 
 
-def _is_etendo_headless_get(method: str, path: str) -> bool:
-    """Check if this is an Etendo Headless GET endpoint."""
-    return method.lower() == "get" and path.startswith(ETENDO_HEADLESS_PATH_PREFIX)
-
-
-def _is_etendo_headless_put(method: str, path: str) -> bool:
-    """
-    Check if this is an Etendo Headless PUT endpoint.
-    These endpoints require PATCH-like behavior (exclude_unset=True).
-    """
-    return method.lower() == "put" and path.startswith(ETENDO_HEADLESS_PATH_PREFIX)
-
-
-def _is_etendo_headless_post(method: str, path: str) -> bool:
-    """
-    Check if this is an Etendo Headless POST endpoint.
-    These endpoints require PATCH-like behavior (exclude_unset=True).
-    """
-    return method.lower() == "post" and path.startswith(ETENDO_HEADLESS_PATH_PREFIX)
-
-
 def _process_etendo_headless_param(original_name: str, param: Dict) -> tuple:
     """Process Etendo Headless pagination parameters."""
     if original_name in ETENDO_HEADLESS_PAGINATION_PARAMS:
@@ -115,7 +98,7 @@ def _process_openapi_parameters(
     param_locations = {}
     param_mapping = {}  # Track parameter name mappings for Etendo Headless
 
-    is_etendo_headless = _is_etendo_headless_get(method, path)
+    is_etendo_headless = is_etendo_headless_get(method, path)
 
     for param in openapi_params:
         original_name = param["name"]
@@ -223,8 +206,20 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
             field_meta = Field(description=prop_description, default=None)
             body_model_fields[prop_name] = (Optional[field_type], field_meta)
 
-    body_model = create_model(body_model_name, **body_model_fields)
+    body_model = create_model(body_model_name, __config__=ConfigDict(extra="allow"), **body_model_fields)
     body_description = request_body.get("description", "Request body for the tool.")
+
+    # Enrich description with property info to help the AI
+    if "properties" in schema_dict:
+        props_list = []
+        for p_name, p_data in schema_dict["properties"].items():
+            p_desc = p_data.get("description", "")
+            p_type = _get_property_type(p_data)
+            p_req = " (required)" if p_name in schema_dict.get("required", []) else ""
+            props_list.append(f"- {p_name} ({p_type}){p_req}: {p_desc}")
+
+        if props_list:
+            body_description += "\n\nProperties:\n" + "\n".join(props_list)
 
     return body_model, body_description
 
@@ -291,7 +286,7 @@ def _generate_function_code(
     # Choose the appropriate model_dump method
     # For Etendo Headless PUT and POST, we use exclude_unset=True to achieve PATCH-like behavior,
     # ensuring only explicitly provided fields are sent to the API.
-    if _is_etendo_headless_put(method, path) or _is_etendo_headless_post(method, path):
+    if is_etendo_headless_put(method, path) or is_etendo_headless_post(method, path):
         model_dump_method = "body_params.model_dump(exclude_unset=True)"
     else:
         model_dump_method = "body_params.model_dump()"
@@ -387,13 +382,13 @@ def _process_single_operation(
     body_info = _process_request_body(method, operation, path, type_map)
     if body_info:
         body_model, body_description = body_info
-        # Use Any type to allow maximum flexibility for body payloads
-        # This accepts both single objects and arrays without strict validation
-        # The _run_dynamic function handles serialization for all cases
-        model_fields["body"] = (
-            Any,
-            Field(description=body_description)
-        )
+        # Use Union only for Etendo Headless POST which supports bulk
+        if is_etendo_headless_post(method, path):
+            body_type = Union[body_model, List[body_model]]
+        else:
+            body_type = body_model
+
+        model_fields["body"] = (body_type, Field(description=body_description))
 
     # Check if this is an Etendo classic endpoint
     etendo_host_docker = get_etendo_host()
@@ -452,7 +447,7 @@ def _process_single_operation(
     if param_mapping:
         logger.info(f"  - Parameter mapping: {param_mapping}")
 
-    if _is_etendo_headless_put(method, path) or _is_etendo_headless_post(method, path):
+    if is_etendo_headless_put(method, path) or is_etendo_headless_post(method, path):
         logger.info(f"  - Etendo Headless {method.upper()} detected: using exclude_unset=True (PATCH-like)")
     else:
         logger.info("  - Body serialization: standard model_dump()")

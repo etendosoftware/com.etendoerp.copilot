@@ -4,6 +4,10 @@ from typing import Any, Dict, List, Optional, Union
 import aiohttp
 import requests
 from copilot.baseutils.logging_envvar import copilot_debug, read_optional_env_var
+from copilot.core.toolgen.api_tool_util import (
+    is_etendo_headless_path,
+    is_etendo_headless_post,
+)
 from langchain.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
@@ -37,7 +41,9 @@ def schema_to_pydantic_type(schema: Dict[str, Any]) -> Any:
         fields = get_fields(properties, schema)
 
         model_name = schema.get("title", "DynamicModel")
-        return create_model(model_name, **fields)
+        return create_model(
+            model_name, __config__=ConfigDict(extra="allow", arbitrary_types_allowed=True), **fields
+        )
     else:
         # Fallback to str if type is unknown and not one of the above complex types
         return type_map.get(schema_type, str)
@@ -96,14 +102,14 @@ def read_schema_type(schema):
 
 def summarize(method, url, text):
     simple_mode = read_optional_env_var("COPILOT_SIMPLE_MODE", "false").lower() == "true"
-    if (method.upper() in ["POST", "PUT"]) and "com.etendoerp.etendorx.datasource" in url and simple_mode:
+    if (method.upper() in ["POST", "PUT"]) and is_etendo_headless_path(url) and simple_mode:
         try:
             # lest resume the json
             resp_json = json.loads(text)
             res_id = resp_json.get("response").get("data")[0].get("id")
             endpoint_name = url.split("/")[-1]
 
-            msg = f" {endpoint_name} record has been {'created' if method.upper() == 'POST' else 'updated'} successfully with id: {id}"
+            msg = f" {endpoint_name} record has been {'created' if method.upper() == 'POST' else 'updated'} successfully with id: {res_id}"
             rsp = {
                 "summary": msg,
                 "id": res_id,
@@ -198,19 +204,33 @@ class ApiTool(BaseTool, BaseModel):
             content = self.request_body.get("content", {}).get("application/json", {})
             body_schema = content.get("schema", {})
 
-            # Body must accept both single objects and arrays of objects
-            # We skip strict model validation here to allow flexible input
-            # build_payload() handles serialization for both cases
-            fields["body"] = (
-                Any,
-                Field(..., description="Request body - can be a single item or a list of items")
+            body_model = schema_to_pydantic_type(body_schema)
+            body_description = self.request_body.get(
+                "description", "Request body - can be a single item or a list of items"
             )
+
+            # Enrich description with property info
+            if body_schema.get("properties"):
+                props_list = []
+                for p_name, p_data in body_schema["properties"].items():
+                    p_desc = p_data.get("description", "")
+                    p_type = p_data.get("type", "any")
+                    p_req = " (required)" if p_name in body_schema.get("required", []) else ""
+                    props_list.append(f"- {p_name} ({p_type}){p_req}: {p_desc}")
+                if props_list:
+                    body_description += "\n\nProperties:\n" + "\n".join(props_list)
+
+            # Use Union only for Etendo Headless POST which supports bulk
+            if is_etendo_headless_post(self.method, self.path) and body_model is not Any:
+                body_type = Union[body_model, List[body_model]]
+            else:
+                body_type = body_model
+
+            fields["body"] = (body_type, Field(..., description=body_description))
 
         # Create the args schema with arbitrary_types_allowed to bypass strict validation
         self.args_schema = create_model(
-            f"{name}Args",
-            __config__=ConfigDict(arbitrary_types_allowed=True),
-            **fields
+            f"{name}Args", __config__=ConfigDict(arbitrary_types_allowed=True), **fields
         )
 
     def _run(self, **kwargs: Any) -> str:

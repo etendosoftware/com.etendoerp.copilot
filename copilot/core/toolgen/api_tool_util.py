@@ -4,6 +4,34 @@ import curlify
 import requests
 from copilot.baseutils.logging_envvar import copilot_debug
 
+ETENDO_HEADLESS_PATH_PREFIX = "/sws/com.etendoerp.etendorx.datasource"
+
+
+def is_etendo_headless_get(method: str, path: str) -> bool:
+    """Check if this is an Etendo Headless GET endpoint."""
+    return method.lower() == "get" and path.strip("/").startswith(ETENDO_HEADLESS_PATH_PREFIX.strip("/"))
+
+
+def is_etendo_headless_put(method: str, path: str) -> bool:
+    """
+    Check if this is an Etendo Headless PUT endpoint.
+    These endpoints require PATCH-like behavior (exclude_unset=True).
+    """
+    return method.lower() == "put" and path.strip("/").startswith(ETENDO_HEADLESS_PATH_PREFIX.strip("/"))
+
+
+def is_etendo_headless_post(method: str, path: str) -> bool:
+    """
+    Check if this is an Etendo Headless POST endpoint.
+    These endpoints require PATCH-like behavior (exclude_unset=True).
+    """
+    return method.lower() == "post" and path.strip("/").startswith(ETENDO_HEADLESS_PATH_PREFIX.strip("/"))
+
+
+def is_etendo_headless_path(path_or_url: str) -> bool:
+    """Check if the given path or URL refers to an Etendo Headless datasource."""
+    return ETENDO_HEADLESS_PATH_PREFIX.strip("/") in path_or_url
+
 
 def token_not_none(headers, token, url, endpoint):
     """Ensure the Authorization header is set when a token is required.
