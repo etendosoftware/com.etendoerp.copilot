@@ -534,6 +534,11 @@ public class CopilotUtils {
     return hostDocker;
   }
 
+  public static String getContextUrl() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    return properties.getProperty("context.url", getEtendoHost());
+  }
+
   public static String getCopilotHost() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     return properties.getProperty(COPILOT_HOST, "");
