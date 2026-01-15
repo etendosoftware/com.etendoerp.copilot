@@ -86,7 +86,7 @@ public class CopilotVarReplacerUtil {
     OBContext obContext = OBContext.getOBContext();
     String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", CopilotUtils.getEtendoHost());
     stringParsed = StringUtils.replace(stringParsed, "@ETENDO_HOST_DOCKER@", CopilotUtils.getEtendoHostDocker());
-    stringParsed = StringUtils.replace(stringParsed, "@CONTEXT.URL@", CopilotUtils.getContextUrl());
+    stringParsed = StringUtils.replace(stringParsed, "@context.url@", CopilotUtils.getContextUrl());
 
     if (obContext.getCurrentClient() != null) {
       stringParsed = StringUtils.replace(stringParsed, "@AD_CLIENT_ID@", obContext.getCurrentClient().getId());
