@@ -183,7 +183,7 @@ public class ExecTask extends Action {
     }
     if (rawResponseJson.has("conversation_id")) {
       String responseString = rawResponseJson.getString("conversation_id");
-      task.setEtcopConv(responseString);
+      task.setEtcopConvID(responseString);
     }
 
     OBDal.getInstance().save(task);
