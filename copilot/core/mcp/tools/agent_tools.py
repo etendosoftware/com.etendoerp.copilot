@@ -5,10 +5,12 @@ This module contains tools that are dynamically loaded from Etendo Classic
 based on the agent configuration and provides tools specific to each agent.
 """
 
+from __future__ import annotations
+
 import inspect
 import logging
 import re
-from typing import List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 import httpx
 from copilot.baseutils.logging_envvar import copilot_debug, copilot_error, copilot_info
@@ -24,9 +26,40 @@ from copilot.core.utils.etendo_utils import (
     validate_etendo_token,
 )
 from fastmcp.server.dependencies import get_context
-from fastmcp.tools.tool import Tool
+from fastmcp.tools.tool import FunctionTool, Tool
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel
+
+# Monkey-patch FastMCP to ignore extra properties from clients like n8n
+# This is a workaround for n8n MCP node sending extra properties in tool calls
+# When this is fixed in n8n, this monkey-patch can be removed
+_original_run = FunctionTool.run  # keep original
+
+
+async def _run_with_arg_sanitizer(self: FunctionTool, arguments: Dict[str, Any]) -> Any:  # type: ignore[override]
+    """
+    Sanitize tool arguments before FastMCP does its strict parameter validation.
+    Drops keys that are not in the underlying function's signature
+    (e.g., sessionId, toolCallId, chatInput, action).
+    """
+    # if not a dict, just pass through
+    if not isinstance(arguments, dict):
+        return await _original_run(self, arguments)
+
+    # Cache allowed parameter names per tool
+    if not hasattr(self, "_allowed_parameter_names"):
+        signature = inspect.signature(self.fn)
+        self._allowed_parameter_names = tuple(signature.parameters.keys())  # type: ignore[attr-defined]
+
+    allowed = self._allowed_parameter_names  # type: ignore[attr-defined]
+    sanitized = {k: v for k, v in arguments.items() if k in allowed}
+
+    # Call the original FastMCP logic with the cleaned args
+    return await _original_run(self, sanitized)
+
+
+FunctionTool.run = _run_with_arg_sanitizer
+# End of workaround monkey-patch
 
 logger = logging.getLogger(__name__)
 
