@@ -25,7 +25,6 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
-import org.openbravo.model.common.plm.Product;
 import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -34,12 +33,11 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.data.TeamMember;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
-import com.etendoerp.copilot.util.CopilotAppInfoUtils;
-import com.etendoerp.etendorx.utils.ElasticsearchUtils;
 import com.etendoerp.openapi.data.OpenApiFlowPoint;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
@@ -145,19 +143,6 @@ public class SyncAssistant extends BaseProcessActionHandler {
     return result;
   }
 
-  private void doSyncElastic() {
-    var productList  = OBDal.getInstance().createCriteria(Product.class);
-    for (Product product : productList.list()) {
-      try{
-      var json = new JSONObject();
-      json.put("id", product.getId());
-      json.put("identifier", product.getIdentifier());
-        ElasticsearchUtils.indexDocument("Product",json);
-      } catch (Exception e){
-        log.error("Error syncing product to elasticsearch: " + product.getIdentifier(), e);
-      }
-    }
-  }
 
   /**
    * This method retrieves a list of {@link CopilotApp} instances based on the given selected records.
@@ -405,7 +390,6 @@ public class SyncAssistant extends BaseProcessActionHandler {
     // Build and return a message summarizing the synchronization results
     return buildMessage(syncCount, appList.size());
   }
-
 
 
   /**
