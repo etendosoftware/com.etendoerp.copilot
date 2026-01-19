@@ -53,7 +53,6 @@ public class HQLQueryHook implements CopilotFileHook {
       String hql = hookObject.getHql();
       String extension = StringUtils.substringAfterLast(fileName, ".");
       Map<Client, Path> clientPathMap = new HashMap<>();
-      if (isMultiClient()) {
         List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
         for (Client client : clientList) {
           String hqlResult = ProcessHQLAppSource.getHQLResult(hql, "e", extension, client.getId());
@@ -63,14 +62,6 @@ public class HQLQueryHook implements CopilotFileHook {
           }
           clientPathMap.put(client, path);
         }
-      } else {
-        String hqlResult = ProcessHQLAppSource.getHQLResult(hql, "e", extension, hookObject.getClient().getId());
-        Path path = Files.createTempFile("hql_query_result_", "." + extension);
-        try (FileOutputStream fos = new FileOutputStream(path.toFile())) {
-          fos.write(hqlResult.getBytes());
-        }
-        clientPathMap.put(hookObject.getClient(), path);
-      }
       refreshFileForNonMultiClient(hookObject, clientPathMap);
     } catch (IOException e) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileDownErr"), url), e);
@@ -92,5 +83,17 @@ public class HQLQueryHook implements CopilotFileHook {
   @Override
   public boolean typeCheck(String type) {
     return StringUtils.equals(type, "HQL");
+  }
+
+  /**
+   * Indicates whether the hook supports multi-client file versions. This means that the file will be "obtained" for each client with access
+   * to an agent related to the Knowledge Base file.
+   * By default, this method returns false.
+   *
+   * @return true if the hook supports multi-client file versions, false otherwise.
+   */
+  @Override
+  public boolean isMultiClient() {
+    return true;
   }
 }

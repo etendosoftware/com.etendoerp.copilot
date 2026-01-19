@@ -113,6 +113,7 @@ public class RestServiceUtil {
   public static final String PROP_KB_VECTORDB_ID = "kb_vectordb_id";
   public static final String PROP_KB_SEARCH_K = "kb_search_k";
   public static final String PROP_AD_USER_ID = "ad_user_id";
+  public static final String PROP_AD_CLIENT_ID = "ad_client_id";
   public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
   public static final String METADATA = "metadata";
   public static final String PROP_STRUCTURED_OUTPUT_JSON_SCHEMA = "structured_output_json_schema";
@@ -613,6 +614,7 @@ public class RestServiceUtil {
     }
 
     jsonRequestForCopilot.put(RestServiceUtil.PROP_AD_USER_ID, OBContext.getOBContext().getUser().getId());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_AD_CLIENT_ID, OBContext.getOBContext().getCurrentClient().getId());
     question += getAppSourceContent(copilotApp.getETCOPAppSourceList(), CopilotConstants.FILE_BEHAVIOUR_QUESTION);
     CopilotUtils.checkQuestionPrompt(question);
     jsonRequestForCopilot.put(PROP_QUESTION, question + appendLocalFileIds(questionAttachedFileIds));

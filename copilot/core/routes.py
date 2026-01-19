@@ -137,6 +137,7 @@ def load_thread_context(question):
     ThreadContext.set_data("assistant_id", question.assistant_id)
     ThreadContext.set_data("conversation_id", conversation_id)
     ThreadContext.set_data("ad_user_id", question.ad_user_id)
+    ThreadContext.set_data("ad_client_id", question.ad_client_id if question.ad_client_id else "0")
 
 
 def _execute_agent(copilot_agent, question: QuestionSchema):
@@ -342,6 +343,7 @@ def serve_assistant():
 def reset_vector_db(body: VectorDBInputSchema):
     try:
         kb_vectordb_id = body.kb_vectordb_id
+        ad_client_id = body.ad_client_id
         db_path = get_vector_db_path(kb_vectordb_id)
 
         # Initialize the database client
@@ -354,13 +356,21 @@ def reset_vector_db(body: VectorDBInputSchema):
         collection_names = [LANGCHAIN_DEFAULT_COLLECTION_NAME, IMAGES_COLLECTION_NAME]
         total_marked = 0
 
+        # Define criteria to filter by ad_client_id
+        # We only want to purge documents that belong to '0' (shared) or the current client
+        where_filter = (
+            {"ad_client_id": {"$in": ["0", ad_client_id]}}
+            if ad_client_id and ad_client_id != "0"
+            else {"ad_client_id": "0"}
+        )
+
         for collection_name in collection_names:
             try:
                 collection = db_client.get_or_create_collection(collection_name)
                 copilot_debug(f"Processing collection: {collection.name}")
 
-                # Retrieve all documents from the collection
-                documents = collection.get()
+                # Retrieve documents from the collection filtering by client
+                documents = collection.get(where=where_filter)
                 document_ids = documents["ids"]
                 metadatas = documents["metadatas"]
 
@@ -407,6 +417,7 @@ def process_text_to_vector_db(
     skip_splitting: bool = Form(False),
     max_chunk_size: int = Form(None),
     chunk_overlap: int = Form(None),
+    ad_client_id: str = Form("0"),
 ):
     from copilot.core.vectordb_utils import (
         IMAGE_EXTENSIONS,
@@ -435,7 +446,13 @@ def process_text_to_vector_db(
                 # Use IMAGES collection for image references
                 from copilot.core.vectordb_utils import IMAGES_COLLECTION_NAME
 
-                result = index_image_file(file_path, chroma_client, IMAGES_COLLECTION_NAME, kb_vectordb_id)
+                result = index_image_file(
+                    file_path,
+                    chroma_client,
+                    IMAGES_COLLECTION_NAME,
+                    kb_vectordb_id,
+                    ad_client_id=ad_client_id,
+                )
 
                 if result.get("status") == "error":
                     success = False
@@ -452,9 +469,11 @@ def process_text_to_vector_db(
             # Process text/document files
             if extension == "zip":
                 # Process the ZIP file
-                texts = handle_zip_file(file_path, chroma_client, splitter_config)
+                texts = handle_zip_file(file_path, chroma_client, splitter_config, ad_client_id=ad_client_id)
             else:
-                texts = index_file(extension, file_path, chroma_client, splitter_config)
+                texts = index_file(
+                    extension, file_path, chroma_client, splitter_config, ad_client_id=ad_client_id
+                )
                 # Remove the temporary file after use
 
             copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
@@ -487,6 +506,7 @@ def process_text_to_vector_db(
 def purge_vectordb(body: VectorDBInputSchema):
     try:
         kb_vectordb_id = body.kb_vectordb_id
+        ad_client_id = body.ad_client_id
         db_path = get_vector_db_path(kb_vectordb_id)
 
         db_client = chromadb.Client(settings=get_chroma_settings(db_path))
@@ -498,19 +518,27 @@ def purge_vectordb(body: VectorDBInputSchema):
         collection_names = [LANGCHAIN_DEFAULT_COLLECTION_NAME, IMAGES_COLLECTION_NAME]
         total_purged = 0
 
+        # Define criteria to filter by purge flag and ad_client_id
+        # We only want to delete documents marked for purge that belong to '0' or the current client
+        where_filter = (
+            {"$and": [{"purge": True}, {"ad_client_id": {"$in": ["0", ad_client_id]}}]}
+            if ad_client_id and ad_client_id != "0"
+            else {"$and": [{"purge": True}, {"ad_client_id": "0"}]}
+        )
+
         for collection_name in collection_names:
             try:
                 collection = db_client.get_or_create_collection(collection_name)
                 copilot_debug(f"Processing collection: {collection.name}")
 
                 # Count the number of documents to be purged
-                documents = collection.get(where={"purge": True})
+                documents = collection.get(where=where_filter)
                 num_docs = len(documents["ids"])
                 copilot_debug(f"Collection {collection_name}: {num_docs} documents to be purged")
 
-                # Delete all documents marked for purge
+                # Delete documents marked for purge filtering by client
                 if num_docs > 0:
-                    collection.delete(where={"purge": True})
+                    collection.delete(where=where_filter)
                     copilot_debug(f"Purged {num_docs} documents from collection {collection_name}")
                     total_purged += num_docs
                 else:

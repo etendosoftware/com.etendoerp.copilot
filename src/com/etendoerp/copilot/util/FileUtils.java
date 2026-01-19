@@ -97,8 +97,8 @@ public class FileUtils {
   }
 
   static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName, String extension, boolean skipSplitting,
-      Long maxChunkSize, Long chunkOverlap) throws JSONException {
-    CopilotUtils.toVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap);
+      Long maxChunkSize, Long chunkOverlap, String clientId) throws JSONException {
+    CopilotUtils.toVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap, clientId);
   }
 
   static File generateHQLFile(CopilotAppSource appSource) {
@@ -234,10 +234,11 @@ public class FileUtils {
   }
 
   public static void refreshFileForNonMultiClient(CopilotFile hookObject, Map<Client, Path> clientPathMap) throws IOException {
+    boolean useTemp = useFileFromTemp(hookObject);
     for (Map.Entry<Client, Path> entry : clientPathMap.entrySet()) {
       Client client = entry.getKey();
       Path path = entry.getValue();
-      if (useFileFromTemp(hookObject)) {
+      if (useTemp) {
         //Store only the internal path to the file
         savePathInVariant(hookObject, client, path);
       } else { //any type of behavior except the KB
@@ -245,8 +246,8 @@ public class FileUtils {
         //save data in variant
         saveDataInVariant(hookObject, client, path);
       }
-      OBDal.getInstance().flush();
     }
+    OBDal.getInstance().flush();
   }
 
   public static void savePathInVariant(CopilotFile hookObject, Client client, Path path) {
@@ -274,7 +275,7 @@ public class FileUtils {
     return variant;
   }
 
-  private static void saveDataInVariant(CopilotFile hookObject, Client client, Path path) throws IOException {
+  public static void saveDataInVariant(CopilotFile hookObject, Client client, Path path) throws IOException {
     var variant = getOrCreateVariant(hookObject, client);
     variant.setInternalPath(null);
     variant.setFiledata(Files.readAllBytes(path));
@@ -282,9 +283,16 @@ public class FileUtils {
   }
 
   public static boolean useFileFromTemp(CopilotFile hookObject) {
-    //If all app sources are of KB behavior, we can use from the temp path, not saving in DB. The file will be deleted after Sync.
-    return hookObject.getETCOPAppSourceList().stream().allMatch(appSource ->
-        StringUtils.equals(appSource.getBehaviour(), CopilotConstants.FILE_BEHAVIOUR_KB)
-    );
+    // If all app sources are of KB behavior, we can use from the temp path, not saving in DB. The file will be deleted after Sync.
+    List<CopilotAppSource> appSources = hookObject.getETCOPAppSourceList();
+    if (appSources.isEmpty()) {
+      return false;
+    }
+    for (CopilotAppSource appSource : appSources) {
+      if (!CopilotConstants.isKbBehaviour(appSource)) {
+        return false;
+      }
+    }
+    return true;
   }
 }

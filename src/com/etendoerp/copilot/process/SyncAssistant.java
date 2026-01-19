@@ -368,8 +368,11 @@ public class SyncAssistant extends BaseProcessActionHandler {
 
     for (CopilotApp app : appList) {
       // Filter the application's sources to include only knowledge base files
+      String clientID = OBContext.getOBContext().getCurrentClient().getId();
       List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream().filter(
-          CopilotConstants::isKbBehaviour).collect(Collectors.toList());
+          CopilotConstants::isKbBehaviour).filter(
+          kbf -> mustUpdateKBF(kbf, clientID)
+      ).collect(Collectors.toList());
       // Handle synchronization based on the application type
       switch (app.getAppType()) {
         case CopilotConstants.APP_TYPE_OPENAI:
@@ -389,6 +392,13 @@ public class SyncAssistant extends BaseProcessActionHandler {
 
     // Build and return a message summarizing the synchronization results
     return buildMessage(syncCount, appList.size());
+  }
+
+  private boolean mustUpdateKBF(CopilotAppSource kbf, String clientID) {
+    //if the kbf client is "0", or equals to current client, must update
+    //using stringutils
+    return StringUtils.equals(kbf.getClient().getId(), "0") ||
+        StringUtils.equals(kbf.getClient().getId(), clientID);
   }
 
 
