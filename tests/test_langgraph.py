@@ -11,7 +11,7 @@ from copilot.core.langgraph.patterns import SupervisorPattern
 from copilot.core.schema.graph_member import GraphMember
 from copilot.core.schemas import GraphQuestionSchema
 from fastapi.testclient import TestClient
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.memory import MemorySaver
 
 client = TestClient(app)
 
@@ -88,7 +88,7 @@ class TestCopilotLangGraph(unittest.TestCase):
         pattern.connect_graph = mock_connect_graph
         pattern.compile.return_value = MagicMock()
 
-        memory = SqliteSaver.from_conn_string(":memory:")
+        memory = MemorySaver()
         # Creating instance
         instance = CopilotLangGraph(members, assistant_graph, pattern, memory)
 
@@ -114,7 +114,7 @@ class TestCopilotLangGraph(unittest.TestCase):
         graph.stream.return_value = [{"__end__": False, "content": "Test message"}]
         pattern.compile.return_value = graph
 
-        memory = SqliteSaver.from_conn_string(":memory:")
+        memory = MemorySaver()
         # Creating instance
         CopilotLangGraph(members, assistant_graph, pattern, memory)
 
@@ -125,7 +125,7 @@ def test_copilot_lang_graph(graph_question_payload):
     members = MembersUtil().get_members(graph_question_payload)
     assert len(members) == 3
 
-    memory = SqliteSaver.from_conn_string(":memory:")
+    memory = MemorySaver()
     CopilotLangGraph(members, graph_question_payload.graph, pattern, memory, graph_question_payload)
 
 
