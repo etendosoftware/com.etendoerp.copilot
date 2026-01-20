@@ -70,6 +70,7 @@ public class CopilotUtils {
 
   public static final String MAX_CHUNK_SIZE = "max_chunk_size";
   public static final String CHUNK_OVERLAP = "chunk_overlap";
+  public static final String AD_CLIENT_ID = "ad_client_id";
 
   private CopilotUtils() {
     // Private constructor to prevent instantiation
@@ -119,7 +120,7 @@ public class CopilotUtils {
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
     jsonRequestForCopilot.put("skip_splitting", skipSplitting);
-    jsonRequestForCopilot.put("ad_client_id", StringUtils.defaultIfEmpty(clientId, "0"));
+    jsonRequestForCopilot.put(AD_CLIENT_ID, StringUtils.defaultIfEmpty(clientId, "0"));
     if (maxChunkSize != null) {
       jsonRequestForCopilot.put(MAX_CHUNK_SIZE, maxChunkSize);
     }
@@ -287,7 +288,7 @@ public class CopilotUtils {
     JSONObject jsonRequestForCopilot = new JSONObject();
 
     jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
-    jsonRequestForCopilot.put("ad_client_id", OBContext.getOBContext().getCurrentClient().getId());
+    jsonRequestForCopilot.put(AD_CLIENT_ID, OBContext.getOBContext().getCurrentClient().getId());
     String endpoint = "ResetVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
         null);
@@ -645,7 +646,7 @@ public class CopilotUtils {
     JSONObject jsonRequestForCopilot = new JSONObject();
 
     jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
-    jsonRequestForCopilot.put("ad_client_id", app.getClient().getId());
+    jsonRequestForCopilot.put(AD_CLIENT_ID, app.getClient().getId());
     String endpoint = "purgeVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
         null);

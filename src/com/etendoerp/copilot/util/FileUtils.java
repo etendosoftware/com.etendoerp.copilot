@@ -233,6 +233,14 @@ public class FileUtils {
     }
   }
 
+  /**
+   * Refreshes the file for a non-multi-client environment.
+   * Depending on the behavior, it either saves the internal path or the file data in the variant.
+   *
+   * @param hookObject The Copilot file object.
+   * @param clientPathMap A map of clients and their corresponding file paths.
+   * @throws IOException If an I/O error occurs.
+   */
   public static void refreshFileForNonMultiClient(CopilotFile hookObject, Map<Client, Path> clientPathMap) throws IOException {
     boolean useTemp = useFileFromTemp(hookObject);
     for (Map.Entry<Client, Path> entry : clientPathMap.entrySet()) {
@@ -250,6 +258,13 @@ public class FileUtils {
     OBDal.getInstance().flush();
   }
 
+  /**
+   * Saves the internal file path in the variant for a specific client.
+   *
+   * @param hookObject The Copilot file object.
+   * @param client The client associated with the variant.
+   * @param path The path to be saved.
+   */
   public static void savePathInVariant(CopilotFile hookObject, Client client, Path path) {
     var variant = getOrCreateVariant(hookObject, client);
     variant.setFiledata(null);
@@ -275,6 +290,14 @@ public class FileUtils {
     return variant;
   }
 
+  /**
+   * Saves the file data in the variant for a specific client.
+   *
+   * @param hookObject The Copilot file object.
+   * @param client The client associated with the variant.
+   * @param path The path to the file to be read.
+   * @throws IOException If an I/O error occurs while reading the file.
+   */
   public static void saveDataInVariant(CopilotFile hookObject, Client client, Path path) throws IOException {
     var variant = getOrCreateVariant(hookObject, client);
     variant.setInternalPath(null);
@@ -282,6 +305,12 @@ public class FileUtils {
     OBDal.getInstance().save(variant);
   }
 
+  /**
+   * Determines if the file should be used from the temporary path based on the associated app sources.
+   *
+   * @param hookObject The Copilot file object.
+   * @return true if all app sources are of Knowledge Base behavior, false otherwise.
+   */
   public static boolean useFileFromTemp(CopilotFile hookObject) {
     // If all app sources are of KB behavior, we can use from the temp path, not saving in DB. The file will be deleted after Sync.
     List<CopilotAppSource> appSources = hookObject.getETCOPAppSourceList();

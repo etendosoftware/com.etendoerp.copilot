@@ -111,6 +111,16 @@ public class ProcessHQLAppSource {
     return new File(tempFile.toString());
   }
 
+  /**
+   * Retrieves the result of an HQL query and formats it based on the specified extension.
+   * This method applies client and organization filters to the query.
+   *
+   * @param hql The HQL query string.
+   * @param entityAlias The alias for the entity in the HQL query.
+   * @param extension The file extension (e.g., "csv", "json") to determine the format.
+   * @param clientId The client ID to filter the results.
+   * @return A string representation of the query results.
+   */
   public static String getHQLResult(String hql, String entityAlias, String extension, String clientId) {
     boolean isCsv = StringUtils.equalsIgnoreCase(extension, "csv");
     final org.hibernate.Session session = OBDal.getInstance().getSession();
