@@ -167,7 +167,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
 
     for (CopilotFile file : filesToClean) {
       if (FileUtils.useFileFromTemp(file)) {
-        cleanVariantFile(file, clientId);
+        cleanVariantFile(file);
       }
     }
   }
@@ -181,10 +181,8 @@ public class SyncAssistant extends BaseProcessActionHandler {
    *
    * @param file
    *     The CopilotFile for which to clean the variant file.
-   * @param clientId
-   *     The ID of the client associated with the variant.
    */
-  private void cleanVariantFile(CopilotFile file, String clientId) {
+  private void cleanVariantFile(CopilotFile file) {
      var variant = com.etendoerp.copilot.util.FileUtils.getOrCreateVariant(file, OBContext.getOBContext().getCurrentClient());
      if (StringUtils.isNotEmpty(variant.getInternalPath())) {
        FileUtils.cleanupTempFile(java.nio.file.Paths.get(variant.getInternalPath()), true);

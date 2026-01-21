@@ -356,21 +356,13 @@ def reset_vector_db(body: VectorDBInputSchema):
         collection_names = [LANGCHAIN_DEFAULT_COLLECTION_NAME, IMAGES_COLLECTION_NAME]
         total_marked = 0
 
-        # Define criteria to filter by ad_client_id
-        # We only want to purge documents that belong to '0' (shared) or the current client
-        where_filter = (
-            {"ad_client_id": {"$in": ["0", ad_client_id]}}
-            if ad_client_id and ad_client_id != "0"
-            else {"ad_client_id": "0"}
-        )
-
         for collection_name in collection_names:
             try:
                 collection = db_client.get_or_create_collection(collection_name)
                 copilot_debug(f"Processing collection: {collection.name}")
 
                 # Retrieve documents from the collection filtering by client
-                documents = collection.get(where=where_filter)
+                documents = collection.get(where=get_where_filter(ad_client_id))
                 document_ids = documents["ids"]
                 metadatas = documents["metadatas"]
 
@@ -405,6 +397,16 @@ def reset_vector_db(body: VectorDBInputSchema):
         copilot_debug(f"Error resetting VectorDB: {e}")
         raise e
     return {"answer": f"VectorDB marked for purge successfully. {total_marked} documents marked."}
+
+
+def get_where_filter(ad_client_id: str | None) -> dict[str, dict[str, list[str]]] | dict[str, str]:
+    """Get the where filter for querying documents based on ad_client_id."""
+    where_filter = (
+        {"ad_client_id": {"$in": ["0", ad_client_id]}}
+        if ad_client_id and ad_client_id != "0"
+        else {"ad_client_id": "0"}
+    )
+    return where_filter
 
 
 @core_router.post("/addToVectorDB")

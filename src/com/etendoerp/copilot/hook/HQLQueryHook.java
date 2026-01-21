@@ -1,11 +1,9 @@
 package com.etendoerp.copilot.hook;
 
 import static com.etendoerp.copilot.util.FileUtils.refreshFileForNonMultiClient;
-import com.etendoerp.copilot.util.FileUtils;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
@@ -55,29 +53,26 @@ public class HQLQueryHook implements CopilotFileHook {
       String hql = hookObject.getHql();
       String extension = StringUtils.substringAfterLast(fileName, ".");
 
-        List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
-        for (Client client : clientList) {
-          String hqlResult = ProcessHQLAppSource.getHQLResult(hql, "e", extension, client.getId());
-          Path path = FileUtils.createSecureTempFile("hql_query_result_" + client.getId() + "_", "." + extension);
-          try (FileOutputStream fos = new FileOutputStream(path.toFile())) {
-            fos.write(hqlResult.getBytes());
-          }
-          clientPathMap.put(client, path);
+      List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
+      for (Client client : clientList) {
+        String hqlResult = ProcessHQLAppSource.getHQLResult(hql, "e", extension, client.getId());
+        Path path = FileUtils.createSecureTempFile("hql_query_result_" + client.getId() + "_", "." + extension);
+        try (FileOutputStream fos = new FileOutputStream(path.toFile())) {
+          fos.write(hqlResult.getBytes());
         }
+        clientPathMap.put(client, path);
+      }
       refreshFileForNonMultiClient(hookObject, clientPathMap);
     } catch (IOException e) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileDownErr"), url), e);
     } finally {
-        // Clean up the temporary file if it's not being used as a Knowledge Base file
-          for (Path path : clientPathMap.values()) {
-            FileUtils.cleanupTempFileIfNeeded(hookObject, path);
-          }
+      // Clean up the temporary file if it's not being used as a Knowledge Base file
+      for (Path path : clientPathMap.values()) {
+        FileUtils.cleanupTempFileIfNeeded(hookObject, path);
+      }
     }
 
   }
-
-
-
 
 
   /**
