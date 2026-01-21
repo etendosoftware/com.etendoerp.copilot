@@ -499,7 +499,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
     try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
       utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
       // Should not throw exception
-      CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null);
+      CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null, null);
     }
   }
 
@@ -519,7 +519,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
     try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
       utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
       // Should not throw exception
-      CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, 1000L, 100L);
+      CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, 1000L, 100L, null);
     }
   }
 
@@ -539,7 +539,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
       utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
       messageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")).thenReturn(SYNC_FAILED_MESSAGE);
       OBException ex = assertThrows(OBException.class,
-          () -> CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null));
+          () -> CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null, null));
       assertEquals(SYNC_FAILED_MESSAGE, ex.getMessage());
     }
   }
@@ -558,7 +558,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
       utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(null);
       messageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")).thenReturn(SYNC_FAILED_MESSAGE);
       OBException ex = assertThrows(OBException.class,
-          () -> CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null));
+          () -> CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null, null));
       assertEquals(SYNC_FAILED_MESSAGE, ex.getMessage());
     }
   }
