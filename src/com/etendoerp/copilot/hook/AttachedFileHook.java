@@ -80,7 +80,7 @@ public class AttachedFileHook implements CopilotFileHook {
       String fileWithoutExtension = lastDot > 0 ? filename.substring(0, lastDot) : filename;
       String extension = lastDot > 0 ? filename.substring(lastDot) : "";
 
-      File tempFile = File.createTempFile(fileWithoutExtension, extension);
+      File tempFile = FileUtils.createSecureTempFile(fileWithoutExtension, extension).toFile();
       try (FileOutputStream fos = new FileOutputStream(tempFile)) {
         os.writeTo(fos);
       }

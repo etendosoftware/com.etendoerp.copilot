@@ -78,7 +78,7 @@ public class TextFileHook implements CopilotFileHook {
    */
   private Path generateTextFile(String text, String fileName) {
     try {
-      Path tempFile = Files.createTempFile(fileName, ".txt");
+      Path tempFile = FileUtils.createSecureTempFile(fileName, ".txt");
       try (FileOutputStream fos = new FileOutputStream(tempFile.toFile())) {
         fos.write(text.getBytes());
       }

@@ -2,6 +2,7 @@ package com.etendoerp.copilot.hook;
 
 import static com.etendoerp.copilot.util.CopilotUtils.getEtendoHostDocker;
 import static com.etendoerp.copilot.util.FileUtils.refreshFileForNonMultiClient;
+import com.etendoerp.copilot.util.FileUtils;
 
 import java.io.BufferedInputStream;
 import java.io.FileOutputStream;
@@ -98,7 +99,7 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
     try {
       String openAPISpec = new OpenAPIController().getOpenAPIJson(null, flow.getName(), getEtendoHostDocker(), true);
       openAPISpec = addInfoForCopilot(openAPISpec);
-      return Files.writeString(Files.createTempFile(fileName, ".json"), openAPISpec);
+      return Files.writeString(FileUtils.createSecureTempFile(fileName, ".json"), openAPISpec);
     } catch (Exception e) {
       throw new OBException(e);
     }
@@ -159,7 +160,7 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
     String finalName = getFinalName(customName, url);
 
     // Create a temporary directory
-    Path tempDirectory = Files.createTempDirectory("temporary_downloads");
+    Path tempDirectory = FileUtils.createSecureTempDirectory("temporary_downloads");
 
     // Full path of the file in the temporary directory
     Path destinationPath = tempDirectory.resolve(finalName);

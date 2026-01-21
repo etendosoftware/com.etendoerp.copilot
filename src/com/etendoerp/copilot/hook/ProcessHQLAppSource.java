@@ -26,6 +26,7 @@ import org.openbravo.service.json.JsonConstants;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.util.FileUtils;
 
 public class ProcessHQLAppSource {
   private static final ProcessHQLAppSource INSTANCE = new ProcessHQLAppSource();
@@ -101,7 +102,7 @@ public class ProcessHQLAppSource {
   }
 
   private File createAttachment(String fileName, String result) throws IOException {
-    Path tempDirectory = Files.createTempDirectory("temporary_queries");
+    Path tempDirectory = FileUtils.createSecureTempDirectory("temporary_queries");
     Path tempFile = tempDirectory.resolve(fileName);
     try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile.toFile())) {
       fileOutputStream.write(result.getBytes());

@@ -1,6 +1,7 @@
 package com.etendoerp.copilot.hook;
 
 import static com.etendoerp.copilot.util.FileUtils.refreshFileForNonMultiClient;
+import com.etendoerp.copilot.util.FileUtils;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -57,7 +58,7 @@ public class HQLQueryHook implements CopilotFileHook {
         List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
         for (Client client : clientList) {
           String hqlResult = ProcessHQLAppSource.getHQLResult(hql, "e", extension, client.getId());
-          Path path = Files.createTempFile("hql_query_result_" + client.getId() + "_", "." + extension);
+          Path path = FileUtils.createSecureTempFile("hql_query_result_" + client.getId() + "_", "." + extension);
           try (FileOutputStream fos = new FileOutputStream(path.toFile())) {
             fos.write(hqlResult.getBytes());
           }

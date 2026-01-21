@@ -29,6 +29,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+
+import com.etendoerp.copilot.util.FileUtils;
 import java.util.concurrent.TransferQueue;
 import java.util.stream.Collectors;
 
@@ -233,7 +235,7 @@ public class RestServiceUtil {
       prefix = (prefix + "___").substring(0, 3);
     }
 
-    Path tempPath = createTempFileWithPrefix(prefix, extension);
+    Path tempPath = FileUtils.createSecureTempFile(prefix, extension);
     File f = tempPath.toFile();
     f.deleteOnExit();
 
@@ -249,13 +251,6 @@ public class RestServiceUtil {
       return "default";
     }
     return originalFileName;
-  }
-
-  private static Path createTempFileWithPrefix(String prefix, String extension) throws IOException {
-    if (extension == null) {
-      return Files.createTempFile(prefix, null);
-    }
-    return Files.createTempFile(prefix, extension);
   }
 
   private static void setOwnerOnlyPermissions(Path tempPath, File f) {

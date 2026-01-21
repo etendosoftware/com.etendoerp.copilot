@@ -463,7 +463,7 @@ public class OpenAIUtils {
     String filename = attach.getName();
     String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
     String extension = filename.substring(filename.lastIndexOf(".") + 1);
-    File tempFile = File.createTempFile(fileWithoutExtension, "." + extension);
+    File tempFile = FileUtils.createSecureTempFile(fileWithoutExtension, "." + extension).toFile();
     boolean setW = tempFile.setWritable(true);
     if (!setW) {
       logIfDebug("The temp file is not writable");

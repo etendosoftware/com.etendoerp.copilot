@@ -20,6 +20,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
@@ -47,6 +48,51 @@ public class FileUtils {
   }
 
   /**
+   * Returns the secure temporary directory for Copilot.
+   *
+   * @return The path to the secure temporary directory
+   */
+  private static Path getSecureTempDir() {
+    String baseAttachPath = OBPropertiesProvider.getInstance()
+        .getOpenbravoProperties()
+        .getProperty("attach.path", "/opt/EtendoERP");
+
+    File secureDir = new File(baseAttachPath, "tmp_copilot");
+    if (!secureDir.exists()) {
+      secureDir.mkdirs();
+    }
+    return secureDir.toPath();
+  }
+
+  /**
+   * Creates a temporary file in a secure directory.
+   *
+   * @param prefix
+   *     The prefix string to be used in generating the file's name; may be null
+   * @param suffix
+   *     The suffix string to be used in generating the file's name; may be null, in which case ".tmp" is used
+   * @return The path to the created temporary file
+   * @throws IOException
+   *     If an I/O error occurs
+   */
+  public static Path createSecureTempFile(String prefix, String suffix) throws IOException {
+    return Files.createTempFile(getSecureTempDir(), prefix, suffix);
+  }
+
+  /**
+   * Creates a temporary directory in a secure directory.
+   *
+   * @param prefix
+   *     The prefix string to be used in generating the directory's name; may be null
+   * @return The path to the created temporary directory
+   * @throws IOException
+   *     If an I/O error occurs
+   */
+  public static Path createSecureTempDirectory(String prefix) throws IOException {
+    return Files.createTempDirectory(getSecureTempDir(), prefix);
+  }
+
+  /**
    * Retrieves a file associated with the given {@link CopilotFile} instance.
    * <p>
    * This method fetches the attachment corresponding to the provided {@link CopilotFile},
@@ -69,7 +115,7 @@ public class FileUtils {
       return new File(variant.getInternalPath());
     } //so the file is stored in the DB
     var fileName = fileToSync.getFilename(); //includes extension
-    File result = Files.createTempFile(null, "_" + fileName).toFile();
+    File result = createSecureTempFile(null, "_" + fileName).toFile();
     try {
       Files.write(result.toPath(), variant.getFiledata());
     } catch (IOException e) {

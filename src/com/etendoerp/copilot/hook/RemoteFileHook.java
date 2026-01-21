@@ -83,7 +83,7 @@ public class RemoteFileHook implements CopilotFileHook {
     String finalName = getFinalName(customName, url);
 
     // Create a temporary directory
-    Path tempDirectory = Files.createTempDirectory("CopilotRemoteFile");
+    Path tempDirectory = FileUtils.createSecureTempDirectory("CopilotRemoteFile");
 
     // Full path of the file in the temporary directory
     Path destinationPath = tempDirectory.resolve(finalName);

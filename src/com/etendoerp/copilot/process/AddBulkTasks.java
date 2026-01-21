@@ -29,6 +29,8 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
+import com.etendoerp.copilot.util.FileUtils;
+
 import com.etendoerp.copilot.background.BulkTaskExec;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.rest.RestServiceUtil;
@@ -68,7 +70,7 @@ public class AddBulkTasks extends BaseProcessActionHandler {
       String extension = fileName.substring(fileName.lastIndexOf("."));
       String name = fileName.substring(0, fileName.lastIndexOf("."));
 
-      File tempFile = File.createTempFile(name, extension);
+      File tempFile = FileUtils.createSecureTempFile(name, extension).toFile();
       try (FileOutputStream fos = new FileOutputStream(tempFile)) {
         byte[] buffer = new byte[1024];
         int len;
@@ -195,7 +197,7 @@ public class AddBulkTasks extends BaseProcessActionHandler {
   public static String[] unzipFile(File zipFile) throws IOException {
     // Definir el directorio de salida en /tmp con el nombre del ZIP
     String zipFileName = zipFile.getName().replaceFirst("\\.zip$", ""); // Eliminar extensión .zip
-    File outputDir = Files.createTempDirectory(zipFileName).toFile();
+    File outputDir = FileUtils.createSecureTempDirectory(zipFileName).toFile();
 
     if (!outputDir.exists()) {
       outputDir.mkdirs(); // Crear el directorio si no existe
