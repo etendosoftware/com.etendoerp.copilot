@@ -22,6 +22,7 @@ import org.openbravo.model.ad.system.Client;
 
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.util.CopilotVarReplacerUtil;
+import com.etendoerp.copilot.util.FileUtils;
 
 /**
  * This class implements the CopilotFileHook interface and provides functionality
@@ -50,20 +51,15 @@ public class RemoteFileHook implements CopilotFileHook {
     String fileName = hookObject.getFilename();
     //download the file from the URL, preserving the original name, if filename is not empty, use it instead. The file must be
     //stored in a temporary folder.
+    Path path = null;
     try {
-      Path path = downloadFile(url, fileName);
-      Map<Client, Path> clientPathMap = new HashMap<>();
-      if (isMultiClient()) {
-        List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
-        for (Client client : clientList) {
-          clientPathMap.put(client, path);
-        }
-      } else {
-        clientPathMap.put(hookObject.getClient(), path);
-      }
-      refreshFileForNonMultiClient(hookObject, clientPathMap);
+      path = downloadFile(url, fileName);
+      FileUtils.processFileAttachment(hookObject, path, isMultiClient());
     } catch (IOException e) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileDownErr"), url), e);
+    } finally {
+      // Clean up the temporary file if it's not being used as a Knowledge Base file
+      FileUtils.cleanupTempFileIfNeeded(hookObject, path);
     }
 
   }

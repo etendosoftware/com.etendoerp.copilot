@@ -11190,7 +11190,15 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--FEFF08BA577C4662A18382730B97A9FA-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--FEFF08BA577C4662A18382730B97A9FA-->  <NAME><![CDATA[Hql]]></NAME>
 <!--FEFF08BA577C4662A18382730B97A9FA-->  <DESCRIPTION><![CDATA[HQL clause for agent context.]]></DESCRIPTION>
-<!--FEFF08BA577C4662A18382730B97A9FA-->  <HELP><![CDATA[Adds an HQL statement to model the data to be sent. This HQL will be evaluated and its results will be exported in a .csv file.]]></HELP>
+<!--FEFF08BA577C4662A18382730B97A9FA-->  <HELP><![CDATA[Adds an HQL statement to model the data to be sent. This HQL will be evaluated and its results will be exported in a .csv file.
+- Query Requirement: You must use the alias e for the main entity (e.g., from Product e) because the system automatically appends security filters (Client/Org) using that specific alias.
+
+Output Formats:
+
+- CSV: Returns a comma-separated list. Includes headers if you use aliases in the select statement.
+- Plain Text (Non-CSV): Returns data in Property: Value format. Records are separated by double line breaks (\n\n).
+
+- Full Entities: If selecting the whole object (select e), it returns a structured string containing all readable properties.]]></HELP>
 <!--FEFF08BA577C4662A18382730B97A9FA-->  <COLUMNNAME><![CDATA[Hql]]></COLUMNNAME>
 <!--FEFF08BA577C4662A18382730B97A9FA-->  <AD_TABLE_ID><![CDATA[6B246B1B3A6F4DE8AFC208E07DB29CE2]]></AD_TABLE_ID>
 <!--FEFF08BA577C4662A18382730B97A9FA-->  <AD_REFERENCE_ID><![CDATA[14]]></AD_REFERENCE_ID>

@@ -58,22 +58,17 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
     }
     var flow = hookObject.getOpenAPIFlow();
     String fileName = getFileName(hookObject, flow);
+    Path path = null;
     try {
-      Path path = getOpenAPIFile(flow, fileName);
-      Map<Client, Path> clientPathMap = new HashMap<>();
-      if (isMultiClient()) {
-        List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
-        for (Client client : clientList) {
-          clientPathMap.put(client, path);
-        }
-      } else {
-        clientPathMap.put(hookObject.getClient(), path);
-      }
-      refreshFileForNonMultiClient(hookObject, clientPathMap);
+      path = getOpenAPIFile(flow, fileName);
+      com.etendoerp.copilot.util.FileUtils.processFileAttachment(hookObject, path, isMultiClient());
     } catch (Exception e) {
       throw new OBException(
           String.format(OBMessageUtils.messageBD("ETCOP_GenFileError"), getFileName(hookObject, flow), e.getMessage()),
           e);
+    } finally {
+      // Clean up the temporary file if it's not being used as a Knowledge Base file
+      com.etendoerp.copilot.util.FileUtils.cleanupTempFileIfNeeded(hookObject, path);
     }
   }
 

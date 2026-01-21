@@ -37,6 +37,7 @@ import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.FileUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
 import com.etendoerp.openapi.data.OpenApiFlowPoint;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
@@ -84,12 +85,13 @@ public class SyncAssistant extends BaseProcessActionHandler {
   public JSONObject doExecute(Map<String, Object> parameters, String content) {
     // Declare json to be returned
     JSONObject result = new JSONObject();
+    List<CopilotApp> appList = new ArrayList<>();
     try {
       OBContext.setAdminMode();
       // Get request parameters
       JSONObject request = new JSONObject(content);
       JSONArray selectedRecords = request.optJSONArray("recordIds");
-      List<CopilotApp> appList = getSelectedApps(selectedRecords);
+      appList = getSelectedApps(selectedRecords);
       //append team members if there are selected graph agents
       List<CopilotApp> childs = new ArrayList<>();
       for (CopilotApp app : appList) {
@@ -138,9 +140,57 @@ public class SyncAssistant extends BaseProcessActionHandler {
         log.error("Error in process", ex);
       }
     } finally {
+      cleanupKBFiles(appList);
       OBContext.restorePreviousMode();
     }
     return result;
+  }
+
+  /**
+   * Cleans up the knowledge base files associated with the processed applications.
+   * <p>
+   * This method identifies the knowledge base files used during synchronization by checking
+   * the CopilotAppSource list of each application. It filters the sources that are of
+   * KB behavior and require update. For each identified file, it cleans up the variant file
+   * if it was used from a temporary location.
+   *
+   * @param appList
+   *     A list of CopilotApp objects processed during the synchronization.
+   */
+  private void cleanupKBFiles(List<CopilotApp> appList) {
+    String clientId = OBContext.getOBContext().getCurrentClient().getId();
+    Set<CopilotFile> filesToClean = appList.stream()
+        .flatMap(app -> app.getETCOPAppSourceList().stream())
+        .filter(appSource -> CopilotConstants.isKbBehaviour(appSource) && mustUpdateKBF(appSource, clientId))
+        .map(CopilotAppSource::getFile)
+        .collect(Collectors.toSet());
+
+    for (CopilotFile file : filesToClean) {
+      if (FileUtils.useFileFromTemp(file)) {
+        cleanVariantFile(file, clientId);
+      }
+    }
+  }
+
+  /**
+   * Cleans up the variant file for a specific CopilotFile and client.
+   * <p>
+   * This method retrieves the KnowledgeBaseFileVariant associated with the given file and client.
+   * If the variant has an internal path set, it deletes the file at that path and clears the
+   * internal path in the variant record.
+   *
+   * @param file
+   *     The CopilotFile for which to clean the variant file.
+   * @param clientId
+   *     The ID of the client associated with the variant.
+   */
+  private void cleanVariantFile(CopilotFile file, String clientId) {
+     var variant = com.etendoerp.copilot.util.FileUtils.getOrCreateVariant(file, OBContext.getOBContext().getCurrentClient());
+     if (StringUtils.isNotEmpty(variant.getInternalPath())) {
+       FileUtils.cleanupTempFile(java.nio.file.Paths.get(variant.getInternalPath()), true);
+       variant.setInternalPath(null);
+       OBDal.getInstance().save(variant);
+     }
   }
 
 

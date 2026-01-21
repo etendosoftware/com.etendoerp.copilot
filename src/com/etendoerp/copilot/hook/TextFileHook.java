@@ -49,21 +49,16 @@ public class TextFileHook implements CopilotFileHook {
     }
     //download the file from the URL, preserving the original name, if filename is not empty, use it instead. The file must be
     //stored in a temporary folder.
-    Path path = generateTextFile(text, fileName);
-    Map<Client, Path> clientPathMap = new HashMap<>();
-    if (isMultiClient()) {
-      List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
-      for (Client client : clientList) {
-        clientPathMap.put(client, path);
-      }
-    } else {
-      clientPathMap.put(hookObject.getClient(), path);
-    }
+    Path path = null;
     try {
-      FileUtils.refreshFileForNonMultiClient(hookObject, clientPathMap);
+      path = generateTextFile(text, fileName);
+      FileUtils.processFileAttachment(hookObject, path, isMultiClient());
     } catch (Exception e) {
       log.error("Error refreshing file", e);
       throw new OBException("Error refreshing file", e);
+    } finally {
+      // Clean up the temporary file if it's not being used as a Knowledge Base file
+      FileUtils.cleanupTempFileIfNeeded(hookObject, path);
     }
   }
 

@@ -14,13 +14,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.system.Client;
 
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.util.CopilotVarReplacerUtil;
+import com.etendoerp.copilot.util.FileUtils;
 
 /**
  * This class implements the CopilotFileHook interface and provides functionality
@@ -49,10 +49,11 @@ public class HQLQueryHook implements CopilotFileHook {
     String fileName = hookObject.getFilename();
     //download the file from the URL, preserving the original name, if filename is not empty, use it instead. The file must be
     //stored in a temporary folder.
+    Map<Client, Path> clientPathMap = new HashMap<>();
     try {
       String hql = hookObject.getHql();
       String extension = StringUtils.substringAfterLast(fileName, ".");
-      Map<Client, Path> clientPathMap = new HashMap<>();
+
         List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
         for (Client client : clientList) {
           String hqlResult = ProcessHQLAppSource.getHQLResult(hql, "e", extension, client.getId());
@@ -65,6 +66,11 @@ public class HQLQueryHook implements CopilotFileHook {
       refreshFileForNonMultiClient(hookObject, clientPathMap);
     } catch (IOException e) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileDownErr"), url), e);
+    } finally {
+        // Clean up the temporary file if it's not being used as a Knowledge Base file
+          for (Path path : clientPathMap.values()) {
+            FileUtils.cleanupTempFileIfNeeded(hookObject, path);
+          }
     }
 
   }

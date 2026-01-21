@@ -272,7 +272,20 @@ public class FileUtils {
     OBDal.getInstance().save(variant);
   }
 
-  private static KnowledgeBaseFileVariant getOrCreateVariant(CopilotFile hookObject, Client client) {
+  /**
+   * Retrieves or creates a KnowledgeBaseFileVariant for the given CopilotFile and client.
+   * <p>
+   * This method searches for an existing variant based on the client and CopilotFile.
+   * If found, it returns the existing variant. Otherwise, it creates a new one,
+   * sets its initial properties (including organization "0"), saves it, and returns it.
+   *
+   * @param hookObject
+   *     The CopilotFile for which to retrieve or create the variant.
+   * @param client
+   *     The client associated with the variant.
+   * @return The existing or newly created KnowledgeBaseFileVariant.
+   */
+  public static KnowledgeBaseFileVariant getOrCreateVariant(CopilotFile hookObject, Client client) {
     KnowledgeBaseFileVariant variant = (KnowledgeBaseFileVariant) OBDal.getInstance().createCriteria(
             KnowledgeBaseFileVariant.class)
         .add(Restrictions.eq(KnowledgeBaseFileVariant.PROPERTY_CLIENT, client))
@@ -303,6 +316,41 @@ public class FileUtils {
     variant.setInternalPath(null);
     variant.setFiledata(Files.readAllBytes(path));
     OBDal.getInstance().save(variant);
+  }
+
+  /**
+   * Processes the file attachment for the CopilotFile.
+   * If multi-client is enabled, it associates the file with all clients.
+   * Otherwise, it associates it with the CopilotFile's client.
+   *
+   * @param hookObject The Copilot file object.
+   * @param filePath The path to the file to be attached.
+   * @param isMultiClient Whether the file supports multiple clients.
+   * @throws IOException If an I/O error occurs.
+   */
+  public static void processFileAttachment(CopilotFile hookObject, Path filePath, boolean isMultiClient) throws IOException {
+    Map<Client, Path> clientPathMap = new HashMap<>();
+    if (isMultiClient) {
+      List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
+      for (Client client : clientList) {
+        clientPathMap.put(client, filePath);
+      }
+    } else {
+      clientPathMap.put(hookObject.getClient(), filePath);
+    }
+    refreshFileForNonMultiClient(hookObject, clientPathMap);
+  }
+
+  /**
+   * Cleans up the temporary file if it is not required for Knowledge Base usage.
+   *
+   * @param hookObject The Copilot file object.
+   * @param path The path to the temporary file.
+   */
+  public static void cleanupTempFileIfNeeded(CopilotFile hookObject, Path path) {
+    if (path != null && !useFileFromTemp(hookObject)) {
+      cleanupTempFile(path, true);
+    }
   }
 
   /**
