@@ -234,9 +234,10 @@ class TestMultimodelAgent:
 
         assert result == {}
 
+    @pytest.mark.asyncio
     @patch("copilot.core.agent.multimodel_agent.get_llm")
     @patch("copilot.core.agent.multimodel_agent.create_agent")
-    def test_get_agent_non_codeact(
+    async def test_get_agent_non_codeact(
         self, mock_create_react_agent, mock_get_llm, multimodel_agent, sample_assistant_schema
     ):
         """Test agent creation for non-CodeAct mode."""
@@ -249,9 +250,9 @@ class TestMultimodelAgent:
         sample_assistant_schema.code_execution = False
 
         with patch.object(multimodel_agent, "_assert_system_prompt_is_set"):
-            result = multimodel_agent.get_agent(
+            result = await multimodel_agent.get_agent(
                 provider="openai",
-                model="gpt-4.1",
+                model="gpt-4o",
                 agent_configuration=sample_assistant_schema,
                 tools=[],
                 system_prompt="Test prompt",
@@ -262,9 +263,10 @@ class TestMultimodelAgent:
         mock_create_react_agent.assert_called_once()
         assert result == mock_agent
 
+    @pytest.mark.asyncio
     @patch("copilot.core.agent.multimodel_agent.get_llm")
     @patch("copilot.core.agent.codeact.create_codeact")
-    def test_get_agent_codeact(
+    async def test_get_agent_codeact(
         self, mock_create_codeact, mock_get_llm, multimodel_agent, sample_assistant_schema
     ):
         """Test agent creation for CodeAct mode."""
@@ -279,9 +281,9 @@ class TestMultimodelAgent:
         sample_assistant_schema.code_execution = True
 
         with patch.object(multimodel_agent, "_assert_system_prompt_is_set"):
-            result = multimodel_agent.get_agent(
+            result = await multimodel_agent.get_agent(
                 provider="openai",
-                model="gpt-4.1",
+                model="gpt-4o",
                 agent_configuration=sample_assistant_schema,
                 tools=[],
                 system_prompt="Test prompt",
@@ -302,9 +304,9 @@ class TestMultimodelAgent:
 
         # Mock the agent and its response
         mock_agent = MagicMock()
-        mock_agent.invoke.return_value = {"messages": [AIMessage(content="Paris is the capital of France.")]}
+        mock_agent.ainvoke = AsyncMock(return_value={"messages": [AIMessage(content="Paris is the capital of France.")]})
 
-        with patch.object(multimodel_agent, "get_agent", return_value=mock_agent):
+        with patch.object(multimodel_agent, "get_agent", new_callable=AsyncMock, return_value=mock_agent):
             with patch.object(multimodel_agent._memory, "get_memory", return_value=[]):
                 result = multimodel_agent.execute(sample_question_schema)
 

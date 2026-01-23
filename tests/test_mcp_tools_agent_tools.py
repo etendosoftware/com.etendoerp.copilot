@@ -144,17 +144,20 @@ class TestBuildParamDefinition:
 class TestCreateLangchainToolExecutor:
     """Tests for _create_langchain_tool_executor function."""
 
-    def test_create_executor_no_args_schema(self):
+    @pytest.mark.asyncio
+    async def test_create_executor_no_args_schema(self):
         """Test creating executor for tool without args schema."""
         tool = MagicMock()
         tool.name = "simple_tool"
         tool.args_schema = BaseModel
         tool.run.return_value = "simple result"
+        # Mock ainvoke as well since it's checked first
+        tool.ainvoke = AsyncMock(return_value="simple result")
 
         executor = _create_langchain_tool_executor(tool)
 
         assert callable(executor)
-        result = executor("test input")
+        result = await executor("test input")
         assert "simple result" in str(result)
 
     def test_create_executor_with_args_schema(self):
@@ -196,6 +199,12 @@ class TestExecuteLangchainTool:
     async def test_execute_tool_with_run(self):
         """Test executing tool with run method."""
         tool = MagicMock()
+        tool.name = "mock_tool"
+        # Remove ainvoke and arun to test run fallback
+        if hasattr(tool, "ainvoke"):
+            del tool.ainvoke
+        if hasattr(tool, "arun"):
+            del tool.arun
         tool.run.return_value = "test result"
 
         result = await _execute_langchain_tool(tool, {"query": "test"})
@@ -280,7 +289,8 @@ class TestConvertSingleToolToMcp:
         # Expect 2 calls: one for unsupported tool type, one for executor creation failure
         assert mock_error.call_count == 2
         mock_create_executor.assert_called_once_with(tool, unify_arguments=False)
-        assert result is None
+        assert result is not None
+        assert "error" in result.name
 
     @patch("copilot.core.mcp.tools.agent_tools.copilot_error")
     def test_convert_tool_with_exception(self, mock_error):
@@ -294,7 +304,8 @@ class TestConvertSingleToolToMcp:
 
         # Expect 2 calls: one for unsupported tool type, one for executor creation failure
         assert mock_error.call_count == 2
-        assert result is None
+        assert result is not None
+        assert "error" in result.name
 
 
 class TestConvertLangchainToolsToMcp:
@@ -594,7 +605,8 @@ class TestRegisterAgentTools:
     @patch("copilot.core.mcp.tools.agent_tools.ToolLoader")
     @patch("copilot.core.mcp.tools.agent_tools.convert_langchain_tools_to_mcp")
     @patch("copilot.core.mcp.tools.agent_tools._gen_prompt_tool")
-    def test_register_agent_tools_success(
+    @pytest.mark.asyncio
+    async def test_register_agent_tools_success(
         self, mock_gen_prompt, mock_convert, mock_tool_loader_class, mock_fetch
     ):
         """Test registering agent tools successfully."""
@@ -605,7 +617,7 @@ class TestRegisterAgentTools:
 
         mock_tool_loader = MagicMock()
         mock_base_tools = [MockBaseTool()]
-        mock_tool_loader.get_all_tools.return_value = mock_base_tools
+        mock_tool_loader.get_all_tools = AsyncMock(return_value=mock_base_tools)
         mock_tool_loader_class.return_value = mock_tool_loader
 
         mock_prompt_tool = MagicMock()
@@ -617,43 +629,47 @@ class TestRegisterAgentTools:
         mock_app = MagicMock()
 
         # Provide the agent_config directly to avoid relying on internal fetch behavior
-        result = register_agent_tools(mock_app, "test_agent", "test_token", agent_config=mock_agent)
+        result = await register_agent_tools(mock_app, "test_agent", "test_token", agent_config=mock_agent)
 
         assert result["success"] is True
         assert result["tools_count"] == 2  # prompt tool + converted tools
         mock_app.add_tool.assert_called()
 
-    def test_register_agent_tools_no_identifier(self):
+    @pytest.mark.asyncio
+    async def test_register_agent_tools_no_identifier(self):
         """Test registering agent tools without identifier."""
         mock_app = MagicMock()
 
-        result = register_agent_tools(mock_app, None, "test_token")
+        result = await register_agent_tools(mock_app, None, "test_token")
 
         assert result["success"] is False
         assert result["error"] == ERROR_NO_AGENT_ID
 
-    def test_register_agent_tools_no_token(self):
+    @pytest.mark.asyncio
+    async def test_register_agent_tools_no_token(self):
         """Test registering agent tools without token."""
         mock_app = MagicMock()
 
-        result = register_agent_tools(mock_app, "test_agent", None)
+        result = await register_agent_tools(mock_app, "test_agent", None)
 
         assert result["success"] is False
         assert result["error"] == ERROR_NO_TOKEN
 
+    @pytest.mark.asyncio
     @patch("copilot.core.mcp.tools.agent_tools.fetch_agent_structure_from_etendo")
-    def test_register_agent_tools_no_config(self, mock_fetch):
+    async def test_register_agent_tools_no_config(self, mock_fetch):
         """Test registering agent tools when no config found."""
         mock_fetch.return_value = None
         mock_app = MagicMock()
 
-        result = register_agent_tools(mock_app, "test_agent", "test_token")
+        result = await register_agent_tools(mock_app, "test_agent", "test_token")
 
         assert result["success"] is False
         # Current implementation returns a specific configuration-related message
         assert result["error"] == "Could not fetch agent configuration"
 
-    def test_register_agent_tools_exception(self):
+    @pytest.mark.asyncio
+    async def test_register_agent_tools_exception(self):
         """Test registering agent tools when exception occurs inside the registration flow."""
         # Simulate an internal error during tool loading to trigger the exception path
         with patch(
@@ -661,17 +677,18 @@ class TestRegisterAgentTools:
         ):
             mock_app = MagicMock()
 
-            result = register_agent_tools(mock_app, "test_agent", "test_token", agent_config=MagicMock())
+            result = await register_agent_tools(mock_app, "test_agent", "test_token", agent_config=MagicMock())
 
             assert result["success"] is False
             assert "Unexpected error" in result["error"]
 
+    @pytest.mark.asyncio
     @patch("copilot.core.mcp.tools.agent_tools.convert_langchain_tools_to_mcp")
     @patch("copilot.core.mcp.tools.agent_tools._make_team_ask_agent_tools")
     @patch("copilot.core.mcp.tools.agent_tools._is_supervisor")
     @patch("copilot.core.mcp.tools.agent_tools.ToolLoader")
     @patch("copilot.core.mcp.tools.agent_tools.fetch_agent_structure_from_etendo")
-    def test_register_agent_tools_supervisor_direct_mode(
+    async def test_register_agent_tools_supervisor_direct_mode(
         self, mock_fetch, mock_tool_loader, mock_is_supervisor, mock_make_team_tools, mock_convert
     ):
         """Test registering agent tools for supervisor in direct mode."""
@@ -682,7 +699,7 @@ class TestRegisterAgentTools:
 
         mock_fetch.return_value = supervisor_config
         mock_tool_loader_instance = MagicMock()
-        mock_tool_loader_instance.get_all_tools.return_value = []
+        mock_tool_loader_instance.get_all_tools = AsyncMock(return_value=[])
         mock_tool_loader.return_value = mock_tool_loader_instance
         mock_is_supervisor.return_value = True
 
@@ -694,7 +711,7 @@ class TestRegisterAgentTools:
         mock_app = MagicMock()
 
         # Provide the supervisor configuration directly
-        result = register_agent_tools(
+        result = await register_agent_tools(
             mock_app, "supervisor_agent", "test_token", is_direct_mode=True, agent_config=supervisor_config
         )
 
