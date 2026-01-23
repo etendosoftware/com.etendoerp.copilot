@@ -55,11 +55,12 @@ def codify_name(name):
 
 
 class MembersUtil:
-    def get_members(self, question) -> list[GraphMember]:
+    async def get_members(self, question) -> list[GraphMember]:
         members = []
         if question.assistants:
             for assistant in question.assistants:
-                members.append(self.get_member(assistant))
+                member_ = await self.get_member(assistant)
+                members.append(member_)
         return members
 
     def model_openai_invoker(self):
@@ -90,7 +91,7 @@ class MembersUtil:
 
         return invoke_model_langchain
 
-    def get_member(self, assistant: AssistantSchema):
+    async def get_member(self, assistant: AssistantSchema):
         member = None
         if assistant.type == "openai-assistant":
             raise NotImplementedError("OpenAI Assistant type is not longer supported.")
@@ -99,7 +100,7 @@ class MembersUtil:
             from copilot.core.tool_loader import ToolLoader
 
             tool_loader = ToolLoader()
-            tools = tool_loader.get_all_tools(
+            tools = await tool_loader.get_all_tools(
                 agent_configuration=assistant,
                 enabled_tools=assistant.tools,
                 include_kb_tool=True,

@@ -15,14 +15,23 @@ class CopilotLangGraph:
     _pattern: BasePattern
     _graph: LoopPattern
 
-    def __init__(self, members, assistant_graph, pattern: BasePattern, memory, full_question=None):
-        self._pattern = pattern
-        self._full_question = full_question
-        workflow = self.get_pattern().construct_nodes(members, assistant_graph, full_question)
-        self.get_pattern().connect_graph(assistant_graph, workflow)
-        self._assistant_graph = assistant_graph
-        self._graph = workflow.compile(checkpointer=memory)
-        self._graph.get_graph().print_ascii()
+    def __init__(self):
+        self._pattern = None
+        self._full_question = None
+        self._assistant_graph = None
+        self._graph = None
+
+    @classmethod
+    async def create(cls, members, assistant_graph, pattern: BasePattern, memory, full_question=None):
+        instance = cls()
+        instance._pattern = pattern
+        instance._full_question = full_question
+        workflow = await pattern.construct_nodes(members, assistant_graph, full_question)
+        pattern.connect_graph(assistant_graph, workflow)
+        instance._assistant_graph = assistant_graph
+        instance._graph = workflow.compile(checkpointer=memory)
+        instance._graph.get_graph().print_ascii()
+        return instance
 
     def get_pattern(self):
         return self._pattern

@@ -292,7 +292,7 @@ class ToolLoader:
                 except Exception as e:
                     print_yellow(f"Warning: Could not generate tools from OpenAPI spec: {e}")
 
-    def get_all_tools(
+    async def get_all_tools(
         self,
         agent_configuration: Optional[AssistantSchema] = None,
         enabled_tools: Optional[List[ToolSchema]] = None,
@@ -325,6 +325,17 @@ class ToolLoader:
         if include_openapi_tools:
             self._add_openapi_tools(all_tools, agent_configuration)
 
+        # MCP Integration
+        if agent_configuration and agent_configuration.mcp_servers:
+            from copilot.core.agent.multimodel_agent import (
+                convert_mcp_servers_config,
+                get_mcp_tools,
+            )
+
+            mcp_config = convert_mcp_servers_config(agent_configuration.mcp_servers)
+            mcp_tools = await get_mcp_tools(mcp_config)
+            all_tools.extend(mcp_tools)
+
         # Set agent_id on all tools if provided from agent_configuration
         if agent_configuration and hasattr(agent_configuration, "assistant_id"):
             agent_id = agent_configuration.assistant_id
@@ -335,7 +346,7 @@ class ToolLoader:
 
         return all_tools
 
-    def get_enabled_tool_functions(
+    async def get_enabled_tool_functions(
         self,
         enabled_tools: Optional[List[ToolSchema]] = None,
         agent_configuration: Optional[AssistantSchema] = None,
@@ -355,7 +366,7 @@ class ToolLoader:
         Returns:
             Filtered list of enabled tools plus dynamic tools
         """
-        return self.get_all_tools(
+        return await self.get_all_tools(
             agent_configuration=agent_configuration,
             enabled_tools=enabled_tools,
             include_kb_tool=include_kb_tool,
