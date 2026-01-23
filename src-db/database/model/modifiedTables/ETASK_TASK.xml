@@ -25,6 +25,14 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="EM_ETCOP_RAW_RESPONSE" primaryKey="false" required="false" type="CLOB" size="4000" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_ETCOP_CONV_ID" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
       <foreign-key foreignTable="ETCOP_APP" name="EM_ETCOP_TASK_AGENT_FK">
         <reference local="EM_ETCOP_AGENTID" foreign="ETCOP_APP_ID"/>
       </foreign-key>
