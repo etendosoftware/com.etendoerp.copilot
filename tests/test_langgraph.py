@@ -77,11 +77,11 @@ class TestCopilotLangGraph(unittest.IsolatedAsyncioTestCase):
     @patch("copilot.core.langgraph.patterns.SupervisorPattern")
     @patch("copilot.core.schema.graph_member.GraphMember")
     @patch("copilot.core.schema.graph_member.GraphMember")
-    async def test_initialization(self, MockSupervisorPattern, MockAssistantGraph, MockMember1, MockMember2):
+    async def test_initialization(self, mock_supervisor_pattern, mock_assistant_graph, mock_member_1, mock_member_2):
         # Mocking the necessary components
-        members = [GraphMember("member1", MockMember1), GraphMember("member2", MockMember2)]
-        assistant_graph = MockAssistantGraph()
-        pattern = MockSupervisorPattern()
+        members = [GraphMember("member1", mock_member_1), GraphMember("member2", mock_member_2)]
+        assistant_graph = mock_assistant_graph()
+        pattern = mock_supervisor_pattern()
         # Mock construct_nodes as an async function
         async def mock_construct_nodes(*args, **kwargs):
             return MagicMock()

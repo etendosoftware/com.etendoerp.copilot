@@ -14,7 +14,7 @@ from langgraph.graph.state import CompiledStateGraph
 class BasePattern:
     OPENAI_MODEL: Final[str] = read_optional_env_var("OPENAI_MODEL", "gpt-4o")
 
-    async def construct_nodes(self, members, assistant_graph=None, full_question=None) -> StateGraph:
+    async def construct_nodes(self, members, _assistant_graph=None, _full_question=None) -> StateGraph:
         class AgentState(TypedDict):
             # The annotation tells the graph that new messages will always
             # be added to the current states
