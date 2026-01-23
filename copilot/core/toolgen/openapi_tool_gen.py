@@ -1,7 +1,7 @@
 import base64
 import logging
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from copilot.core.tool_wrapper import CopilotTool
 from copilot.core.utils.etendo_utils import get_etendo_host, get_etendo_token
@@ -303,15 +303,6 @@ def _run_dynamic(self, {param_names_str}):
         body_params = body
         if isinstance(body_params, BaseModel):
             body_params = {model_dump_method}
-        elif isinstance(body_params, list):
-            # Handle list of items - serialize each BaseModel in the list
-            serialized_list = []
-            for item in body_params:
-                if isinstance(item, BaseModel):
-                    serialized_list.append(item.model_dump(exclude_unset=True))
-                else:
-                    serialized_list.append(item)
-            body_params = serialized_list
 
     # Handle authentication token
     {token_logic}
@@ -387,13 +378,7 @@ def _process_single_operation(
     body_info = _process_request_body(method, operation, path, type_map)
     if body_info:
         body_model, body_description = body_info
-        # Use Any type to allow maximum flexibility for body payloads
-        # This accepts both single objects and arrays without strict validation
-        # The _run_dynamic function handles serialization for all cases
-        model_fields["body"] = (
-            Any,
-            Field(description=body_description)
-        )
+        model_fields["body"] = (body_model, Field(description=body_description))
 
     # Check if this is an Etendo classic endpoint
     etendo_host_docker = get_etendo_host()
