@@ -328,6 +328,10 @@ public class CopilotUtilsTest extends WeldBaseTest {
     CopilotApp app = mock(CopilotApp.class);
     when(app.getId()).thenReturn(TEST_APP_ID);
     when(app.getName()).thenReturn(TEST_APP_NAME);
+    org.openbravo.model.ad.system.Client mockClient = mock(org.openbravo.model.ad.system.Client.class);
+    when(mockClient.getId()).thenReturn("TEST_CLIENT_ID");
+    when(app.getClient()).thenReturn(mockClient);
+
     HttpResponse<String> response = mock(HttpResponse.class);
     when(response.statusCode()).thenReturn(200);
     try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
@@ -347,6 +351,10 @@ public class CopilotUtilsTest extends WeldBaseTest {
     CopilotApp app = mock(CopilotApp.class);
     when(app.getId()).thenReturn(TEST_APP_ID);
     when(app.getName()).thenReturn(TEST_APP_NAME);
+    org.openbravo.model.ad.system.Client mockClient = mock(org.openbravo.model.ad.system.Client.class);
+    when(mockClient.getId()).thenReturn("TEST_CLIENT_ID");
+    when(app.getClient()).thenReturn(mockClient);
+
     HttpResponse<String> response = mock(HttpResponse.class);
     when(response.statusCode()).thenReturn(500);
     when(response.body()).thenReturn("error");

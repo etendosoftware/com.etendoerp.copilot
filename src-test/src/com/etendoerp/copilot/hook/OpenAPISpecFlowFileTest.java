@@ -30,6 +30,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -411,9 +412,9 @@ public class OpenAPISpecFlowFileTest {
     // Mock Files
     Path mockPath = mock(Path.class);
     when(mockPath.toString()).thenReturn("/tmp/test.json");
-    mockedFiles.when(() -> Files.createTempFile(anyString(), anyString())).thenReturn(mockPath);
+    mockedFileUtils.when(() -> FileUtils.createSecureTempFile(anyString(), anyString())).thenReturn(mockPath);
     mockedFiles.when(() -> Files.writeString(any(Path.class), anyString())).thenReturn(mockPath);
-    mockedFileUtils.when(() -> FileUtils.cleanupTempFile(any(Path.class), any(Boolean.class)))
+    mockedFileUtils.when(() -> FileUtils.cleanupTempFileIfNeeded(any(CopilotFile.class), any(Path.class)))
         .then(invocation -> null);
 
     // Mock attachment methods
@@ -459,14 +460,17 @@ public class OpenAPISpecFlowFileTest {
     mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(MESSAGE_KEY_GEN_FILE_ERROR))
         .thenReturn(ERROR_GENERATING_FILE_FORMAT);
 
-    // This will throw an exception because we can't mock OpenAPIController instantiation
-    // But we can verify the filename logic
+    mockedFileUtils.when(() -> FileUtils.createSecureTempFile(any(), any()))
+        .thenThrow(new IOException("Test exception"));
+
+    // This will throw an exception because FileUtils.createSecureTempFile is mocked to throw
+    // or because we can't mock OpenAPIController instantiation
     try {
       hook.exec(mockCopilotFile);
     } catch (OBException e) {
       // Expected - verify the error message contains the generated filename
-      assertTrue("Error message should contain flow name",
-          e.getMessage().contains("TestFlowOpenAPISpec.json") || e.getMessage().contains("Error"));
+      assertTrue("Error message should contain flow name: " + e.getMessage(),
+          e.getMessage().contains("TestFlowOpenAPISpec.json"));
     }
   }
 
@@ -489,6 +493,9 @@ public class OpenAPISpecFlowFileTest {
 
     mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(MESSAGE_KEY_GEN_FILE_ERROR))
         .thenReturn(ERROR_GENERATING_FILE_FORMAT);
+
+    mockedFileUtils.when(() -> FileUtils.createSecureTempFile(any(), any()))
+        .thenThrow(new IOException("Test failure"));
 
     // When & Then
     assertThrows(OBException.class, () -> hook.exec(mockCopilotFile));
@@ -515,13 +522,16 @@ public class OpenAPISpecFlowFileTest {
     mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(MESSAGE_KEY_GEN_FILE_ERROR))
         .thenReturn(ERROR_GENERATING_FILE_FORMAT);
 
+    mockedFileUtils.when(() -> FileUtils.createSecureTempFile(any(), any()))
+        .thenThrow(new IOException("Test exception"));
+
     // When & Then
     try {
       hook.exec(mockCopilotFile);
     } catch (OBException e) {
       // Expected - verify filename logic
-      assertTrue("Error message should reference flow-based filename",
-          e.getMessage().contains("TestFlowOpenAPISpec.json") || e.getMessage().contains("Error"));
+      assertTrue("Error message should reference flow-based filename: " + e.getMessage(),
+          e.getMessage().contains("TestFlowOpenAPISpec.json"));
     }
   }
 }

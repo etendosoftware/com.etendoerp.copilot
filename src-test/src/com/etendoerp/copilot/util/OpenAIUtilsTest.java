@@ -36,6 +36,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -137,6 +139,11 @@ public class OpenAIUtilsTest extends WeldBaseTest {
     mockedWeldUtils = mockStatic(WeldUtils.class);
     mockedUnirest = mockStatic(Unirest.class);
     mockedFileUtils = mockStatic(FileUtils.class);
+    mockedFileUtils.when(() -> FileUtils.createSecureTempFile(anyString(), anyString())).thenAnswer(invocation -> {
+      String prefix = invocation.getArgument(0);
+      String suffix = invocation.getArgument(1);
+      return Files.createTempFile(prefix, suffix);
+    });
     mockedCopilotUtils = mockStatic(CopilotUtils.class);
     mockedToolsUtil = mockStatic(ToolsUtil.class);
     mockedCopilotModelUtils = mockStatic(CopilotModelUtils.class);
