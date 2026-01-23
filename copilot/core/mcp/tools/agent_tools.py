@@ -10,7 +10,7 @@ from __future__ import annotations
 import inspect
 import logging
 import re
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Type
 
 import httpx
 from copilot.baseutils.logging_envvar import copilot_debug, copilot_error, copilot_info
@@ -181,64 +181,7 @@ def _create_langchain_tool_executor(langchain_tool: BaseTool, unify_arguments: b
 
     # Handle case where args_schema is a dict (happens with some dynamic tools/converters)
     if isinstance(tool_args_model, dict):
-        copilot_debug(f"Tool {langchain_tool.name} has dict args_schema. Creating dynamic executor.")
-
-        # Try to extract properties from dict schema
-        try:
-            properties = tool_args_model.get("properties", {})
-            param_names = list(properties.keys())
-            required = tool_args_model.get("required", [])
-
-            param_definitions = []
-            for param_name in param_names:
-                is_req = param_name in required
-                param_type = properties[param_name].get("type", "Any")
-                if param_type == "string":
-                    py_type = "str"
-                elif param_type == "integer":
-                    py_type = "int"
-                elif param_type == "boolean":
-                    py_type = "bool"
-                else:
-                    py_type = "Any"
-
-                if is_req:
-                    param_definitions.append(f"{param_name}: {py_type}")
-                else:
-                    param_definitions.append(f"{param_name}: {py_type} = None")
-
-            param_string = ", ".join(param_definitions)
-
-            function_code = f'''
-from typing import Dict, Any
-async def dynamic_tool_executor({param_string}):
-    """Execute {langchain_tool.name} with dynamic parameters."""
-    # Collect arguments into dictionary
-    input_dict = {{
-    {",".join([f"        '{param}': {param}" for param in param_names])}
-    }}
-    copilot_debug(f"Executing tool '{langchain_tool.name}' with input: {{input_dict}}")
-    cleaned_input = {{k: v for k, v in input_dict.items() if v is not None}}
-    return await _execute_langchain_tool(tool_instance, cleaned_input)
-'''
-            namespace = {
-                "tool_instance": langchain_tool,
-                "copilot_debug": copilot_debug,
-                "copilot_error": copilot_error,
-                "_execute_langchain_tool": _execute_langchain_tool,
-            }
-            exec(function_code, namespace)
-            executor = namespace["dynamic_tool_executor"]
-            executor.__name__ = f"execute_{langchain_tool.name}"
-            executor.__doc__ = f"Execute {langchain_tool.name} tool"
-            return executor
-
-        except Exception as e:
-            copilot_error(
-                f"Failed to create dynamic executor for dict schema: {e}. Fallback to simple executor."
-            )
-
-            return _create_simple_executor(langchain_tool, wrap_input=True)
+        return _create_executor_dict(langchain_tool, tool_args_model)
 
     # If the tool doesn't have an explicit args_schema, create a simple function
     if tool_args_model is BaseModel:
@@ -312,6 +255,79 @@ async def dynamic_tool_executor({param_string}):
     executor.__doc__ = f"Execute {langchain_tool.name} tool with {mode_desc}"
 
     return executor
+
+
+def _create_executor_dict(langchain_tool: BaseTool, tool_args_model: dict) -> Callable[
+    ..., Coroutine[Any, Any, Any]]:
+    """
+    Create a dynamic tool executor for tools with dictionary schema.
+
+    Args:
+        langchain_tool: The LangChain tool instance
+        tool_args_model: The dictionary defining the tool arguments schema
+
+    Returns:
+        Callable: The dynamic executor function
+    """
+    copilot_debug(
+        f"Tool {langchain_tool.name} has dict args_schema. Creating dynamic executor.")
+
+    # Try to extract properties from dict schema
+    try:
+        properties = tool_args_model.get("properties", {})
+        param_names = list(properties.keys())
+        required = tool_args_model.get("required", [])
+
+        param_definitions = []
+        for param_name in param_names:
+            is_req = param_name in required
+            param_type = properties[param_name].get("type", "Any")
+            if param_type == "string":
+                py_type = "str"
+            elif param_type == "integer":
+                py_type = "int"
+            elif param_type == "boolean":
+                py_type = "bool"
+            else:
+                py_type = "Any"
+
+            if is_req:
+                param_definitions.append(f"{param_name}: {py_type}")
+            else:
+                param_definitions.append(f"{param_name}: {py_type} = None")
+
+        param_string = ", ".join(param_definitions)
+
+        function_code = f'''
+from typing import Dict, Any
+async def dynamic_tool_executor({param_string}):
+    """Execute {langchain_tool.name} with dynamic parameters."""
+    # Collect arguments into dictionary
+    input_dict = {{
+    {",".join([f"        '{param}': {param}" for param in param_names])}
+    }}
+    copilot_debug(f"Executing tool '{langchain_tool.name}' with input: {{input_dict}}")
+    cleaned_input = {{k: v for k, v in input_dict.items() if v is not None}}
+    return await _execute_langchain_tool(tool_instance, cleaned_input)
+'''
+        namespace = {
+            "tool_instance": langchain_tool,
+            "copilot_debug": copilot_debug,
+            "copilot_error": copilot_error,
+            "_execute_langchain_tool": _execute_langchain_tool,
+        }
+        exec(function_code, namespace)
+        executor = namespace["dynamic_tool_executor"]
+        executor.__name__ = f"execute_{langchain_tool.name}"
+        executor.__doc__ = f"Execute {langchain_tool.name} tool"
+        return executor
+
+    except Exception as e:
+        copilot_error(
+            f"Failed to create dynamic executor for dict schema: {e}. Fallback to simple executor."
+        )
+
+        return _create_simple_executor(langchain_tool, wrap_input=True)
 
 
 async def _execute_langchain_tool(langchain_tool: BaseTool, kwargs: dict):
@@ -429,6 +445,15 @@ def _convert_single_tool_to_mcp(tool: BaseTool) -> Tool:
 
 
 def method_name(tool):
+    """
+    Get the args schema from a tool.
+
+    Args:
+        tool: The tool instance
+
+    Returns:
+        The args schema of the tool
+    """
     return tool.args_schema
 
 
@@ -614,6 +639,16 @@ async def register_agent_tools(
 
 
 def _gen_prompt_tool(agent_config: AssistantSchema, identifier: Optional[str] = None) -> Tool:
+    """
+    Generate a tool to retrieve the agent's prompt and configuration.
+
+    Args:
+        agent_config: The agent configuration schema
+        identifier: Optional agent identifier
+
+    Returns:
+        Tool: The generated prompt retrieval tool
+    """
     # add a tool that retrieves the agent prompt
     def _get_prompt_tool() -> dict:
         """Tool to retrieve the agent structure."""
