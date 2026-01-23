@@ -149,6 +149,19 @@ def _build_param_definition(field_name: str, field_info) -> str:
         return f"{field_name}: {type_annotation} = None"
 
 
+def _create_simple_executor(langchain_tool: BaseTool, wrap_input: bool = False):
+    """Factory to create a simple tool executor for tools without a complex schema."""
+
+    async def simple_executor(input: Any = ""):
+        copilot_debug(f"Executing tool '{langchain_tool.name}' with input: {input}")
+        tool_input = {"input": input} if wrap_input and isinstance(input, str) else input
+        return await _execute_langchain_tool(langchain_tool, tool_input)
+
+    simple_executor.__name__ = f"execute_{langchain_tool.name}"
+    simple_executor.__doc__ = f"Execute {langchain_tool.name} tool"
+    return simple_executor
+
+
 def _create_langchain_tool_executor(langchain_tool: BaseTool, unify_arguments: bool = False):
     """
     Generates a dynamic 'tool_executor' for a LangChain BaseTool.
@@ -225,25 +238,11 @@ async def dynamic_tool_executor({param_string}):
                 f"Failed to create dynamic executor for dict schema: {e}. Fallback to simple executor."
             )
 
-            # Fallback to simple executor which is safer
-            async def simple_tool_executor(input: str = ""):
-                """Simple executor for tools without an explicit Pydantic schema."""
-                copilot_debug(f"Executing tool '{langchain_tool.name}' with input: {input}")
-                return await _execute_langchain_tool(
-                    langchain_tool, {"input": input} if isinstance(input, str) else input
-                )
-
-            return simple_tool_executor
+            return _create_simple_executor(langchain_tool, wrap_input=True)
 
     # If the tool doesn't have an explicit args_schema, create a simple function
     if tool_args_model is BaseModel:
-
-        async def simple_tool_executor(input: str = ""):
-            """Simple executor for tools without an explicit Pydantic schema."""
-            copilot_debug(f"Executing tool '{langchain_tool.name}' with input: {input}")
-            return await _execute_langchain_tool(langchain_tool, input)
-
-        return simple_tool_executor
+        return _create_simple_executor(langchain_tool)
 
     # Generate function code based on unify_arguments parameter
     try:
@@ -254,10 +253,7 @@ async def dynamic_tool_executor({param_string}):
             f"Error accessing model_fields for {langchain_tool.name}. Using simple executor fallback."
         )
 
-        async def simple_tool_executor(input: str = ""):
-            return await _execute_langchain_tool(langchain_tool, input)
-
-        return simple_tool_executor
+        return _create_simple_executor(langchain_tool)
 
     # Create function with individual parameters (original behavior)
     param_definitions = []
