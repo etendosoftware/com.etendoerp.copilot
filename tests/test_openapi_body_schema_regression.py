@@ -1,5 +1,6 @@
 from copilot.core.toolgen.openapi_tool_gen import generate_tools_from_openapi
 from pydantic import BaseModel
+from typing import Union, get_args, get_origin
 
 
 def test_openapi_tool_body_schema_regression():
@@ -84,16 +85,28 @@ def test_openapi_tool_body_schema_regression():
     # Get the field info for 'body'
     body_field = tool.args_schema.model_fields["body"]
 
-    # The annotation should refer to a Pydantic BaseModel, NOT Any
-    # Note: In Pydantic, the annotation might be the class itself
-    body_model_class = body_field.annotation
+    # The annotation should be Union[BaseModel, List[BaseModel]] for flexibility
+    body_annotation = body_field.annotation
 
-    # Assert it is a Pydantic model
-    # We check if it is a class and acts like a BaseModel
-    assert isinstance(body_model_class, type), "Body annotation should be a type"
+    # Check if it's a Union type
+    assert get_origin(body_annotation) is Union, "Body should be a Union type to support both single and array"
+
+    # Get the args from Union
+    union_args = get_args(body_annotation)
+    assert len(union_args) == 2, "Body Union should have exactly 2 types"
+
+    # First arg should be a BaseModel subclass (single object)
+    body_model_class = union_args[0]
+    assert isinstance(body_model_class, type), "First Union arg should be a type"
     assert issubclass(
         body_model_class, BaseModel
-    ), f"Body type {body_model_class} is not a subclass of BaseModel. It implies it might be Any or loose type."
+    ), f"Body type {body_model_class} is not a subclass of BaseModel"
+
+    # Second arg should be List[BaseModel] (array of objects)
+    list_type = union_args[1]
+    assert get_origin(list_type) is list, "Second Union arg should be a List"
+    list_item_type = get_args(list_type)[0]
+    assert list_item_type == body_model_class, "List should contain the same BaseModel type"
 
     # Introspect the body model to ensure it has the correct properties from the spec
     body_props = body_model_class.model_fields
