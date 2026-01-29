@@ -31,7 +31,6 @@ from langchain_core.messages import HumanMessage
 from langchain_core.prompts.chat import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import StructuredTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
@@ -234,7 +233,7 @@ class MultimodelAgent(CopilotAgent):
             prompt=create_default_prompt(tools=conv_tools, base_prompt=system_prompt),
         )
 
-    def get_agent(
+    async def get_agent(
         self,
         provider: str,
         model: str,
@@ -258,14 +257,13 @@ class MultimodelAgent(CopilotAgent):
         from copilot.core.tool_loader import ToolLoader
 
         tool_loader = ToolLoader()
-        _enabled_tools = tool_loader.get_all_tools(
+        _enabled_tools = await tool_loader.get_all_tools(
             agent_configuration=agent_configuration,
             enabled_tools=tools,
             include_kb_tool=True,
             include_openapi_tools=True,
         )
-        if mcp_tools is not None:
-            _enabled_tools.extend(mcp_tools or [])
+        # mcp_tools are now handled inside get_all_tools via agent_configuration
 
         # Replace the instance configured tools with the complete list
         self._configured_tools = _enabled_tools
@@ -293,42 +291,68 @@ class MultimodelAgent(CopilotAgent):
             )
         return agent
 
+    async def _prepare_agent_execution(self, question, checkpointer):
+        """
+        Common setup logic for both execute and aexecute methods.
+        Prepares the agent, configuration, and messages array.
+        """
+        full_question = get_full_question(question)
+
+        agent = await self.get_agent(
+            provider=question.provider,
+            model=question.model,
+            agent_configuration=question,
+            tools=question.tools,
+            system_prompt=question.system_prompt,
+            temperature=question.temperature,
+            checkpointer=checkpointer,
+        )
+
+        # Process local files
+        image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+
+        config = build_config(question.conversation_id)
+        # Construct messages array using the unified method
+        has_thread = await acheckpointer_has_thread(checkpointer, config)
+        messages = self.get_messages_array(
+            full_question, image_payloads, other_file_paths, question, has_thread
+        )
+
+        return agent, config, messages, full_question
+
     def execute(self, question: QuestionSchema) -> AgentResponse:
-        with SqliteSaver.from_conn_string(get_checkpoint_file(question.assistant_id)) as checkpointer:
-            full_question = get_full_question(question)
-            agent = self.get_agent(
-                provider=question.provider,
-                model=question.model,
-                agent_configuration=question,
-                tools=question.tools,
-                system_prompt=question.system_prompt,
-                temperature=question.temperature,
-                checkpointer=checkpointer,
-            )
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
-            # Process local files
-            image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+        async def _execute_async():
+            async with AsyncSqliteSaver.from_conn_string(
+                get_checkpoint_file(question.assistant_id)
+            ) as checkpointer:
+                agent, config, messages, full_question = await self._prepare_agent_execution(
+                    question, checkpointer
+                )
 
-            config = build_config(question.conversation_id)
-            # Construct messages array using the unified method
-            has_thread = checkpointer_has_thread(checkpointer, config)
-            messages = self.get_messages_array(
-                full_question, image_payloads, other_file_paths, question, has_thread
-            )
+                agent_response = await agent.ainvoke(
+                    {"system_prompt": question.system_prompt, "messages": messages}, config=config
+                )
+                new_ai_message = agent_response.get("messages")[-1]
+                usage_data = read_accum_usage_data_from_msg_arr(agent_response.get("messages"))
+                return AgentResponse(
+                    input=full_question,
+                    output=AssistantResponse(
+                        response=new_ai_message.content,
+                        conversation_id=question.conversation_id,
+                        metadata=build_metadata(usage_data),
+                    ),
+                )
 
-            agent_response = agent.invoke(
-                {"system_prompt": question.system_prompt, "messages": messages}, config=config
-            )
-            new_ai_message = agent_response.get("messages")[-1]
-            usage_data = read_accum_usage_data_from_msg_arr(agent_response.get("messages"))
-            return AgentResponse(
-                input=full_question,
-                output=AssistantResponse(
-                    response=new_ai_message.content,
-                    conversation_id=question.conversation_id,
-                    metadata=build_metadata(usage_data),
-                ),
-            )
+        return loop.run_until_complete(_execute_async())
 
     def get_tools(self):
         return self._configured_tools
@@ -338,34 +362,8 @@ class MultimodelAgent(CopilotAgent):
         async with AsyncSqliteSaver.from_conn_string(
             get_checkpoint_file(question.assistant_id)
         ) as checkpointer:
-            mcp_servers_config = convert_mcp_servers_config(question.mcp_servers or [])
-            # Get MCP tools asynchronously
-            mcp_tools = await get_mcp_tools(mcp_servers_config)
-
-            # Use async agent creation to include MCP tools
-            agent = self.get_agent(
-                provider=question.provider,
-                model=question.model,
-                agent_configuration=question,
-                tools=question.tools,
-                system_prompt=question.system_prompt,
-                temperature=question.temperature,
-                mcp_tools=mcp_tools,
-                checkpointer=checkpointer,
-            )
-
-            full_question = get_full_question(question)
-
-            # Process local files
-            image_payloads, other_file_paths = process_local_files(question.local_file_ids)
-
-            config = build_config(question.conversation_id)
-
-            # Construct messages array. If the checkpointer has the thread history, only
-            # the new question is added to the messages.
-            has_thread = await acheckpointer_has_thread(checkpointer, config)
-            messages = self.get_messages_array(
-                full_question, image_payloads, other_file_paths, question, has_thread
+            agent, config, messages, full_question = await self._prepare_agent_execution(
+                question, checkpointer
             )
 
             _input = {

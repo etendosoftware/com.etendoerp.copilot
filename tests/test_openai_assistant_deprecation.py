@@ -4,13 +4,13 @@ from copilot.core.langgraph.members_util import MembersUtil
 from copilot.core.schemas import GraphQuestionSchema
 
 
-class TestOpenAIAssistantDeprecation(unittest.TestCase):
+class TestOpenAIAssistantDeprecation(unittest.IsolatedAsyncioTestCase):
     """
     Tests to validate that the openai-assistant type is no longer supported
     and raises NotImplementedError when attempted to be used.
     """
 
-    def test_openai_assistant_raises_not_implemented(self):
+    async def test_openai_assistant_raises_not_implemented(self):
         """
         Test that using an openai-assistant type raises NotImplementedError.
         """
@@ -33,11 +33,11 @@ class TestOpenAIAssistantDeprecation(unittest.TestCase):
         )
 
         with self.assertRaises(NotImplementedError) as context:
-            MembersUtil().get_members(payload)
+            await MembersUtil().get_members(payload)
 
         self.assertIn("OpenAI Assistant type is not longer supported", str(context.exception))
 
-    def test_multiple_assistants_with_one_openai_assistant(self):
+    async def test_multiple_assistants_with_one_openai_assistant(self):
         """
         Test that having multiple assistants where one is openai-assistant
         still raises NotImplementedError.
@@ -77,11 +77,11 @@ class TestOpenAIAssistantDeprecation(unittest.TestCase):
         )
 
         with self.assertRaises(NotImplementedError) as context:
-            MembersUtil().get_members(payload)
+            await MembersUtil().get_members(payload)
 
         self.assertIn("OpenAI Assistant type is not longer supported", str(context.exception))
 
-    def test_valid_assistant_types_work(self):
+    async def test_valid_assistant_types_work(self):
         """
         Test that valid assistant types (langchain, multimodel-assistant) work correctly
         without raising NotImplementedError.
@@ -124,7 +124,7 @@ class TestOpenAIAssistantDeprecation(unittest.TestCase):
 
         # This should not raise any exception
         try:
-            members = MembersUtil().get_members(payload)
+            members = await MembersUtil().get_members(payload)
             self.assertEqual(len(members), 2)
         except NotImplementedError:
             self.fail("Valid assistant types should not raise NotImplementedError")

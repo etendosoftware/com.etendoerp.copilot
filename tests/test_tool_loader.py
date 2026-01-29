@@ -36,7 +36,8 @@ def create_json_config_file(content: Dict):
     os.remove(json_file_path)
 
 
-def test_load_configured_tools_with_valid_file(set_fake_openai_api_key):
+@pytest.mark.asyncio
+async def test_load_configured_tools_with_valid_file(set_fake_openai_api_key):
     """Test loading tools including HelloWorldTool and OpenAPI tools."""
     # Create a mock assistant configuration with OpenAPI spec
     from copilot.core.schemas import (
@@ -81,7 +82,7 @@ def test_load_configured_tools_with_valid_file(set_fake_openai_api_key):
     assert "HelloWorldTool" in tool_names, f"HelloWorldTool not found in loaded tools: {tool_names}"
 
     # Test get_all_tools with OpenAPI tools
-    all_tools = tool_loader.get_all_tools(
+    all_tools = await tool_loader.get_all_tools(
         agent_configuration=assistant_config,
         enabled_tools=[hello_world_tool_schema],
         include_openapi_tools=True,
@@ -262,7 +263,8 @@ def test_tool_instantiation_with_errors(set_fake_openai_api_key):
     assert "BrokenTool" not in tool_names
 
 
-def test_get_all_tools_with_enabled_tools_filter(set_fake_openai_api_key):
+@pytest.mark.asyncio
+async def test_get_all_tools_with_enabled_tools_filter(set_fake_openai_api_key):
     """Test get_all_tools with enabled_tools filtering."""
     from copilot.core.schemas import FunctionSchema, ToolSchema
 
@@ -272,7 +274,7 @@ def test_get_all_tools_with_enabled_tools_filter(set_fake_openai_api_key):
     enabled_tools = [ToolSchema(type="function", function=FunctionSchema(name="HelloWorldTool"))]
 
     # Get filtered tools
-    all_tools = tool_loader.get_all_tools(enabled_tools=enabled_tools)
+    all_tools = await tool_loader.get_all_tools(enabled_tools=enabled_tools)
 
     # Should only include enabled tools
     tool_names = [tool.name for tool in all_tools]
@@ -282,29 +284,32 @@ def test_get_all_tools_with_enabled_tools_filter(set_fake_openai_api_key):
     assert len(all_tools) <= len(tool_loader.load_configured_tools())
 
 
-def test_get_all_tools_with_no_enabled_tools(set_fake_openai_api_key):
+@pytest.mark.asyncio
+async def test_get_all_tools_with_no_enabled_tools(set_fake_openai_api_key):
     """Test get_all_tools when no enabled_tools specified."""
     tool_loader = ToolLoader()
 
     # When no enabled_tools specified, should return empty list for base tools
-    all_tools = tool_loader.get_all_tools(enabled_tools=None)
+    all_tools = await tool_loader.get_all_tools(enabled_tools=None)
 
     # Should be empty since no tools are explicitly enabled
     assert len(all_tools) == 0
 
 
-def test_get_all_tools_with_empty_enabled_tools(set_fake_openai_api_key):
+@pytest.mark.asyncio
+async def test_get_all_tools_with_empty_enabled_tools(set_fake_openai_api_key):
     """Test get_all_tools with empty enabled_tools list."""
     tool_loader = ToolLoader()
 
     # Empty list should also result in no base tools
-    all_tools = tool_loader.get_all_tools(enabled_tools=[])
+    all_tools = await tool_loader.get_all_tools(enabled_tools=[])
 
     # Should be empty since no tools are explicitly enabled
     assert len(all_tools) == 0
 
 
-def test_get_enabled_tool_functions_alias(set_fake_openai_api_key):
+@pytest.mark.asyncio
+async def test_get_enabled_tool_functions_alias(set_fake_openai_api_key):
     """Test that get_enabled_tool_functions is an alias for get_all_tools."""
     from copilot.core.schemas import FunctionSchema, ToolSchema
 
@@ -313,8 +318,8 @@ def test_get_enabled_tool_functions_alias(set_fake_openai_api_key):
     enabled_tools = [ToolSchema(type="function", function=FunctionSchema(name="HelloWorldTool"))]
 
     # Both methods should return the same result
-    all_tools = tool_loader.get_all_tools(enabled_tools=enabled_tools)
-    enabled_tools_result = tool_loader.get_enabled_tool_functions(enabled_tools=enabled_tools)
+    all_tools = await tool_loader.get_all_tools(enabled_tools=enabled_tools)
+    enabled_tools_result = await tool_loader.get_enabled_tool_functions(enabled_tools=enabled_tools)
 
     assert len(all_tools) == len(enabled_tools_result)
     tool_names_all = [tool.name for tool in all_tools]
