@@ -695,7 +695,8 @@ class TestIndexImageFile:
         result = index_image_file(str(test_image_path), mock_client, "test_collection")
 
         assert result["status"] == "added"
-        assert result["md5"] == "image_md5_hash"
+        # ad_client_id defaults to "0" in index_image_file, which is appended to the md5
+        assert result["md5"] == "image_md5_hash0"
         mock_collection.add.assert_called_once()
 
     @patch("copilot.core.vectordb_utils.calculate_file_md5")

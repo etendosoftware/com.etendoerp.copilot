@@ -37,4 +37,15 @@ public interface CopilotFileHook {
    * @return true if the hook is applicable, false otherwise.
    */
   boolean typeCheck(String type);
+
+  /**
+   * Indicates whether the hook supports multi-client file versions. This means that the file will be "obtained" for each client with access
+   * to an agent related to the Knowledge Base file.
+   * By default, this method returns false.
+   *
+   * @return true if the hook supports multi-client file versions, false otherwise.
+   */
+  default boolean isMultiClient() {
+    return false;
+  }
 }

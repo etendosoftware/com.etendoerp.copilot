@@ -19,10 +19,17 @@ package com.etendoerp.copilot.hook;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.junit.After;
 import org.junit.Before;
@@ -78,6 +85,13 @@ public class TextFileHookTest extends WeldBaseTest {
 
         mockedCopilotUtils = mockStatic(CopilotUtils.class);
         mockedFileUtils = mockStatic(FileUtils.class);
+        mockedFileUtils.when(() -> FileUtils.createSecureTempFile(any(), any())).thenAnswer(invocation -> {
+            String prefix = invocation.getArgument(0);
+            String suffix = invocation.getArgument(1);
+            return Files.createTempFile(prefix, suffix);
+        });
+        mockedFileUtils.when(() -> FileUtils.processFileAttachment(any(), any(), anyBoolean())).thenAnswer(invocation -> null);
+        mockedFileUtils.when(() -> FileUtils.cleanupTempFileIfNeeded(any(), any())).thenAnswer(invocation -> null);
     }
 
     /**
@@ -124,6 +138,7 @@ public class TextFileHookTest extends WeldBaseTest {
     public void testExecWithValidTextAndFilename() {
         // Given
         String testFilename = "test.txt";
+        when(mockCopilotFile.getClient()).thenReturn(mock(org.openbravo.model.ad.system.Client.class));
 
         when(mockCopilotFile.getText()).thenReturn(TEST_CONTENT);
         when(mockCopilotFile.getFilename()).thenReturn(testFilename);
@@ -135,8 +150,8 @@ public class TextFileHookTest extends WeldBaseTest {
         // Then
         verify(mockCopilotFile, times(1)).getText();
         verify(mockCopilotFile, times(2)).getFilename();
-        mockedFileUtils.verify(() -> FileUtils.removeAttachment(any(), any()));
-        mockedFileUtils.verify(() -> FileUtils.attachFile(any(), any(), any()));
+        mockedFileUtils.verify(() -> FileUtils.processFileAttachment(eq(mockCopilotFile), any(), anyBoolean()));
+        mockedFileUtils.verify(() -> FileUtils.cleanupTempFileIfNeeded(eq(mockCopilotFile), any()));
     }
 
     /**
@@ -146,6 +161,7 @@ public class TextFileHookTest extends WeldBaseTest {
     public void testExecWithoutFilename() {
         // Given
         String testName = "test";
+        when(mockCopilotFile.getClient()).thenReturn(mock(org.openbravo.model.ad.system.Client.class));
 
         when(mockCopilotFile.getText()).thenReturn(TEST_CONTENT);
         when(mockCopilotFile.getFilename()).thenReturn("");
@@ -157,8 +173,8 @@ public class TextFileHookTest extends WeldBaseTest {
         // Then
         verify(mockCopilotFile, times(1)).getText();
         verify(mockCopilotFile, times(1)).getName();
-        mockedFileUtils.verify(() -> FileUtils.removeAttachment(any(), any()));
-        mockedFileUtils.verify(() -> FileUtils.attachFile(any(), any(), any()));
+        mockedFileUtils.verify(() -> FileUtils.processFileAttachment(eq(mockCopilotFile), any(), anyBoolean()));
+        mockedFileUtils.verify(() -> FileUtils.cleanupTempFileIfNeeded(eq(mockCopilotFile), any()));
     }
 
     /**
@@ -170,7 +186,8 @@ public class TextFileHookTest extends WeldBaseTest {
         when(mockCopilotFile.getText()).thenReturn(null);
         when(mockCopilotFile.getName()).thenReturn("test");
 
-        expectedException.expect(NullPointerException.class);
+        expectedException.expect(OBException.class);
+        expectedException.expectMessage("Error refreshing file");
 
         // When
         textFileHook.exec(mockCopilotFile);

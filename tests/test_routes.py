@@ -278,8 +278,9 @@ def test_purge_vectordb_success(mock_get_path, mock_get_settings, mock_chromadb_
     assert "Total purged: 5" in response.json()["answer"]
 
     # Verify delete was called for both collections
-    mock_collection.delete.assert_called_once_with(where={"purge": True})
-    mock_images_collection.delete.assert_called_once_with(where={"purge": True})
+    expected_filter = {"$and": [{"purge": True}, {"ad_client_id": "0"}]}
+    mock_collection.delete.assert_called_once_with(where=expected_filter)
+    mock_images_collection.delete.assert_called_once_with(where=expected_filter)
 
     # Verify cache was cleared
     mock_db_client_instance.clear_system_cache.assert_called_once()
@@ -357,7 +358,8 @@ def test_purge_vectordb_partial_collection_failure(mock_get_path, mock_get_setti
     assert "Total purged: 2" in response.json()["answer"]
 
     # First collection should be purged
-    mock_collection.delete.assert_called_once_with(where={"purge": True})
+    expected_filter = {"$and": [{"purge": True}, {"ad_client_id": "0"}]}
+    mock_collection.delete.assert_called_once_with(where=expected_filter)
 
 
 @patch("copilot.core.routes.chromadb.Client")
