@@ -10,8 +10,8 @@ from langgraph.graph import END
 
 
 class SupervisorPattern(BasePattern):
-    def construct_nodes(self, members, assistant_graph=None, full_question=None):
-        workflow = super().construct_nodes(members, assistant_graph)
+    async def construct_nodes(self, members, assistant_graph=None, full_question=None):
+        workflow = await super().construct_nodes(members, assistant_graph)
         for stage in assistant_graph.stages:
             members_names = []
             members_description = []
@@ -40,7 +40,7 @@ class SupervisorPattern(BasePattern):
                 )
                 workflow.add_node("supervisor-" + stage.name, supervisor_chain)
         if len(assistant_graph.stages[-1].assistants) > 1:
-            workflow.add_node("output", OutputNode().build(temperature=sv_temperature))
+            workflow.add_node("output", await OutputNode().build(temperature=sv_temperature))
         return workflow
 
     def connect_graph(self, assistant_graph, workflow):
