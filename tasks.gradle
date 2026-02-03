@@ -626,6 +626,9 @@ task 'copilot.variables.setup' {
         // === COPILOT PORT FOR MCP SERVER ===
         def copilotPortMCP = project.hasProperty("copilotPortMCP") ? project.property("copilotPortMCP").toString() : "5006"
         // === VARIABLE CONSTRUCTION ===
+        // ETENDO_HOST: URL that Tomcat uses to communicate with itself (e.g., internal callbacks).
+        // ETENDO_HOST_DOCKER: URL that Copilot uses to connect to Tomcat.
+        // COPILOT_HOST: URL/Host that Tomcat uses to connect to Copilot.
         def etendoHost
         def etendoHostDocker
         def copilotHost
@@ -641,6 +644,13 @@ task 'copilot.variables.setup' {
             etendoHost = "http://localhost:${tomcatPort}/${contextName}"
             etendoHostDocker = "http://${gatewayIp}:${tomcatPort}/${contextName}"
             copilotHost = "localhost"
+        } else if (tomcatMode == "docker" && copilotMode != "docker") {
+            def defaultIp = "172.17.0.1"
+            def gatewayIp = getGatewayIpForDocker(defaultIp, reader, yellow, green, reset)
+
+            etendoHost = "http://localhost:8080/${contextName}"
+            etendoHostDocker = "http://localhost:${tomcatPort}/${contextName}"
+            copilotHost = gatewayIp
         } else {
             etendoHost = "http://localhost:${tomcatPort}/${contextName}"
             etendoHostDocker = etendoHost
