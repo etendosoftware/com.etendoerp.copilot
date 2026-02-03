@@ -634,7 +634,7 @@ task 'copilot.variables.setup' {
         def copilotHost
 
         if (tomcatMode == "docker" && copilotMode == "docker") {
-            etendoHost = "http://tomcat:8080/${contextName}"
+            etendoHost = "http://tomcat:${tomcatPort}/${contextName}"
             etendoHostDocker = etendoHost
             copilotHost = "copilot"
         } else if (copilotMode == "docker" && tomcatMode != "docker") {
@@ -648,7 +648,7 @@ task 'copilot.variables.setup' {
             def defaultIp = "172.17.0.1"
             def gatewayIp = getGatewayIpForDocker(defaultIp, reader, yellow, green, reset)
 
-            etendoHost = "http://localhost:8080/${contextName}"
+            etendoHost = "http://localhost:${tomcatPort}/${contextName}"
             etendoHostDocker = "http://localhost:${tomcatPort}/${contextName}"
             copilotHost = gatewayIp
         } else {
