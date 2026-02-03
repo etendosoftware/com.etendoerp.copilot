@@ -1071,6 +1071,7 @@ public class RestServiceUtil {
         JSONObject assistantJson = new JSONObject();
         assistantJson.put(APP_ID, app.getId());
         assistantJson.put("name", app.getName());
+        assistantJson.put(PROP_DESCRIPTION, app.getDescription());
         assistants.put(assistantJson);
       }
 

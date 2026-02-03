@@ -174,7 +174,17 @@ public class ExecTask extends Action {
     body.put(APP_ID, agent.getId());
     body.put(PROP_QUESTION, question);
     var responseQuest = RestServiceUtil.handleQuestion(false, null, body);
-    task.setEtcopResponse(responseQuest.toString());
+    task.setEtcopRawResponse(responseQuest.toString());
+
+    JSONObject rawResponseJson = new JSONObject(responseQuest.toString());
+    if (rawResponseJson.has("response")) {
+      String responseString = rawResponseJson.getString("response");
+      task.setEtcopResponse(responseString);
+    }
+    if (rawResponseJson.has("conversation_id")) {
+      String responseString = rawResponseJson.getString("conversation_id");
+      task.setEtcopConvID(responseString);
+    }
 
     OBDal.getInstance().save(task);
     OBDal.getInstance().flush();
