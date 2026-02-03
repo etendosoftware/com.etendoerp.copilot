@@ -28,7 +28,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
@@ -117,6 +116,7 @@ public class CopilotModelUtilsTest extends WeldBaseTest {
     private static final String TEST_MODEL_SEARCHKEY = "gpt-4";
     private static final String TEST_PROVIDER = "openai";
     private static final String TEST_MODEL_NAME = "GPT-4";
+    private static final String GET_DEFAULT_MODEL = "getDefaultModel";
 
     @Before
     public void setUp() throws Exception {
@@ -221,7 +221,7 @@ public class CopilotModelUtilsTest extends WeldBaseTest {
         when(mockModelCriteria.list()).thenReturn(modelList);
 
         // When
-        Method method = CopilotModelUtils.class.getDeclaredMethod("getDefaultModel", String.class);
+        Method method = CopilotModelUtils.class.getDeclaredMethod(GET_DEFAULT_MODEL, String.class);
         method.setAccessible(true);
         CopilotModel result = (CopilotModel) method.invoke(null, TEST_PROVIDER);
 
@@ -247,7 +247,7 @@ public class CopilotModelUtilsTest extends WeldBaseTest {
         when(mockModelCriteria.list()).thenReturn(modelList);
 
         // When
-        Method method = CopilotModelUtils.class.getDeclaredMethod("getDefaultModel", String.class);
+        Method method = CopilotModelUtils.class.getDeclaredMethod(GET_DEFAULT_MODEL, String.class);
         method.setAccessible(true);
         CopilotModel result = (CopilotModel) method.invoke(null, TEST_PROVIDER);
 
@@ -266,7 +266,7 @@ public class CopilotModelUtilsTest extends WeldBaseTest {
         when(mockModelCriteria.list()).thenReturn(modelList);
 
         // When
-        Method method = CopilotModelUtils.class.getDeclaredMethod("getDefaultModel", String.class);
+        Method method = CopilotModelUtils.class.getDeclaredMethod(GET_DEFAULT_MODEL, String.class);
         method.setAccessible(true);
         CopilotModel result = (CopilotModel) method.invoke(null, TEST_PROVIDER);
 
@@ -405,23 +405,8 @@ public class CopilotModelUtilsTest extends WeldBaseTest {
     @Test
     public void testSyncModelsSuccess() throws Exception {
         // Given
-        String xmlContent = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                "<root>\n" +
-                "  <ETCOP_Openai_Model>\n" +
-                "    <id>" + TEST_MODEL_ID + "</id>\n" +
-                "    <active>true</active>\n" +
-                "    <searchkey>" + TEST_MODEL_SEARCHKEY + "</searchkey>\n" +
-                "    <name>" + TEST_MODEL_NAME + "</name>\n" +
-                "    <provider>" + TEST_PROVIDER + "</provider>\n" +
-                "    <maxTokens>4096</maxTokens>\n" +
-                "    <default>true</default>\n" +
-                "  </ETCOP_Openai_Model>\n" +
-                "</root>";
 
-        InputStream inputStream = new ByteArrayInputStream(xmlContent.getBytes());
-        
         // Mock XMLUtil and Element
-        org.dom4j.Document mockDocument = mock(org.dom4j.Document.class);
         Element mockRootElement = mock(Element.class);
         Element mockModelElement = mock(Element.class);
         List<Element> elementList = new ArrayList<>();
@@ -440,7 +425,7 @@ public class CopilotModelUtilsTest extends WeldBaseTest {
         // Mock HttpURLConnection - this is complex to mock properly
         // For a unit test, we'll just verify the method can be called without throwing exceptions
         // A full integration test would be more appropriate for testing the actual HTTP download
-        
+
         // Note: syncModels() is difficult to test in isolation due to HttpURLConnection
         // This would be better suited for an integration test
     }
@@ -453,11 +438,11 @@ public class CopilotModelUtilsTest extends WeldBaseTest {
         // Given
         CopilotModel replicatedModel1 = mock(CopilotModel.class);
         CopilotModel replicatedModel2 = mock(CopilotModel.class);
-        
+
         List<CopilotModel> replicatedModels = new ArrayList<>();
         replicatedModels.add(replicatedModel1);
         replicatedModels.add(replicatedModel2);
-        
+
         when(mockModelCriteria.list()).thenReturn(replicatedModels);
 
         // When
