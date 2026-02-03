@@ -308,7 +308,7 @@ langchain-community==0.4.1
     # via
     #   etendo-copilot-core
     #   langchain-experimental
-langchain-core==1.2.5
+langchain-core==1.2.2
     # via
     #   etendo-copilot-core
     #   langchain
