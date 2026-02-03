@@ -7,7 +7,7 @@
  */
 
 group          = "com.etendoerp"
-version        = "2.11.2"
+version        = "2.11.4"
 description    = "Etendo Copilot Platform"
 ext.artifact   = "copilot"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
@@ -56,7 +56,7 @@ dependencies {
     implementation('com.etendoerp:webhookevents:2.6.0')
     implementation('com.etendoerp:docker:2.9.0')
     implementation('com.etendoerp:openapi:2.5.0')
-    implementation('com.etendoerp:task:3.14.1')
+    implementation('com.etendoerp:task:3.14.2')
     implementation('com.etendoerp:telemetry:3.1.0')
 
     implementation('com.etendoerp.platform:etendo-core:[25.1.0,26.1.0)')
