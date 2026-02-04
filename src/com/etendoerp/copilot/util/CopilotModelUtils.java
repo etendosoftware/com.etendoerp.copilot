@@ -2,31 +2,16 @@ package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Date;
 import java.util.List;
-import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.dom4j.Element;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.provider.OBProvider;
-import org.openbravo.base.session.OBPropertiesProvider;
-import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.dal.xml.XMLUtil;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.model.ad.access.User;
-import org.openbravo.model.ad.system.Client;
-import org.openbravo.model.common.enterprise.Organization;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotModel;
@@ -86,85 +71,6 @@ public class CopilotModelUtils {
 
 
   /**
-   * Synchronizes the models by downloading the dataset from the URL and updating the models in the database.
-   * <p>
-   * This method retrieves the URL for the models dataset from the properties, downloads the content
-   * directly into memory, and calls the `upsertModels` method to update the models in the database.
-   * No temporary files are created, avoiding potential file accumulation issues.
-   *
-   * @throws OBException
-   *     If an error occurs during the synchronization process.
-   */
-  public static void syncModels() throws OBException {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String url = properties.getProperty("COPILOT_MODELS_DATASET_URL", CopilotUtils.DEFAULT_MODELS_DATASET_URL).replace(
-        "<BRANCH>", properties.getProperty("COPILOT_MODELS_DATASET_BRANCH", "master"));
-    String token = properties.getProperty("githubToken", null);
-
-    try {
-      logIfDebug("Starting models synchronization from URL: " + url);
-      upsertModelsFromStream(url, token);
-      logIfDebug("Models synchronization completed successfully");
-    } catch (Exception e) {
-      log.error("Error during models synchronization from URL: {}. Error: {}", url, e.getMessage());
-      throw new OBException("Failed to synchronize models: " + e.getMessage(), e);
-    }
-  }
-
-  /**
-   * Downloads the dataset from the specified URL and updates the models in the database.
-   * <p>
-   * This method downloads the content directly from the URL into memory, parses the XML
-   * to extract model elements, and calls the `upsertModel` method for each model element
-   * to update the database. No temporary files are created.
-   *
-   * @param fileUrl
-   *     The URL of the dataset to be downloaded.
-   * @param token
-   *     The GitHub API token for authorization (can be null).
-   * @throws OBException
-   *     If an error occurs while downloading or updating the models.
-   */
-  private static void upsertModelsFromStream(String fileUrl, String token) {
-    try {
-      URI uri = new URI(fileUrl);
-      HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
-
-      try {
-        // Add GitHub API headers for raw content
-        if (fileUrl.contains("api.github.com")) {
-          connection.setRequestProperty("Accept", "application/vnd.github.v3.raw");
-
-          // Add authorization header if token is provided
-          if (StringUtils.isNotEmpty(token)) {
-            connection.setRequestProperty("Authorization", "token " + token);
-          }
-        }
-
-        // Process the XML directly from the input stream
-        try (InputStream inputStream = connection.getInputStream()) {
-          OBContext.setAdminMode(false);
-          List<Element> elementList = XMLUtil.getInstance().getRootElement(inputStream).elements("ETCOP_Openai_Model");
-          logIfDebug("Processing " + elementList.size() + " model elements from dataset");
-
-          for (Element modelElem : elementList) {
-            logIfDebug("Processing model: " + modelElem.elementText("searchkey"));
-            upsertModel(modelElem);
-          }
-          OBDal.getInstance().flush();
-          logIfDebug("Successfully processed all model elements");
-        }
-      } finally {
-        connection.disconnect();
-      }
-    } catch (IOException | URISyntaxException e) {
-      throw new OBException("Failed to download and process models dataset: " + e.getMessage(), e);
-    } finally {
-      OBContext.restorePreviousMode();
-    }
-  }
-
-  /**
    * Logs a debug message if debug logging is enabled.
    * <p>
    * This method checks if the logger is in debug mode and, if so, logs the provided message.
@@ -180,61 +86,6 @@ public class CopilotModelUtils {
     }
   }
 
-  /**
-   * Inserts or updates a model in the database based on the provided XML element.
-   * <p>
-   * This method checks if the model already exists in the database. If it does, it updates the model.
-   * If it does not, it creates a new model and sets its properties based on the XML element.
-   *
-   * @param modelElem
-   *     The XML element containing the model data.
-   */
-  private static void upsertModel(Element modelElem) {
-    CopilotModel model = OBDal.getInstance().get(CopilotModel.class, modelElem.elementText("id"));
-    if (model == null) {
-      model = OBProvider.getInstance().get(CopilotModel.class);
-      model.setId(modelElem.elementText("id"));
-      model.setNewOBObject(true);
-      model.setCreatedBy(OBDal.getInstance().get(User.class, "0"));
-      model.setUpdatedBy(OBDal.getInstance().get(User.class, "0"));
-      model.setCreationDate(new Date());
-      model.setUpdated(new Date());
-    }
-    model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
-    model.setClient(OBDal.getInstance().get(Client.class, "0"));
-    model.setActive(Boolean.parseBoolean(modelElem.elementText("active")));
-    model.setSearchkey(modelElem.elementText("searchkey"));
-    model.setName(modelElem.elementText("name"));
-    model.setProvider(modelElem.elementText("provider"));
-    model.setEtendoMaintained(true);
-    model.setMaxTokens(StringUtils.isNotEmpty(modelElem.elementText("maxTokens")) ? Long.parseLong(
-        modelElem.elementText("maxTokens")) : null);
-    model.setDefault(Boolean.parseBoolean(modelElem.elementText("default")));
-    OBDal.getInstance().save(model);
-    disableReplicated(model.getId(), model.getSearchkey());
-  }
-
-  /**
-   * Disables replicated models with the same search key.
-   * <p>
-   * This method finds all CopilotModel instances with the same search key but different ID,
-   * and sets their active status to false.
-   *
-   * @param id
-   *     The ID of the model to exclude from the search.
-   * @param searchkey
-   *     The search key to match for disabling replicated models.
-   */
-  private static void disableReplicated(String id, String searchkey) {
-    OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
-    modelCriteria.add(Restrictions.ne(CopilotModel.PROPERTY_ID, id));
-    modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_SEARCHKEY, searchkey));
-    List<CopilotModel> models = modelCriteria.list();
-    for (CopilotModel modelrep : models) {
-      modelrep.setActive(false);
-      OBDal.getInstance().save(modelrep);
-    }
-  }
 
   /**
    * Retrieves the provider of the given CopilotApp instance.
@@ -318,7 +169,7 @@ public class CopilotModelUtils {
         throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_NoDefaultModel"), provider));
       }
       resultModel = model.getSearchkey();
-      log.debug("Model selected by Default: {}", resultModel);
+      logIfDebug("Model selected by Default: " + resultModel);
       return resultModel;
     } catch (Exception e) {
       throw new OBException(e.getMessage());
