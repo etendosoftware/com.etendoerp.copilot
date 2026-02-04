@@ -161,7 +161,7 @@ public class CopilotModelUtils {
       CopilotModel model = app.getModel();
       if (model != null && model.getSearchkey() != null) {
         resultModel = model.getSearchkey();
-        log.debug("Model selected in app: {}", resultModel);
+        logIfDebug(String.format("Model selected in app: %s", resultModel));
         return resultModel;
       }
       model = getDefaultModel(provider);
