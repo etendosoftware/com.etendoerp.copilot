@@ -3,7 +3,6 @@ package com.etendoerp.copilot.hook;
 import java.util.HashSet;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
@@ -137,20 +136,12 @@ public class ToolModelsConfig implements CopilotQuestionHook {
     }
     var toolConfigJson = new JSONObject();
     var tool = appTool.getCopilotTool();
-    String modelStr = appTool.getModel();
-    if (StringUtils.isBlank(modelStr)) {
+    var modelStr = appTool.getModel();
+    if (modelStr == null) {
       return;
     }
-
-    //model str has the format provider/modelName
-    String[] modelParts = modelStr.split("/", 2);
-    if (modelParts.length == 2) {
-      toolConfigJson.put("provider", modelParts[0]);
-      toolConfigJson.put("model", modelParts[1]);
-    } else {
-      toolConfigJson.put("model", modelStr);
-      toolConfigJson.put("provider", "openai");
-    }
+    toolConfigJson.put("model", modelStr.getName());
+    toolConfigJson.put("provider", modelStr.getProvider() != null ? modelStr.getProvider() : "openai");
     appToolModelsConfigJson.put(tool.getId(), toolConfigJson);
   }
 

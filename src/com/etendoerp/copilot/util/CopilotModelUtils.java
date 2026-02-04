@@ -9,8 +9,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -51,22 +53,62 @@ public class CopilotModelUtils {
    */
   static CopilotModel getDefaultModel(String provider) {
     CopilotModel result = null;
+    result = readOverrideDefaultModel(provider);
+    if (result != null) {
+      return result;
+    }
     OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
     if (StringUtils.isNotEmpty(provider)) {
       modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, provider));
     }
-    modelCriteria.add(Restrictions.or(Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true),
-        Restrictions.eq(CopilotModel.PROPERTY_DEFAULTOVERRIDE, true)));
+    modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true));
     modelCriteria.addOrderBy(CopilotModel.PROPERTY_CREATIONDATE, true);
 
     List<CopilotModel> mdList = modelCriteria.list();
-    //search the first with "default override" true
-    result = mdList.stream().filter(CopilotModel::isDefaultOverride).findFirst().orElse(null);
-    if (result == null) {
-      //search the first with "default" true
-      result = mdList.stream().filter(CopilotModel::isDefault).findFirst().orElse(null);
-    }
+    //search the first with "default" true
+    result = mdList.stream().filter(CopilotModel::isDefault).findFirst().orElse(null);
     return result;
+  }
+
+  private static CopilotModel readOverrideDefaultModel(String provider) {
+    //if propertie not found or exception return null
+    try {
+      String overrideModelStr = Preferences.getPreferenceValue(
+          "ETCOP_DefaultModelOverride",
+          true,
+          OBContext.getOBContext().getCurrentClient(),
+          OBContext.getOBContext().getCurrentOrganization(),
+          OBContext.getOBContext().getUser(),
+          OBContext.getOBContext().getRole(),
+          null
+      );
+      // the text has the format provider/modelId
+      if (StringUtils.isEmpty(overrideModelStr)) {
+        return null;
+      }
+      String[] parts = overrideModelStr.split("/");
+      if (parts.length != 2) {
+        return null;
+      }
+      String prefProvider = parts[0];
+      String modelKey = parts[1];
+      if (!StringUtils.equals(prefProvider, provider)) {
+        return null;
+      }
+      OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
+      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_NAME, modelKey));
+      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, provider));
+      modelCriteria.setMaxResults(1);
+      CopilotModel model = (CopilotModel) modelCriteria.uniqueResult();
+      if (model != null) {
+        logIfDebug("Overriding default model with model from preference: " + model.getSearchkey());
+        return model;
+      }
+      log.error("No CopilotModel found with id: " + modelKey + " from preference ETCOP_DefaultModelOverride");
+    } catch (Exception e) {
+      log.debug("Not found override default model preference or error reading it:", e);
+    }
+    return null;
   }
 
 
