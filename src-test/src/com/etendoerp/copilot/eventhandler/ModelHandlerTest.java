@@ -16,8 +16,10 @@
  */
 package com.etendoerp.copilot.eventhandler;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.mockStatic;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -130,7 +132,7 @@ public class ModelHandlerTest {
     when(targetModel.getProvider()).thenReturn("anthropic");
 
     // Then: exception expected
-    org.junit.Assert.assertThrows(OBException.class, () -> handler.onUpdate(updateEvent));
+    assertThrows(OBException.class, () -> handler.onUpdate(updateEvent));
   }
 
   @Test
@@ -169,7 +171,7 @@ public class ModelHandlerTest {
     when(crit.uniqueResult()).thenReturn(org.mockito.Mockito.mock(CopilotModel.class));
 
     // Then
-    org.junit.Assert.assertThrows(OBException.class, () -> handler.onUpdate(updateEvent));
+  assertThrows(OBException.class, () -> handler.onUpdate(updateEvent));
   }
 
   @Test
