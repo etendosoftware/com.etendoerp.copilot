@@ -87,6 +87,12 @@ public class ModelHandlerTest {
     when(copilotModelEntity.getProperty(CopilotModel.PROPERTY_DEFAULT)).thenReturn(propDefault);
     when(copilotModelEntity.getProperty(CopilotModel.PROPERTY_DEFAULTOVERRIDE)).thenReturn(propDefaultOverride);
     when(updateEvent.getTargetInstance()).thenReturn(targetModel);
+
+    // Default mock values to avoid NPE
+    when(updateEvent.getCurrentState(propDefault)).thenReturn(false);
+    when(updateEvent.getPreviousState(propDefault)).thenReturn(false);
+    when(updateEvent.getCurrentState(propDefaultOverride)).thenReturn(false);
+    when(updateEvent.getPreviousState(propDefaultOverride)).thenReturn(false);
   }
 
   @After
