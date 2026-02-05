@@ -70,6 +70,7 @@ public class CopilotUtils {
 
   public static final String MAX_CHUNK_SIZE = "max_chunk_size";
   public static final String CHUNK_OVERLAP = "chunk_overlap";
+  public static final String AD_CLIENT_ID = "ad_client_id";
 
   private CopilotUtils() {
     // Private constructor to prevent instantiation
@@ -109,7 +110,7 @@ public class CopilotUtils {
    *     If the response from the Copilot service indicates a failure.
    */
   public static void toVectorDB(File fileToSend, String dbName, String format, boolean skipSplitting, Long maxChunkSize,
-      Long chunkOverlap) throws JSONException {
+      Long chunkOverlap, String clientId) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String endpoint = "addToVectorDB";
     HttpResponse<String> responseFromCopilot;
@@ -119,6 +120,7 @@ public class CopilotUtils {
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
     jsonRequestForCopilot.put("skip_splitting", skipSplitting);
+    jsonRequestForCopilot.put(AD_CLIENT_ID, StringUtils.defaultIfEmpty(clientId, "0"));
     if (maxChunkSize != null) {
       jsonRequestForCopilot.put(MAX_CHUNK_SIZE, maxChunkSize);
     }
@@ -286,6 +288,7 @@ public class CopilotUtils {
     JSONObject jsonRequestForCopilot = new JSONObject();
 
     jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
+    jsonRequestForCopilot.put(AD_CLIENT_ID, OBContext.getOBContext().getCurrentClient().getId());
     String endpoint = "ResetVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
         null);
@@ -332,7 +335,6 @@ public class CopilotUtils {
 
     // Retrieve the file to be synchronized
     CopilotFile fileToSync = appSource.getFile();
-    WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
     logIfDebug("Uploading file " + fileToSync.getName());
 
     // Extract the file name and determine its extension
@@ -370,7 +372,7 @@ public class CopilotUtils {
     // Check if the file extension is valid
     if (FileUtils.isValidExtension(extension)) {
       // Upload the file to the vector database
-      FileUtils.binaryFileToVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap);
+      FileUtils.binaryFileToVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap, fileToSync.getClient().getId());
     } else {
       // Throw an exception for invalid file formats
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
@@ -649,6 +651,7 @@ public class CopilotUtils {
     JSONObject jsonRequestForCopilot = new JSONObject();
 
     jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
+    jsonRequestForCopilot.put(AD_CLIENT_ID, app.getClient().getId());
     String endpoint = "purgeVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
         null);

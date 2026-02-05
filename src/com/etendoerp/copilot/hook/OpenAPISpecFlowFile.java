@@ -1,15 +1,18 @@
 package com.etendoerp.copilot.hook;
 
 import static com.etendoerp.copilot.util.CopilotUtils.getEtendoHostDocker;
+import static com.etendoerp.copilot.util.FileUtils.refreshFileForNonMultiClient;
+import com.etendoerp.copilot.util.FileUtils;
 
 import java.io.BufferedInputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -18,16 +21,15 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.datamodel.Table;
+import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.ad.utility.Attachment;
 
 import com.etendoerp.copilot.data.CopilotFile;
-import com.etendoerp.copilot.util.FileUtils;
 import com.etendoerp.openapi.OpenAPIController;
 import com.etendoerp.openapi.data.OpenApiFlow;
 
@@ -57,18 +59,17 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
     }
     var flow = hookObject.getOpenAPIFlow();
     String fileName = getFileName(hookObject, flow);
+    Path path = null;
     try {
-      Path path = getOpenAPIFile(flow, fileName);
-      AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-      removeAttachment(aim, hookObject);
-      File file = new File(path.toString());
-      aim.upload(new HashMap<>(), COPILOT_FILE_TAB_ID, hookObject.getId(),
-          hookObject.getOrganization().getId(), file);
-      FileUtils.cleanupTempFile(path, false);
+      path = getOpenAPIFile(flow, fileName);
+      com.etendoerp.copilot.util.FileUtils.processFileAttachment(hookObject, path, isMultiClient());
     } catch (Exception e) {
       throw new OBException(
           String.format(OBMessageUtils.messageBD("ETCOP_GenFileError"), getFileName(hookObject, flow), e.getMessage()),
           e);
+    } finally {
+      // Clean up the temporary file if it's not being used as a Knowledge Base file
+      com.etendoerp.copilot.util.FileUtils.cleanupTempFileIfNeeded(hookObject, path);
     }
   }
 
@@ -98,7 +99,7 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
     try {
       String openAPISpec = new OpenAPIController().getOpenAPIJson(null, flow.getName(), getEtendoHostDocker(), true);
       openAPISpec = addInfoForCopilot(openAPISpec);
-      return Files.writeString(Files.createTempFile(fileName, ".json"), openAPISpec);
+      return Files.writeString(FileUtils.createSecureTempFile(fileName, ".json"), openAPISpec);
     } catch (Exception e) {
       throw new OBException(e);
     }
@@ -159,7 +160,7 @@ public class OpenAPISpecFlowFile implements CopilotFileHook {
     String finalName = getFinalName(customName, url);
 
     // Create a temporary directory
-    Path tempDirectory = Files.createTempDirectory("temporary_downloads");
+    Path tempDirectory = FileUtils.createSecureTempDirectory("temporary_downloads");
 
     // Full path of the file in the temporary directory
     Path destinationPath = tempDirectory.resolve(finalName);

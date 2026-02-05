@@ -328,6 +328,10 @@ public class CopilotUtilsTest extends WeldBaseTest {
     CopilotApp app = mock(CopilotApp.class);
     when(app.getId()).thenReturn(TEST_APP_ID);
     when(app.getName()).thenReturn(TEST_APP_NAME);
+    org.openbravo.model.ad.system.Client mockClient = mock(org.openbravo.model.ad.system.Client.class);
+    when(mockClient.getId()).thenReturn("TEST_CLIENT_ID");
+    when(app.getClient()).thenReturn(mockClient);
+
     HttpResponse<String> response = mock(HttpResponse.class);
     when(response.statusCode()).thenReturn(200);
     try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
@@ -347,6 +351,10 @@ public class CopilotUtilsTest extends WeldBaseTest {
     CopilotApp app = mock(CopilotApp.class);
     when(app.getId()).thenReturn(TEST_APP_ID);
     when(app.getName()).thenReturn(TEST_APP_NAME);
+    org.openbravo.model.ad.system.Client mockClient = mock(org.openbravo.model.ad.system.Client.class);
+    when(mockClient.getId()).thenReturn("TEST_CLIENT_ID");
+    when(app.getClient()).thenReturn(mockClient);
+
     HttpResponse<String> response = mock(HttpResponse.class);
     when(response.statusCode()).thenReturn(500);
     when(response.body()).thenReturn("error");
@@ -499,7 +507,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
     try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
       utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
       // Should not throw exception
-      CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null);
+      CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null, null);
     }
   }
 
@@ -519,7 +527,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
     try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
       utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
       // Should not throw exception
-      CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, 1000L, 100L);
+      CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, 1000L, 100L, null);
     }
   }
 
@@ -539,7 +547,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
       utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
       messageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")).thenReturn(SYNC_FAILED_MESSAGE);
       OBException ex = assertThrows(OBException.class,
-          () -> CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null));
+          () -> CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null, null));
       assertEquals(SYNC_FAILED_MESSAGE, ex.getMessage());
     }
   }
@@ -558,7 +566,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
       utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(null);
       messageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")).thenReturn(SYNC_FAILED_MESSAGE);
       OBException ex = assertThrows(OBException.class,
-          () -> CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null));
+          () -> CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null, null));
       assertEquals(SYNC_FAILED_MESSAGE, ex.getMessage());
     }
   }

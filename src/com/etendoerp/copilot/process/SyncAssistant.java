@@ -33,11 +33,12 @@ import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.data.TeamMember;
 import com.etendoerp.copilot.hook.CopilotFileHookManager;
+import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
+import com.etendoerp.copilot.util.FileUtils;
 import com.etendoerp.copilot.util.OpenAIUtils;
-import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.openapi.data.OpenApiFlowPoint;
 import com.etendoerp.webhookevents.data.DefinedWebHook;
 import com.etendoerp.webhookevents.data.DefinedwebhookRole;
@@ -84,12 +85,13 @@ public class SyncAssistant extends BaseProcessActionHandler {
   public JSONObject doExecute(Map<String, Object> parameters, String content) {
     // Declare json to be returned
     JSONObject result = new JSONObject();
+    List<CopilotApp> appList = new ArrayList<>();
     try {
       OBContext.setAdminMode();
       // Get request parameters
       JSONObject request = new JSONObject(content);
       JSONArray selectedRecords = request.optJSONArray("recordIds");
-      List<CopilotApp> appList = getSelectedApps(selectedRecords);
+      appList = getSelectedApps(selectedRecords);
       //append team members if there are selected graph agents
       List<CopilotApp> childs = new ArrayList<>();
       for (CopilotApp app : appList) {
@@ -118,6 +120,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
         throw new OBException(OBMessageUtils.messageBD("ETCOP_ApiKeyNotFound"));
       }
       OpenAIUtils.getModelList(openaiApiKey);
+
       // Sync knowledge files to each assistant
       result = syncKnowledgeFiles(appList, openaiApiKey);
       OBDal.getInstance().flush();
@@ -137,10 +140,57 @@ public class SyncAssistant extends BaseProcessActionHandler {
         log.error("Error in process", ex);
       }
     } finally {
+      cleanupKBFiles(appList);
       OBContext.restorePreviousMode();
     }
     return result;
   }
+
+  /**
+   * Cleans up the knowledge base files associated with the processed applications.
+   * <p>
+   * This method identifies the knowledge base files used during synchronization by checking
+   * the CopilotAppSource list of each application. It filters the sources that are of
+   * KB behavior and require update. For each identified file, it cleans up the variant file
+   * if it was used from a temporary location.
+   *
+   * @param appList
+   *     A list of CopilotApp objects processed during the synchronization.
+   */
+  private void cleanupKBFiles(List<CopilotApp> appList) {
+    String clientId = OBContext.getOBContext().getCurrentClient().getId();
+    Set<CopilotFile> filesToClean = appList.stream()
+        .flatMap(app -> app.getETCOPAppSourceList().stream())
+        .filter(appSource -> CopilotConstants.isKbBehaviour(appSource) && mustUpdateKBF(appSource, clientId))
+        .map(CopilotAppSource::getFile)
+        .collect(Collectors.toSet());
+
+    for (CopilotFile file : filesToClean) {
+      if (FileUtils.useFileFromTemp(file)) {
+        cleanVariantFile(file);
+      }
+    }
+  }
+
+  /**
+   * Cleans up the variant file for a specific CopilotFile and client.
+   * <p>
+   * This method retrieves the KnowledgeBaseFileVariant associated with the given file and client.
+   * If the variant has an internal path set, it deletes the file at that path and clears the
+   * internal path in the variant record.
+   *
+   * @param file
+   *     The CopilotFile for which to clean the variant file.
+   */
+  private void cleanVariantFile(CopilotFile file) {
+     var variant = com.etendoerp.copilot.util.FileUtils.getOrCreateVariant(file, OBContext.getOBContext().getCurrentClient());
+     if (StringUtils.isNotEmpty(variant.getInternalPath())) {
+       FileUtils.cleanupTempFile(java.nio.file.Paths.get(variant.getInternalPath()), true);
+       variant.setInternalPath(null);
+       OBDal.getInstance().save(variant);
+     }
+  }
+
 
   /**
    * This method retrieves a list of {@link CopilotApp} instances based on the given selected records.
@@ -196,6 +246,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
     for (CopilotAppSource as : appSourcesToRefresh) {
       log.debug("Syncing file {}", as.getFile().getName());
       CopilotFile fileToSync = as.getFile();
+
       WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
     }
   }
@@ -365,13 +416,15 @@ public class SyncAssistant extends BaseProcessActionHandler {
 
     for (CopilotApp app : appList) {
       // Filter the application's sources to include only knowledge base files
+      String clientID = OBContext.getOBContext().getCurrentClient().getId();
       List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream().filter(
-          CopilotConstants::isKbBehaviour).collect(Collectors.toList());
+          CopilotConstants::isKbBehaviour).filter(
+          kbf -> mustUpdateKBF(kbf, clientID)
+      ).collect(Collectors.toList());
       // Handle synchronization based on the application type
       switch (app.getAppType()) {
         case CopilotConstants.APP_TYPE_OPENAI:
-          syncKBFilesToOpenAI(app, knowledgeBaseFiles, openaiApiKey);
-          break;
+          throw new OBException("OpenAI sync is disabled. Change the agent type to Multi-Model.");
         case CopilotConstants.APP_TYPE_LANGCHAIN:
         case CopilotConstants.APP_TYPE_MULTIMODEL:
           syncKBFilesToLangChain(app, knowledgeBaseFiles);
@@ -389,44 +442,13 @@ public class SyncAssistant extends BaseProcessActionHandler {
     return buildMessage(syncCount, appList.size());
   }
 
-  /**
-   * This method synchronizes knowledge base files with the OpenAI API for a given {@link CopilotApp}.
-   * It processes the list of provided {@link CopilotAppSource} instances, sending each one to
-   * the OpenAI API for synchronization. The method also performs additional steps to refresh
-   * the application's state and synchronize the assistant configuration.
-   *
-   * <p>If the application is configured for OpenAI but the knowledge base files are present,
-   * and it is neither a code interpreter nor retrieval-enabled, an {@link OBException} is thrown
-   * to indicate that the knowledge base files are ignored for the given app configuration.
-   *
-   * <p>After synchronizing each knowledge base file, the application's state is refreshed from
-   * the database, the vector database is updated, and the assistant configuration is synchronized
-   * with the OpenAI API.
-   *
-   * @param app
-   *     The {@link CopilotApp} instance for which knowledge base files are being synchronized.
-   * @param knowledgeBaseFiles
-   *     A list of {@link CopilotAppSource} objects representing the knowledge base files to be synchronized.
-   * @param openaiApiKey
-   *     The API key used for authentication with the OpenAI API.
-   * @throws JSONException
-   *     If an error occurs while processing JSON data.
-   * @throws IOException
-   *     If an input/output error occurs during the synchronization process.
-   * @throws OBException
-   *     If the application's configuration does not allow for knowledge base synchronization.
-   */
-  private void syncKBFilesToOpenAI(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles,
-      String openaiApiKey) throws JSONException, IOException {
-    OpenAIUtils.checkIfAppCanUseAttachedFiles(app, knowledgeBaseFiles);
-    for (CopilotAppSource appSource : knowledgeBaseFiles) {
-      OpenAIUtils.syncAppSource(appSource, openaiApiKey);
-    }
-    OBDal.getInstance().refresh(app);
-    OpenAIUtils.refreshVectorDb(app);
-    OBDal.getInstance().refresh(app);
-    OpenAIUtils.syncAssistant(openaiApiKey, app);
+  private boolean mustUpdateKBF(CopilotAppSource kbf, String clientID) {
+    //if the kbf client is "0", or equals to current client, must update
+    //using stringutils
+    return StringUtils.equals(kbf.getClient().getId(), "0") ||
+        StringUtils.equals(kbf.getClient().getId(), clientID);
   }
+
 
   /**
    * This method synchronizes knowledge base files with the LangChain API for a given {@link CopilotApp}.

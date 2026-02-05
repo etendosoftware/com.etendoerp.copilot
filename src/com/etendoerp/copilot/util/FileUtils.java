@@ -2,14 +2,15 @@ package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.util.CopilotConstants.KB_FILE_VALID_EXTENSIONS;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
@@ -18,16 +19,20 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.weld.WeldUtils;
+import org.openbravo.base.provider.OBProvider;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.datamodel.Table;
+import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.ad.utility.Attachment;
+import org.openbravo.model.common.enterprise.Organization;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.data.KnowledgeBaseFileVariant;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 
 /**
@@ -40,6 +45,51 @@ public class FileUtils {
 
   private FileUtils() {
     // Private constructor to prevent instantiation
+  }
+
+  /**
+   * Returns the secure temporary directory for Copilot.
+   *
+   * @return The path to the secure temporary directory
+   */
+  private static Path getSecureTempDir() {
+    String baseAttachPath = OBPropertiesProvider.getInstance()
+        .getOpenbravoProperties()
+        .getProperty("attach.path", "/opt/EtendoERP");
+
+    File secureDir = new File(baseAttachPath, "tmp_copilot");
+    if (!secureDir.exists()) {
+      secureDir.mkdirs();
+    }
+    return secureDir.toPath();
+  }
+
+  /**
+   * Creates a temporary file in a secure directory.
+   *
+   * @param prefix
+   *     The prefix string to be used in generating the file's name; may be null
+   * @param suffix
+   *     The suffix string to be used in generating the file's name; may be null, in which case ".tmp" is used
+   * @return The path to the created temporary file
+   * @throws IOException
+   *     If an I/O error occurs
+   */
+  public static Path createSecureTempFile(String prefix, String suffix) throws IOException {
+    return Files.createTempFile(getSecureTempDir(), prefix, suffix);
+  }
+
+  /**
+   * Creates a temporary directory in a secure directory.
+   *
+   * @param prefix
+   *     The prefix string to be used in generating the directory's name; may be null
+   * @return The path to the created temporary directory
+   * @throws IOException
+   *     If an I/O error occurs
+   */
+  public static Path createSecureTempDirectory(String prefix) throws IOException {
+    return Files.createTempDirectory(getSecureTempDir(), prefix);
   }
 
   /**
@@ -60,46 +110,22 @@ public class FileUtils {
    *     cannot be made writable.
    */
   public static File getFileFromCopilotFile(CopilotFile fileToSync) throws IOException {
-    AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-
-    // Query the attachment related to the given CopilotFile
-    OBCriteria<Attachment> attCrit = OBDal.getInstance().createCriteria(Attachment.class);
-    attCrit.add(Restrictions.eq(Attachment.PROPERTY_RECORD, fileToSync.getId()));
-    Attachment attach = (Attachment) attCrit.setMaxResults(1).uniqueResult();
-    if (attach == null) {
-      throwMissingAttachException(fileToSync);
+    var variant = getOrCreateVariant(fileToSync, fileToSync.getClient());
+    if (StringUtils.isNotEmpty( variant.getInternalPath())) {
+      return new File(variant.getInternalPath());
+    } //so the file is stored in the DB
+    var fileName = fileToSync.getFilename(); //includes extension
+    File result = createSecureTempFile(null, "_" + fileName).toFile();
+    try {
+      Files.write(result.toPath(), variant.getFiledata());
+    } catch (IOException e) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_TempFileErr"), fileName), e);
     }
-
-    // Get original filename and validate extension
-    String filename = attach.getName();
-    if (filename.lastIndexOf(".") < 0) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingExtension"), filename));
+    if (!result.setWritable(true)) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_TempFilePermErr"), fileName));
     }
-
-    // Extract name and extension
-    String fileWithoutExtension = filename.substring(0, filename.lastIndexOf("."));
-    String extension = filename.substring(filename.lastIndexOf(".") + 1);
-
-    // Create a temporary file
-    File tempFile = File.createTempFile("attach_down_" + fileWithoutExtension, "." + extension);
-    boolean setW = tempFile.setWritable(true);
-    if (!setW) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorTempFile"), fileToSync.getName()));
-    }
-
-    // Download content into memory, then write it to the temp file
-    try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-      aim.download(attach.getId(), os);
-
-      // Ensure the output stream is properly closed after writing
-      try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-        os.writeTo(fos);
-      }
-    }
-
-    // Return the file, now fully written and closed
-    return tempFile;
-  }
+    return result;
+   }
 
   /**
    * Checks if the given file extension is valid.
@@ -117,8 +143,8 @@ public class FileUtils {
   }
 
   static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName, String extension, boolean skipSplitting,
-      Long maxChunkSize, Long chunkOverlap) throws JSONException {
-    CopilotUtils.toVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap);
+      Long maxChunkSize, Long chunkOverlap, String clientId) throws JSONException {
+    CopilotUtils.toVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap, clientId);
   }
 
   static File generateHQLFile(CopilotAppSource appSource) {
@@ -251,5 +277,145 @@ public class FileUtils {
     } catch (IOException e) {
       log.error("Failed to delete temporary file or folder: {}", e.getMessage());
     }
+  }
+
+  /**
+   * Refreshes the file for a non-multi-client environment.
+   * Depending on the behavior, it either saves the internal path or the file data in the variant.
+   *
+   * @param hookObject The Copilot file object.
+   * @param clientPathMap A map of clients and their corresponding file paths.
+   * @throws IOException If an I/O error occurs.
+   */
+  public static void refreshFileForNonMultiClient(CopilotFile hookObject, Map<Client, Path> clientPathMap) throws IOException {
+    boolean useTemp = useFileFromTemp(hookObject);
+    for (Map.Entry<Client, Path> entry : clientPathMap.entrySet()) {
+      Client client = entry.getKey();
+      Path path = entry.getValue();
+      if (useTemp) {
+        //Store only the internal path to the file
+        savePathInVariant(hookObject, client, path);
+      } else { //any type of behavior except the KB
+        //Persist the file in the database as attachment
+        //save data in variant
+        saveDataInVariant(hookObject, client, path);
+      }
+    }
+    OBDal.getInstance().flush();
+  }
+
+  /**
+   * Saves the internal file path in the variant for a specific client.
+   *
+   * @param hookObject The Copilot file object.
+   * @param client The client associated with the variant.
+   * @param path The path to be saved.
+   */
+  public static void savePathInVariant(CopilotFile hookObject, Client client, Path path) {
+    var variant = getOrCreateVariant(hookObject, client);
+    variant.setFiledata(null);
+    variant.setInternalPath(path.toString());
+    OBDal.getInstance().save(variant);
+  }
+
+  /**
+   * Retrieves or creates a KnowledgeBaseFileVariant for the given CopilotFile and client.
+   * <p>
+   * This method searches for an existing variant based on the client and CopilotFile.
+   * If found, it returns the existing variant. Otherwise, it creates a new one,
+   * sets its initial properties (including organization "0"), saves it, and returns it.
+   *
+   * @param hookObject
+   *     The CopilotFile for which to retrieve or create the variant.
+   * @param client
+   *     The client associated with the variant.
+   * @return The existing or newly created KnowledgeBaseFileVariant.
+   */
+  public static KnowledgeBaseFileVariant getOrCreateVariant(CopilotFile hookObject, Client client) {
+    KnowledgeBaseFileVariant variant = (KnowledgeBaseFileVariant) OBDal.getInstance().createCriteria(
+            KnowledgeBaseFileVariant.class)
+        .add(Restrictions.eq(KnowledgeBaseFileVariant.PROPERTY_CLIENT, client))
+        .add(Restrictions.eq(KnowledgeBaseFileVariant.PROPERTY_KBFILE, hookObject)).uniqueResult();
+    if (variant != null) {
+      return variant;
+    }
+    variant = OBProvider.getInstance().get(KnowledgeBaseFileVariant.class);
+    variant.setNewOBObject(true);
+    variant.setClient(client);
+    variant.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
+    variant.setKBFile(hookObject);
+    OBDal.getInstance().save(variant);
+    OBDal.getInstance().flush();
+    return variant;
+  }
+
+  /**
+   * Saves the file data in the variant for a specific client.
+   *
+   * @param hookObject The Copilot file object.
+   * @param client The client associated with the variant.
+   * @param path The path to the file to be read.
+   * @throws IOException If an I/O error occurs while reading the file.
+   */
+  public static void saveDataInVariant(CopilotFile hookObject, Client client, Path path) throws IOException {
+    var variant = getOrCreateVariant(hookObject, client);
+    variant.setInternalPath(null);
+    variant.setFiledata(Files.readAllBytes(path));
+    OBDal.getInstance().save(variant);
+  }
+
+  /**
+   * Processes the file attachment for the CopilotFile.
+   * If multi-client is enabled, it associates the file with all clients.
+   * Otherwise, it associates it with the CopilotFile's client.
+   *
+   * @param hookObject The Copilot file object.
+   * @param filePath The path to the file to be attached.
+   * @param isMultiClient Whether the file supports multiple clients.
+   * @throws IOException If an I/O error occurs.
+   */
+  public static void processFileAttachment(CopilotFile hookObject, Path filePath, boolean isMultiClient) throws IOException {
+    Map<Client, Path> clientPathMap = new HashMap<>();
+    if (isMultiClient) {
+      List<Client> clientList = OBDal.getInstance().createCriteria(Client.class).list();
+      for (Client client : clientList) {
+        clientPathMap.put(client, filePath);
+      }
+    } else {
+      clientPathMap.put(hookObject.getClient(), filePath);
+    }
+    refreshFileForNonMultiClient(hookObject, clientPathMap);
+  }
+
+  /**
+   * Cleans up the temporary file if it is not required for Knowledge Base usage.
+   *
+   * @param hookObject The Copilot file object.
+   * @param path The path to the temporary file.
+   */
+  public static void cleanupTempFileIfNeeded(CopilotFile hookObject, Path path) {
+    if (path != null && !useFileFromTemp(hookObject)) {
+      cleanupTempFile(path, true);
+    }
+  }
+
+  /**
+   * Determines if the file should be used from the temporary path based on the associated app sources.
+   *
+   * @param hookObject The Copilot file object.
+   * @return true if all app sources are of Knowledge Base behavior, false otherwise.
+   */
+  public static boolean useFileFromTemp(CopilotFile hookObject) {
+    // If all app sources are of KB behavior, we can use from the temp path, not saving in DB. The file will be deleted after Sync.
+    List<CopilotAppSource> appSources = hookObject.getETCOPAppSourceList();
+    if (appSources.isEmpty()) {
+      return false;
+    }
+    for (CopilotAppSource appSource : appSources) {
+      if (!CopilotConstants.isKbBehaviour(appSource)) {
+        return false;
+      }
+    }
+    return true;
   }
 }

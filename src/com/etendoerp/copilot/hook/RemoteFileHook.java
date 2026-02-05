@@ -1,20 +1,24 @@
 package com.etendoerp.copilot.hook;
 
+import static com.etendoerp.copilot.util.FileUtils.refreshFileForNonMultiClient;
+
 import java.io.BufferedInputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.weld.WeldUtils;
-import org.openbravo.client.application.attachment.AttachImplementationManager;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.system.Client;
 
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.util.CopilotVarReplacerUtil;
@@ -47,19 +51,20 @@ public class RemoteFileHook implements CopilotFileHook {
     String fileName = hookObject.getFilename();
     //download the file from the URL, preserving the original name, if filename is not empty, use it instead. The file must be
     //stored in a temporary folder.
+    Path path = null;
     try {
-      Path path = downloadFile(url, fileName);
-      AttachImplementationManager aim = WeldUtils.getInstanceFromStaticBeanManager(AttachImplementationManager.class);
-      FileUtils.removeAttachment(aim, hookObject);
-      File file = new File(path.toString());
-      FileUtils.attachFile(hookObject, aim, file);
-      FileUtils.cleanupTempFile(path, true);
-
+      path = downloadFile(url, fileName);
+      FileUtils.processFileAttachment(hookObject, path, isMultiClient());
     } catch (IOException e) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileDownErr"), url), e);
+    } finally {
+      // Clean up the temporary file if it's not being used as a Knowledge Base file
+      FileUtils.cleanupTempFileIfNeeded(hookObject, path);
     }
 
   }
+
+
 
 
   /**
@@ -78,7 +83,7 @@ public class RemoteFileHook implements CopilotFileHook {
     String finalName = getFinalName(customName, url);
 
     // Create a temporary directory
-    Path tempDirectory = Files.createTempDirectory("CopilotRemoteFile");
+    Path tempDirectory = FileUtils.createSecureTempDirectory("CopilotRemoteFile");
 
     // Full path of the file in the temporary directory
     Path destinationPath = tempDirectory.resolve(finalName);

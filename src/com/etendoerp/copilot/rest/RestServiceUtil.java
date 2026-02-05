@@ -29,6 +29,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+
+import com.etendoerp.copilot.util.FileUtils;
 import java.util.concurrent.TransferQueue;
 import java.util.stream.Collectors;
 
@@ -113,6 +115,7 @@ public class RestServiceUtil {
   public static final String PROP_KB_VECTORDB_ID = "kb_vectordb_id";
   public static final String PROP_KB_SEARCH_K = "kb_search_k";
   public static final String PROP_AD_USER_ID = "ad_user_id";
+  public static final String PROP_AD_CLIENT_ID = "ad_client_id";
   public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
   public static final String METADATA = "metadata";
   public static final String PROP_STRUCTURED_OUTPUT_JSON_SCHEMA = "structured_output_json_schema";
@@ -232,7 +235,7 @@ public class RestServiceUtil {
       prefix = (prefix + "___").substring(0, 3);
     }
 
-    Path tempPath = createTempFileWithPrefix(prefix, extension);
+    Path tempPath = FileUtils.createSecureTempFile(prefix, extension);
     File f = tempPath.toFile();
     f.deleteOnExit();
 
@@ -248,13 +251,6 @@ public class RestServiceUtil {
       return "default";
     }
     return originalFileName;
-  }
-
-  private static Path createTempFileWithPrefix(String prefix, String extension) throws IOException {
-    if (extension == null) {
-      return Files.createTempFile(prefix, null);
-    }
-    return Files.createTempFile(prefix, extension);
   }
 
   private static void setOwnerOnlyPermissions(Path tempPath, File f) {
@@ -613,6 +609,7 @@ public class RestServiceUtil {
     }
 
     jsonRequestForCopilot.put(RestServiceUtil.PROP_AD_USER_ID, OBContext.getOBContext().getUser().getId());
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_AD_CLIENT_ID, OBContext.getOBContext().getCurrentClient().getId());
     question += getAppSourceContent(copilotApp.getETCOPAppSourceList(), CopilotConstants.FILE_BEHAVIOUR_QUESTION);
     CopilotUtils.checkQuestionPrompt(question);
     jsonRequestForCopilot.put(PROP_QUESTION, question + appendLocalFileIds(questionAttachedFileIds));
