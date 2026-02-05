@@ -161,7 +161,7 @@ public class ToolModelsConfigTest extends WeldBaseTest {
       name = model.substring(idx + 1);
     }
     CopilotModel mockModel = org.mockito.Mockito.mock(CopilotModel.class);
-    when(mockModel.getName()).thenReturn(name);
+    when(mockModel.getSearchkey()).thenReturn(name);
     when(mockModel.getProvider()).thenReturn(provider);
     when(mockAppTool.getModel()).thenReturn(mockModel);
   }
@@ -353,7 +353,7 @@ public class ToolModelsConfigTest extends WeldBaseTest {
     when(mockTeamMemberApp.getETCOPAppToolList()).thenReturn(teamAppTools);
 
     // Setup team member
-    when(mockTeamMember.getCopilotApp()).thenReturn(mockTeamMemberApp);
+    when(mockTeamMember.getMember()).thenReturn(mockTeamMemberApp);
     List<TeamMember> teamMembers = new ArrayList<>();
     teamMembers.add(mockTeamMember);
     when(mockApp.getETCOPTeamMemberList()).thenReturn(teamMembers);
