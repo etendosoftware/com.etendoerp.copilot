@@ -183,6 +183,15 @@ def _get_property_type(prop_data: Dict) -> str:
     return "string"
 
 
+def _extract_object_schema_from_oneof(schema_dict: Dict) -> Optional[Dict]:
+    """Extract the object schema from a oneOf structure."""
+    if "oneOf" not in schema_dict:
+        return schema_dict
+    
+    one_of_items = schema_dict.get("oneOf", [])
+    return next((item for item in one_of_items if item.get("type") == "object" and "properties" in item), None)
+
+
 def _process_request_body(method: str, operation: Dict, path: str, type_map: Dict) -> Optional[tuple]:
     """Process request body for POST/PUT methods and return body model and field info."""
     if method not in ["post", "put"]:
@@ -193,22 +202,9 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
     schema_dict = content.get("application/json", {}).get("schema", {})
 
     # Handle oneOf schema (for endpoints that accept single object or array)
-    if "oneOf" in schema_dict:
-        # Extract the object schema from oneOf (first item is typically the single object)
-        one_of_items = schema_dict.get("oneOf", [])
-        object_schema = None
-        
-        for item in one_of_items:
-            # Find the object schema (not the array schema)
-            if item.get("type") == "object" and "properties" in item:
-                object_schema = item
-                break
-        
-        if object_schema:
-            schema_dict = object_schema
-        else:
-            # If no object schema found, cannot process
-            return None
+    schema_dict = _extract_object_schema_from_oneof(schema_dict)
+    if schema_dict is None:
+        return None
 
     if schema_dict.get("type") != "object" or "properties" not in schema_dict:
         return None
