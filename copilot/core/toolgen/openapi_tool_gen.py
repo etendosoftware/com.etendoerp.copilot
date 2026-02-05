@@ -192,6 +192,24 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
     content = request_body.get("content", {})
     schema_dict = content.get("application/json", {}).get("schema", {})
 
+    # Handle oneOf schema (for endpoints that accept single object or array)
+    if "oneOf" in schema_dict:
+        # Extract the object schema from oneOf (first item is typically the single object)
+        one_of_items = schema_dict.get("oneOf", [])
+        object_schema = None
+        
+        for item in one_of_items:
+            # Find the object schema (not the array schema)
+            if item.get("type") == "object" and "properties" in item:
+                object_schema = item
+                break
+        
+        if object_schema:
+            schema_dict = object_schema
+        else:
+            # If no object schema found, cannot process
+            return None
+
     if schema_dict.get("type") != "object" or "properties" not in schema_dict:
         return None
 
@@ -293,8 +311,10 @@ def _generate_function_code(
     # ensuring only explicitly provided fields are sent to the API.
     if _is_etendo_headless_put(method, path) or _is_etendo_headless_post(method, path):
         model_dump_method = "body_params.model_dump(exclude_unset=True)"
+        list_item_dump_method = "item.model_dump(exclude_unset=True)"
     else:
         model_dump_method = "body_params.model_dump()"
+        list_item_dump_method = "item.model_dump()"
 
     return f"""
 def _run_dynamic(self, {param_names_str}):
@@ -308,7 +328,7 @@ def _run_dynamic(self, {param_names_str}):
             serialized_list = []
             for item in body_params:
                 if isinstance(item, BaseModel):
-                    serialized_list.append(item.model_dump(exclude_unset=True))
+                    serialized_list.append({list_item_dump_method})
                 else:
                     serialized_list.append(item)
             body_params = serialized_list
@@ -387,7 +407,7 @@ def _process_single_operation(
     body_info = _process_request_body(method, operation, path, type_map)
     if body_info:
         body_model, body_description = body_info
-        # Allow both single object and array of objects for flexibility
+        # Support both single object and array of objects for bulk operations
         model_fields["body"] = (
             Union[body_model, List[body_model]], 
             Field(description=body_description)
