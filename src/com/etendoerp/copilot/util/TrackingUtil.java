@@ -144,7 +144,7 @@ public class TrackingUtil {
           JSONArray membersArray = new JSONArray();
           for (var member : tmL) {
             // Each member has the same structure as the Langgraph agent, but without their own team members
-            membersArray.put(buildAgentData(member.getCopilotApp(), false));
+            membersArray.put(buildAgentData(member.getMember(), false));
           }
           jsonData.put("team_members", membersArray);
         }

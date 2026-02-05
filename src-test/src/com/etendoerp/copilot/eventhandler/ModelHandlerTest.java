@@ -16,9 +16,8 @@
  */
 package com.etendoerp.copilot.eventhandler;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mockStatic;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,6 +26,7 @@ import java.util.Arrays;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
@@ -37,6 +37,7 @@ import org.openbravo.base.model.Property;
 import org.openbravo.client.kernel.event.EntityPersistenceEvent;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotModel;
 
@@ -48,6 +49,7 @@ public class ModelHandlerTest {
   private ModelHandler handler;
   private MockedStatic<ModelProvider> mockedModelProvider;
   private MockedStatic<OBDal> mockedOBDal;
+  private MockedStatic<OBMessageUtils> mockedMessageUtils;
   private AutoCloseable mocks;
 
   @Mock
@@ -83,16 +85,25 @@ public class ModelHandlerTest {
     mockedOBDal = mockStatic(OBDal.class);
     mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
 
+    mockedMessageUtils = mockStatic(OBMessageUtils.class);
+    mockedMessageUtils.when(() -> OBMessageUtils.messageBD(any())).thenReturn("Mocked Message");
+
     // Properties mapping
     when(copilotModelEntity.getProperty(CopilotModel.PROPERTY_DEFAULT)).thenReturn(propDefault);
+    when(propDefault.getName()).thenReturn(CopilotModel.PROPERTY_DEFAULT);
     when(copilotModelEntity.getProperty(CopilotModel.PROPERTY_DEFAULTOVERRIDE)).thenReturn(propDefaultOverride);
+    when(propDefaultOverride.getName()).thenReturn(CopilotModel.PROPERTY_DEFAULTOVERRIDE);
     when(updateEvent.getTargetInstance()).thenReturn(targetModel);
 
-    // Default mock values to avoid NPE
-    when(updateEvent.getCurrentState(propDefault)).thenReturn(false);
-    when(updateEvent.getPreviousState(propDefault)).thenReturn(false);
-    when(updateEvent.getCurrentState(propDefaultOverride)).thenReturn(false);
-    when(updateEvent.getPreviousState(propDefaultOverride)).thenReturn(false);
+    // Default mock values using flexible matching to avoid NPE or mismatch
+    when(updateEvent.getCurrentState(argThat(isProp(CopilotModel.PROPERTY_DEFAULT)))).thenReturn(false);
+    when(updateEvent.getPreviousState(argThat(isProp(CopilotModel.PROPERTY_DEFAULT)))).thenReturn(false);
+    when(updateEvent.getCurrentState(argThat(isProp(CopilotModel.PROPERTY_DEFAULTOVERRIDE)))).thenReturn(false);
+    when(updateEvent.getPreviousState(argThat(isProp(CopilotModel.PROPERTY_DEFAULTOVERRIDE)))).thenReturn(false);
+  }
+
+  private ArgumentMatcher<Property> isProp(String name) {
+    return argument -> argument != null && name.equals(argument.getName());
   }
 
   @After
@@ -103,6 +114,9 @@ public class ModelHandlerTest {
     if (mockedOBDal != null) {
       mockedOBDal.close();
     }
+    if (mockedMessageUtils != null) {
+      mockedMessageUtils.close();
+    }
     if (mocks != null) {
       mocks.close();
     }
@@ -111,27 +125,25 @@ public class ModelHandlerTest {
   @Test
   public void testOnUpdateThrowsWhenNonOpenAIDefault() {
     // Given: current default true, previous false and provider != openai
-    when(updateEvent.getCurrentState(propDefault)).thenReturn(true);
-    when(updateEvent.getPreviousState(propDefault)).thenReturn(false);
+    when(updateEvent.getCurrentState(argThat(isProp(CopilotModel.PROPERTY_DEFAULT)))).thenReturn(true);
+    when(updateEvent.getPreviousState(argThat(isProp(CopilotModel.PROPERTY_DEFAULT)))).thenReturn(false);
     when(targetModel.getProvider()).thenReturn("anthropic");
 
     // Then: exception expected
-    assertThrows(OBException.class, () -> handler.onUpdate(updateEvent));
+    org.junit.Assert.assertThrows(OBException.class, () -> handler.onUpdate(updateEvent));
   }
 
   @Test
   public void testOnUpdateClearsOtherDefaultsWhenOpenAI() {
     // Given: promoting this model to default, provider openai
-    when(updateEvent.getCurrentState(propDefault)).thenReturn(true);
-    when(updateEvent.getPreviousState(propDefault)).thenReturn(false);
+    when(updateEvent.getCurrentState(argThat(isProp(CopilotModel.PROPERTY_DEFAULT)))).thenReturn(true);
+    when(updateEvent.getPreviousState(argThat(isProp(CopilotModel.PROPERTY_DEFAULT)))).thenReturn(false);
     when(targetModel.getProvider()).thenReturn("openai");
 
     // Mock criteria to return existing default models
     CopilotModel other = org.mockito.Mockito.mock(CopilotModel.class);
-    when(obDal.createCriteria(CopilotModel.class)).thenReturn(org.mockito.Mockito.mock(org.openbravo.dal.service.OBCriteria.class));
     org.openbravo.dal.service.OBCriteria<CopilotModel> crit = org.mockito.Mockito.mock(org.openbravo.dal.service.OBCriteria.class);
     when(obDal.createCriteria(CopilotModel.class)).thenReturn(crit);
-    when(crit.add(any())).thenReturn(crit);
     when(crit.add(any())).thenReturn(crit);
     when(crit.list()).thenReturn(Arrays.asList(other));
 
@@ -146,38 +158,36 @@ public class ModelHandlerTest {
   @Test
   public void testOnUpdateDefaultOverrideThrowsIfOtherExists() {
     // Given: defaultOverride switched from false to true
-    when(updateEvent.getCurrentState(propDefaultOverride)).thenReturn(true);
-    when(updateEvent.getPreviousState(propDefaultOverride)).thenReturn(false);
+    when(updateEvent.getCurrentState(argThat(isProp(CopilotModel.PROPERTY_DEFAULTOVERRIDE)))).thenReturn(true);
+    when(updateEvent.getPreviousState(argThat(isProp(CopilotModel.PROPERTY_DEFAULTOVERRIDE)))).thenReturn(false);
 
     // Mock criteria uniqueResult returns another model
     org.openbravo.dal.service.OBCriteria<CopilotModel> crit = org.mockito.Mockito.mock(org.openbravo.dal.service.OBCriteria.class);
     when(obDal.createCriteria(CopilotModel.class)).thenReturn(crit);
     when(crit.add(any())).thenReturn(crit);
-    when(crit.add(any())).thenReturn(crit);
     when(crit.setMaxResults(1)).thenReturn(crit);
     when(crit.uniqueResult()).thenReturn(org.mockito.Mockito.mock(CopilotModel.class));
 
     // Then
-    assertThrows(OBException.class, () -> handler.onUpdate(updateEvent));
+    org.junit.Assert.assertThrows(OBException.class, () -> handler.onUpdate(updateEvent));
   }
 
   @Test
   public void testOnUpdateDefaultOverrideNoOther() {
     // Given: defaultOverride switched from false to true
-    when(updateEvent.getCurrentState(propDefaultOverride)).thenReturn(true);
-    when(updateEvent.getPreviousState(propDefaultOverride)).thenReturn(false);
+    when(updateEvent.getCurrentState(argThat(isProp(CopilotModel.PROPERTY_DEFAULTOVERRIDE)))).thenReturn(true);
+    when(updateEvent.getPreviousState(argThat(isProp(CopilotModel.PROPERTY_DEFAULTOVERRIDE)))).thenReturn(false);
 
     // Mock criteria uniqueResult returns null
     org.openbravo.dal.service.OBCriteria<CopilotModel> crit = org.mockito.Mockito.mock(org.openbravo.dal.service.OBCriteria.class);
     when(obDal.createCriteria(CopilotModel.class)).thenReturn(crit);
-    when(crit.add(any())).thenReturn(crit);
     when(crit.add(any())).thenReturn(crit);
     when(crit.setMaxResults(1)).thenReturn(crit);
     when(crit.uniqueResult()).thenReturn(null);
 
     // When should not throw
     handler.onUpdate(updateEvent);
-    //add assertion to verify that uniqueResult was called
+    // verify that uniqueResult was called
     verify(crit).uniqueResult();
   }
 }

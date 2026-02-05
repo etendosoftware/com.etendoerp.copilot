@@ -49,7 +49,7 @@ public class ModelHandler extends EntityPersistenceEventObserver {
     if (!isValidEvent(event)) {
       return;
     }
-    var e = Arrays.stream(entities).findFirst().get();
+    Entity e = ModelProvider.getInstance().getEntity(CopilotModel.class);
     var propDefault = e.getProperty(CopilotModel.PROPERTY_DEFAULT);
     var propDefaultOverride = e.getProperty(CopilotModel.PROPERTY_DEFAULTOVERRIDE);
     // is marking the model as default and already exists a default model

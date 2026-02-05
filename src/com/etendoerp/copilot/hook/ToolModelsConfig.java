@@ -86,7 +86,7 @@ public class ToolModelsConfig implements CopilotQuestionHook {
       var set = new HashSet<CopilotApp>();
       set.add(app);
       set.addAll(app.getETCOPTeamMemberList().stream()
-          .map(TeamMember::getCopilotApp
+          .map(TeamMember::getMember
           ).collect(Collectors.toList()));
 
       for (CopilotApp copilotApp : set) {
@@ -140,7 +140,7 @@ public class ToolModelsConfig implements CopilotQuestionHook {
     if (modelStr == null) {
       return;
     }
-    toolConfigJson.put("model", modelStr.getName());
+    toolConfigJson.put("model", modelStr.getSearchkey());
     toolConfigJson.put("provider", modelStr.getProvider() != null ? modelStr.getProvider() : "openai");
     appToolModelsConfigJson.put(tool.getId(), toolConfigJson);
   }
