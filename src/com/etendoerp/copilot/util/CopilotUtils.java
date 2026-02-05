@@ -857,8 +857,9 @@ public class CopilotUtils {
     jsonRequestForCopilot.put(RestServiceUtil.PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
     jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
-    jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
-    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
+    var modelInfo = CopilotModelUtils.getModelProviderResult(copilotApp);
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, modelInfo.modelStr);
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, modelInfo.providerStr);
     jsonRequestForCopilot.put(RestServiceUtil.PROP_STRUCTURED_OUTPUT_JSON_SCHEMA,
         copilotApp.getStructuredOutputJSONSchema());
   }
@@ -899,8 +900,9 @@ public class CopilotUtils {
                 String.format(OBMessageUtils.messageBD("ETCOP_ErrTeamMembNotSync"), teamMember.getName()));
           }
           memberData.put(RestServiceUtil.PROP_ASSISTANT_ID, assistantId);
-        } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)
-            || StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_MULTIMODEL)) {
+        } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(),
+            CopilotConstants.APP_TYPE_LANGCHAIN) || StringUtils.equalsIgnoreCase(teamMember.getAppType(),
+            CopilotConstants.APP_TYPE_MULTIMODEL)) {
           buildLangchainRequestForCopilot(teamMember, null, memberData, teamMember.getAppType());
         }
 
@@ -996,8 +998,9 @@ public class CopilotUtils {
     }
     jsonRequestForCopilot.put(RestServiceUtil.PROP_TEMPERATURE, copilotApp.getTemperature());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
-    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
-    jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
+    CopilotModelUtils.ModelProviderResult modelInfo = CopilotModelUtils.getModelProviderResult(copilotApp);
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, modelInfo.providerStr);
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, modelInfo.modelStr);
     jsonRequestForCopilot.put(RestServiceUtil.PROP_CODE_EXECUTION, copilotApp.isCodeInterpreter());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_STRUCTURED_OUTPUT_JSON_SCHEMA,
@@ -1057,7 +1060,6 @@ public class CopilotUtils {
    * @return A list of CopilotApp instances representing the team members of the given CopilotApp instance.
    */
   private static List<CopilotApp> getTeamMembers(CopilotApp copilotApp) {
-    return copilotApp.getETCOPTeamMemberList().stream().map(TeamMember::getMember).collect(
-        Collectors.toList());
+    return copilotApp.getETCOPTeamMemberList().stream().map(TeamMember::getMember).collect(Collectors.toList());
   }
 }

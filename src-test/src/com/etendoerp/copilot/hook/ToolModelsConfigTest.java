@@ -39,6 +39,7 @@ import org.openbravo.base.weld.test.WeldBaseTest;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.data.CopilotTool;
+import com.etendoerp.copilot.data.CopilotModel;
 import com.etendoerp.copilot.data.TeamMember;
 
 /**
@@ -146,7 +147,23 @@ public class ToolModelsConfigTest extends WeldBaseTest {
   private void setupTool(CopilotTool mockTool, CopilotAppTool mockAppTool, String toolId, String model) {
     when(mockTool.getId()).thenReturn(toolId);
     when(mockAppTool.getCopilotTool()).thenReturn(mockTool);
-    when(mockAppTool.getModel()).thenReturn(model);
+    if (model == null) {
+      when(mockAppTool.getModel()).thenReturn(null);
+      return;
+    }
+    System.out.println("Setting up tool with model: " + model);
+    // model string can be "provider/modelName" or just "modelName" or contain multiple slashes
+    String provider = null;
+    String name = model;
+    int idx = model.indexOf('/');
+    if (idx > -1) {
+      provider = model.substring(0, idx);
+      name = model.substring(idx + 1);
+    }
+    CopilotModel mockModel = org.mockito.Mockito.mock(CopilotModel.class);
+    when(mockModel.getName()).thenReturn(name);
+    when(mockModel.getProvider()).thenReturn(provider);
+    when(mockAppTool.getModel()).thenReturn(mockModel);
   }
 
   /**

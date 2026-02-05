@@ -40,20 +40,23 @@ public class CopilotModelUtils {
   }
 
   /**
-   * Retrieves the default CopilotModel based on the provided provider.
-   * <p>
-   * This method creates a criteria query to find the default CopilotModel.
-   * If the provider is not empty, it adds a restriction to filter by the provider.
-   * It also adds a restriction to filter by the default property and orders the results by creation date.
-   * The method returns the first result of the query.
-   *
-   * @param provider
-   *     The provider to filter the CopilotModel by.
-   * @return The default CopilotModel for the given provider.
+    * Retrieves the default CopilotModel based on the provided provider.
+    * <p>
+    * This method creates a criteria query to find the default CopilotModel. If the {@code provider}
+    * parameter is not empty the search is restricted to models for that provider; when {@code provider}
+    * is {@code null} no provider filter is applied. Before querying the database this method calls
+    * {@link #readOverrideDefaultModel()} — when a system preference override is configured it will be
+    * returned immediately (the preference acts as a global override).
+    * <p>
+    * The criteria then filters by {@code default = true} and orders results by creation date
+    * returning the first model found.
+    *
+    * @param provider The provider to filter the CopilotModel by, or {@code null} to match any provider.
+    * @return The default {@link CopilotModel} for the given provider, or {@code null} if none found.
    */
   static CopilotModel getDefaultModel(String provider) {
     CopilotModel result = null;
-    result = readOverrideDefaultModel(provider);
+    result = readOverrideDefaultModel();
     if (result != null) {
       return result;
     }
@@ -70,7 +73,20 @@ public class CopilotModelUtils {
     return result;
   }
 
-  private static CopilotModel readOverrideDefaultModel(String provider) {
+  /**
+    * Reads the preference "ETCOP_DefaultModelOverride" and returns the corresponding
+    * {@link CopilotModel} when the preference value is present and well-formed.
+    * <p>
+    * The preference value must use the format {@code provider/modelId}. When present and valid the
+    * method looks up the model by name and provider and returns it — this allows administrators to
+    * globally override the default model without changing database records. If the preference is
+    * missing, malformed, or the referenced model is not found, the method returns {@code null}
+    * (and logs an error if the model key was not found).
+    *
+    * @return the {@link CopilotModel} specified in the preference, or {@code null} if not applicable
+    *     or not found
+   */
+  private static CopilotModel readOverrideDefaultModel() {
     //if propertie not found or exception return null
     try {
       String overrideModelStr = Preferences.getPreferenceValue(
@@ -92,12 +108,10 @@ public class CopilotModelUtils {
       }
       String prefProvider = parts[0];
       String modelKey = parts[1];
-      if (!StringUtils.equals(prefProvider, provider)) {
-        return null;
-      }
+
       OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
       modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_NAME, modelKey));
-      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, provider));
+      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, prefProvider));
       modelCriteria.setMaxResults(1);
       CopilotModel model = (CopilotModel) modelCriteria.uniqueResult();
       if (model != null) {
@@ -130,18 +144,15 @@ public class CopilotModelUtils {
 
 
   /**
-   * Retrieves the provider of the given CopilotApp instance.
-   * <p>
-   * This method checks if the provided CopilotApp instance and its model are not null,
-   * and if the model's provider is not empty. If these conditions are met, it returns the provider.
-   * Otherwise, it returns "openai" as the default provider.
-   * If an exception occurs, it throws an OBException with the message of the exception.
-   *
-   * @param app
-   *     The CopilotApp instance for which the provider is to be retrieved.
-   * @return The provider of the CopilotApp instance, or "openai" if the provider is not set.
-   * @throws OBException
-   *     If an error occurs while retrieving the provider.
+    * Retrieves the provider of the given {@link CopilotApp} instance.
+    * <p>
+    * If the {@code app} or its model is {@code null} or the model's provider is empty, this method
+    * returns the default provider constant {@link com.etendoerp.copilot.util.CopilotConstants#PROVIDER_OPENAI}.
+    * Otherwise the model's provider value is returned. Exceptions are wrapped in an {@link OBException}.
+    *
+    * @param app The {@link CopilotApp} instance for which the provider is to be retrieved.
+    * @return The provider of the CopilotApp instance, or the default provider when not set.
+    * @throws OBException If an error occurs while retrieving the provider.
    */
   public static String getProvider(CopilotApp app) {
     try {
@@ -215,6 +226,66 @@ public class CopilotModelUtils {
       return resultModel;
     } catch (Exception e) {
       throw new OBException(e.getMessage());
+    }
+  }
+
+  /**
+   * Returns a {@link ModelProviderResult} containing the model search key and provider for the
+   * given {@link CopilotApp} agent.
+   * <p>
+   * The method first validates the {@code agent} parameter. If the agent has an associated
+   * {@link CopilotModel}, its search key and provider are returned. Otherwise the configured
+   * default model (retrieved via {@link #getDefaultModel(String)} with a {@code null} provider)
+   * is used. If no default model is available, an {@link OBException} is thrown.
+   * <p>
+   * Important details:
+   * - The default model resolution invoked here will first consult the global preference
+   *   "ETCOP_DefaultModelOverride" (format: "provider/modelId"). If that preference references a
+   *   valid model, it will be returned as the default (i.e., the preference acts as a global override).
+   * - If the agent's model exists but its {@code provider} property is {@code null} or empty, this
+   *   method will return the provider value as-is (possibly {@code null}). The helper
+   *   {@link #getProvider(CopilotApp)} which supplies a fallback of {@code "openai"} is NOT used
+   *   by this method — callers that require a non-null provider should call {@link #getProvider}
+   *   or perform their own fallback logic.
+   *
+   * @param agent the {@link CopilotApp} to inspect; must not be {@code null}
+   * @return a {@link ModelProviderResult} with the model search key and provider
+   * @throws OBException if {@code agent} is {@code null} or if no default model is found
+   */
+  public static ModelProviderResult getModelProviderResult(CopilotApp agent) {
+    if (agent == null) {
+      throw new OBException("CopilotApp agent is null");
+    }
+    CopilotModel model = agent.getModel();
+    if (model != null) {
+      return new ModelProviderResult(model.getSearchkey(), model.getProvider());
+    }
+    model = getDefaultModel(null);
+    if (model != null) {
+      return new ModelProviderResult(model.getSearchkey(), model.getProvider());
+    }
+    throw new OBException("No default CopilotModel found");
+
+  }
+
+  /**
+   * Simple DTO holding a selected model search key and its provider.
+   */
+  public static class ModelProviderResult {
+    /** The model search key (identifier). */
+    public final String modelStr;
+    /** The provider identifier for the model. */
+    public final String providerStr;
+
+    /**
+     * Constructs a new result instance.
+     *
+     * @param modelStr the model search key
+     * @param providerStr the provider identifier
+     */
+    public ModelProviderResult(String modelStr, String providerStr) {
+      this.modelStr = modelStr;
+      this.providerStr = providerStr;
     }
   }
 }

@@ -1,7 +1,6 @@
 package com.etendoerp.copilot.util;
 
-import static com.etendoerp.copilot.util.CopilotModelUtils.getAppModel;
-import static com.etendoerp.copilot.util.CopilotModelUtils.getProvider;
+import static com.etendoerp.copilot.util.CopilotModelUtils.getModelProviderResult;
 
 import java.time.Instant;
 import java.util.Date;
@@ -123,8 +122,9 @@ public class TrackingUtil {
 
       // Add model information with provider details
       JSONObject modelData = new JSONObject();
-      modelData.put("model_name", getAppModel(agent));
-      modelData.put("model_provider", getProvider(agent));
+      CopilotModelUtils.ModelProviderResult result = getModelProviderResult(agent);
+      modelData.put("model_name", result.modelStr);
+      modelData.put("model_provider", result.providerStr);
       jsonData.put("model", modelData);
 
 
@@ -155,6 +155,7 @@ public class TrackingUtil {
     }
     return jsonData;
   }
+
 
   private Conversation getConversation(String conversationId) {
     return getConversation(conversationId, null);

@@ -198,6 +198,9 @@ public class TrackingUtilTest {
     // Configure CopilotModelUtils mock
     mockedCopilotModelUtils.when(() -> CopilotModelUtils.getAppModel(mockApp)).thenReturn(TEST_MODEL_NAME);
     mockedCopilotModelUtils.when(() -> CopilotModelUtils.getProvider(mockApp)).thenReturn(TEST_PROVIDER);
+    // Ensure getModelProviderResult is stubbed to avoid executing real DB logic
+    mockedCopilotModelUtils.when(() -> CopilotModelUtils.getModelProviderResult(mockApp))
+      .thenReturn(new CopilotModelUtils.ModelProviderResult(TEST_MODEL_NAME, TEST_PROVIDER));
 
     // Configure TelemetryUsageInfo mock
     mockedTelemetryUsageInfo.when(TelemetryUsageInfo::getInstance).thenReturn(mockTelemetry);
@@ -425,6 +428,10 @@ public class TrackingUtilTest {
 
     mockedCopilotModelUtils.when(() -> CopilotModelUtils.getAppModel(memberApp)).thenReturn("gpt-3.5");
     mockedCopilotModelUtils.when(() -> CopilotModelUtils.getProvider(memberApp)).thenReturn(TEST_PROVIDER);
+    // Stub getModelProviderResult for the member app as well
+    mockedCopilotModelUtils.when(() -> CopilotModelUtils.getModelProviderResult(memberApp))
+      .thenReturn(new CopilotModelUtils.ModelProviderResult("gpt-3.5", TEST_PROVIDER));
+
 
     // When
     TrackingUtil.sendUsageData(mockApp);
