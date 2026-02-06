@@ -55,13 +55,13 @@ payload: GraphQuestionSchema = GraphQuestionSchema.model_validate(
 )
 
 
-class TestPatternBase(unittest.TestCase):
-    def test_initialization(self):
-        members = MembersUtil().get_members(payload)
+class TestPatternBase(unittest.IsolatedAsyncioTestCase):
+    async def test_initialization(self):
+        members = await MembersUtil().get_members(payload)
         self.assertEqual(len(members), 4)
 
         pattern = BasePattern()
-        nodes: StateGraph = pattern.construct_nodes(members, payload.graph)
+        nodes: StateGraph = await pattern.construct_nodes(members, payload.graph)
         keys = [str(k) for k in list(nodes.nodes.keys())]
         expected = ["SQLExpert", "Ticketgenerator", "Emojiswriter", "Capo"]
         assert len(keys) == len(expected)

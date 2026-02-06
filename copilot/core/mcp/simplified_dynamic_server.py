@@ -72,20 +72,19 @@ class DynamicMCPInstance:
         self.ttl_task: Optional[asyncio.Task] = None  # Task for TTL management
         self._should_stop = False  # Flag to control server stopping
 
-        # Configure and register tools
-        self._setup_tools(identifier, etendo_token, direct_mode)
+        # Configure and register tools logic moved to async setup_tools
 
         copilot_info(
-            f"🔧 Setting up DynamicMCPInstance for identifier: {identifier} (direct_mode: {direct_mode})"
+            f"🔧 Initialized DynamicMCPInstance for identifier: {identifier} (direct_mode: {direct_mode})"
         )
 
-    def _setup_tools(self, identifier: str, etendo_token: str, direct_mode: bool = False):
+    async def setup_tools(self, identifier: str, etendo_token: str, direct_mode: bool = False):
         """Configure tools for this MCP instance."""
         if direct_mode:
             # Direct mode: only basic tools (without ask_agent) and agent tools
             register_basic_tools_direct(self.mcp)
             # Pass pre-fetched agent_config to avoid redundant calls to Etendo
-            register_agent_tools(
+            await register_agent_tools(
                 self.mcp,
                 identifier=identifier,
                 etendo_token=etendo_token,
@@ -504,6 +503,7 @@ class SimplifiedDynamicMCPServer:
                 direct_mode=direct_mode,
                 agent_config=agent_config,
             )
+            await instance.setup_tools(identifier, etendo_token, direct_mode)
             self.instances[instance_key] = instance
 
             # Start the MCP server for this instance

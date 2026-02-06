@@ -107,7 +107,8 @@ def simplified_server():
 class TestDynamicMCPInstanceInit:
     """Test DynamicMCPInstance initialization."""
 
-    def test_init_standard_mode(self, mock_server_ref, mock_etendo_token, mock_agent_config):
+    @pytest.mark.asyncio
+    async def test_init_standard_mode(self, mock_server_ref, mock_etendo_token, mock_agent_config):
         """Test initialization in standard mode."""
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP") as mock_fastmcp,
@@ -121,6 +122,7 @@ class TestDynamicMCPInstanceInit:
                 direct_mode=False,
                 agent_config=mock_agent_config,
             )
+            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
 
             assert instance.identifier == "test_agent"
             assert instance.direct_mode is False
@@ -140,7 +142,8 @@ class TestDynamicMCPInstanceInit:
             # Verify basic tools registered
             mock_basic.assert_called_once()
 
-    def test_init_direct_mode(self, mock_server_ref, mock_etendo_token, mock_agent_config):
+    @pytest.mark.asyncio
+    async def test_init_direct_mode(self, mock_server_ref, mock_etendo_token, mock_agent_config):
         """Test initialization in direct mode."""
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
@@ -155,6 +158,7 @@ class TestDynamicMCPInstanceInit:
                 direct_mode=True,
                 agent_config=mock_agent_config,
             )
+            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=True)
 
             assert instance.direct_mode is True
             assert instance.instance_key == "test_agent_direct"
@@ -184,7 +188,8 @@ class TestDynamicMCPInstanceInit:
 class TestDynamicMCPInstanceSetupTools:
     """Test DynamicMCPInstance tool setup."""
 
-    def test_setup_tools_standard_mode_with_agent_config(self, mock_etendo_token, mock_agent_config):
+    @pytest.mark.asyncio
+    async def test_setup_tools_standard_mode_with_agent_config(self, mock_etendo_token, mock_agent_config):
         """Test tool setup in standard mode with agent config."""
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP") as mock_fastmcp,
@@ -201,19 +206,21 @@ class TestDynamicMCPInstanceSetupTools:
             mock_ask_tool.name = "ask_agent_test_agent"
             mock_make_tool.return_value = mock_ask_tool
 
-            DynamicMCPInstance(
+            instance = DynamicMCPInstance(
                 identifier="test_agent",
                 etendo_token=mock_etendo_token,
                 server_ref=None,
                 direct_mode=False,
                 agent_config=mock_agent_config,
             )
+            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
 
             # Verify agent ask tool was created and added
             mock_make_tool.assert_called_once_with(mock_agent_config, "test_agent")
             mock_mcp_instance.add_tool.assert_called_once_with(mock_ask_tool)
 
-    def test_setup_tools_standard_mode_without_agent_config(self, mock_etendo_token):
+    @pytest.mark.asyncio
+    async def test_setup_tools_standard_mode_without_agent_config(self, mock_etendo_token):
         """Test tool setup in standard mode without agent config."""
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
@@ -221,18 +228,20 @@ class TestDynamicMCPInstanceSetupTools:
             patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools"),
             patch("copilot.core.mcp.tools.agent_tools._make_ask_agent_tool") as mock_make_tool,
         ):
-            DynamicMCPInstance(
+            instance = DynamicMCPInstance(
                 identifier="test_agent",
                 etendo_token=mock_etendo_token,
                 server_ref=None,
                 direct_mode=False,
                 agent_config=None,
             )
+            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
 
             # Verify agent ask tool was not created since no config
             mock_make_tool.assert_not_called()
 
-    def test_setup_tools_standard_mode_with_exception(self, mock_etendo_token, mock_agent_config):
+    @pytest.mark.asyncio
+    async def test_setup_tools_standard_mode_with_exception(self, mock_etendo_token, mock_agent_config):
         """Test tool setup handles exceptions gracefully."""
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
@@ -251,24 +260,27 @@ class TestDynamicMCPInstanceSetupTools:
                 direct_mode=False,
                 agent_config=mock_agent_config,
             )
+            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
 
             assert instance
 
-    def test_setup_tools_direct_mode(self, mock_etendo_token, mock_agent_config):
+    @pytest.mark.asyncio
+    async def test_setup_tools_direct_mode(self, mock_etendo_token, mock_agent_config):
         """Test tool setup in direct mode."""
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
             patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools_direct") as mock_direct,
-            patch("copilot.core.mcp.simplified_dynamic_server.register_agent_tools") as mock_agent,
+            patch("copilot.core.mcp.simplified_dynamic_server.register_agent_tools", new_callable=AsyncMock) as mock_agent,
         ):
-            DynamicMCPInstance(
+            instance = DynamicMCPInstance(
                 identifier="test_agent",
                 etendo_token=mock_etendo_token,
                 server_ref=None,
                 direct_mode=True,
                 agent_config=mock_agent_config,
             )
+            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=True)
 
             # Verify direct mode tools
             mock_direct.assert_called_once()
