@@ -26,6 +26,8 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.After;
@@ -50,6 +52,8 @@ import com.etendoerp.copilot.data.TeamMember;
  * for copilot apps and their team members.</p>
  */
 public class ToolModelsConfigTest extends WeldBaseTest {
+
+  private static final Logger log = LogManager.getLogger();
 
   // Test constants
   private static final String APP_123 = "app-123";
@@ -151,7 +155,7 @@ public class ToolModelsConfigTest extends WeldBaseTest {
       when(mockAppTool.getModel()).thenReturn(null);
       return;
     }
-    System.out.println("Setting up tool with model: " + model);
+    log.info("Setting up tool with model: {}", model);
     // model string can be "provider/modelName" or just "modelName" or contain multiple slashes
     String provider = null;
     String name = model;

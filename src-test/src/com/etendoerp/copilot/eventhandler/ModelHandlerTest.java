@@ -69,6 +69,11 @@ public class ModelHandlerTest {
   @Mock
   private CopilotModel targetModel;
 
+  /**
+   * Sets up the test environment by initializing mocks and the handler.
+   *
+   * @throws Exception if an error occurs during setup
+   */
   @Before
   public void setUp() throws Exception {
     mocks = MockitoAnnotations.openMocks(this);
@@ -108,6 +113,11 @@ public class ModelHandlerTest {
     return argument -> argument != null && name.equals(argument.getName());
   }
 
+  /**
+   * Cleans up the test environment by closing all mocked static objects.
+   *
+   * @throws Exception if an error occurs during teardown
+   */
   @After
   public void tearDown() throws Exception {
     if (mockedModelProvider != null) {
@@ -124,6 +134,10 @@ public class ModelHandlerTest {
     }
   }
 
+  /**
+   * Tests that {@link ModelHandler#onUpdate(EntityUpdateEvent)} throws an exception
+   * when a non-OpenAI model is set as default.
+   */
   @Test
   public void testOnUpdateThrowsWhenNonOpenAIDefault() {
     // Given: current default true, previous false and provider != openai
@@ -135,6 +149,10 @@ public class ModelHandlerTest {
     assertThrows(OBException.class, () -> handler.onUpdate(updateEvent));
   }
 
+  /**
+   * Tests that {@link ModelHandler#onUpdate(EntityUpdateEvent)} clears other default models
+   * when an OpenAI model is promoted to default.
+   */
   @Test
   public void testOnUpdateClearsOtherDefaultsWhenOpenAI() {
     // Given: promoting this model to default, provider openai
@@ -157,6 +175,10 @@ public class ModelHandlerTest {
     verify(obDal).save(other);
   }
 
+  /**
+   * Tests that {@link ModelHandler#onUpdate(EntityUpdateEvent)} throws an exception
+   * when a default override is being set but another one already exists.
+   */
   @Test
   public void testOnUpdateDefaultOverrideThrowsIfOtherExists() {
     // Given: defaultOverride switched from false to true
@@ -174,6 +196,10 @@ public class ModelHandlerTest {
   assertThrows(OBException.class, () -> handler.onUpdate(updateEvent));
   }
 
+  /**
+   * Tests that {@link ModelHandler#onUpdate(EntityUpdateEvent)} succeeds
+   * when a default override is being set and no other one exists.
+   */
   @Test
   public void testOnUpdateDefaultOverrideNoOther() {
     // Given: defaultOverride switched from false to true
