@@ -215,6 +215,51 @@ def _create_body_model_from_schema(schema_dict: Dict, model_name: str, type_map:
     return create_model(model_name, **body_model_fields)
 
 
+def _process_oneof_schema(schema_dict: Dict, body_model_name: str, type_map: Dict) -> List:
+    """Process oneOf schemas and return list of models."""
+    models = []
+    for index, sub_schema in enumerate(schema_dict["oneOf"]):
+        model = _process_oneof_item(sub_schema, body_model_name, index, type_map)
+        if model is not None:
+            models.append(model)
+    return models
+
+
+def _process_oneof_item(sub_schema: Dict, body_model_name: str, index: int, type_map: Dict):
+    """Process a single oneOf item and return the appropriate type."""
+    # Handle object types with properties
+    if sub_schema.get("type") == "object" or "properties" in sub_schema:
+        sub_model_name = f"{body_model_name}Option{index + 1}"
+        return _create_body_model_from_schema(sub_schema, sub_model_name, type_map)
+    
+    # Handle array types
+    if sub_schema.get("type") == "array":
+        return _process_array_schema(sub_schema, body_model_name, index, type_map)
+    
+    # Handle primitive types
+    if sub_schema.get("type") in type_map:
+        primitive_type, _ = type_map.get(sub_schema.get("type"), (Any, Field(description="")))
+        return primitive_type
+    
+    return None
+
+
+def _process_array_schema(sub_schema: Dict, body_model_name: str, index: int, type_map: Dict):
+    """Process array schema and return List type."""
+    items_schema = sub_schema.get("items", {})
+    
+    if items_schema.get("type") == "object" or "properties" in items_schema:
+        # Array of objects - create a model for the items
+        item_model_name = f"{body_model_name}Option{index + 1}Item"
+        item_model = _create_body_model_from_schema(items_schema, item_model_name, type_map)
+        return List[item_model]
+    
+    # Array of primitive types
+    item_type_str = items_schema.get("type", "string")
+    item_type, _ = type_map.get(item_type_str, (Any, Field(description="")))
+    return List[item_type]
+
+
 def _process_request_body(method: str, operation: Dict, path: str, type_map: Dict) -> Optional[tuple]:
     """
     Process request body for POST/PUT methods and return body model and field info.
@@ -236,32 +281,7 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
 
     # Support for oneOf in body schema - POST requests only
     if method == "post" and "oneOf" in schema_dict:
-        models = []
-        for index, sub_schema in enumerate(schema_dict["oneOf"]):
-            # Handle object types with properties
-            if sub_schema.get("type") == "object" or "properties" in sub_schema:
-                sub_model_name = f"{body_model_name}Option{index + 1}"
-                models.append(_create_body_model_from_schema(sub_schema, sub_model_name, type_map))
-            # Handle array types
-            elif sub_schema.get("type") == "array":
-                # For arrays, use List with the appropriate item type
-                items_schema = sub_schema.get("items", {})
-                if items_schema.get("type") == "object" or "properties" in items_schema:
-                    # Array of objects - create a model for the items
-                    item_model_name = f"{body_model_name}Option{index + 1}Item"
-                    item_model = _create_body_model_from_schema(items_schema, item_model_name, type_map)
-                    models.append(List[item_model])
-                else:
-                    # Array of primitive types
-                    item_type_str = items_schema.get("type", "string")
-                    item_type, _ = type_map.get(item_type_str, (Any, Field(description="")))
-                    models.append(List[item_type])
-            # Handle primitive types (string, integer, number, boolean)
-            elif sub_schema.get("type") in type_map:
-                schema_type = sub_schema.get("type")
-                primitive_type, _ = type_map.get(schema_type, (Any, Field(description="")))
-                models.append(primitive_type)
-        
+        models = _process_oneof_schema(schema_dict, body_model_name, type_map)
         if models:
             body_description = request_body.get("description", "Request body (one of alternatives).")
             return Union[tuple(models)], body_description
@@ -343,10 +363,8 @@ def _generate_function_code(
     # For Etendo Headless PUT and POST, we use exclude_unset=True to achieve PATCH-like behavior,
     # ensuring only explicitly provided fields are sent to the API.
     is_headless_put_or_post = _is_etendo_headless_put(method, path) or _is_etendo_headless_post(method, path)
-    if is_headless_put_or_post:
-        model_dump_method = "body_params.model_dump(exclude_unset=True)"
-    else:
-        model_dump_method = "body_params.model_dump()"
+    model_dump_kwargs = "exclude_unset=True" if is_headless_put_or_post else ""
+    model_dump_method = f"body_params.model_dump({model_dump_kwargs})"
 
     # Generate list handling code only for POST requests
     if method.lower() == "post":
