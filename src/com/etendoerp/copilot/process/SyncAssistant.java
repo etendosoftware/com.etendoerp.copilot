@@ -104,8 +104,6 @@ public class SyncAssistant extends BaseProcessActionHandler {
       //remove duplicates
       appList = appList.stream().distinct().collect(Collectors.toList());
 
-      // Sync models with Copilot remote dataset
-      CopilotModelUtils.syncModels();
       // update accesses
       for (CopilotApp app : appList) {
         checkWebHookAccess(app);

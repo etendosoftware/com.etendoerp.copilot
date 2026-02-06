@@ -11,7 +11,7 @@ from copilot.core.langgraph.patterns import SupervisorPattern
 from copilot.core.schema.graph_member import GraphMember
 from copilot.core.schemas import GraphQuestionSchema
 from fastapi.testclient import TestClient
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.memory import MemorySaver
 
 client = TestClient(app)
 
@@ -77,21 +77,25 @@ class TestCopilotLangGraph(unittest.IsolatedAsyncioTestCase):
     @patch("copilot.core.langgraph.patterns.SupervisorPattern")
     @patch("copilot.core.schema.graph_member.GraphMember")
     @patch("copilot.core.schema.graph_member.GraphMember")
-    async def test_initialization(self, mock_supervisor_pattern, mock_assistant_graph, mock_member_1, mock_member_2):
+    async def test_initialization(
+        self, mock_supervisor_pattern, mock_assistant_graph, mock_member_1, mock_member_2
+    ):
         # Mocking the necessary components
         members = [GraphMember("member1", mock_member_1), GraphMember("member2", mock_member_2)]
         assistant_graph = mock_assistant_graph()
         pattern = mock_supervisor_pattern()
+
         # Mock construct_nodes as an async function
         async def mock_construct_nodes(*args, **kwargs):
             return MagicMock()
+
         pattern.construct_nodes = mock_construct_nodes
         mock_connect_graph = MagicMock()
         mock_connect_graph.return_value = ["Hello"]
         pattern.connect_graph = mock_connect_graph
         pattern.compile.return_value = MagicMock()
 
-        memory = SqliteSaver.from_conn_string(":memory:")
+        memory = MemorySaver()
         # Creating instance
         instance = await CopilotLangGraph.create(members, assistant_graph, pattern, memory)
 
@@ -109,17 +113,20 @@ class TestCopilotLangGraph(unittest.IsolatedAsyncioTestCase):
         members = ["member1", "member2"]
         assistant_graph = MagicMock()
         pattern = mock_supervisor_pattern()
+
         async def mock_construct_nodes(*args, **kwargs):
             return MagicMock()
+
         pattern.construct_nodes = mock_construct_nodes
         pattern.connect_graph.return_value = None
         graph = MagicMock()
         graph.stream.return_value = [{"__end__": False, "content": "Test message"}]
         pattern.compile.return_value = graph
 
-        memory = SqliteSaver.from_conn_string(":memory:")
+        memory = MemorySaver()
         # Creating instance
         await CopilotLangGraph.create(members, assistant_graph, pattern, memory)
+
 
 @pytest.mark.asyncio
 async def test_copilot_lang_graph(graph_question_payload):
@@ -128,8 +135,10 @@ async def test_copilot_lang_graph(graph_question_payload):
     members = await MembersUtil().get_members(graph_question_payload)
     assert len(members) == 3
 
-    memory = SqliteSaver.from_conn_string(":memory:")
-    await CopilotLangGraph.create(members, graph_question_payload.graph, pattern, memory, graph_question_payload)
+    memory = MemorySaver()
+    await CopilotLangGraph.create(
+        members, graph_question_payload.graph, pattern, memory, graph_question_payload
+    )
 
 
 @patch("copilot.core.agent.langgraph_agent.LanggraphAgent.execute")
