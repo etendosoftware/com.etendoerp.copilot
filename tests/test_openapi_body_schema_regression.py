@@ -1,5 +1,6 @@
 from copilot.core.toolgen.openapi_tool_gen import generate_tools_from_openapi
 from pydantic import BaseModel
+from typing import Union, get_args, get_origin
 
 
 def test_openapi_tool_body_schema_regression():
@@ -84,19 +85,18 @@ def test_openapi_tool_body_schema_regression():
     # Get the field info for 'body'
     body_field = tool.args_schema.model_fields["body"]
 
-    # The annotation should refer to a Pydantic BaseModel, NOT Any
-    # Note: In Pydantic, the annotation might be the class itself
-    body_model_class = body_field.annotation
+    # The annotation should be a BaseModel subclass for standard object schemas
+    # (Union types are only generated for oneOf schemas)
+    body_annotation = body_field.annotation
 
-    # Assert it is a Pydantic model
-    # We check if it is a class and acts like a BaseModel
-    assert isinstance(body_model_class, type), "Body annotation should be a type"
+    # For a standard object schema (not oneOf), body should be a BaseModel subclass
+    assert isinstance(body_annotation, type), "Body annotation should be a type"
     assert issubclass(
-        body_model_class, BaseModel
-    ), f"Body type {body_model_class} is not a subclass of BaseModel. It implies it might be Any or loose type."
+        body_annotation, BaseModel
+    ), f"Body type {body_annotation} is not a subclass of BaseModel"
 
     # Introspect the body model to ensure it has the correct properties from the spec
-    body_props = body_model_class.model_fields
+    body_props = body_annotation.model_fields
 
     assert "Mode" in body_props, "Mode field missing from body schema"
     assert "Query" in body_props, "Query field missing from body schema"
