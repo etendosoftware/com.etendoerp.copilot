@@ -1,7 +1,7 @@
 import base64
 import logging
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Type
 
 from copilot.core.tool_wrapper import CopilotTool
 from copilot.core.utils.etendo_utils import get_etendo_host, get_etendo_token
@@ -183,36 +183,11 @@ def _get_property_type(prop_data: Dict) -> str:
     return "string"
 
 
-def _extract_object_schema_from_oneof(schema_dict: Dict) -> Optional[Dict]:
-    """Extract the object schema from a oneOf structure."""
-    if "oneOf" not in schema_dict:
-        return schema_dict
-    
-    one_of_items = schema_dict.get("oneOf", [])
-    return next((item for item in one_of_items if item.get("type") == "object" and "properties" in item), None)
-
-
-def _process_request_body(method: str, operation: Dict, path: str, type_map: Dict) -> Optional[tuple]:
-    """Process request body for POST/PUT methods and return body model and field info."""
-    if method not in ["post", "put"]:
-        return None
-
-    request_body = operation.get("requestBody", {})
-    content = request_body.get("content", {})
-    schema_dict = content.get("application/json", {}).get("schema", {})
-
-    # Handle oneOf schema (for endpoints that accept single object or array)
-    schema_dict = _extract_object_schema_from_oneof(schema_dict)
-    if schema_dict is None:
-        return None
-
-    if schema_dict.get("type") != "object" or "properties" not in schema_dict:
-        return None
-
-    body_model_name = f"{method.capitalize()}{path.replace('/', '').title()}Body"
+def _create_body_model_from_schema(schema_dict: Dict, model_name: str, type_map: Dict) -> Type[BaseModel]:
+    """Helper to create a Pydantic model from a schema dictionary."""
     body_model_fields = {}
-
-    for prop_name, prop_data in schema_dict["properties"].items():
+    
+    for prop_name, prop_data in schema_dict.get("properties", {}).items():
         prop_type_str = _get_property_type(prop_data)
         prop_description = prop_data.get("description", "")
 
@@ -237,7 +212,64 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
             field_meta = Field(description=prop_description, default=None)
             body_model_fields[prop_name] = (Optional[field_type], field_meta)
 
-    body_model = create_model(body_model_name, **body_model_fields)
+    return create_model(model_name, **body_model_fields)
+
+
+def _process_request_body(method: str, operation: Dict, path: str, type_map: Dict) -> Optional[tuple]:
+    """
+    Process request body for POST/PUT methods and return body model and field info.
+    
+    For POST requests: Supports oneOf schemas with objects, arrays, and primitive types.
+    For PUT requests: Only processes standard object schemas (no oneOf support).
+    """
+    if method not in ["post", "put"]:
+        return None
+
+    request_body = operation.get("requestBody", {})
+    content = request_body.get("content", {})
+    schema_dict = content.get("application/json", {}).get("schema", {})
+
+    if not schema_dict:
+        return None
+
+    body_model_name = f"{method.capitalize()}{path.replace('/', '').title()}Body"
+
+    # Support for oneOf in body schema - POST requests only
+    if method == "post" and "oneOf" in schema_dict:
+        models = []
+        for index, sub_schema in enumerate(schema_dict["oneOf"]):
+            # Handle object types with properties
+            if sub_schema.get("type") == "object" or "properties" in sub_schema:
+                sub_model_name = f"{body_model_name}Option{index + 1}"
+                models.append(_create_body_model_from_schema(sub_schema, sub_model_name, type_map))
+            # Handle array types
+            elif sub_schema.get("type") == "array":
+                # For arrays, use List with the appropriate item type
+                items_schema = sub_schema.get("items", {})
+                if items_schema.get("type") == "object" or "properties" in items_schema:
+                    # Array of objects - create a model for the items
+                    item_model_name = f"{body_model_name}Option{index + 1}Item"
+                    item_model = _create_body_model_from_schema(items_schema, item_model_name, type_map)
+                    models.append(List[item_model])
+                else:
+                    # Array of primitive types
+                    item_type_str = items_schema.get("type", "string")
+                    item_type, _ = type_map.get(item_type_str, (Any, Field(description="")))
+                    models.append(List[item_type])
+            # Handle primitive types (string, integer, number, boolean)
+            elif sub_schema.get("type") in type_map:
+                schema_type = sub_schema.get("type")
+                primitive_type, _ = type_map.get(schema_type, (Any, Field(description="")))
+                models.append(primitive_type)
+        
+        if models:
+            body_description = request_body.get("description", "Request body (one of alternatives).")
+            return Union[tuple(models)], body_description
+
+    if schema_dict.get("type") != "object" or "properties" not in schema_dict:
+        return None
+
+    body_model = _create_body_model_from_schema(schema_dict, body_model_name, type_map)
     body_description = request_body.get("description", "Request body for the tool.")
 
     return body_model, body_description
@@ -266,7 +298,12 @@ def _generate_function_code(
     param_mapping: Dict = None,
     is_etendo_classic: bool = False,
 ) -> str:
-    """Generate the dynamic function code for the tool."""
+    """
+    Generate the dynamic function code for the tool.
+    
+    For POST requests: Handles both BaseModel instances and lists of BaseModel instances.
+    For PUT/other requests: Only handles BaseModel instances (no list support).
+    """
     param_names_str = ", ".join(param_names)
 
     # Handle parameter mapping for Etendo Headless
@@ -305,12 +342,25 @@ def _generate_function_code(
     # Choose the appropriate model_dump method
     # For Etendo Headless PUT and POST, we use exclude_unset=True to achieve PATCH-like behavior,
     # ensuring only explicitly provided fields are sent to the API.
-    if _is_etendo_headless_put(method, path) or _is_etendo_headless_post(method, path):
+    is_headless_put_or_post = _is_etendo_headless_put(method, path) or _is_etendo_headless_post(method, path)
+    if is_headless_put_or_post:
         model_dump_method = "body_params.model_dump(exclude_unset=True)"
-        list_item_dump_method = "item.model_dump(exclude_unset=True)"
     else:
         model_dump_method = "body_params.model_dump()"
-        list_item_dump_method = "item.model_dump()"
+
+    # Generate list handling code only for POST requests
+    if method.lower() == "post":
+        list_handling = f"""
+        elif isinstance(body_params, list):
+            # Handle list of Pydantic models (POST only)
+            body_params = [
+                item.model_dump(exclude_unset=True) if isinstance(item, BaseModel) and {is_headless_put_or_post}
+                else item.model_dump() if isinstance(item, BaseModel)
+                else item
+                for item in body_params
+            ]"""
+    else:
+        list_handling = ""
 
     return f"""
 def _run_dynamic(self, {param_names_str}):
@@ -318,16 +368,7 @@ def _run_dynamic(self, {param_names_str}):
     if 'body' in locals():
         body_params = body
         if isinstance(body_params, BaseModel):
-            body_params = {model_dump_method}
-        elif isinstance(body_params, list):
-            # Handle list of items - serialize each BaseModel in the list
-            serialized_list = []
-            for item in body_params:
-                if isinstance(item, BaseModel):
-                    serialized_list.append({list_item_dump_method})
-                else:
-                    serialized_list.append(item)
-            body_params = serialized_list
+            body_params = {model_dump_method}{list_handling}
 
     # Handle authentication token
     {token_logic}
@@ -346,7 +387,13 @@ def _run_dynamic(self, {param_names_str}):
         token=auth_token
     )
 
-    return response
+    # Ensure response is always a dict (required by LangGraph/tool framework)
+    if isinstance(response, str):
+        return {{"message": response}}
+    elif isinstance(response, dict):
+        return response
+    else:
+        return {{"result": str(response)}}
 """
 
 
@@ -403,11 +450,7 @@ def _process_single_operation(
     body_info = _process_request_body(method, operation, path, type_map)
     if body_info:
         body_model, body_description = body_info
-        # Support both single object and array of objects for bulk operations
-        model_fields["body"] = (
-            Union[body_model, List[body_model]], 
-            Field(description=body_description)
-        )
+        model_fields["body"] = (body_model, Field(description=body_description))
 
     # Check if this is an Etendo classic endpoint
     etendo_host_docker = get_etendo_host()
