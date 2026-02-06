@@ -85,31 +85,18 @@ def test_openapi_tool_body_schema_regression():
     # Get the field info for 'body'
     body_field = tool.args_schema.model_fields["body"]
 
-    # The annotation should be Union[BaseModel, List[BaseModel]] for flexibility
+    # The annotation should be a BaseModel subclass for standard object schemas
+    # (Union types are only generated for oneOf schemas)
     body_annotation = body_field.annotation
 
-    # Check if it's a Union type
-    assert get_origin(body_annotation) is Union, "Body should be a Union type to support both single and array"
-
-    # Get the args from Union
-    union_args = get_args(body_annotation)
-    assert len(union_args) == 2, "Body Union should have exactly 2 types"
-
-    # First arg should be a BaseModel subclass (single object)
-    body_model_class = union_args[0]
-    assert isinstance(body_model_class, type), "First Union arg should be a type"
+    # For a standard object schema (not oneOf), body should be a BaseModel subclass
+    assert isinstance(body_annotation, type), "Body annotation should be a type"
     assert issubclass(
-        body_model_class, BaseModel
-    ), f"Body type {body_model_class} is not a subclass of BaseModel"
-
-    # Second arg should be List[BaseModel] (array of objects)
-    list_type = union_args[1]
-    assert get_origin(list_type) is list, "Second Union arg should be a List"
-    list_item_type = get_args(list_type)[0]
-    assert list_item_type == body_model_class, "List should contain the same BaseModel type"
+        body_annotation, BaseModel
+    ), f"Body type {body_annotation} is not a subclass of BaseModel"
 
     # Introspect the body model to ensure it has the correct properties from the spec
-    body_props = body_model_class.model_fields
+    body_props = body_annotation.model_fields
 
     assert "Mode" in body_props, "Mode field missing from body schema"
     assert "Query" in body_props, "Query field missing from body schema"
