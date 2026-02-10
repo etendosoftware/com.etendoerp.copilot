@@ -260,10 +260,7 @@ public class SyncAssistantTest extends WeldBaseTest {
 
     // When
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
-      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> {
-        // Do nothing
-        return null;
-      });
+
 
       JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
@@ -337,10 +334,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     // Mock getApiKey
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
-      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> {
-        // Do nothing
-        return null;
-      });
+
       // When
       JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
@@ -392,10 +386,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(null);
 
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
-      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> {
-        // Do nothing
-        return null;
-      });
+
       // When
       JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 

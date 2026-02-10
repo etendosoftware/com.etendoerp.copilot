@@ -49,11 +49,12 @@ public class ModelHandler extends EntityPersistenceEventObserver {
     if (!isValidEvent(event)) {
       return;
     }
-    var e = Arrays.stream(entities).findFirst().get();
+    Entity e = ModelProvider.getInstance().getEntity(CopilotModel.class);
     var propDefault = e.getProperty(CopilotModel.PROPERTY_DEFAULT);
     var propDefaultOverride = e.getProperty(CopilotModel.PROPERTY_DEFAULTOVERRIDE);
     // is marking the model as default and already exists a default model
-    if (((Boolean) event.getCurrentState(propDefault)) && !((Boolean) event.getPreviousState(propDefault))) {
+    if (Boolean.TRUE.equals(event.getCurrentState(propDefault)) && !Boolean.TRUE.equals(
+        event.getPreviousState(propDefault))) {
       if (!StringUtils.equalsIgnoreCase(((CopilotModel) event.getTargetInstance()).getProvider(), "openai")) {
         throw new OBException(OBMessageUtils.messageBD("ETCOP_OpenAIModelsDefault"));
       }
@@ -65,8 +66,8 @@ public class ModelHandler extends EntityPersistenceEventObserver {
       });
     }
     // if the check "default override is be marked, validate that there is no other
-    if (((Boolean) event.getCurrentState(propDefaultOverride)) && !((Boolean) event.getPreviousState(
-        propDefaultOverride))) {
+    if (Boolean.TRUE.equals(event.getCurrentState(propDefaultOverride)) && !Boolean.TRUE.equals(
+        event.getPreviousState(propDefaultOverride))) {
 
       var other = OBDal.getInstance().createCriteria(CopilotModel.class).add(
           Restrictions.eq(CopilotModel.PROPERTY_DEFAULTOVERRIDE, true)).add(

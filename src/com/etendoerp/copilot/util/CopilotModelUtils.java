@@ -2,31 +2,18 @@ package com.etendoerp.copilot.util;
 
 import static com.etendoerp.copilot.util.CopilotConstants.PROVIDER_OPENAI;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Date;
 import java.util.List;
-import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.dom4j.Element;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.provider.OBProvider;
-import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.dal.xml.XMLUtil;
+import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.model.ad.access.User;
-import org.openbravo.model.ad.system.Client;
-import org.openbravo.model.common.enterprise.Organization;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotModel;
@@ -53,116 +40,91 @@ public class CopilotModelUtils {
   }
 
   /**
-   * Retrieves the default CopilotModel based on the provided provider.
-   * <p>
-   * This method creates a criteria query to find the default CopilotModel.
-   * If the provider is not empty, it adds a restriction to filter by the provider.
-   * It also adds a restriction to filter by the default property and orders the results by creation date.
-   * The method returns the first result of the query.
-   *
-   * @param provider
-   *     The provider to filter the CopilotModel by.
-   * @return The default CopilotModel for the given provider.
+    * Retrieves the default CopilotModel based on the provided provider.
+    * <p>
+    * This method creates a criteria query to find the default CopilotModel. If the {@code provider}
+    * parameter is not empty the search is restricted to models for that provider; when {@code provider}
+    * is {@code null} no provider filter is applied. Before querying the database this method calls
+    * {@link #readOverrideDefaultModel()} — when a system preference override is configured it will be
+    * returned immediately (the preference acts as a global override).
+    * <p>
+    * The criteria then filters by {@code default = true} and orders results by creation date
+    * returning the first model found.
+    *
+    * @param provider The provider to filter the CopilotModel by, or {@code null} to match any provider.
+    * @return The default {@link CopilotModel} for the given provider, or {@code null} if none found.
    */
   static CopilotModel getDefaultModel(String provider) {
     CopilotModel result = null;
+    result = readOverrideDefaultModel();
+    if (result != null) {
+      return result;
+    }
     OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
     if (StringUtils.isNotEmpty(provider)) {
       modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, provider));
     }
-    modelCriteria.add(Restrictions.or(Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true),
-        Restrictions.eq(CopilotModel.PROPERTY_DEFAULTOVERRIDE, true)));
+    modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_DEFAULT, true));
     modelCriteria.addOrderBy(CopilotModel.PROPERTY_CREATIONDATE, true);
 
     List<CopilotModel> mdList = modelCriteria.list();
-    //search the first with "default override" true
-    result = mdList.stream().filter(CopilotModel::isDefaultOverride).findFirst().orElse(null);
-    if (result == null) {
-      //search the first with "default" true
-      result = mdList.stream().filter(CopilotModel::isDefault).findFirst().orElse(null);
-    }
+    //search the first with "default" true
+    result = mdList.stream().filter(CopilotModel::isDefault).findFirst().orElse(null);
     return result;
   }
 
-
   /**
-   * Synchronizes the models by downloading the dataset from the URL and updating the models in the database.
-   * <p>
-   * This method retrieves the URL for the models dataset from the properties, downloads the content
-   * directly into memory, and calls the `upsertModels` method to update the models in the database.
-   * No temporary files are created, avoiding potential file accumulation issues.
-   *
-   * @throws OBException
-   *     If an error occurs during the synchronization process.
+    * Reads the preference "ETCOP_DefaultModelOverride" and returns the corresponding
+    * {@link CopilotModel} when the preference value is present and well-formed.
+    * <p>
+    * The preference value must use the format {@code provider/modelId}. When present and valid the
+    * method looks up the model by name and provider and returns it — this allows administrators to
+    * globally override the default model without changing database records. If the preference is
+    * missing, malformed, or the referenced model is not found, the method returns {@code null}
+    * (and logs an error if the model key was not found).
+    *
+    * @return the {@link CopilotModel} specified in the preference, or {@code null} if not applicable
+    *     or not found
    */
-  public static void syncModels() throws OBException {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String url = properties.getProperty("COPILOT_MODELS_DATASET_URL", CopilotUtils.DEFAULT_MODELS_DATASET_URL).replace(
-        "<BRANCH>", properties.getProperty("COPILOT_MODELS_DATASET_BRANCH", "master"));
-    String token = properties.getProperty("githubToken", null);
-
+  private static CopilotModel readOverrideDefaultModel() {
+    //if propertie not found or exception return null
     try {
-      logIfDebug("Starting models synchronization from URL: " + url);
-      upsertModelsFromStream(url, token);
-      logIfDebug("Models synchronization completed successfully");
-    } catch (Exception e) {
-      log.error("Error during models synchronization from URL: {}. Error: {}", url, e.getMessage());
-      throw new OBException("Failed to synchronize models: " + e.getMessage(), e);
-    }
-  }
-
-  /**
-   * Downloads the dataset from the specified URL and updates the models in the database.
-   * <p>
-   * This method downloads the content directly from the URL into memory, parses the XML
-   * to extract model elements, and calls the `upsertModel` method for each model element
-   * to update the database. No temporary files are created.
-   *
-   * @param fileUrl
-   *     The URL of the dataset to be downloaded.
-   * @param token
-   *     The GitHub API token for authorization (can be null).
-   * @throws OBException
-   *     If an error occurs while downloading or updating the models.
-   */
-  private static void upsertModelsFromStream(String fileUrl, String token) {
-    try {
-      URI uri = new URI(fileUrl);
-      HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
-
-      try {
-        // Add GitHub API headers for raw content
-        if (fileUrl.contains("api.github.com")) {
-          connection.setRequestProperty("Accept", "application/vnd.github.v3.raw");
-
-          // Add authorization header if token is provided
-          if (StringUtils.isNotEmpty(token)) {
-            connection.setRequestProperty("Authorization", "token " + token);
-          }
-        }
-
-        // Process the XML directly from the input stream
-        try (InputStream inputStream = connection.getInputStream()) {
-          OBContext.setAdminMode(false);
-          List<Element> elementList = XMLUtil.getInstance().getRootElement(inputStream).elements("ETCOP_Openai_Model");
-          logIfDebug("Processing " + elementList.size() + " model elements from dataset");
-
-          for (Element modelElem : elementList) {
-            logIfDebug("Processing model: " + modelElem.elementText("searchkey"));
-            upsertModel(modelElem);
-          }
-          OBDal.getInstance().flush();
-          logIfDebug("Successfully processed all model elements");
-        }
-      } finally {
-        connection.disconnect();
+      String overrideModelStr = Preferences.getPreferenceValue(
+          "ETCOP_DefaultModelOverride",
+          true,
+          OBContext.getOBContext().getCurrentClient(),
+          OBContext.getOBContext().getCurrentOrganization(),
+          OBContext.getOBContext().getUser(),
+          OBContext.getOBContext().getRole(),
+          null
+      );
+      // the text has the format provider/modelId
+      if (StringUtils.isEmpty(overrideModelStr)) {
+        return null;
       }
-    } catch (IOException | URISyntaxException e) {
-      throw new OBException("Failed to download and process models dataset: " + e.getMessage(), e);
-    } finally {
-      OBContext.restorePreviousMode();
+      String[] parts = overrideModelStr.split("/");
+      if (parts.length != 2) {
+        return null;
+      }
+      String prefProvider = parts[0];
+      String modelKey = parts[1];
+
+      OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
+      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_NAME, modelKey));
+      modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_PROVIDER, prefProvider));
+      modelCriteria.setMaxResults(1);
+      CopilotModel model = (CopilotModel) modelCriteria.uniqueResult();
+      if (model != null) {
+        logIfDebug("Overriding default model with model from preference: " + model.getSearchkey());
+        return model;
+      }
+      log.error("No CopilotModel found with id: " + modelKey + " from preference ETCOP_DefaultModelOverride");
+    } catch (Exception e) {
+      log.debug("Not found override default model preference or error reading it:", e);
     }
+    return null;
   }
+
 
   /**
    * Logs a debug message if debug logging is enabled.
@@ -180,75 +142,17 @@ public class CopilotModelUtils {
     }
   }
 
-  /**
-   * Inserts or updates a model in the database based on the provided XML element.
-   * <p>
-   * This method checks if the model already exists in the database. If it does, it updates the model.
-   * If it does not, it creates a new model and sets its properties based on the XML element.
-   *
-   * @param modelElem
-   *     The XML element containing the model data.
-   */
-  private static void upsertModel(Element modelElem) {
-    CopilotModel model = OBDal.getInstance().get(CopilotModel.class, modelElem.elementText("id"));
-    if (model == null) {
-      model = OBProvider.getInstance().get(CopilotModel.class);
-      model.setId(modelElem.elementText("id"));
-      model.setNewOBObject(true);
-      model.setCreatedBy(OBDal.getInstance().get(User.class, "0"));
-      model.setUpdatedBy(OBDal.getInstance().get(User.class, "0"));
-      model.setCreationDate(new Date());
-      model.setUpdated(new Date());
-    }
-    model.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
-    model.setClient(OBDal.getInstance().get(Client.class, "0"));
-    model.setActive(Boolean.parseBoolean(modelElem.elementText("active")));
-    model.setSearchkey(modelElem.elementText("searchkey"));
-    model.setName(modelElem.elementText("name"));
-    model.setProvider(modelElem.elementText("provider"));
-    model.setEtendoMaintained(true);
-    model.setMaxTokens(StringUtils.isNotEmpty(modelElem.elementText("maxTokens")) ? Long.parseLong(
-        modelElem.elementText("maxTokens")) : null);
-    model.setDefault(Boolean.parseBoolean(modelElem.elementText("default")));
-    OBDal.getInstance().save(model);
-    disableReplicated(model.getId(), model.getSearchkey());
-  }
 
   /**
-   * Disables replicated models with the same search key.
-   * <p>
-   * This method finds all CopilotModel instances with the same search key but different ID,
-   * and sets their active status to false.
-   *
-   * @param id
-   *     The ID of the model to exclude from the search.
-   * @param searchkey
-   *     The search key to match for disabling replicated models.
-   */
-  private static void disableReplicated(String id, String searchkey) {
-    OBCriteria<CopilotModel> modelCriteria = OBDal.getInstance().createCriteria(CopilotModel.class);
-    modelCriteria.add(Restrictions.ne(CopilotModel.PROPERTY_ID, id));
-    modelCriteria.add(Restrictions.eq(CopilotModel.PROPERTY_SEARCHKEY, searchkey));
-    List<CopilotModel> models = modelCriteria.list();
-    for (CopilotModel modelrep : models) {
-      modelrep.setActive(false);
-      OBDal.getInstance().save(modelrep);
-    }
-  }
-
-  /**
-   * Retrieves the provider of the given CopilotApp instance.
-   * <p>
-   * This method checks if the provided CopilotApp instance and its model are not null,
-   * and if the model's provider is not empty. If these conditions are met, it returns the provider.
-   * Otherwise, it returns "openai" as the default provider.
-   * If an exception occurs, it throws an OBException with the message of the exception.
-   *
-   * @param app
-   *     The CopilotApp instance for which the provider is to be retrieved.
-   * @return The provider of the CopilotApp instance, or "openai" if the provider is not set.
-   * @throws OBException
-   *     If an error occurs while retrieving the provider.
+    * Retrieves the provider of the given {@link CopilotApp} instance.
+    * <p>
+    * If the {@code app} or its model is {@code null} or the model's provider is empty, this method
+    * returns the default provider constant {@link com.etendoerp.copilot.util.CopilotConstants#PROVIDER_OPENAI}.
+    * Otherwise the model's provider value is returned. Exceptions are wrapped in an {@link OBException}.
+    *
+    * @param app The {@link CopilotApp} instance for which the provider is to be retrieved.
+    * @return The provider of the CopilotApp instance, or the default provider when not set.
+    * @throws OBException If an error occurs while retrieving the provider.
    */
   public static String getProvider(CopilotApp app) {
     try {
@@ -310,7 +214,7 @@ public class CopilotModelUtils {
       CopilotModel model = app.getModel();
       if (model != null && model.getSearchkey() != null) {
         resultModel = model.getSearchkey();
-        log.debug("Model selected in app: {}", resultModel);
+        logIfDebug(String.format("Model selected in app: %s", resultModel));
         return resultModel;
       }
       model = getDefaultModel(provider);
@@ -318,10 +222,70 @@ public class CopilotModelUtils {
         throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_NoDefaultModel"), provider));
       }
       resultModel = model.getSearchkey();
-      log.debug("Model selected by Default: {}", resultModel);
+      logIfDebug("Model selected by Default: " + resultModel);
       return resultModel;
     } catch (Exception e) {
       throw new OBException(e.getMessage());
+    }
+  }
+
+  /**
+   * Returns a {@link ModelProviderResult} containing the model search key and provider for the
+   * given {@link CopilotApp} agent.
+   * <p>
+   * The method first validates the {@code agent} parameter. If the agent has an associated
+   * {@link CopilotModel}, its search key and provider are returned. Otherwise the configured
+   * default model (retrieved via {@link #getDefaultModel(String)} with a {@code null} provider)
+   * is used. If no default model is available, an {@link OBException} is thrown.
+   * <p>
+   * Important details:
+   * - The default model resolution invoked here will first consult the global preference
+   *   "ETCOP_DefaultModelOverride" (format: "provider/modelId"). If that preference references a
+   *   valid model, it will be returned as the default (i.e., the preference acts as a global override).
+   * - If the agent's model exists but its {@code provider} property is {@code null} or empty, this
+   *   method will return the provider value as-is (possibly {@code null}). The helper
+   *   {@link #getProvider(CopilotApp)} which supplies a fallback of {@code "openai"} is NOT used
+   *   by this method — callers that require a non-null provider should call {@link #getProvider}
+   *   or perform their own fallback logic.
+   *
+   * @param agent the {@link CopilotApp} to inspect; must not be {@code null}
+   * @return a {@link ModelProviderResult} with the model search key and provider
+   * @throws OBException if {@code agent} is {@code null} or if no default model is found
+   */
+  public static ModelProviderResult getModelProviderResult(CopilotApp agent) {
+    if (agent == null) {
+      throw new OBException("CopilotApp agent is null");
+    }
+    CopilotModel model = agent.getModel();
+    if (model != null) {
+      return new ModelProviderResult(model.getSearchkey(), model.getProvider());
+    }
+    model = getDefaultModel(null);
+    if (model != null) {
+      return new ModelProviderResult(model.getSearchkey(), model.getProvider());
+    }
+    throw new OBException("No default CopilotModel found");
+
+  }
+
+  /**
+   * Simple DTO holding a selected model search key and its provider.
+   */
+  public static class ModelProviderResult {
+    /** The model search key (identifier). */
+    public final String modelStr;
+    /** The provider identifier for the model. */
+    public final String providerStr;
+
+    /**
+     * Constructs a new result instance.
+     *
+     * @param modelStr the model search key
+     * @param providerStr the provider identifier
+     */
+    public ModelProviderResult(String modelStr, String providerStr) {
+      this.modelStr = modelStr;
+      this.providerStr = providerStr;
     }
   }
 }
