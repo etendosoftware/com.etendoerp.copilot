@@ -525,7 +525,7 @@ Output Formats:
 <!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <COLUMNNAME><![CDATA[Sync_Startup]]></COLUMNNAME>
 <!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <NAME><![CDATA[Sync On Startup]]></NAME>
-<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <PRINTNAME><![CDATA[Sync Startup]]></PRINTNAME>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <PRINTNAME><![CDATA[Sync On Startup]]></PRINTNAME>
 <!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <DESCRIPTION><![CDATA[Indicates if the agent should be included in the synchronization list on system startup when its status is 'Pending Synchronization'.]]></DESCRIPTION>
 <!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <HELP><![CDATA[Enable this checkbox to mark the agent for synchronization at system startup. Synchronization will only occur if the agent's status is 'Pending Synchronization'.]]></HELP>
 <!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>

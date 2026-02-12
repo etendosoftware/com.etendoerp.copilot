@@ -723,6 +723,7 @@ afterEvaluate {
 
 // Shared logic for Copilot Configuration
 ext.performCopilotConfig = { Project project ->
+    project.logger.lifecycle("🚀 Starting Copilot Initial Configuration...")
     def contextName = project.findProperty("context.name") ?: "etendo"
     def tomcatPortVal = project.findProperty("tomcat.port") ?: "8080"
     def strTomcatPort = tomcatPortVal + "/" + contextName
@@ -742,11 +743,10 @@ ext.performCopilotConfig = { Project project ->
                 def targetClientId = project.findProperty("clientId") ?: "23C59575B9CF467C9620760EB255B389"
                 def roleParam = project.findProperty("role") ?: "0"
 
-                def ensurePermissions = { java.sql.Connection conn, String clientId, String orgId, String roleId, List appIds ->
+                def initializeSWSConfig = { java.sql.Connection conn, String clientId, String orgId ->
                     boolean exists = false
-                    try (java.sql.PreparedStatement pstmt = conn.prepareStatement("SELECT count(*) FROM smfsws_config WHERE ad_client_id = ? AND ad_org_id = ?")) {
+                    try (java.sql.PreparedStatement pstmt = conn.prepareStatement("SELECT count(*) FROM smfsws_config WHERE ad_client_id = ?")) {
                         pstmt.setString(1, clientId)
-                        pstmt.setString(2, orgId)
                         try (java.sql.ResultSet rs = pstmt.executeQuery()) {
                             if (rs.next()) {
                                 if (rs.getInt(1) > 0) {
@@ -786,11 +786,6 @@ ext.performCopilotConfig = { Project project ->
 
                             pstmt.executeUpdate()
                             project.logger.lifecycle("✅ Configuration inserted successfully for Client ${clientId} - Org ${orgId}.")
-                            // Placeholder: aquí puede ir la lógica para insertar permisos
-                            // para el `roleId` sobre las aplicaciones listadas en `appIds`.
-                            // Ejemplo: insertar filas en las tablas de permisos relacionando
-                            // roleId <-> each appId in appIds.
-                            // (Se dejó vacío por ahora; se implementará según indicaciones posteriores.)
                         } catch (Exception e) {
                             project.logger.error("❌ Error inserting into smfsws_config for Client ${clientId} - Org ${orgId}: ${e.message}")
                         }
@@ -818,8 +813,8 @@ ext.performCopilotConfig = { Project project ->
                     project.logger.warn("⚠️ Failed to query etcop_app: ${e.message}")
                 }
 
-                // Create permissions for Client 0 Org 0 (role 0) using system apps
-                ensurePermissions(connection, '0', '0', '0', systemAppIds)
+                // Initialize SWS config for System (Client 0, Org 0) - Independent Step
+                initializeSWSConfig(connection, '0', '0')
 
                 // Resolve admin role id for target client by querying ad_role (IS_Client_Admin = 'Y')
                 def resolvedRoleId = roleParam.toString()
@@ -839,14 +834,55 @@ ext.performCopilotConfig = { Project project ->
                     }
                 }
 
-                // Create permissions for Target Client and Specific Org (use resolved admin role)
-                ensurePermissions(connection, targetClientId, "19404EAD144C49A0AF37D54377CF452D", resolvedRoleId, clientAppIds)
+                // Function to insert a role-app mapping into `etcop_role_app` idempotently
+                def insertRoleApp = { java.sql.Connection conn, String clientId, String roleId, String appId ->
+                    try {
+                        try (java.sql.PreparedStatement checkStmt = conn.prepareStatement("SELECT count(*) FROM etcop_role_app WHERE ad_client_id = ? AND ad_org_id = ? AND ad_role_id = ? AND etcop_app_id = ?")) {
+                            checkStmt.setString(1, clientId)
+                            checkStmt.setString(2, '0')
+                            checkStmt.setString(3, roleId)
+                            checkStmt.setString(4, appId)
+                            try (java.sql.ResultSet rs = checkStmt.executeQuery()) {
+                                if (rs.next() && rs.getInt(1) > 0) {
+                                    return false
+                                }
+                            }
+                        }
 
-                // Placeholder: aquí irá la lógica para añadir permisos concretos
-                // usando las listas `systemAppIds` (para client '0') y `clientAppIds` (para el client objetivo).
-                // Esa lógica deberá insertar las filas necesarias en las tablas de permisos
-                // para los `roleId` correspondientes y las aplicaciones listadas.
-                // (Implementar antes del login de verificación cuando se decida la estructura exacta.)
+                        try (java.sql.PreparedStatement ins = conn.prepareStatement("INSERT INTO etcop_role_app (etcop_role_app_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby, ad_role_id, etcop_app_id) VALUES(?, ?, '0', 'Y', NOW(), '100', NOW(), '100', ?, ?)")) {
+                            ins.setString(1, UUID.randomUUID().toString().replace("-", "").toUpperCase())
+                            ins.setString(2, clientId)
+                            ins.setString(3, roleId)
+                            ins.setString(4, appId)
+                            ins.executeUpdate()
+                            return true
+                        }
+                    } catch (Exception e) {
+                        project.logger.error("❌ Error inserting etcop_role_app for client ${clientId} role ${roleId} app ${appId}: ${e.message}")
+                        return false
+                    }
+                }
+
+                // Insert mappings for system apps (client '0', role '0')
+                systemAppIds.each { appId ->
+                    boolean inserted = insertRoleApp(connection, '0', '0', appId)
+                    if (inserted) {
+                        project.logger.lifecycle("✅ Inserted etcop_role_app for client 0 role 0 app ${appId}.")
+                    } else {
+                        project.logger.lifecycle("ℹ️ etcop_role_app already exists for client 0 role 0 app ${appId} or insertion failed.")
+                    }
+                }
+
+                // Insert mappings for target client
+                clientAppIds.each { appId ->
+                    boolean inserted = insertRoleApp(connection, targetClientId, resolvedRoleId.toString(), appId)
+                    if (inserted) {
+                        project.logger.lifecycle("✅ Inserted etcop_role_app for client ${targetClientId} role ${resolvedRoleId} app ${appId}.")
+                    } else {
+                        project.logger.lifecycle("ℹ️ etcop_role_app already exists for client ${targetClientId} role ${resolvedRoleId} app ${appId} or insertion failed.")
+                    }
+                }
+
 
                 project.logger.lifecycle("🔄 Attempting to login to verify configuration for both clients...")
                 try {
@@ -854,14 +890,13 @@ ext.performCopilotConfig = { Project project ->
                     HttpClient hClient = HttpClient.newHttpClient()
 
                     // Helper to perform login and log token
-                    def doLogin = { String username, String password, String roleId, String orgId ->
+                    def doLogin = { String username, String password, String roleId ->
                         def payload = [
-                            "username": username,
-                            "password": password,
-                            "role": roleId,
-                            "organization": orgId,
-                            "warehouse": "0"
-                        ]
+                                "username": username,
+                                "password": password,
+                                "role": roleId,
+                                "organization": '0'
+                            ]
                         HttpRequest req = HttpRequest.newBuilder()
                                 .uri(URI.create(loginURL))
                                 .header("Content-Type", "application/json")
@@ -871,20 +906,20 @@ ext.performCopilotConfig = { Project project ->
                         if (resp.statusCode() == 200) {
                             def json = new JsonSlurper().parseText(resp.body())
                             if (json.token) {
-                                project.logger.lifecycle("✅ Login successful for role=${roleId}, org=${orgId}.")
+                                project.logger.lifecycle("✅ Login successful for role=${roleId}, org=0.")
                                 return json.token
                             } else {
-                                project.logger.error("❌ Login response did not contain a token for role=${roleId}, org=${orgId}.")
+                                project.logger.error("❌ Login response did not contain a token for role=${roleId}, org=0.")
                             }
                         } else {
-                            project.logger.error("❌ Login failed for role=${roleId}, org=${orgId}. Status: ${resp.statusCode()}. Body: ${resp.body()}")
+                            project.logger.error("❌ Login failed for role=${roleId}, org=0. Status: ${resp.statusCode()}. Body: ${resp.body()}")
                         }
                         return null
                     }
 
-                    def processAgents = { HttpClient client, String username, String password, String roleId, String orgId, boolean isSystemAdmin ->
+                    def processAgents = { HttpClient client, String username, String password, String roleId, boolean isSystemAdmin ->
                         // 1. Login
-                        def token = doLogin(username, password, roleId, orgId)
+                        def token = doLogin(username, password, roleId)
                         if (!token) return
 
                         project.logger.lifecycle("🔄 Fetching agents for role ${roleId}...")
@@ -939,11 +974,11 @@ ext.performCopilotConfig = { Project project ->
                                 project.logger.lifecycle("Granting access to agent ${agent.name} for role ${roleId}...")
                                 // POST to grant access
                                 def accessPayload = [
-                                        "copilotApp": agentId,
-                                        "role"      : roleId,
-                                        "organization": orgId,
-                                        "client"    : isSystemAdmin ? '0' : targetClientId,
-                                        "active"    : true
+                                    "copilotApp": agentId,
+                                    "role"      : roleId,
+                                    "organization": '0',
+                                    "client"    : isSystemAdmin ? '0' : targetClientId,
+                                    "active"    : true
                                 ]
                                 HttpRequest grantReq = HttpRequest.newBuilder()
                                         .uri(URI.create("${etendoHost}/sws/com.etendoerp.etendorx.datasource/AgentAccess"))
@@ -970,15 +1005,15 @@ ext.performCopilotConfig = { Project project ->
                                 .header("Authorization", "Bearer ${token}")
                                 .GET()
                                 .build()
-                        client.send(triggerReq, HttpResponse.BodyHandlers.ofString())
+                        def assistantResponse = client.send(triggerReq, HttpResponse.BodyHandlers.ofString())
                         project.logger.lifecycle("✅ Triggered assistant auto-config/caching.")
                     }
 
                     // Process Agents for System Admin (Client 0)
-                    processAgents(hClient, 'admin', 'admin', '0', '0', true)
+                    processAgents(hClient, 'admin', 'admin', '0', true)
 
                     // Process Agents for Target Client
-                    processAgents(hClient, 'admin', 'admin', resolvedRoleId.toString(), "19404EAD144C49A0AF37D54377CF452D", false)
+                    processAgents(hClient, 'admin', 'admin', resolvedRoleId.toString(), false)
 
                 } catch (Exception e) {
                     project.logger.error("❌ Exception during login attempts: ${e.message}")
@@ -990,6 +1025,9 @@ ext.performCopilotConfig = { Project project ->
         } else {
             project.logger.warn("⚠️ Database connection could not be established.")
         }
+    } else {
+        project.logger.error("❌ Property 'createDatabaseConnection' is missing in the project.")
+        project.logger.error("   This task requires a database connection plugin (usually provided by Etendo Core).")
     }
 }
 
@@ -999,6 +1037,7 @@ task 'copilot.initial.config' {
     description = 'Generates a suggested initial Copilot config file (non-interactive).'
 
     doLast {
+        project.logger.lifecycle("🛠️ Executing task ':copilot.initial.config'...")
         performCopilotConfig(project)
     }
 }
@@ -1006,14 +1045,37 @@ task 'copilot.initial.config' {
 // Register in AutoConfig
 afterEvaluate {
     try {
-        def copilotConfigurator = new com.etendoerp.autoconfig.AutoConfigurator() {
-            String getName() { return "copilot" }
-            String getDescription() { return "Generates a suggested initial Copilot configuration, including SWS master key setup, agent permissions to admin roles, and agent synchronizations. Requires Tomcat to be running." }
-            void configure(Project p) {
-                performCopilotConfig(p)
+        String taskClassName = "com.etendoerp.autoconfig.AutoConfigTask"
+        String configuratorClassName = "com.etendoerp.autoconfig.AutoConfigurator"
+
+        // Search for the task in the root project to find the actual class being used
+        def autoConfigTask = project.rootProject.tasks.findByName("setup.autoConfig")
+        if (autoConfigTask) {
+            Class<?> actualTaskClass = autoConfigTask.getClass()
+            // Gradle tasks are usually proxies, so we traverse up to find the base class
+            while (actualTaskClass != null && !actualTaskClass.name.equals(taskClassName)) {
+                actualTaskClass = actualTaskClass.superclass
+            }
+
+            if (actualTaskClass != null) {
+                // Now we have the right class instance, let's get the configurator interface from its classloader
+                ClassLoader loader = actualTaskClass.classLoader
+                Class<?> configuratorClass = loader.loadClass(configuratorClassName)
+
+                def copilotConfigurator = [
+                    getName: { "copilot" },
+                    getDescription: { "Generates a suggested initial Copilot configuration, including SWS master key setup, agent permissions to admin roles, and agent synchronizations. Requires Tomcat to be running." },
+                    configure: { p -> performCopilotConfig(p) }
+                ].asType(configuratorClass)
+
+                def field = actualTaskClass.getDeclaredField("configurators")
+                field.setAccessible(true)
+                Map configuratorsMap = (Map) field.get(null)
+                if (configuratorsMap != null) {
+                    configuratorsMap.put("copilot", copilotConfigurator)
+                }
             }
         }
-        com.etendoerp.autoconfig.AutoConfigTask.configurators.put("copilot", copilotConfigurator)
     } catch (Throwable t) {
         project.logger.debug("Could not register AutoConfigurator for Copilot: " + t.message)
     }
