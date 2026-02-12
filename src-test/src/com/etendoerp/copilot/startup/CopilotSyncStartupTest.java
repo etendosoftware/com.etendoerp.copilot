@@ -50,7 +50,13 @@ import com.etendoerp.copilot.process.SyncAssistant;
 import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 
+/**
+ * Test class for {@link CopilotSyncStartup}.
+ * This class ensures that the startup synchronization process for Copilot apps works as expected.
+ */
 public class CopilotSyncStartupTest extends WeldBaseTest {
+
+  private static final String APP_ID_1 = "APP-ID-1";
 
   @Mock
   private OBDal obDal;
@@ -144,7 +150,7 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     apps.add(copilotApp);
     when(criteria.list()).thenReturn(apps);
 
-    when(copilotApp.getId()).thenReturn("APP-ID-1");
+    when(copilotApp.getId()).thenReturn(APP_ID_1);
     when(copilotApp.isSyncStartup()).thenReturn(true);
 
     List<AppInfo> infoList = new ArrayList<>();
@@ -158,14 +164,14 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     when(syncAssistant.doExecute(any(), anyString())).thenReturn(new JSONObject());
 
     // Need to mock OBDal.get() inside executeSync
-    when(obDal.get(CopilotApp.class, "APP-ID-1")).thenReturn(copilotApp);
+    when(obDal.get(CopilotApp.class, APP_ID_1)).thenReturn(copilotApp);
 
     startup.initialize();
 
     // Verify logic inside executeSync
     verify(syncAssistant).doExecute(any(), anyString()); // Check arguments if needed
 
-    verify(obDal).get(CopilotApp.class, "APP-ID-1");
+    verify(obDal).get(CopilotApp.class, APP_ID_1);
     mockedUtils.verify(() -> CopilotAppInfoUtils.markAsSynchronized(copilotApp));
     verify(obDal).flush();
     verify(obDal).commitAndClose();
@@ -188,7 +194,7 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     apps.add(copilotApp);
     when(criteria.list()).thenReturn(apps);
 
-    when(copilotApp.getId()).thenReturn("APP-ID-1");
+    when(copilotApp.getId()).thenReturn(APP_ID_1);
     when(copilotApp.isSyncStartup()).thenReturn(true);
 
     List<AppInfo> infoList = new ArrayList<>();
