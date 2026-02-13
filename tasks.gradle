@@ -795,20 +795,22 @@ ext.performCopilotConfig = { Project project ->
                 }
 
                 // Query etcop_app and partition app ids by System_app
-                def systemAppIds = []
-                def clientAppIds = []
+                def systemApps = []
+                def clientApps = []
                 try (java.sql.Statement appStmt = connection.createStatement();
-                        java.sql.ResultSet rsApps = appStmt.executeQuery("SELECT etcop_app_id, system_app FROM etcop_app")) {
+                        java.sql.ResultSet rsApps = appStmt.executeQuery("SELECT etcop_app_id, name, system_app FROM etcop_app")) {
                     while (rsApps.next()) {
                         def appId = rsApps.getString("etcop_app_id")
+                        def name = rsApps.getString("name")
                         def sysFlag = rsApps.getString("system_app")
+                        // Logic fixed: 'Y' or null (default) is system, 'N' is client
                         if (sysFlag != null && sysFlag.toUpperCase() == 'N') {
-                            systemAppIds.add(appId)
+                            clientApps.add([id: appId, name: name])
                         } else {
-                            clientAppIds.add(appId)
+                            systemApps.add([id: appId, name: name])
                         }
                     }
-                    project.logger.lifecycle("ℹ️ Found ${systemAppIds.size()} system apps and ${clientAppIds.size()} client apps in etcop_app.")
+                    project.logger.lifecycle("ℹ️ Found ${systemApps.size()} system apps and ${clientApps.size()} client apps in etcop_app.")
                 } catch (Exception e) {
                     project.logger.warn("⚠️ Failed to query etcop_app: ${e.message}")
                 }
@@ -818,13 +820,15 @@ ext.performCopilotConfig = { Project project ->
 
                 // Resolve admin role id for target client by querying ad_role (IS_Client_Admin = 'Y')
                 def resolvedRoleId = roleParam.toString()
+                def resolvedRoleName = "Provided Role"
                 if (targetClientId != '0') {
-                    try (java.sql.PreparedStatement roleStmt = connection.prepareStatement("SELECT ad_role_id FROM ad_role WHERE ad_client_id = ? AND IS_Client_Admin = 'Y' LIMIT 1")) {
+                    try (java.sql.PreparedStatement roleStmt = connection.prepareStatement("SELECT ad_role_id, name FROM ad_role WHERE ad_client_id = ? AND IS_Client_Admin = 'Y' LIMIT 1")) {
                         roleStmt.setString(1, targetClientId)
                         try (java.sql.ResultSet rsRole = roleStmt.executeQuery()) {
                             if (rsRole.next()) {
                                 resolvedRoleId = rsRole.getString("ad_role_id")
-                                project.logger.lifecycle("ℹ️ Resolved admin role for client ${targetClientId}: ${resolvedRoleId}")
+                                resolvedRoleName = rsRole.getString("name")
+                                project.logger.lifecycle("ℹ️ Resolved admin role for client ${targetClientId}: ${resolvedRoleName} (${resolvedRoleId})")
                             } else {
                                 project.logger.warn("⚠️ No admin role found in ad_role for client ${targetClientId}, falling back to provided role param: ${roleParam}")
                             }
@@ -864,22 +868,22 @@ ext.performCopilotConfig = { Project project ->
                 }
 
                 // Insert mappings for system apps (client '0', role '0')
-                systemAppIds.each { appId ->
-                    boolean inserted = insertRoleApp(connection, '0', '0', appId)
+                systemApps.each { agent ->
+                    boolean inserted = insertRoleApp(connection, '0', '0', agent.id)
                     if (inserted) {
-                        project.logger.lifecycle("✅ Inserted etcop_role_app for client 0 role 0 app ${appId}.")
+                        project.logger.lifecycle("✅ Inserted etcop_role_app for client 0 role 0 app ${agent.name} (${agent.id}).")
                     } else {
-                        project.logger.lifecycle("ℹ️ etcop_role_app already exists for client 0 role 0 app ${appId} or insertion failed.")
+                        project.logger.lifecycle("ℹ️ etcop_role_app already exists for client 0 role 0 app ${agent.name} (${agent.id}) or insertion failed.")
                     }
                 }
 
                 // Insert mappings for target client
-                clientAppIds.each { appId ->
-                    boolean inserted = insertRoleApp(connection, targetClientId, resolvedRoleId.toString(), appId)
+                clientApps.each { agent ->
+                    boolean inserted = insertRoleApp(connection, targetClientId, resolvedRoleId.toString(), agent.id)
                     if (inserted) {
-                        project.logger.lifecycle("✅ Inserted etcop_role_app for client ${targetClientId} role ${resolvedRoleId} app ${appId}.")
+                        project.logger.lifecycle("✅ Inserted etcop_role_app for client ${targetClientId} role ${resolvedRoleName} (${resolvedRoleId}) app ${agent.name} (${agent.id}).")
                     } else {
-                        project.logger.lifecycle("ℹ️ etcop_role_app already exists for client ${targetClientId} role ${resolvedRoleId} app ${appId} or insertion failed.")
+                        project.logger.lifecycle("ℹ️ etcop_role_app already exists for client ${targetClientId} role ${resolvedRoleName} (${resolvedRoleId}) app ${agent.name} (${agent.id}) or insertion failed.")
                     }
                 }
 
@@ -917,12 +921,12 @@ ext.performCopilotConfig = { Project project ->
                         return null
                     }
 
-                    def processAgents = { HttpClient client, String username, String password, String roleId, boolean isSystemAdmin ->
+                    def processAgents = { HttpClient client, String username, String password, String roleId, String roleName, boolean isSystemAdmin ->
                         // 1. Login
                         def token = doLogin(username, password, roleId)
                         if (!token) return
 
-                        project.logger.lifecycle("🔄 Fetching agents for role ${roleId}...")
+                        project.logger.lifecycle("🔄 Fetching agents for role ${roleName} (${roleId})...")
                         // 2. Fetch ALL Agents
                         HttpRequest agentsReq = HttpRequest.newBuilder()
                                 .uri(URI.create("${etendoHost}/sws/com.etendoerp.etendorx.datasource/Agents?_startRow=0&_endRow=1000"))
@@ -946,7 +950,7 @@ ext.performCopilotConfig = { Project project ->
                             return isSystemAdmin ? isSystemApp : !isSystemApp
                         }
 
-                        project.logger.lifecycle("ℹ️ Found ${filteredAgents.size()} agents to process for role ${roleId} (SystemAdmin: ${isSystemAdmin}).")
+                        project.logger.lifecycle("ℹ️ Found ${filteredAgents.size()} agents to process for role ${roleName} (${roleId}) (SystemAdmin: ${isSystemAdmin}).")
 
                         // 4. For each filtered agent
                         filteredAgents.each { agent ->
@@ -971,7 +975,7 @@ ext.performCopilotConfig = { Project project ->
                             }
 
                             if (!accessExists) {
-                                project.logger.lifecycle("Granting access to agent ${agent.name} for role ${roleId}...")
+                                project.logger.lifecycle("Granting access to agent ${agent.name} for role ${roleName} (${roleId})...")
                                 // POST to grant access
                                 def accessPayload = [
                                     "copilotApp": agentId,
@@ -1010,10 +1014,10 @@ ext.performCopilotConfig = { Project project ->
                     }
 
                     // Process Agents for System Admin (Client 0)
-                    processAgents(hClient, 'admin', 'admin', '0', true)
+                    processAgents(hClient, 'admin', 'admin', '0', 'System Administrator', true)
 
                     // Process Agents for Target Client
-                    processAgents(hClient, 'admin', 'admin', resolvedRoleId.toString(), false)
+                    processAgents(hClient, 'admin', 'admin', resolvedRoleId.toString(), resolvedRoleName, false)
 
                 } catch (Exception e) {
                     project.logger.error("❌ Exception during login attempts: ${e.message}")
