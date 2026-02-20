@@ -73,16 +73,23 @@ if "fastembed" not in sys.modules:
 class TestGetEmbedding:
     """Tests for get_embedding function."""
 
+    @patch("copilot.core.vectordb_utils.read_optional_env_var")
     @patch("copilot.core.vectordb_utils.get_proxy_url")
     @patch("copilot.core.vectordb_utils.OpenAIEmbeddings")
-    def test_get_embedding_creates_embeddings_with_proxy(self, mock_embeddings, mock_get_proxy_url):
+    def test_get_embedding_creates_embeddings_with_proxy(
+        self, mock_embeddings, mock_get_proxy_url, mock_read_env
+    ):
         """Test that get_embedding creates OpenAIEmbeddings with correct config."""
         mock_get_proxy_url.return_value = "http://proxy.example.com"
+        mock_read_env.return_value = None  # No real API key
 
         result = get_embedding()
 
         mock_embeddings.assert_called_once_with(
-            disallowed_special=(), show_progress_bar=True, base_url="http://proxy.example.com"
+            disallowed_special=(),
+            show_progress_bar=True,
+            base_url="http://proxy.example.com",
+            api_key="dummy",
         )
         assert result == mock_embeddings.return_value
 
@@ -1009,7 +1016,7 @@ class TestGetSimThreshold:
         result = get_sim_threshold(None)
 
         assert result == pytest.approx(0.3)
-        mock_read_env.assert_called_once_with("COPILOT_REFERENCE_SIMILARITY_THRESHOLD", None)
+        mock_read_env.assert_called_once_with("copilot.reference.similarity.threshold", None)
 
     @patch("copilot.core.vectordb_utils.read_optional_env_var")
     def test_get_sim_threshold_invalid_env_var(self, mock_read_env):

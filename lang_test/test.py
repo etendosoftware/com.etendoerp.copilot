@@ -5,6 +5,7 @@ from datetime import datetime
 from operator import itemgetter
 
 from connection import model, prompt
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from copilot.core.utils.models import get_proxy_url
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
@@ -21,9 +22,9 @@ from langsmith import Client
 
 load_dotenv()
 
-os.environ["LANGCHAIN_API_KEY"] = str(os.getenv("LANGCHAIN_API_KEY"))
-os.environ["LANGCHAIN_ENDPOINT"] = str(os.getenv("LANGCHAIN_ENDPOINT"))
-os.environ["OPENAI_API_KEY"] = str(os.getenv("OPENAI_API_KEY"))
+os.environ["LANGCHAIN_API_KEY"] = read_optional_env_var("langchain.api.key", None)
+os.environ["LANGCHAIN_ENDPOINT"] = read_optional_env_var("langchain.endpoint", None)
+os.environ["OPENAI_API_KEY"] = read_optional_env_var("openai.api.key", None)
 os.environ["LANGCHAIN_TRACING_v2"] = "true"
 os.environ["LANGCHAIN_PROJECT"] = "TestAssistantRO"
 

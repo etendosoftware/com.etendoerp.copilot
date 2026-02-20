@@ -482,8 +482,7 @@ def load_config(args):
         current_db_config["password"] = read_optional_env_var("bbdd.password", "tad")
         current_db_config["host"] = read_optional_env_var("bbdd.host", "localhost")
         current_db_config["port"] = read_optional_env_var("bbdd.port", "5432")
-        if os.getenv("ETENDO_BASE_URL"):
-            current_etendo_url = os.getenv("ETENDO_BASE_URL")
+        current_etendo_url = read_optional_env_var("etendo.base_url", ETENDO_BASE_URL)
 
     # Command-line arguments override environment file and defaults
     if args.dbname:
@@ -499,8 +498,8 @@ def load_config(args):
 
     if args.etendo_url != ETENDO_BASE_URL:
         current_etendo_url = args.etendo_url
-    elif os.getenv("ETENDO_BASE_URL"):
-        current_etendo_url = os.getenv("ETENDO_BASE_URL")
+    elif read_optional_env_var("etendo.base_url", None):
+        current_etendo_url = read_optional_env_var("etendo.base_url", None)
 
     return current_db_config, current_etendo_url
 

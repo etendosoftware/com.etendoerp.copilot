@@ -16,7 +16,25 @@ def get_proxy_url():
     Returns:
         str | None: The proxy URL or None if not set.
     """
-    return read_optional_env_var("COPILOT_PROXY_URL", None)
+    return read_optional_env_var("copilot.proxy.url", None)
+
+
+def get_api_key(provider_to_use):
+    """Return the API key for the specified provider.
+
+    Reads the API key from environment variables based on the provider name.
+
+    Args:
+        provider_to_use (str): The name of the provider for which to get the API key.
+
+    Returns:
+        str | None: The API key for the provider or None if not set.
+    """
+    if provider_to_use == "google_genai":
+        env_var_name = "gemini.api.key"
+    else:
+        env_var_name = f"{provider_to_use.lower()}.api.key"
+    return read_optional_env_var(env_var_name, None)
 
 
 def get_openai_client():

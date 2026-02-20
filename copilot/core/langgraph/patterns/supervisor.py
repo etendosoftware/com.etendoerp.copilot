@@ -12,7 +12,6 @@ from langgraph.prebuilt.chat_agent_executor import (
 )
 from langgraph.pregel import Pregel
 from langgraph.utils.runnable import RunnableCallable
-
 from langgraph_supervisor.handoff import (
     create_handoff_back_messages,
     create_handoff_tool,
@@ -45,8 +44,7 @@ def _make_call_agent(
             messages = messages[-1:]
         else:
             raise ValueError(
-                f"Invalid agent output mode: {output_mode}. "
-                f"Needs to be one of {OutputMode.__args__}"
+                f"Invalid agent output mode: {output_mode}. " f"Needs to be one of {OutputMode.__args__}"
             )
 
         if add_handoff_back_messages:
@@ -111,9 +109,7 @@ def create_supervisor(
             )
 
         if agent.name in agent_names:
-            raise ValueError(
-                f"Agent with name '{agent.name}' already exists. Agent names must be unique."
-            )
+            raise ValueError(f"Agent with name '{agent.name}' already exists. Agent names must be unique.")
 
         agent_names.add(agent.name)
 

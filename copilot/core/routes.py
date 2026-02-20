@@ -122,7 +122,7 @@ def _initialize_agent(question: QuestionSchema):
     """Initialize and return the copilot agent."""
     agent_type = question.type
     if agent_type is None:
-        agent_type = read_optional_env_var("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
+        agent_type = read_optional_env_var("agent.type", AgentEnum.LANGCHAIN.value)
     copilot_agent = select_copilot_agent(agent_type)
     print_call_info(copilot_agent, question)
 
@@ -598,7 +598,7 @@ def transcript_file(file: UploadFile = File(...)):
 def check_copilot_host(authorization: str = Header(None)):
     try:
         etendo_host_docker = etendo_utils.get_etendo_host()
-        from .utils.etendo_utils import validate_etendo_token
+        from copilot.core.utils.etendo_utils import validate_etendo_token
 
         if not authorization or not validate_etendo_token(authorization):
             raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
@@ -618,11 +618,19 @@ def check_copilot_host(authorization: str = Header(None)):
         response = requests.post(url, headers=headers, json={})
 
         if response.status_code == 200:
-            copilot_debug("ETENDO_HOST_DOCKER successfully verified.")
+            copilot_debug("Variable 'etendo.host.docker' (ETENDO_HOST_DOCKER) " "successfully verified.")
             return "success"
         else:
-            copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
+            copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: code response " f"{response.status_code}")
+            copilot_debug(
+                "Error verifying 'etendo.host.docker' (ETENDO_HOST_DOCKER). "
+                "Please check the ETENDO_HOST_DOCKER variable and ensure it points "
+                "to the correct Etendo server URL."
+            )
             return "failed"
 
     except requests.exceptions.RequestException as e:
-        copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: {str(e)}")
+        copilot_debug(
+            f"Error verifying 'etendo.host.docker' (ETENDO_HOST_DOCKER): {str(e)}."
+            f" Please check the ETENDO_HOST_DOCKER variable and ensure it points to the correct Etendo server URL."
+        )

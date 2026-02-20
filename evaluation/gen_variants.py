@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 
 import numpy as np  # For numerical operations in selection
 import pandas as pd
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from copilot.core.utils.models import get_proxy_url
 from langchain.chat_models import init_chat_model
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
@@ -360,7 +361,7 @@ def generate_templates_via_llm(
     model_name: str = DEFAULT_LLM_MODEL,
     temperature: float = DEFAULT_LLM_TEMPERATURE,
 ) -> tuple[List[str], Dict[str, Any]]:
-    if not os.getenv("OPENAI_API_KEY"):
+    if not read_optional_env_var("openai.api.key", None):
         print("CRITICAL ERROR: The OPENAI_API_KEY environment variable is not set.")
         return [], {"status": "OPENAI_API_KEY not set"}
     try:
@@ -645,7 +646,7 @@ def main():
 
     DIVERSIFICATION_MULTIPLIER = args.diversification_multiplier  # Allow override from command line
 
-    if not os.getenv("OPENAI_API_KEY"):
+    if not read_optional_env_var("openai.api.key", None):
         print(
             "CRITICAL ERROR: The OPENAI_API_KEY environment variable must be set before running this script."
         )

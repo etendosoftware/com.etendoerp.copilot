@@ -53,6 +53,7 @@ import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.ExtractedResponse;
+import com.etendoerp.copilot.util.FileUtils;
 import com.etendoerp.copilot.util.TrackingUtil;
 
 class RestServiceUtilTest {
@@ -204,7 +205,7 @@ class RestServiceUtilTest {
   void testGetFilesReceivedWithSingleFile() throws JSONException {
     JSONObject json = new JSONObject();
     json.put("file", "file123");
-    List<String> files = RestServiceUtil.getFilesReceived(json);
+    List<String> files = FileUtils.getFilesReceived(json);
     Assertions.assertEquals(List.of("file123"), files);
   }
 
@@ -215,7 +216,7 @@ class RestServiceUtilTest {
     arr.put("fileB");
     JSONObject json = new JSONObject();
     json.put("file", arr.toString());
-    List<String> files = RestServiceUtil.getFilesReceived(json);
+    List<String> files = FileUtils.getFilesReceived(json);
     Assertions.assertEquals(List.of("fileA", "fileB"), files);
   }
 
@@ -380,71 +381,6 @@ class RestServiceUtilTest {
     Assertions.assertEquals(RestServiceUtil.AQUESTION, RestServiceUtil.determineEndpoint(true, copilotApp));
   }
 
-  @Test
-  void testProcessFileItemInMemoryAndNullName() throws Exception {
-    // Mock DiskFileItem for in-memory write and null name
-    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
-        org.apache.commons.fileupload.disk.DiskFileItem.class);
-    Mockito.when(itemDisk.isFormField()).thenReturn(false);
-    Mockito.when(itemDisk.getName()).thenReturn(null);
-    Mockito.when(itemDisk.getFieldName()).thenReturn("fileNull");
-    Mockito.when(itemDisk.isInMemory()).thenReturn(true);
-    Mockito.doNothing().when(itemDisk).write(org.mockito.ArgumentMatchers.any(File.class));
-
-    java.net.http.HttpResponse<String> mockResponse = Mockito.mock(java.net.http.HttpResponse.class);
-    Mockito.when(mockResponse.body()).thenReturn(
-        new org.codehaus.jettison.json.JSONObject().put(RestServiceUtil.PROP_ANSWER, LIT_UPLOADED).toString());
-
-    try (org.mockito.MockedStatic<com.etendoerp.copilot.util.CopilotUtils> utils = org.mockito.Mockito
-        .mockStatic(com.etendoerp.copilot.util.CopilotUtils.class);
-         org.mockito.MockedStatic<org.openbravo.erpCommon.utility.OBMessageUtils> mockedMsg = org.mockito.Mockito
-             .mockStatic(org.openbravo.erpCommon.utility.OBMessageUtils.class)) {
-      utils.when(
-              () -> com.etendoerp.copilot.util.CopilotUtils.getResponseFromCopilot(org.mockito.ArgumentMatchers.any(),
-                  org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
-                  org.mockito.ArgumentMatchers.any()))
-          .thenReturn(mockResponse);
-      mockedMsg.when(
-              () -> org.openbravo.erpCommon.utility.OBMessageUtils.messageBD(org.mockito.ArgumentMatchers.anyString()))
-          .thenReturn("msg");
-
-      // invoke private method via reflection
-      // call package-private helper directly
-      String result = RestServiceUtil.processFileItem(itemDisk, ENDPOINT);
-      Assertions.assertEquals(LIT_UPLOADED, result);
-    }
-  }
-
-  @Test
-  void testProcessFileItemDiskRenameFail() throws Exception {
-    // Mock DiskFileItem for disk store where rename fails
-    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
-        org.apache.commons.fileupload.disk.DiskFileItem.class);
-    Mockito.when(itemDisk.isFormField()).thenReturn(false);
-    Mockito.when(itemDisk.getName()).thenReturn(TEST_FILE_NAME);
-    Mockito.when(itemDisk.getFieldName()).thenReturn("file1");
-    Mockito.when(itemDisk.isInMemory()).thenReturn(false);
-
-    // Provide a store location File whose renameTo returns false by overriding renameTo
-    File fakeStore = new File("fakeStore.tmp") {
-      @Override
-      public boolean renameTo(File dest) {
-        return false;
-      }
-    };
-    Mockito.when(itemDisk.getStoreLocation()).thenReturn(fakeStore);
-
-    try (org.mockito.MockedStatic<org.openbravo.erpCommon.utility.OBMessageUtils> mockedMsg = org.mockito.Mockito
-        .mockStatic(org.openbravo.erpCommon.utility.OBMessageUtils.class)) {
-      mockedMsg.when(
-              () -> org.openbravo.erpCommon.utility.OBMessageUtils.messageBD(org.mockito.ArgumentMatchers.anyString()))
-          .thenReturn("ETCOP_ErrorSavingFile");
-
-      // call package-private helper directly and expect OBException
-      Assertions.assertThrows(org.openbravo.base.exception.OBException.class,
-          () -> RestServiceUtil.processFileItem(itemDisk, ENDPOINT));
-    }
-  }
 
   @Test
   void testServerSideEventsAsyncWritesDataAndReturnsEmpty() throws Exception {
@@ -539,8 +475,8 @@ class RestServiceUtilTest {
 
     // Mock properties provider to return a host that causes MalformedURLException
     Properties props = new Properties();
-    props.setProperty("COPILOT_HOST", "bad host");
-    props.setProperty("COPILOT_PORT", "5005");
+    props.setProperty("copilot.host", "bad host"); // TODO ETP-3295
+    props.setProperty("copilot.port", "5005"); // TODO ETP-3295
     try (org.mockito.MockedStatic<OBPropertiesProvider> mockProps = org.mockito.Mockito.mockStatic(
         OBPropertiesProvider.class);
          org.mockito.MockedStatic<OBMessageUtils> mockMsg = org.mockito.Mockito.mockStatic(OBMessageUtils.class)) {
@@ -696,8 +632,8 @@ class RestServiceUtilTest {
 
     // Mock properties
     Properties props = new Properties();
-    props.setProperty("COPILOT_HOST", "localhost");
-    props.setProperty("COPILOT_PORT", "5005");
+    props.setProperty("copilot.host", "localhost"); // TODO ETP-3295
+    props.setProperty("copilot.port", "5005"); // TODO ETP-3295
 
     HttpClient.Builder builder = Mockito.mock(HttpClient.Builder.class);
     HttpClient mockClient = Mockito.mock(HttpClient.class);

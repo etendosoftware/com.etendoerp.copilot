@@ -35,7 +35,7 @@ copilot {
         required = true
         group = "Copilot"
         order = 30
-        name = "ETENDO_HOST"
+        name = "etendo.host"
     }
     etendoHostDocker {
         description = "Etendo host URL for Docker-to-Docker communication"
@@ -45,7 +45,7 @@ copilot {
         required = true
         group = "Copilot"
         order = 40
-        name = "ETENDO_HOST_DOCKER"
+        name = "etendo.host.docker"
     }
     copilotHost {
         description = "Copilot service hostname"
@@ -54,7 +54,7 @@ copilot {
         required = true
         group = "Copilot"
         order = 50
-        name = "COPILOT_HOST"
+        name = "copilot.host"
     }
     copilotPort {
         description = "Copilot main service port"
@@ -64,7 +64,7 @@ copilot {
         required = true
         group = "Copilot"
         order = 60
-        name = "COPILOT_PORT"
+        name = "copilot.port"
     }
     copilotPortMCP {
         description = "Copilot MCP server port"
@@ -74,7 +74,7 @@ copilot {
         required = false
         group = "Copilot"
         order = 70
-        name = "COPILOT_PORT_MCP"
+        name = "copilot.port.mcp"
     }
     openai {
         description = "OpenAI API key"
@@ -84,7 +84,7 @@ copilot {
         required = true
         group = "Copilot"
         order = 80
-        name = "OPENAI_API_KEY"
+        name = "openai.api.key"
     }
 }
 
@@ -97,7 +97,7 @@ copilotAdvanced {
         required = false
         group = "Copilot (Advanced)"
         order = 10
-        name = "COPILOT_PORT_DEBUG"
+        name = "copilot.port.debug"
     }
     debugMode {
         description = "Enable debug mode"
@@ -107,7 +107,7 @@ copilotAdvanced {
         required = false
         group = "Copilot (Advanced)"
         order = 20
-        name = "COPILOT_DEBUG"
+        name = "copilot.debug"
     }
     anthropic {
         description = "Anthropic Claude API key"
@@ -117,7 +117,7 @@ copilotAdvanced {
         required = false
         group = "Copilot (Advanced)"
         order = 30
-        name = "ANTHROPIC_API_KEY"
+        name = "anthropic.api.key"
     }
     google {
         description = "Google API key"
@@ -127,7 +127,8 @@ copilotAdvanced {
         required = false
         group = "Copilot (Advanced)"
         order = 40
-        name = "GOOGLE_API_KEY"
+        //name = "GOOGLE_API_KEY"
+        name = "google.api.key"
     }
     langsmithApiKey {
         description = "LangSmith API key"
@@ -137,7 +138,8 @@ copilotAdvanced {
         required = false
         group = "Copilot (Advanced)"
         order = 50
-        name = "LANGSMITH_API_KEY"
+        //name = "LANGSMITH_API_KEY"
+        name = "langsmith.api.key"
     }
     langsmithTracing {
         description = "Enable LangSmith tracing"
@@ -147,7 +149,7 @@ copilotAdvanced {
         required = false
         group = "Copilot (Advanced)"
         order = 60
-        name = "LANGSMITH_TRACING"
+        name = "langsmith.tracing"
     }
     langsmithProject {
         description = "LangSmith project name"
@@ -157,7 +159,7 @@ copilotAdvanced {
         required = false
         group = "Copilot (Advanced)"
         order = 70
-        name = "LANGSMITH_PROJECT"
+        name = "langsmith.project"
     }
     proxyUrl {
         description = "HTTP proxy URL"
@@ -167,7 +169,7 @@ copilotAdvanced {
         required = false
         group = "Copilot (Advanced)"
         order = 80
-        name = "COPILOT_PROXY_URL"
+        name = "copilot.proxy.url"
     }
     dockerizedLiteLLM {
         description = "Enable LiteLLM proxy service"
@@ -187,6 +189,6 @@ copilotAdvanced {
         required = false
         group = "Copilot (Advanced)"
         order = 100
-        name = "COPILOT_LITELLM_PROXY_PORT"
+        name = "copilot.litellm.proxy.port"
     }
 }

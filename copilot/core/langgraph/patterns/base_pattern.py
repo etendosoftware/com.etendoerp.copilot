@@ -12,7 +12,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 
 class BasePattern:
-    OPENAI_MODEL: Final[str] = read_optional_env_var("OPENAI_MODEL", "gpt-4o")
+    OPENAI_MODEL: Final[str] = read_optional_env_var("openai.model", "gpt-4o")
 
     async def construct_nodes(self, members, _assistant_graph=None, _full_question=None) -> StateGraph:
         class AgentState(TypedDict):

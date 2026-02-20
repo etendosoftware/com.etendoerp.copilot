@@ -47,7 +47,7 @@ public class OpenAIUtils {
   public static final String CONTENT_TYPE_JSON = "application/json";
   public static final String HEADER_BEARER = "Bearer ";
   public static final String HEADER_ASSISTANTS_V_2 = "assistants=v2";
-  public static final String OPENAI_API_KEY = "OPENAI_API_KEY";
+  public static final String OPENAI_API_KEY = "openai.api.key";
   public static final String ENDPOINT_FILES = "/files";
   public static final String ENDPOINT_MODELS = "/models";
   public static final String ENDPOINT_ASSISTANTS = "/assistants";
@@ -131,7 +131,7 @@ public class OpenAIUtils {
   /**
    * Returns the base URL to use for OpenAI API requests.
    * <p>
-   * The method first checks Openbravo properties for the key {@code COPILOT_PROXY_URL}.
+  * The method first checks Openbravo properties for the key {@code COPILOT_PROXY_URL}.
    * If present, that value is returned allowing a proxy or custom endpoint to override
    * the default OpenAI API base URL. Otherwise the constant {@link #BASE_URL} is returned.
    *
@@ -139,10 +139,7 @@ public class OpenAIUtils {
    */
   private static String getBaseUrl() {
     var prop = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    if (prop.containsKey("COPILOT_PROXY_URL")) {
-      return prop.getProperty("COPILOT_PROXY_URL");
-    }
-    return BASE_URL;
+    return CopilotUtils.readPropertyWithLegacyCompatibility(prop, "copilot.proxy.url", BASE_URL);
   }
 
   /**
@@ -528,7 +525,7 @@ public class OpenAIUtils {
    */
   public static String getOpenaiApiKey() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return properties.getProperty(OPENAI_API_KEY);
+    return CopilotUtils.readPropertyWithLegacyCompatibility(properties, OPENAI_API_KEY,null);
   }
 
 
