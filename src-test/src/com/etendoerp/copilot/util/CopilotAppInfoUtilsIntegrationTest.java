@@ -87,7 +87,8 @@ public class CopilotAppInfoUtilsIntegrationTest extends WeldBaseTest {
     // Set boolean fields with defaults (they are required)
     newApp.setCodeInterpreter(false); // Default is 'N'
     newApp.setRetrieval(false); // Default is 'N'
-    newApp.setSystemApp(false); // Default is 'N'
+    
+    newApp.setAgentScope("CS"); // Default: client-only
 
     // Save the new app
     OBDal.getInstance().save(newApp);

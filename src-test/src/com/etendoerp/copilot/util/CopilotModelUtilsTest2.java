@@ -65,7 +65,7 @@ import com.etendoerp.copilot.data.CopilotModel;
 /**
  * Copilot model utils test.
  */
-public class CopilotModelUtilsTest extends WeldBaseTest {
+public class CopilotModelUtilsTest2 extends WeldBaseTest {
 
     /**
      * The Expected exception.

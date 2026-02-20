@@ -251,7 +251,7 @@
 <!--04FC1CE084AA42D4BBFB294732AD679E-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
 <!--04FC1CE084AA42D4BBFB294732AD679E-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
 <!--04FC1CE084AA42D4BBFB294732AD679E-->  <NAME><![CDATA[AgentScope]]></NAME>
-<!--04FC1CE084AA42D4BBFB294732AD679E-->  <DESCRIPTION><![CDATA[Defines the availability scope of the agent (Client, Client/System, or System)]]></DESCRIPTION>
+<!--04FC1CE084AA42D4BBFB294732AD679E-->  <DESCRIPTION><![CDATA[Defines the availability scope of the agent (Client, Client/System, or System).]]></DESCRIPTION>
 <!--04FC1CE084AA42D4BBFB294732AD679E-->  <HELP><![CDATA[Client: Available only to client-side applications
 Client/System: Available to both client and system contexts
 System: Available only to system/backend operations (replaces the legacy "only_system" flag)]]></HELP>

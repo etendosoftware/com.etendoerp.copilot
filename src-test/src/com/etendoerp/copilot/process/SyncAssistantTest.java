@@ -429,17 +429,14 @@ public class SyncAssistantTest extends WeldBaseTest {
     // Mock getApiKey
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
 
-    try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
-      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> null);
-      // When
-      JSONObject result = syncAssistant.doExecute(parameters, content.toString());
+    // When
+    JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
-      // Then
-      assertNotNull(RESULT_NOT_NULL, result);
+    // Then
+    assertNotNull(RESULT_NOT_NULL, result);
 
-      // Verify that no synchronization methods were called
-      mockedOpenAIUtils.verify(() -> OpenAIUtils.syncAppSource(any(), any()), never());
-      mockedCopilotUtils.verify(() -> CopilotUtils.syncAppLangchainSource(any()), never());
-    }
+    // Verify that no synchronization methods were called
+    mockedOpenAIUtils.verify(() -> OpenAIUtils.syncAppSource(any(), any()), never());
+    mockedCopilotUtils.verify(() -> CopilotUtils.syncAppLangchainSource(any()), never());
   }
 }

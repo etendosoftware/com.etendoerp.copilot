@@ -1217,7 +1217,7 @@ Temperature adjusts the probability distribution for selecting the next word in 
 <!--DCC44BAF5F5741A498BE5BDEB83DB58E-->  <COLUMNNAME><![CDATA[Agent_Scope]]></COLUMNNAME>
 <!--DCC44BAF5F5741A498BE5BDEB83DB58E-->  <NAME><![CDATA[Agent Scope]]></NAME>
 <!--DCC44BAF5F5741A498BE5BDEB83DB58E-->  <PRINTNAME><![CDATA[Agent Scope]]></PRINTNAME>
-<!--DCC44BAF5F5741A498BE5BDEB83DB58E-->  <DESCRIPTION><![CDATA[Defines the availability scope of the agent (Client, Client/System, or System)]]></DESCRIPTION>
+<!--DCC44BAF5F5741A498BE5BDEB83DB58E-->  <DESCRIPTION><![CDATA[Defines the availability scope of the agent (Client, Client/System, or System).]]></DESCRIPTION>
 <!--DCC44BAF5F5741A498BE5BDEB83DB58E-->  <HELP><![CDATA[Client: Available only to client-side applications
 Client/System: Available to both client and system contexts
 System: Available only to system/backend operations (replaces the legacy "only_system" flag)]]></HELP>
