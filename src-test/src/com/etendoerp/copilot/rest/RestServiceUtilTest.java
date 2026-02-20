@@ -660,6 +660,10 @@ class RestServiceUtilTest {
           .thenReturn(mockResponse);
 
       // Stub CopilotUtils and addExtraContextWithHooks internals
+      mockCu.when(() -> CopilotUtils.readPropertyWithLegacyCompatibility(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("copilot.host"), org.mockito.ArgumentMatchers.anyString()))
+          .thenReturn("localhost");
+      mockCu.when(() -> CopilotUtils.readPropertyWithLegacyCompatibility(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("copilot.port"), org.mockito.ArgumentMatchers.anyString()))
+          .thenReturn("5005");
       mockCu.when(() -> CopilotUtils.buildLangraphRequestForCopilot(org.mockito.ArgumentMatchers.any(),
               org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any()))
           .thenAnswer(i -> null);

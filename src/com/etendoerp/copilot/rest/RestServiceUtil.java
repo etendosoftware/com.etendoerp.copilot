@@ -1000,8 +1000,8 @@ public class RestServiceUtil {
     try {
       HttpClient client = HttpClient.newBuilder().build();
 
-      String copilotPort = readPropertyWithLegacyCompatibility(properties, "COPILOT_PORT", "5005");
-      String copilotHost = readPropertyWithLegacyCompatibility(properties, "COPILOT_HOST", "localhost");
+      String copilotPort = readPropertyWithLegacyCompatibility(properties, "copilot.port", "5005");
+      String copilotHost = readPropertyWithLegacyCompatibility(properties, "copilot.host", "localhost");
       JSONObject jsonRequestForCopilot = new JSONObject();
       // appType was unused after refactor; get it inline where needed
       String conversationId = UUID.randomUUID().toString();

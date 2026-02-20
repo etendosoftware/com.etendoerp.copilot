@@ -247,6 +247,8 @@ public class OpenAIUtilsTest extends WeldBaseTest {
    */
   @Test
   public void testGetOpenaiApiKey() {
+    mockedCopilotUtils.when(() -> CopilotUtils.readPropertyWithLegacyCompatibility(any(), eq(OpenAIUtils.OPENAI_API_KEY), any()))
+        .thenReturn(TEST_API_KEY);
     // When
     String apiKey = OpenAIUtils.getOpenaiApiKey();
 
@@ -602,7 +604,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
     assertEquals("application/json", OpenAIUtils.CONTENT_TYPE_JSON);
     assertEquals("Bearer ", OpenAIUtils.HEADER_BEARER);
     assertEquals("assistants=v2", OpenAIUtils.HEADER_ASSISTANTS_V_2);
-    assertEquals("OPENAI_API_KEY", OpenAIUtils.OPENAI_API_KEY);
+    assertEquals("openai.api.key", OpenAIUtils.OPENAI_API_KEY);
     assertEquals("/files", OpenAIUtils.ENDPOINT_FILES);
     assertEquals("/models", OpenAIUtils.ENDPOINT_MODELS);
     assertEquals("/assistants", OpenAIUtils.ENDPOINT_ASSISTANTS);
