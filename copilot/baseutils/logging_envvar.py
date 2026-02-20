@@ -7,6 +7,7 @@ import curlify
 from colorama import Fore, Style
 
 SUCCESS_CODE: Final[str] = "\u2713"
+COPILOT_DEBUG_VAR: Final[str] = "copilot.debug"
 
 
 def print_red(message):
@@ -99,13 +100,13 @@ def is_debug_enabled():
     # it would cause a circular import, so we read the environment
     # variable directly here.
     return os.getenv("COPILOT_DEBUG", "false").lower() in ["true", "1", "yes"] or os.getenv(
-        "copilot.debug", "false"
+        COPILOT_DEBUG_VAR, "false"
     ).lower() in ["true", "1", "yes"]
 
 
 def copilot_debug_event(message: str):
     """Prints a message if COPILOT_DEBUG_EVENT is set to True."""
-    debug = read_optional_env_var_bool("copilot.debug", False)
+    debug = read_optional_env_var_bool(COPILOT_DEBUG_VAR, False)
     debug_event = read_optional_env_var_bool("copilot.debug.event", False)
     if debug and debug_event:
         print_green(message)
@@ -114,7 +115,7 @@ def copilot_debug_event(message: str):
 def copilot_info(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
     info_mode = read_optional_env_var_bool("copilot.info", False)
-    debug_mode = read_optional_env_var_bool("copilot.debug", False)
+    debug_mode = read_optional_env_var_bool(COPILOT_DEBUG_VAR, False)
 
     if info_mode or debug_mode:
         print_violet(message)

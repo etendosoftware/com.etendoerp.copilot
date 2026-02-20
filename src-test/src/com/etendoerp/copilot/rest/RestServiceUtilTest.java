@@ -78,6 +78,8 @@ class RestServiceUtilTest {
   private static final String LIT_PROVIDER = "provider";
   private static final String LIT_MODEL = "model";
   private static final String LIT_TIMESTAMP = "timestamp";
+  private static final String COPILOT_HOST_PROP = "copilot.host";
+  private static final String COPILOT_PORT_PROP = "copilot.port";
 
   // Setup and utility methods for mocks will go here
 
@@ -475,8 +477,8 @@ class RestServiceUtilTest {
 
     // Mock properties provider to return a host that causes MalformedURLException
     Properties props = new Properties();
-    props.setProperty("copilot.host", "bad host"); // TODO ETP-3295
-    props.setProperty("copilot.port", "5005"); // TODO ETP-3295
+    props.setProperty(COPILOT_HOST_PROP, "bad host");
+    props.setProperty(COPILOT_PORT_PROP, "5005");
     try (org.mockito.MockedStatic<OBPropertiesProvider> mockProps = org.mockito.Mockito.mockStatic(
         OBPropertiesProvider.class);
          org.mockito.MockedStatic<OBMessageUtils> mockMsg = org.mockito.Mockito.mockStatic(OBMessageUtils.class)) {
@@ -632,8 +634,8 @@ class RestServiceUtilTest {
 
     // Mock properties
     Properties props = new Properties();
-    props.setProperty("copilot.host", "localhost"); // TODO ETP-3295
-    props.setProperty("copilot.port", "5005"); // TODO ETP-3295
+    props.setProperty(COPILOT_HOST_PROP, "localhost");
+    props.setProperty(COPILOT_PORT_PROP, "5005");
 
     HttpClient.Builder builder = Mockito.mock(HttpClient.Builder.class);
     HttpClient mockClient = Mockito.mock(HttpClient.class);
@@ -660,9 +662,9 @@ class RestServiceUtilTest {
           .thenReturn(mockResponse);
 
       // Stub CopilotUtils and addExtraContextWithHooks internals
-      mockCu.when(() -> CopilotUtils.readPropertyWithLegacyCompatibility(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("copilot.host"), org.mockito.ArgumentMatchers.anyString()))
+      mockCu.when(() -> CopilotUtils.readPropertyWithLegacyCompatibility(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(COPILOT_HOST_PROP), org.mockito.ArgumentMatchers.anyString()))
           .thenReturn("localhost");
-      mockCu.when(() -> CopilotUtils.readPropertyWithLegacyCompatibility(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("copilot.port"), org.mockito.ArgumentMatchers.anyString()))
+      mockCu.when(() -> CopilotUtils.readPropertyWithLegacyCompatibility(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(COPILOT_PORT_PROP), org.mockito.ArgumentMatchers.anyString()))
           .thenReturn("5005");
       mockCu.when(() -> CopilotUtils.buildLangraphRequestForCopilot(org.mockito.ArgumentMatchers.any(),
               org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any()))

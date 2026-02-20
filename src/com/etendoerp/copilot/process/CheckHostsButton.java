@@ -158,34 +158,34 @@ public class CheckHostsButton extends BaseProcessActionHandler {
   private void returnMessage(JSONObject checks) throws JSONException {
     String messageType = SUCCESS;
     if (!checks.optBoolean(ETENDO_HOST, false) ||
-      !checks.optBoolean(COPILOT_HOST, false) || // TODO ETP-3295
-      !checks.optBoolean(ETENDO_HOST_DOCKER, false)) { // TODO ETP-3295
+      !checks.optBoolean(COPILOT_HOST, false) ||
+      !checks.optBoolean(ETENDO_HOST_DOCKER, false)) {
       messageType = "error";
     }
 
     StringBuilder message = new StringBuilder();
-    String ETENDO_HOST_STATUS = VERIFICATION_FAILED; // TODO ETP-3295
-    String COPILOT_HOST_STATUS = VERIFICATION_FAILED; // TODO ETP-3295
-    String ETENDO_HOST_DOCKER_STATUS = " not verified."; // TODO ETP-3295
+    String etendoHostStatus = VERIFICATION_FAILED;
+    String copilotHostStatus = VERIFICATION_FAILED;
+    String etendoHostDockerStatus = " not verified.";
 
-    if (checks.optBoolean(ETENDO_HOST)) { // TODO ETP-3295
-      ETENDO_HOST_STATUS = SUCESSFULLY_VERIFIED;
+    if (checks.optBoolean(ETENDO_HOST)) {
+      etendoHostStatus = SUCESSFULLY_VERIFIED;
     }
-    if (checks.optBoolean(COPILOT_HOST)) { // TODO ETP-3295
-      COPILOT_HOST_STATUS = SUCESSFULLY_VERIFIED;
+    if (checks.optBoolean(COPILOT_HOST)) {
+      copilotHostStatus = SUCESSFULLY_VERIFIED;
     }
-    if (checks.has(ETENDO_HOST_DOCKER)) { // TODO ETP-3295
+    if (checks.has(ETENDO_HOST_DOCKER)) {
       if (checks.optBoolean(ETENDO_HOST_DOCKER)) {
-        ETENDO_HOST_DOCKER_STATUS = SUCESSFULLY_VERIFIED;
+        etendoHostDockerStatus = SUCESSFULLY_VERIFIED;
       } else {
-        ETENDO_HOST_DOCKER_STATUS = VERIFICATION_FAILED;
+        etendoHostDockerStatus = VERIFICATION_FAILED;
       }
     }
 
-    message.append(String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), ETENDO_HOST, ETENDO_HOST_STATUS)); // TODO ETP-3295
-    message.append(String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), COPILOT_HOST, COPILOT_HOST_STATUS)); // TODO ETP-3295
+    message.append(String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), ETENDO_HOST, etendoHostStatus));
+    message.append(String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), COPILOT_HOST, copilotHostStatus));
     message.append(
-      String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), ETENDO_HOST_DOCKER, ETENDO_HOST_DOCKER_STATUS)); // TODO ETP-3295
+      String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), ETENDO_HOST_DOCKER, etendoHostDockerStatus));
 
     JSONArray actions = new JSONArray();
     JSONObject showMsgInProcessView = new JSONObject();

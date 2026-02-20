@@ -44,7 +44,7 @@ def _make_call_agent(
             messages = messages[-1:]
         else:
             raise ValueError(
-                f"Invalid agent output mode: {output_mode}. " f"Needs to be one of {OutputMode.__args__}"
+                f"Invalid agent output mode: {output_mode}. Needs to be one of {OutputMode.__args__}"
             )
 
         if add_handoff_back_messages:

@@ -618,10 +618,10 @@ def check_copilot_host(authorization: str = Header(None)):
         response = requests.post(url, headers=headers, json={})
 
         if response.status_code == 200:
-            copilot_debug("Variable 'etendo.host.docker' (ETENDO_HOST_DOCKER) " "successfully verified.")
+            copilot_debug("Variable 'etendo.host.docker' (ETENDO_HOST_DOCKER) successfully verified.")
             return "success"
         else:
-            copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: code response " f"{response.status_code}")
+            copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
             copilot_debug(
                 "Error verifying 'etendo.host.docker' (ETENDO_HOST_DOCKER). "
                 "Please check the ETENDO_HOST_DOCKER variable and ensure it points "
