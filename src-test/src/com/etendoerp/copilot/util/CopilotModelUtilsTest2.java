@@ -232,18 +232,17 @@ public class CopilotModelUtilsTest2 extends WeldBaseTest {
     }
 
     /**
-     * Test get default model with default override.
+     * Test get default model with multiple default models returns the first with isDefault true.
      */
     @Test
     public void testGetDefaultModelWithDefaultOverride() throws Exception {
-        // Given
-        CopilotModel overrideModel = mock(CopilotModel.class);
-        when(overrideModel.isDefaultOverride()).thenReturn(true);
-        when(overrideModel.isDefault()).thenReturn(false);
+        // Given: two models both with isDefault=true; the criteria returns them in order
+        CopilotModel secondModel = mock(CopilotModel.class);
+        when(secondModel.isDefault()).thenReturn(true);
 
         List<CopilotModel> modelList = new ArrayList<>();
         modelList.add(mockCopilotModel);
-        modelList.add(overrideModel);
+        modelList.add(secondModel);
         when(mockModelCriteria.list()).thenReturn(modelList);
 
         // When
@@ -251,9 +250,9 @@ public class CopilotModelUtilsTest2 extends WeldBaseTest {
         method.setAccessible(true);
         CopilotModel result = (CopilotModel) method.invoke(null, TEST_PROVIDER);
 
-        // Then
+        // Then: the first model with isDefault=true is returned
         assertNotNull("Result should not be null", result);
-        assertEquals("Should return the override model", overrideModel, result);
+        assertEquals("Should return the first default model", mockCopilotModel, result);
     }
 
     /**
@@ -428,32 +427,6 @@ public class CopilotModelUtilsTest2 extends WeldBaseTest {
 
         // Note: syncModels() is difficult to test in isolation due to HttpURLConnection
         // This would be better suited for an integration test
-    }
-
-    /**
-     * Test disable replicated models.
-     */
-    @Test
-    public void testDisableReplicatedModels() throws Exception {
-        // Given
-        CopilotModel replicatedModel1 = mock(CopilotModel.class);
-        CopilotModel replicatedModel2 = mock(CopilotModel.class);
-
-        List<CopilotModel> replicatedModels = new ArrayList<>();
-        replicatedModels.add(replicatedModel1);
-        replicatedModels.add(replicatedModel2);
-
-        when(mockModelCriteria.list()).thenReturn(replicatedModels);
-
-        // When
-        Method method = CopilotModelUtils.class.getDeclaredMethod("disableReplicated", String.class, String.class);
-        method.setAccessible(true);
-        method.invoke(null, TEST_MODEL_ID, TEST_MODEL_SEARCHKEY);
-
-        // Then
-        verify(replicatedModel1, times(1)).setActive(false);
-        verify(replicatedModel2, times(1)).setActive(false);
-        verify(mockOBDalInstance, times(2)).save(any(CopilotModel.class));
     }
 
     /**
