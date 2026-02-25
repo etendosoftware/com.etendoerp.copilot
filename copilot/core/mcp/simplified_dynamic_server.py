@@ -462,7 +462,7 @@ class SimplifiedDynamicMCPServer:
                 status_code=401,
                 detail="Authentication required. "
                 "Please provide a valid Etendo token in headers: 'etendo-token', "
-                "'Authorization', or 'X-Etendo-Token'.",
+                "'Authorization', or 'X-Etendo-Token', or as query parameter '?token=<your-token>'.",
             )
         etendo_token_wb = normalize_etendo_token(etendo_token)
         ThreadContext.set_data("extra_info", {"auth": {"ETENDO_TOKEN": etendo_token_wb}})
@@ -545,6 +545,13 @@ class SimplifiedDynamicMCPServer:
         # Remove host header to avoid conflicts
         if "host" in headers:
             del headers["host"]
+
+        # Ensure the Authorization header is present for the internal MCP instance.
+        # When the token comes from a query parameter, it won't be in the headers,
+        # but the internal FastMCP auth middleware requires a Bearer token header.
+        etendo_token = extract_etendo_token_from_request(request)
+        if etendo_token and "authorization" not in headers and "Authorization" not in headers:
+            headers["authorization"] = etendo_token
 
         # Get query parameters
         query_params = dict(request.query_params)
