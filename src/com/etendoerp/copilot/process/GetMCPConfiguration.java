@@ -121,6 +121,7 @@ public class GetMCPConfiguration extends Action {
   public String getHTMLConfigurations(JSONObject parameters, List<CopilotApp> agents) throws Exception {
     var direct = parameters.getBoolean("Direct");
     var mcpRemoteCompatibilityMode = parameters.getBoolean("mcp_remote_mode");
+    boolean includeTokenInUrl = parameters.optBoolean("include_token_in_url", false);
 
     String token = CopilotUtils.generateEtendoToken();
 
@@ -130,7 +131,7 @@ public class GetMCPConfiguration extends Action {
     boolean prefixMode = parameters.optBoolean("prefixMode", false);
 
     List<JSONObject> configs = buildConfigsFromAgents(agents, direct, mcpRemoteCompatibilityMode, token,
-        contextUrlMcp, customName, prefixMode);
+        contextUrlMcp, customName, prefixMode, includeTokenInUrl);
 
     boolean hasLocalhost = detectLocalhostFromConfigs(configs);
     StringBuilder htmlCodeSB = new StringBuilder();
@@ -202,17 +203,20 @@ public class GetMCPConfiguration extends Action {
    *     optional custom name to use for the generated key/display name.
    * @param prefixMode
    *     when true and customName is set, the agent name is appended to the key.
+   * @param includeTokenInUrl
+   *     when true, the token is included in the URL as a query parameter instead of in headers.
    * @return a list of {@link JSONObject} configurations (one per agent).
    * @throws JSONException
    *     when JSON construction fails.
    */
   public List<JSONObject> buildConfigsFromAgents(List<CopilotApp> agents, boolean direct,
       boolean mcpRemoteCompatibilityMode, String token, String contextUrlMcp, String customName,
-      boolean prefixMode) throws JSONException {
+      boolean prefixMode, boolean includeTokenInUrl) throws JSONException {
     List<JSONObject> configs = new ArrayList<>();
     for (CopilotApp agent : agents) {
       ConfigRequest req = new ConfigRequest(agent.getId(), agent.getName());
-      req.setOptions(direct, mcpRemoteCompatibilityMode, token, contextUrlMcp, customName, prefixMode);
+      req.setOptions(direct, mcpRemoteCompatibilityMode, token, contextUrlMcp, customName, prefixMode,
+          includeTokenInUrl);
       configs.add(getConfig(req));
     }
     return configs;
@@ -553,6 +557,11 @@ public class GetMCPConfiguration extends Action {
       displayName = req.agentName;
     }
 
+    // When includeTokenInUrl is enabled, append the token as a query parameter
+    if (req.includeTokenInUrl) {
+      url += "?token=" + req.token;
+    }
+
     if (req.mcpRemoteCompatibilityMode) {
       // MCP Remote Compatibility Mode: build remote example with npx args
       JSONObject remoteExample = new JSONObject();
@@ -562,8 +571,10 @@ public class GetMCPConfiguration extends Action {
       JSONArray args = new JSONArray();
       args.put("mcp-remote");
       args.put(url);
-      args.put("--header");
-      args.put("Authorization: Bearer " + req.token);
+      if (!req.includeTokenInUrl) {
+        args.put("--header");
+        args.put("Authorization: Bearer " + req.token);
+      }
 
       remoteExample.put("args", args);
       config.put(key, remoteExample);
@@ -574,9 +585,11 @@ public class GetMCPConfiguration extends Action {
       myMcpServer.put("url", url);
       myMcpServer.put("type", "http");
 
-      JSONObject headers = new JSONObject();
-      headers.put("Authorization", "Bearer " + req.token);
-      myMcpServer.put(HEADERS, headers);
+      if (!req.includeTokenInUrl) {
+        JSONObject headers = new JSONObject();
+        headers.put("Authorization", "Bearer " + req.token);
+        myMcpServer.put(HEADERS, headers);
+      }
 
       config.put(key, myMcpServer);
     }
@@ -609,6 +622,7 @@ public class GetMCPConfiguration extends Action {
     String contextUrlMcp;
     String customName;
     boolean prefixMode;
+    boolean includeTokenInUrl;
 
     /**
      * Creates a new ConfigRequest for the given agent id and name.
@@ -638,15 +652,18 @@ public class GetMCPConfiguration extends Action {
      *     optional custom name
      * @param prefixMode
      *     prefix mode flag
+     * @param includeTokenInUrl
+     *     when true, include token as URL query parameter instead of in headers
      */
     public void setOptions(boolean direct, boolean mcpRemoteCompatibilityMode, String token, String contextUrlMcp,
-        String customName, boolean prefixMode) {
+        String customName, boolean prefixMode, boolean includeTokenInUrl) {
       this.direct = direct;
       this.mcpRemoteCompatibilityMode = mcpRemoteCompatibilityMode;
       this.token = token;
       this.contextUrlMcp = contextUrlMcp;
       this.customName = customName;
       this.prefixMode = prefixMode;
+      this.includeTokenInUrl = includeTokenInUrl;
     }
   }
 }
