@@ -7,6 +7,7 @@ import curlify
 from colorama import Fore, Style
 
 SUCCESS_CODE: Final[str] = "\u2713"
+COPILOT_DEBUG_VAR: Final[str] = "copilot.debug"
 
 
 def print_red(message):
@@ -31,17 +32,6 @@ def print_yellow(message):
 
 def print_violet(message):
     print(f"{Fore.MAGENTA} {message}{Style.RESET_ALL}")
-
-
-def _handle_etendo_host_var(env_var_name, default_value):
-    etendo_host_docker = os.getenv("ETENDO_HOST_DOCKER")
-    if etendo_host_docker:
-        copilot_debug(
-            f" Reading ETENDO_HOST, existing ETENDO_HOST_DOCKER, overriding ETENDO_HOST with ETENDO_HOST_DOCKER."
-            f" Value is {etendo_host_docker}"
-        )
-        return read_optional_env_var("ETENDO_HOST_DOCKER", default_value)
-    return _read_env_var(env_var_name, default_value)
 
 
 def read_optional_env_var(env_var_name: str, default_value: str | None) -> str:
@@ -81,6 +71,11 @@ def read_optional_env_var_bool(env_var_name: str, default_value: bool) -> bool:
         raise ValueError(f"Invalid boolean value for {env_var_name}: {value}")
 
 
+def read_optional_env_var_float(env_var_name: str, default_value: float) -> float:
+    """Reads an optional environment variable and returns its value or the default one."""
+    return float(read_optional_env_var(env_var_name, str(default_value)))
+
+
 def copilot_debug(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
     if is_debug_enabled():
@@ -101,23 +96,28 @@ def copilot_debug_custom(message: str, color: str):
 
 
 def is_debug_enabled():
-    return os.getenv("COPILOT_DEBUG", "False").lower() in "true"
+    # This function cannot use the read_optional_env_var_bool function because
+    # it would cause a circular import, so we read the environment
+    # variable directly here.
+    return os.getenv("COPILOT_DEBUG", "false").lower() in ["true", "1", "yes"] or os.getenv(
+        COPILOT_DEBUG_VAR, "false"
+    ).lower() in ["true", "1", "yes"]
 
 
 def copilot_debug_event(message: str):
     """Prints a message if COPILOT_DEBUG_EVENT is set to True."""
-    debug = os.getenv("COPILOT_DEBUG", "False").lower()
-    debug_event = os.getenv("COPILOT_DEBUG_EVENT", "False").lower()
-    if (debug in "true") and (debug_event in "true"):
+    debug = read_optional_env_var_bool(COPILOT_DEBUG_VAR, False)
+    debug_event = read_optional_env_var_bool("copilot.debug.event", False)
+    if debug and debug_event:
         print_green(message)
 
 
 def copilot_info(message: str):
     """Prints a message if COPILOT_DEBUG is set to True."""
-    if (
-        os.getenv("COPILOT_INFO", "False").lower() in "true"
-        or os.getenv("COPILOT_DEBUG", "False").lower() in "true"
-    ):
+    info_mode = read_optional_env_var_bool("copilot.info", False)
+    debug_mode = read_optional_env_var_bool(COPILOT_DEBUG_VAR, False)
+
+    if info_mode or debug_mode:
         print_violet(message)
 
 
@@ -181,8 +181,3 @@ def empty_folder(db_path):
             os.unlink(file_path)
 
     print(f"All contents of the folder '{db_path}' have been deleted.")
-
-
-def read_optional_env_var_float(env_var_name: str, default_value: float) -> float:
-    """Reads an optional environment variable and returns its value or the default one."""
-    return float(read_optional_env_var(env_var_name, str(default_value)))

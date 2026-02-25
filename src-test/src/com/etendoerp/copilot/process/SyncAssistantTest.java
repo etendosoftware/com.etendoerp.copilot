@@ -261,7 +261,6 @@ public class SyncAssistantTest extends WeldBaseTest {
     // When
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
 
-
       JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
       // Then
@@ -430,7 +429,6 @@ public class SyncAssistantTest extends WeldBaseTest {
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
 
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
-      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> null);
       // When
       JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 

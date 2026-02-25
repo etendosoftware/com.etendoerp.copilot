@@ -1,7 +1,7 @@
 import json
-import os
 from typing import Final
 
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from fastapi.testclient import TestClient
 from pytest import fixture
 
@@ -28,7 +28,7 @@ def fake_valid_config_file(json_file_path: str = FAKE_TOOL_CONFIG_FILEPATH):
 @fixture
 def set_fake_openai_api_key(monkeypatch, fake_valid_config_file):
     with monkeypatch.context() as patch_context:
-        OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
+        OPENAI_API_KEY: Final[str] = read_optional_env_var("openai.api.key", "fake_api_key_for_testing")
         patch_context.setenv("OPENAI_API_KEY", OPENAI_API_KEY)
         patch_context.setenv(
             "SYSTEM_PROMPT", "You are very powerful assistant, but bad at calculating lengths of words"

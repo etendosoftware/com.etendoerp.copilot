@@ -77,15 +77,17 @@ public class CopilotVarReplacerUtil {
    * @param balanceBrackets
    *     If true, escapes curly braces and validates bracket balance
    * @return The string with all placeholders replaced
-   * @throws JSONException 
+   * @throws JSONException
    *     If an error occurs while parsing the JSON object
-   * @throws OBException 
+   * @throws OBException
    *     If bracket balancing is enabled and brackets are not balanced
    */
   public static String replaceCopilotPromptVariables(String string, JSONObject maps, boolean balanceBrackets) throws JSONException {
     OBContext obContext = OBContext.getOBContext();
-    String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", CopilotUtils.getEtendoHost());
-    stringParsed = StringUtils.replace(stringParsed, "@ETENDO_HOST_DOCKER@", CopilotUtils.getEtendoHostDocker());
+    String stringParsed = StringUtils.replace(string, "@ETENDO_HOST@", CopilotUtils.getEtendoHost()); //for backward compatibility
+    stringParsed = StringUtils.replace(stringParsed, "@etendo.host@", CopilotUtils.getEtendoHost());
+    stringParsed = StringUtils.replace(stringParsed, "@ETENDO_HOST_DOCKER@", CopilotUtils.getEtendoHostDocker()); // for backward compatibility
+    stringParsed = StringUtils.replace(stringParsed, "@etendo.host.docker@", CopilotUtils.getEtendoHostDocker());
     stringParsed = StringUtils.replace(stringParsed, "@context.url@", CopilotUtils.getContextUrl());
 
     if (obContext.getCurrentClient() != null) {
@@ -161,41 +163,41 @@ public class CopilotVarReplacerUtil {
    */
   private static Map<String, String> getApiTokensForCurrentContext(OBContext obContext) {
     Map<String, String> tokenMap = new HashMap<>();
-    
+
     try {
       User currentUser = obContext.getUser();
       Role currentRole = obContext.getRole();
-      
+
       // Create criteria to get all active tokens for the current client
       OBCriteria<CopilotApiToken> criteria = OBDal.getInstance().createCriteria(CopilotApiToken.class);
       criteria.add(Restrictions.eq(CopilotApiToken.PROPERTY_ACTIVE, true));
-      
+
       if (obContext.getCurrentClient() != null) {
         criteria.add(Restrictions.eq(CopilotApiToken.PROPERTY_CLIENT + ".id", obContext.getCurrentClient().getId()));
       }
-      
+
       List<CopilotApiToken> allTokens = criteria.list();
-      
+
       // Group tokens by alias for priority processing
       Map<String, List<CopilotApiToken>> tokensByAlias = allTokens.stream()
           .filter(token -> StringUtils.isNotEmpty(token.getAlias()))
           .collect(Collectors.groupingBy(CopilotApiToken::getAlias));
-      
+
       // Process each alias group with priority
       for (Map.Entry<String, List<CopilotApiToken>> entry : tokensByAlias.entrySet()) {
         String alias = entry.getKey();
         List<CopilotApiToken> tokensForAlias = entry.getValue();
-        
+
         CopilotApiToken selectedToken = selectTokenByPriority(tokensForAlias, currentUser, currentRole);
         if (selectedToken != null && StringUtils.isNotEmpty(selectedToken.getToken())) {
           tokenMap.put(alias, selectedToken.getToken());
         }
       }
-      
+
     } catch (Exception e) {
       log.error("Error retrieving API tokens for current context", e);
     }
-    
+
     return tokenMap;
   }
 
@@ -213,26 +215,26 @@ public class CopilotVarReplacerUtil {
     CopilotApiToken userToken = null;
     CopilotApiToken roleToken = null;
     CopilotApiToken nullToken = null;
-    
+
     for (CopilotApiToken token : tokens) {
       User tokenUser = token.getUserContact();
       Role tokenRole = token.getRole();
-      
+
       // Priority 1: user+role match
-      if (currentUser != null && currentRole != null && 
+      if (currentUser != null && currentRole != null &&
           tokenUser != null && tokenRole != null &&
-          currentUser.getId().equals(tokenUser.getId()) && 
+          currentUser.getId().equals(tokenUser.getId()) &&
           currentRole.getId().equals(tokenRole.getId())) {
         userRoleToken = token;
       }
       // Priority 2: user match only (role is null)
-      else if (currentUser != null && 
+      else if (currentUser != null &&
                tokenUser != null && tokenRole == null &&
                currentUser.getId().equals(tokenUser.getId())) {
         userToken = token;
       }
       // Priority 3: role match only (user is null)
-      else if (currentRole != null && 
+      else if (currentRole != null &&
                tokenUser == null && tokenRole != null &&
                currentRole.getId().equals(tokenRole.getId())) {
         roleToken = token;
@@ -242,7 +244,7 @@ public class CopilotVarReplacerUtil {
         nullToken = token;
       }
     }
-    
+
     // Return token based on priority
     if (userRoleToken != null) return userRoleToken;
     if (userToken != null) return userToken;

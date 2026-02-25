@@ -1,4 +1,3 @@
-import os
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -40,9 +39,9 @@ class AgentResponse:
 class CopilotAgent:
     """Copilot Agent interface."""
 
-    OPENAI_API_KEY: Final[str] = os.getenv("OPENAI_API_KEY")
+    OPENAI_API_KEY: Final[str] = read_optional_env_var("openai.api.key", None)
     SYSTEM_PROMPT: Final[str] = read_optional_env_var(
-        "SYSTEM_PROMPT",
+        "system.prompt",
         "You are a very powerful assistant with a set of tools, which you will try to use for the requests made to you.",
     )
 

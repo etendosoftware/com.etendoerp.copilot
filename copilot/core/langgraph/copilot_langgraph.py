@@ -39,7 +39,7 @@ class CopilotLangGraph:
     def invoke(self, question, thread_id, get_image=False):
         config = {
             "configurable": {"thread_id": thread_id},
-            "recursion_limit": read_optional_env_var_int("LANGGRAPH_RECURSION_LIMIT", 50),
+            "recursion_limit": read_optional_env_var_int("langgraph.recursion.limit", 50),
             "max_iterations": 100,
         }
         if get_image:
