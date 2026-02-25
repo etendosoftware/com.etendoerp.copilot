@@ -122,7 +122,9 @@ class TestDynamicMCPInstanceInit:
                 direct_mode=False,
                 agent_config=mock_agent_config,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False
+            )
 
             assert instance.identifier == "test_agent"
             assert instance.direct_mode is False
@@ -158,7 +160,9 @@ class TestDynamicMCPInstanceInit:
                 direct_mode=True,
                 agent_config=mock_agent_config,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=True)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=True
+            )
 
             assert instance.direct_mode is True
             assert instance.instance_key == "test_agent_direct"
@@ -213,7 +217,9 @@ class TestDynamicMCPInstanceSetupTools:
                 direct_mode=False,
                 agent_config=mock_agent_config,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False
+            )
 
             # Verify agent ask tool was created and added
             mock_make_tool.assert_called_once_with(mock_agent_config, "test_agent")
@@ -235,7 +241,9 @@ class TestDynamicMCPInstanceSetupTools:
                 direct_mode=False,
                 agent_config=None,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False
+            )
 
             # Verify agent ask tool was not created since no config
             mock_make_tool.assert_not_called()
@@ -260,7 +268,9 @@ class TestDynamicMCPInstanceSetupTools:
                 direct_mode=False,
                 agent_config=mock_agent_config,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False
+            )
 
             assert instance
 
@@ -271,7 +281,9 @@ class TestDynamicMCPInstanceSetupTools:
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
             patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools_direct") as mock_direct,
-            patch("copilot.core.mcp.simplified_dynamic_server.register_agent_tools", new_callable=AsyncMock) as mock_agent,
+            patch(
+                "copilot.core.mcp.simplified_dynamic_server.register_agent_tools", new_callable=AsyncMock
+            ) as mock_agent,
         ):
             instance = DynamicMCPInstance(
                 identifier="test_agent",
@@ -280,7 +292,9 @@ class TestDynamicMCPInstanceSetupTools:
                 direct_mode=True,
                 agent_config=mock_agent_config,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=True)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=True
+            )
 
             # Verify direct mode tools
             mock_direct.assert_called_once()
@@ -1185,3 +1199,156 @@ class TestGetSimplifiedDynamicMCPServer:
 
         # Should be same instance
         assert server1 is server2
+
+
+class TestProxyRequestAuthHeaderInjection:
+    """Test that _proxy_request injects Authorization header when token comes from query param.
+
+    This ensures the internal FastMCP auth middleware (which only reads the Authorization header)
+    receives the token even when the original client sent it via query parameter.
+    """
+
+    @pytest.mark.asyncio
+    async def test_proxy_injects_auth_header_when_token_from_query_param(self, simplified_server):
+        """Token from query param should be injected as Authorization header in proxied request."""
+        mock_instance = Mock(spec=DynamicMCPInstance)
+        mock_instance.get_url.return_value = "http://localhost:5008"
+        mock_instance.identifier = "test_agent"
+
+        # Request with token ONLY in query param, no Authorization header
+        mock_request = Mock()
+        mock_request.method = "GET"
+        mock_request.headers = {"content-type": "application/json"}
+        mock_request.query_params = {"token": "my-secret-token"}
+
+        with (
+            patch("copilot.core.mcp.simplified_dynamic_server.httpx.AsyncClient") as mock_client,
+            patch(
+                "copilot.core.mcp.simplified_dynamic_server.extract_etendo_token_from_request",
+                return_value="Bearer my-secret-token",
+            ),
+        ):
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.headers = {"content-type": "application/json"}
+            mock_response.content = b'{"result": "ok"}'
+
+            mock_async_client = AsyncMock()
+            mock_async_client.request = AsyncMock(return_value=mock_response)
+            mock_client.return_value.__aenter__.return_value = mock_async_client
+
+            await simplified_server._proxy_request(mock_request, mock_instance, "")
+
+            # Verify the proxied request got the Authorization header injected
+            call_kwargs = mock_async_client.request.call_args[1]
+            assert "authorization" in call_kwargs["headers"]
+            assert call_kwargs["headers"]["authorization"] == "Bearer my-secret-token"
+
+    @pytest.mark.asyncio
+    async def test_proxy_does_not_overwrite_existing_auth_header(self, simplified_server):
+        """When Authorization header already exists, proxy should NOT overwrite it."""
+        mock_instance = Mock(spec=DynamicMCPInstance)
+        mock_instance.get_url.return_value = "http://localhost:5008"
+        mock_instance.identifier = "test_agent"
+
+        # Request with BOTH Authorization header and query param
+        mock_request = Mock()
+        mock_request.method = "GET"
+        mock_request.headers = {
+            "content-type": "application/json",
+            "authorization": "Bearer original-header-token",
+        }
+        mock_request.query_params = {"token": "query-param-token"}
+
+        with (
+            patch("copilot.core.mcp.simplified_dynamic_server.httpx.AsyncClient") as mock_client,
+            patch(
+                "copilot.core.mcp.simplified_dynamic_server.extract_etendo_token_from_request",
+                return_value="Bearer original-header-token",
+            ),
+        ):
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.headers = {"content-type": "application/json"}
+            mock_response.content = b'{"result": "ok"}'
+
+            mock_async_client = AsyncMock()
+            mock_async_client.request = AsyncMock(return_value=mock_response)
+            mock_client.return_value.__aenter__.return_value = mock_async_client
+
+            await simplified_server._proxy_request(mock_request, mock_instance, "")
+
+            # Verify the original Authorization header was preserved, not overwritten
+            call_kwargs = mock_async_client.request.call_args[1]
+            assert call_kwargs["headers"]["authorization"] == "Bearer original-header-token"
+
+    @pytest.mark.asyncio
+    async def test_proxy_no_injection_when_no_token(self, simplified_server):
+        """When there is no token at all, proxy should not inject any Authorization header."""
+        mock_instance = Mock(spec=DynamicMCPInstance)
+        mock_instance.get_url.return_value = "http://localhost:5008"
+        mock_instance.identifier = "test_agent"
+
+        mock_request = Mock()
+        mock_request.method = "GET"
+        mock_request.headers = {"content-type": "application/json"}
+        mock_request.query_params = {}
+
+        with (
+            patch("copilot.core.mcp.simplified_dynamic_server.httpx.AsyncClient") as mock_client,
+            patch(
+                "copilot.core.mcp.simplified_dynamic_server.extract_etendo_token_from_request",
+                return_value=None,
+            ),
+        ):
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.headers = {"content-type": "application/json"}
+            mock_response.content = b'{"result": "ok"}'
+
+            mock_async_client = AsyncMock()
+            mock_async_client.request = AsyncMock(return_value=mock_response)
+            mock_client.return_value.__aenter__.return_value = mock_async_client
+
+            await simplified_server._proxy_request(mock_request, mock_instance, "")
+
+            # Verify no Authorization header was added
+            call_kwargs = mock_async_client.request.call_args[1]
+            assert "authorization" not in call_kwargs["headers"]
+            assert "Authorization" not in call_kwargs["headers"]
+
+    @pytest.mark.asyncio
+    async def test_proxy_injects_auth_with_etendo_token_header(self, simplified_server):
+        """Token from etendo-token header (non-Authorization) should also result in Authorization being set."""
+        mock_instance = Mock(spec=DynamicMCPInstance)
+        mock_instance.get_url.return_value = "http://localhost:5008"
+        mock_instance.identifier = "test_agent"
+
+        # Request with etendo-token header but no Authorization header
+        mock_request = Mock()
+        mock_request.method = "POST"
+        mock_request.headers = {"etendo-token": "my-etendo-token"}
+        mock_request.query_params = {}
+        mock_request.body = AsyncMock(return_value=b'{"question": "hello"}')
+
+        with (
+            patch("copilot.core.mcp.simplified_dynamic_server.httpx.AsyncClient") as mock_client,
+            patch(
+                "copilot.core.mcp.simplified_dynamic_server.extract_etendo_token_from_request",
+                return_value="Bearer my-etendo-token",
+            ),
+        ):
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.headers = {"content-type": "application/json"}
+            mock_response.content = b'{"result": "ok"}'
+
+            mock_async_client = AsyncMock()
+            mock_async_client.request = AsyncMock(return_value=mock_response)
+            mock_client.return_value.__aenter__.return_value = mock_async_client
+
+            await simplified_server._proxy_request(mock_request, mock_instance, "")
+
+            # Verify Authorization was injected since the original only had etendo-token
+            call_kwargs = mock_async_client.request.call_args[1]
+            assert call_kwargs["headers"]["authorization"] == "Bearer my-etendo-token"
