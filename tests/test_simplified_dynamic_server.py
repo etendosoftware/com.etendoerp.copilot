@@ -18,6 +18,7 @@ from copilot.core.mcp.simplified_dynamic_server import (
     SimplifiedDynamicMCPServer,
     get_simplified_dynamic_mcp_server,
 )
+from copilot.core.schemas import AssistantSchema
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
@@ -45,12 +46,11 @@ def mock_etendo_token():
 @pytest.fixture
 def mock_agent_config():
     """Return a mock agent configuration."""
-    return {
-        "agentId": "test_agent",
-        "name": "Test Agent",
-        "description": "Test agent description",
-        "tools": [],
-    }
+    return AssistantSchema(
+        name="Test Agent",
+        description="Test agent description",
+        tools=[],
+    )
 
 
 @pytest.fixture
@@ -59,8 +59,6 @@ def dynamic_instance(mock_server_ref, mock_etendo_token, mock_agent_config):
     with (
         patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
         patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
-        patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools"),
-        patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools_direct"),
         patch("copilot.core.mcp.simplified_dynamic_server.register_agent_tools"),
     ):
         instance = DynamicMCPInstance(
@@ -79,8 +77,6 @@ def dynamic_instance_direct(mock_server_ref, mock_etendo_token, mock_agent_confi
     with (
         patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
         patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
-        patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools"),
-        patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools_direct"),
         patch("copilot.core.mcp.simplified_dynamic_server.register_agent_tools"),
     ):
         instance = DynamicMCPInstance(
@@ -113,7 +109,6 @@ class TestDynamicMCPInstanceInit:
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP") as mock_fastmcp,
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider") as mock_auth,
-            patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools") as mock_basic,
         ):
             instance = DynamicMCPInstance(
                 identifier="test_agent",
@@ -141,16 +136,12 @@ class TestDynamicMCPInstanceInit:
             mock_fastmcp.assert_called_once()
             mock_auth.assert_called_once_with(identifier="test_agent")
 
-            # Verify basic tools registered
-            mock_basic.assert_called_once()
-
     @pytest.mark.asyncio
     async def test_init_direct_mode(self, mock_server_ref, mock_etendo_token, mock_agent_config):
         """Test initialization in direct mode."""
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
-            patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools_direct") as mock_direct,
             patch("copilot.core.mcp.simplified_dynamic_server.register_agent_tools") as mock_agent,
         ):
             instance = DynamicMCPInstance(
@@ -168,7 +159,6 @@ class TestDynamicMCPInstanceInit:
             assert instance.instance_key == "test_agent_direct"
 
             # Verify direct mode tools registered
-            mock_direct.assert_called_once()
             mock_agent.assert_called_once()
 
     def test_init_without_server_ref(self, mock_etendo_token, mock_agent_config):
@@ -176,7 +166,6 @@ class TestDynamicMCPInstanceInit:
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
-            patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools"),
         ):
             instance = DynamicMCPInstance(
                 identifier="test_agent",
@@ -198,7 +187,6 @@ class TestDynamicMCPInstanceSetupTools:
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP") as mock_fastmcp,
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
-            patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools"),
             patch("copilot.core.mcp.tools.agent_tools._make_ask_agent_tool") as mock_make_tool,
         ):
             # Setup mock MCP instance
@@ -231,7 +219,6 @@ class TestDynamicMCPInstanceSetupTools:
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
-            patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools"),
             patch("copilot.core.mcp.tools.agent_tools._make_ask_agent_tool") as mock_make_tool,
         ):
             instance = DynamicMCPInstance(
@@ -254,7 +241,6 @@ class TestDynamicMCPInstanceSetupTools:
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
-            patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools"),
             patch("copilot.core.mcp.tools.agent_tools._make_ask_agent_tool") as mock_make_tool,
         ):
             # Simulate exception when creating ask tool
@@ -280,7 +266,6 @@ class TestDynamicMCPInstanceSetupTools:
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
-            patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools_direct") as mock_direct,
             patch(
                 "copilot.core.mcp.simplified_dynamic_server.register_agent_tools", new_callable=AsyncMock
             ) as mock_agent,
@@ -297,7 +282,6 @@ class TestDynamicMCPInstanceSetupTools:
             )
 
             # Verify direct mode tools
-            mock_direct.assert_called_once()
             mock_agent.assert_called_once()
 
 
@@ -352,7 +336,6 @@ class TestDynamicMCPInstancePortManagement:
         with (
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
-            patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools"),
         ):
             instance = DynamicMCPInstance(
                 identifier="test",

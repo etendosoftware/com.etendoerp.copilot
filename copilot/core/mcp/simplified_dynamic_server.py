@@ -22,11 +22,7 @@ from copilot.baseutils.logging_envvar import (
 )
 from copilot.core.mcp.auth_provider import CopilotAuthProvider
 from copilot.core.mcp.auth_utils import extract_etendo_token_from_request
-from copilot.core.mcp.tools import (
-    register_agent_tools,
-    register_basic_tools,
-    register_basic_tools_direct,
-)
+from copilot.core.mcp.tools import register_agent_tools
 from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils.etendo_utils import get_url_copilot_mcp, normalize_etendo_token
 from fastapi import FastAPI, HTTPException, Request
@@ -61,8 +57,11 @@ class DynamicMCPInstance:
         self.server_ref = server_ref  # Reference to main server
         self.agent_config = agent_config
         # Create FastMCP instance with an AuthProvider bound to this identifier
+        agent_name = agent_config.name if agent_config and agent_config.name else identifier
+        agent_description = agent_config.description if agent_config and agent_config.description else ""
         self.mcp = FastMCP(
-            f"Etendo Copilot Dynamic MCP({identifier})",
+            f"MCP Server for {agent_name}",
+            instructions=self._build_instructions(agent_name, agent_description, direct_mode),
             version=identifier,
             auth=CopilotAuthProvider(identifier=identifier),
         )
@@ -78,11 +77,34 @@ class DynamicMCPInstance:
             f"🔧 Initialized DynamicMCPInstance for identifier: {identifier} (direct_mode: {direct_mode})"
         )
 
+    @staticmethod
+    def _build_instructions(agent_name: str, agent_description: str, direct_mode: bool) -> str:
+        """Build the MCP server instructions based on the operating mode."""
+        desc_block = f"Agent description: {agent_description}\n\n" if agent_description else ""
+
+        if direct_mode:
+            return (
+                f"This MCP server exposes the toolset of the Etendo Copilot agent '{agent_name}'.\n\n"
+                f"{desc_block}"
+                "In this mode, each tool registered here corresponds to a tool available to the agent. "
+                "Additionally, a 'get_agent_prompt' tool is provided which returns the agent's system prompt. "
+                "It is recommended to call 'get_agent_prompt' first to understand the agent's purpose, "
+                "capabilities, and how it uses its tools."
+            )
+        else:
+            return (
+                f"This MCP server provides access to the Etendo Copilot agent '{agent_name}'.\n\n"
+                f"{desc_block}"
+                "In this mode, you interact with the agent through the 'ask_agent' tool "
+                "(or 'ask_agent_<AgentName>'). Send your question as a message and the agent "
+                "will process it using its configured tools and knowledge, then return a response. "
+                "You can also pass a 'conversation_id' to maintain context across multiple interactions."
+            )
+
     async def setup_tools(self, identifier: str, etendo_token: str, direct_mode: bool = False):
         """Configure tools for this MCP instance."""
         if direct_mode:
-            # Direct mode: only basic tools (without ask_agent) and agent tools
-            register_basic_tools_direct(self.mcp)
+            # Direct mode: agent tools exposed directly
             # Pass pre-fetched agent_config to avoid redundant calls to Etendo
             await register_agent_tools(
                 self.mcp,
@@ -93,8 +115,7 @@ class DynamicMCPInstance:
             )
             copilot_info(f"✅ Direct mode tools configured for MCP instance '{self.identifier}'")
         else:
-            # Standard mode: basic tools (with ask_agent) only
-            register_basic_tools(self.mcp)
+            # Standard mode: ask_agent tool only
 
             # Additionally, register an agent-specific ask tool named with the agent name
             # so that simple mode exposes ask_agent_<AgentName> with description from payload.
