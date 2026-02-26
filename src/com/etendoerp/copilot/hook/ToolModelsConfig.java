@@ -87,7 +87,7 @@ public class ToolModelsConfig implements CopilotQuestionHook {
       var set = new HashSet<CopilotApp>();
       set.add(app);
       set.addAll(app.getETCOPTeamMemberList().stream()
-          .map(TeamMember::getCopilotApp
+          .map(TeamMember::getMember
           ).collect(Collectors.toList()));
 
       for (CopilotApp copilotApp : set) {
