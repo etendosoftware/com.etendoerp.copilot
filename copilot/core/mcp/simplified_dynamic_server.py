@@ -31,7 +31,7 @@ from copilot.core.threadcontext import ThreadContext
 from copilot.core.utils.etendo_utils import get_url_copilot_mcp, normalize_etendo_token
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastmcp import FastMCP
 
 logger = logging.getLogger(__name__)
@@ -523,7 +523,25 @@ class SimplifiedDynamicMCPServer:
             return await self._proxy_request(request, instance, path)
         except Exception as e:
             copilot_error(f"Error handling MCP request for '{identifier}': {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            # Return a JSON-RPC error so MCP clients (Inspector, Claude Desktop, etc.)
+            # can display the message instead of receiving a raw HTTP 500.
+            jsonrpc_id = None
+            try:
+                body = await request.json()
+                jsonrpc_id = body.get("id") if isinstance(body, dict) else None
+            except Exception:
+                pass
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "jsonrpc": "2.0",
+                    "id": jsonrpc_id,
+                    "error": {
+                        "code": -32603,
+                        "message": str(e),
+                    },
+                },
+            )
 
     async def _get_or_create_instance(
         self, identifier: str, etendo_token: str, direct_mode: bool = False

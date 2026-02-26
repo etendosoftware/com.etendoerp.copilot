@@ -90,8 +90,12 @@ public class RestService {
     } catch (Exception e) {
       log4j.error(e);
       try {
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-      } catch (IOException ioException) {
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+        JSONObject errorJson = new JSONObject();
+        errorJson.put("error", e.getMessage());
+        response.getWriter().write(errorJson.toString());
+      } catch (Exception ioException) {
         log4j.error(ioException);
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
       }

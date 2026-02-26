@@ -1,0 +1,3016 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Etendo API Headless",
+    "description": "OpenAPI definition for Etendo API Headless\n## Dynamic Datasource API endpoints descriptions:\n### WebhookParam:\n Webhook Parameters are the records that specifies the parameters of a Webhook. \n### moduleDBPrefix:\n Add a DB prefix to the created module. The \"module\" field is the Module ID. If the prefix to be used is used by another module, add an extra capital letter and try again.\n### moduleHeader:\n Manage the Module entity. Knowing the \"module name\" you can search the info of the module searching by name filtering wuth \"q\": \"name=ic=\\'name\\'\"\n\n### Webhook:\n Webhooks are endpoints in Etendo Classic, that can be registered in Etendo to use. Must have a previously created Java Class that implements the business logic.\n## Q Parameter:\nThe \"q\" parameter is used to construct search queries that filter data according to specified conditions. These conditions can include: Equality and Inequality: Use operators like == for equality and != for inequality to match exact values. Case Sensitivity: Use =c= for case-sensitive matches and =ic= for case-insensitive matches, especially useful for string comparisons. Range Comparisons: Use operators like \u003E, \u003C, \u003E=, \u003C= to filter data within a certain range. Null Checks: Use =is=null to find records with null values and =isnot=null for non-null values. String Matching: Use =sw= for \"starts with\", =ew= for \"ends with\", and =c= for \"contains\". Case-insensitive versions are also available, such as =isw= and =iew=. Set and Existence Checks: Use =ins= to check if a value is in a set, =nis= for not in a set, and =exists to check for existence. Logical operators like AND (; or and) and OR (, or or) can be used to combine multiple conditions, allowing for complex queries that can filter data based on multiple criteria simultaneously. This flexible querying system enables precise data retrieval tailored to specific needs. If a search term has spaces, it should be enclosed in simple quotes. For example, to search for a name containing the words \"John Doe\", use q=name=sw='John Doe'. ",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://springdoc.org"
+    },
+    "version": "1.0.0"
+  },
+  "externalDocs": {
+    "description": "GitHub repository",
+    "url": "https://github.com/etendosoftware/etendo_core"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080/etendo",
+      "description": "Etendo Classic Server"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "WebHookCreator",
+      "description": "Webhook Creator OpenAPI."
+    },
+    {
+      "name": "Login",
+      "description": "Authentication endpoints"
+    }
+  ],
+  "paths": {
+    "/sws/com.etendoerp.etendorx.datasource/moduleHeader": {
+      "get": {
+        "tags": [
+          "moduleHeader"
+        ],
+        "summary": "Get data from moduleHeader entity",
+        "description": "This endpoint retrieves multiple records from the moduleHeader entity. Use the 'q' parameter to filter data with various criteria. Search the info of the module:\n- by name using filtering with \"q\": \"name=='name'\". \n-by javaPackage javaPackage=ic='package'\n\nRetrieve module information and configuration details.\nThe operators are == for equality and =ic= is for contains case insensitive.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search parameter to retrieve filtered data with a criteria",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "field==A6750F0D15334FB890C254369AC750A8",
+              "exampleSetFlag": true
+            }
+          },
+          {
+            "name": "_startRow",
+            "in": "query",
+            "description": "Starting row to fetch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0",
+              "exampleSetFlag": true
+            }
+          },
+          {
+            "name": "_endRow",
+            "in": "query",
+            "description": "End row to fetch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "10",
+              "exampleSetFlag": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "javaPackage": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "type": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "helpComment": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "version": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "versionLabel": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "inDevelopment": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "etrxIsrx": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "etrxIsreact": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "etrxRxmodule": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "translationRequired": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "isTranslationModule": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "language": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "hasChartOfAccounts": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "hasReferenceData": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "referenceDataDescription": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "licenseType": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "commercial": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "freeForTrial": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "licenseText": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "author": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "uRL": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updateInformation": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "status": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "applyConfigurationScript": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "registerModule": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "enabled": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "default": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "sequenceNumber": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updateVersion": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "maturityUpdate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "availableUpdate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"javaPackage\":\"\",\"name\":\"\",\"type\":\"\",\"description\":\"\",\"helpComment\":\"\",\"version\":\"\",\"versionLabel\":\"\",\"inDevelopment\":\"\",\"etrxIsrx\":\"\",\"etrxIsreact\":\"\",\"etrxRxmodule\":\"\",\"translationRequired\":\"\",\"isTranslationModule\":\"\",\"language\":\"\",\"language$_identifier\":\"\",\"hasChartOfAccounts\":\"\",\"hasReferenceData\":\"\",\"referenceDataDescription\":\"\",\"licenseType\":\"\",\"commercial\":\"\",\"freeForTrial\":\"\",\"licenseText\":\"\",\"author\":\"\",\"uRL\":\"\",\"updateInformation\":\"\",\"status\":\"\",\"applyConfigurationScript\":\"\",\"registerModule\":\"\",\"enabled\":\"\",\"default\":\"\",\"active\":\"\",\"client\":\"\",\"client$_identifier\":\"\",\"sequenceNumber\":\"\",\"updateVersion\":\"\",\"maturityUpdate\":\"\",\"organization\":\"\",\"organization$_identifier\":\"\",\"id\":\"\",\"id$_identifier\":\"\",\"availableUpdate\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      }
+    },
+    "/sws/com.etendoerp.etendorx.datasource/moduleHeader/{id}": {
+      "get": {
+        "tags": [
+          "moduleHeader"
+        ],
+        "summary": "Obtain a single moduleHeader record",
+        "description": "This endpoint retrieves a single record from the moduleHeader entity by its ID. ",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Entity ID to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "exampleSetFlag": false
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Request body for moduleHeader/{id}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [],
+                "type": "object",
+                "properties": {
+                  "javaPackage": {
+                    "type": "string",
+                    "exampleSetFlag": false
+                  },
+                  "name": {
+                    "type": "string",
+                    "exampleSetFlag": false
+                  },
+                  "type": {
+                    "type": "string",
+                    "exampleSetFlag": false
+                  },
+                  "description": {
+                    "type": "string",
+                    "exampleSetFlag": false
+                  },
+                  "version": {
+                    "type": "string",
+                    "exampleSetFlag": false
+                  },
+                  "translationRequired": {
+                    "type": "boolean",
+                    "example": false,
+                    "exampleSetFlag": true
+                  },
+                  "isTranslationModule": {
+                    "type": "boolean",
+                    "example": false,
+                    "exampleSetFlag": true
+                  },
+                  "hasChartOfAccounts": {
+                    "type": "boolean",
+                    "example": false,
+                    "exampleSetFlag": true
+                  },
+                  "hasReferenceData": {
+                    "type": "boolean",
+                    "example": false,
+                    "exampleSetFlag": true
+                  },
+                  "commercial": {
+                    "type": "boolean",
+                    "example": false,
+                    "exampleSetFlag": true
+                  },
+                  "applyConfigurationScript": {
+                    "type": "boolean",
+                    "example": false,
+                    "exampleSetFlag": true
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "example": false,
+                    "exampleSetFlag": true
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "example": false,
+                    "exampleSetFlag": true
+                  },
+                  "client": {
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9]*$",
+                    "type": "string",
+                    "example": "",
+                    "exampleSetFlag": true
+                  },
+                  "organization": {
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9]*$",
+                    "type": "string",
+                    "example": "",
+                    "exampleSetFlag": true
+                  },
+                  "id": {
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9]*$",
+                    "type": "string",
+                    "example": "",
+                    "exampleSetFlag": true
+                  }
+                },
+                "exampleSetFlag": false
+              },
+              "example": "{}",
+              "exampleSetFlag": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "javaPackage": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "type": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "helpComment": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "version": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "versionLabel": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "inDevelopment": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "etrxIsrx": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "etrxIsreact": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "etrxRxmodule": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "translationRequired": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "isTranslationModule": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "language": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "hasChartOfAccounts": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "hasReferenceData": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "referenceDataDescription": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "licenseType": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "commercial": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "freeForTrial": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "licenseText": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "author": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "uRL": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updateInformation": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "status": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "applyConfigurationScript": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "registerModule": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "enabled": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "default": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "sequenceNumber": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updateVersion": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "maturityUpdate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "availableUpdate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"javaPackage\":\"\",\"name\":\"\",\"type\":\"\",\"description\":\"\",\"helpComment\":\"\",\"version\":\"\",\"versionLabel\":\"\",\"inDevelopment\":\"\",\"etrxIsrx\":\"\",\"etrxIsreact\":\"\",\"etrxRxmodule\":\"\",\"translationRequired\":\"\",\"isTranslationModule\":\"\",\"language\":\"\",\"language$_identifier\":\"\",\"hasChartOfAccounts\":\"\",\"hasReferenceData\":\"\",\"referenceDataDescription\":\"\",\"licenseType\":\"\",\"commercial\":\"\",\"freeForTrial\":\"\",\"licenseText\":\"\",\"author\":\"\",\"uRL\":\"\",\"updateInformation\":\"\",\"status\":\"\",\"applyConfigurationScript\":\"\",\"registerModule\":\"\",\"enabled\":\"\",\"default\":\"\",\"active\":\"\",\"client\":\"\",\"client$_identifier\":\"\",\"sequenceNumber\":\"\",\"updateVersion\":\"\",\"maturityUpdate\":\"\",\"organization\":\"\",\"organization$_identifier\":\"\",\"id\":\"\",\"id$_identifier\":\"\",\"availableUpdate\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      }
+    },
+    "/sws/com.etendoerp.etendorx.datasource/WebhookParam": {
+      "get": {
+        "tags": [
+          "WebhookParam"
+        ],
+        "summary": "Get data from WebhookParam entity",
+        "description": "This endpoint retrieves multiple records from the WebhookParam entity. Use the 'q' parameter to filter data with various criteria. ",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search parameter to retrieve filtered data with a criteria",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "field==A6750F0D15334FB890C254369AC750A8",
+              "exampleSetFlag": true
+            }
+          },
+          {
+            "name": "_startRow",
+            "in": "query",
+            "description": "Starting row to fetch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0",
+              "exampleSetFlag": true
+            }
+          },
+          {
+            "name": "_endRow",
+            "in": "query",
+            "description": "End row to fetch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "10",
+              "exampleSetFlag": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "module": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "isRequired": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "smfwheDefinedwebhook": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"module\":\"\",\"module$_identifier\":\"\",\"smfwheDefinedwebhook\":\"\",\"smfwheDefinedwebhook$_identifier\":\"\",\"name\":\"\",\"isRequired\":\"\",\"description\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"active\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "WebhookParam"
+        ],
+        "summary": "Create a new WebhookParam record",
+        "description": "This endpoint creates new record(s) in the WebhookParam entity. Only send the fields you want to explicitly set; do not include fields whose values you do not know or wish to leave as default. The backend will automatically populate unspecified fields with their default values. Creates a Parameter of the Webhook. The header of the webhook is needed to be created after the creation of a parameter.",
+        "requestBody": {
+          "description": "Request body for WebhookParam",
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "Single object or array of objects",
+                "exampleSetFlag": false,
+                "oneOf": [
+                  {
+                    "required": [],
+                    "type": "object",
+                    "properties": {
+                      "module": {
+                        "maxLength": 32,
+                        "pattern": "^[a-zA-Z0-9]*$",
+                        "type": "string",
+                        "description": "Module ID where the Webhook belongs. In general, its the same as module ID used in Webhook Header.",
+                        "example": "",
+                        "exampleSetFlag": true
+                      },
+                      "smfwheDefinedwebhook": {
+                        "maxLength": 32,
+                        "pattern": "^[a-zA-Z0-9]*$",
+                        "type": "string",
+                        "description": "Webhook Header ID.",
+                        "example": "",
+                        "exampleSetFlag": true
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Name of the parameter. Its the property name in the payload received in the Java Class.",
+                        "exampleSetFlag": false
+                      },
+                      "isRequired": {
+                        "type": "boolean",
+                        "description": "If the parameter its mandatory set to \"Y\", otherwise set to \"N\".",
+                        "example": false,
+                        "exampleSetFlag": true
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Description of the parameter.",
+                        "exampleSetFlag": false
+                      }
+                    },
+                    "exampleSetFlag": false
+                  },
+                  {
+                    "type": "array",
+                    "description": "Array of objects for bulk operations",
+                    "exampleSetFlag": false,
+                    "items": {
+                      "required": [],
+                      "type": "object",
+                      "properties": {
+                        "module": {
+                          "maxLength": 32,
+                          "pattern": "^[a-zA-Z0-9]*$",
+                          "type": "string",
+                          "description": "Module ID where the Webhook belongs. In general, its the same as module ID used in Webhook Header.",
+                          "example": "",
+                          "exampleSetFlag": true
+                        },
+                        "smfwheDefinedwebhook": {
+                          "maxLength": 32,
+                          "pattern": "^[a-zA-Z0-9]*$",
+                          "type": "string",
+                          "description": "Webhook Header ID.",
+                          "example": "",
+                          "exampleSetFlag": true
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "Name of the parameter. Its the property name in the payload received in the Java Class.",
+                          "exampleSetFlag": false
+                        },
+                        "isRequired": {
+                          "type": "boolean",
+                          "description": "If the parameter its mandatory set to \"Y\", otherwise set to \"N\".",
+                          "example": false,
+                          "exampleSetFlag": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "Description of the parameter.",
+                          "exampleSetFlag": false
+                        }
+                      },
+                      "exampleSetFlag": false
+                    }
+                  }
+                ]
+              },
+              "example": "{}",
+              "exampleSetFlag": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "module": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "isRequired": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "smfwheDefinedwebhook": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"module\":\"\",\"module$_identifier\":\"\",\"smfwheDefinedwebhook\":\"\",\"smfwheDefinedwebhook$_identifier\":\"\",\"name\":\"\",\"isRequired\":\"\",\"description\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"active\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      }
+    },
+    "/sws/com.etendoerp.etendorx.datasource/WebhookParam/{id}": {
+      "get": {
+        "tags": [
+          "WebhookParam"
+        ],
+        "summary": "Obtain a single WebhookParam record",
+        "description": "This endpoint retrieves a single record from the WebhookParam entity by its ID. ",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Entity ID to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "exampleSetFlag": false
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Request body for WebhookParam/{id}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [],
+                "type": "object",
+                "properties": {
+                  "module": {
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9]*$",
+                    "type": "string",
+                    "description": "Module ID where the Webhook belongs. In general, its the same as module ID used in Webhook Header.",
+                    "example": "",
+                    "exampleSetFlag": true
+                  },
+                  "smfwheDefinedwebhook": {
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9]*$",
+                    "type": "string",
+                    "description": "Webhook Header ID.",
+                    "example": "",
+                    "exampleSetFlag": true
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the parameter. Its the property name in the payload received in the Java Class.",
+                    "exampleSetFlag": false
+                  },
+                  "isRequired": {
+                    "type": "boolean",
+                    "description": "If the parameter its mandatory set to \"Y\", otherwise set to \"N\".",
+                    "example": false,
+                    "exampleSetFlag": true
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the parameter.",
+                    "exampleSetFlag": false
+                  }
+                },
+                "exampleSetFlag": false
+              },
+              "example": "{}",
+              "exampleSetFlag": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "module": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "isRequired": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "smfwheDefinedwebhook": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"module\":\"\",\"module$_identifier\":\"\",\"smfwheDefinedwebhook\":\"\",\"smfwheDefinedwebhook$_identifier\":\"\",\"name\":\"\",\"isRequired\":\"\",\"description\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"active\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "WebhookParam"
+        ],
+        "summary": "Update a WebhookParam record",
+        "description": "This endpoint updates existing record(s) in the WebhookParam entity. Only send fields which need changes. This endpoint works like a PATCH operation, meaning it will only update the fields you provide. ",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Entity ID to update",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "exampleSetFlag": false
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Request body for WebhookParam/{id}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [],
+                "type": "object",
+                "properties": {
+                  "module": {
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9]*$",
+                    "type": "string",
+                    "description": "Module ID where the Webhook belongs. In general, its the same as module ID used in Webhook Header.",
+                    "example": "",
+                    "exampleSetFlag": true
+                  },
+                  "smfwheDefinedwebhook": {
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9]*$",
+                    "type": "string",
+                    "description": "Webhook Header ID.",
+                    "example": "",
+                    "exampleSetFlag": true
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the parameter. Its the property name in the payload received in the Java Class.",
+                    "exampleSetFlag": false
+                  },
+                  "isRequired": {
+                    "type": "boolean",
+                    "description": "If the parameter its mandatory set to \"Y\", otherwise set to \"N\".",
+                    "example": false,
+                    "exampleSetFlag": true
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the parameter.",
+                    "exampleSetFlag": false
+                  }
+                },
+                "exampleSetFlag": false
+              },
+              "example": "{}",
+              "exampleSetFlag": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "module": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "isRequired": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "smfwheDefinedwebhook": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"module\":\"\",\"module$_identifier\":\"\",\"smfwheDefinedwebhook\":\"\",\"smfwheDefinedwebhook$_identifier\":\"\",\"name\":\"\",\"isRequired\":\"\",\"description\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"active\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      }
+    },
+    "/sws/com.etendoerp.etendorx.datasource/moduleDBPrefix": {
+      "get": {
+        "tags": [
+          "moduleDBPrefix"
+        ],
+        "summary": "Get data from moduleDBPrefix entity",
+        "description": "This endpoint retrieves multiple records from the moduleDBPrefix entity. Use the 'q' parameter to filter data with various criteria. Retrieve the current database prefix configuration for a specific module. Search existing prefixes to check availability.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search parameter to retrieve filtered data with a criteria",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "field==A6750F0D15334FB890C254369AC750A8",
+              "exampleSetFlag": true
+            }
+          },
+          {
+            "name": "_startRow",
+            "in": "query",
+            "description": "Starting row to fetch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0",
+              "exampleSetFlag": true
+            }
+          },
+          {
+            "name": "_endRow",
+            "in": "query",
+            "description": "End row to fetch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "10",
+              "exampleSetFlag": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "module": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"name\":\"\",\"id\":\"\",\"id$_identifier\":\"\",\"client\":\"\",\"client$_identifier\":\"\",\"organization\":\"\",\"organization$_identifier\":\"\",\"active\":\"\",\"module\":\"\",\"module$_identifier\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      }
+    },
+    "/sws/com.etendoerp.etendorx.datasource/Webhook": {
+      "get": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Get data from Webhook entity",
+        "description": "This endpoint retrieves multiple records from the Webhook entity. Use the 'q' parameter to filter data with various criteria. ",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search parameter to retrieve filtered data with a criteria",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "field==A6750F0D15334FB890C254369AC750A8",
+              "exampleSetFlag": true
+            }
+          },
+          {
+            "name": "_startRow",
+            "in": "query",
+            "description": "Starting row to fetch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0",
+              "exampleSetFlag": true
+            }
+          },
+          {
+            "name": "_endRow",
+            "in": "query",
+            "description": "End row to fetch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "10",
+              "exampleSetFlag": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "module": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "eventClass": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "javaClass": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "allowGroupAccess": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"module\":\"\",\"module$_identifier\":\"\",\"javaClass\":\"\",\"name\":\"\",\"description\":\"\",\"allowGroupAccess\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"active\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Create a new Webhook record",
+        "description": "This endpoint creates new record(s) in the Webhook entity. Only send the fields you want to explicitly set; do not include fields whose values you do not know or wish to leave as default. The backend will automatically populate unspecified fields with their default values. Creates the Header of a Webhook.",
+        "requestBody": {
+          "description": "Request body for Webhook",
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "Single object or array of objects",
+                "exampleSetFlag": false,
+                "oneOf": [
+                  {
+                    "required": [],
+                    "type": "object",
+                    "properties": {
+                      "module": {
+                        "maxLength": 32,
+                        "pattern": "^[a-zA-Z0-9]*$",
+                        "type": "string",
+                        "description": "Module ID where belongs the webhook.",
+                        "example": "",
+                        "exampleSetFlag": true
+                      },
+                      "javaClass": {
+                        "type": "string",
+                        "description": "Full Java package  of the Webhook class. Must start with the Module java package.",
+                        "exampleSetFlag": false
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Name of the Webhook. Must be equals to Class name.",
+                        "exampleSetFlag": false
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Description of the Webhook.",
+                        "exampleSetFlag": false
+                      },
+                      "allowGroupAccess": {
+                        "type": "boolean",
+                        "description": "Always set to Y.",
+                        "example": false,
+                        "exampleSetFlag": true
+                      }
+                    },
+                    "exampleSetFlag": false
+                  },
+                  {
+                    "type": "array",
+                    "description": "Array of objects for bulk operations",
+                    "exampleSetFlag": false,
+                    "items": {
+                      "required": [],
+                      "type": "object",
+                      "properties": {
+                        "module": {
+                          "maxLength": 32,
+                          "pattern": "^[a-zA-Z0-9]*$",
+                          "type": "string",
+                          "description": "Module ID where belongs the webhook.",
+                          "example": "",
+                          "exampleSetFlag": true
+                        },
+                        "javaClass": {
+                          "type": "string",
+                          "description": "Full Java package  of the Webhook class. Must start with the Module java package.",
+                          "exampleSetFlag": false
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "Name of the Webhook. Must be equals to Class name.",
+                          "exampleSetFlag": false
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "Description of the Webhook.",
+                          "exampleSetFlag": false
+                        },
+                        "allowGroupAccess": {
+                          "type": "boolean",
+                          "description": "Always set to Y.",
+                          "example": false,
+                          "exampleSetFlag": true
+                        }
+                      },
+                      "exampleSetFlag": false
+                    }
+                  }
+                ]
+              },
+              "example": "{}",
+              "exampleSetFlag": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "module": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "eventClass": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "javaClass": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "allowGroupAccess": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"module\":\"\",\"module$_identifier\":\"\",\"javaClass\":\"\",\"name\":\"\",\"description\":\"\",\"allowGroupAccess\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"active\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      }
+    },
+    "/sws/com.etendoerp.etendorx.datasource/Webhook/{id}": {
+      "get": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Obtain a single Webhook record",
+        "description": "This endpoint retrieves a single record from the Webhook entity by its ID. ",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Entity ID to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "exampleSetFlag": false
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Request body for Webhook/{id}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [],
+                "type": "object",
+                "properties": {
+                  "module": {
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9]*$",
+                    "type": "string",
+                    "description": "Module ID where belongs the webhook.",
+                    "example": "",
+                    "exampleSetFlag": true
+                  },
+                  "javaClass": {
+                    "type": "string",
+                    "description": "Full Java package  of the Webhook class. Must start with the Module java package.",
+                    "exampleSetFlag": false
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the Webhook. Must be equals to Class name.",
+                    "exampleSetFlag": false
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the Webhook.",
+                    "exampleSetFlag": false
+                  },
+                  "allowGroupAccess": {
+                    "type": "boolean",
+                    "description": "Always set to Y.",
+                    "example": false,
+                    "exampleSetFlag": true
+                  }
+                },
+                "exampleSetFlag": false
+              },
+              "example": "{}",
+              "exampleSetFlag": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "module": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "eventClass": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "javaClass": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "allowGroupAccess": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"module\":\"\",\"module$_identifier\":\"\",\"javaClass\":\"\",\"name\":\"\",\"description\":\"\",\"allowGroupAccess\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"active\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Update a Webhook record",
+        "description": "This endpoint updates existing record(s) in the Webhook entity. Only send fields which need changes. This endpoint works like a PATCH operation, meaning it will only update the fields you provide. ",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Entity ID to update",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "exampleSetFlag": false
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Request body for Webhook/{id}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [],
+                "type": "object",
+                "properties": {
+                  "module": {
+                    "maxLength": 32,
+                    "pattern": "^[a-zA-Z0-9]*$",
+                    "type": "string",
+                    "description": "Module ID where belongs the webhook.",
+                    "example": "",
+                    "exampleSetFlag": true
+                  },
+                  "javaClass": {
+                    "type": "string",
+                    "description": "Full Java package  of the Webhook class. Must start with the Module java package.",
+                    "exampleSetFlag": false
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the Webhook. Must be equals to Class name.",
+                    "exampleSetFlag": false
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the Webhook.",
+                    "exampleSetFlag": false
+                  },
+                  "allowGroupAccess": {
+                    "type": "boolean",
+                    "description": "Always set to Y.",
+                    "example": false,
+                    "exampleSetFlag": true
+                  }
+                },
+                "exampleSetFlag": false
+              },
+              "example": "{}",
+              "exampleSetFlag": true
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "integer",
+                          "format": "int32",
+                          "example": 0,
+                          "exampleSetFlag": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "exampleSetFlag": false,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "$ref": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "active": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "creationDate": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "createdBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updated": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "updatedBy$_identifier": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "module": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "eventClass": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "javaClass": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "allowGroupAccess": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "organization": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "client": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              },
+                              "id": {
+                                "type": "string",
+                                "example": "",
+                                "exampleSetFlag": true
+                              }
+                            },
+                            "description": "Entity data",
+                            "exampleSetFlag": false
+                          }
+                        }
+                      },
+                      "description": "Main object of the response",
+                      "exampleSetFlag": false
+                    }
+                  },
+                  "description": "Complete response object",
+                  "exampleSetFlag": false
+                },
+                "example": "{\"response\":{\"status\":0,\"data\":[{\"module\":\"\",\"module$_identifier\":\"\",\"javaClass\":\"\",\"name\":\"\",\"description\":\"\",\"allowGroupAccess\":\"\",\"_identifier\":\"\",\"$ref\":\"\",\"active\":\"\",\"creationDate\":\"\",\"createdBy\":\"\",\"createdBy$_identifier\":\"\",\"updated\":\"\",\"updatedBy\":\"\",\"updatedBy$_identifier\":\"\"}]}}",
+                "exampleSetFlag": true
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful request."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        }
+      }
+    },
+    "/sws/login": {
+      "post": {
+        "tags": [
+          "Login"
+        ],
+        "summary": "Obtain authentication token",
+        "description": "Obtains an authentication token (JWT) associated with an Etendo context (User, Role, Org, Warehouse) and the list of usable roles, organizations and warehouses.\nBoth the lists of roles, organizations and warehouses can be hidden to simplify the request result.",
+        "parameters": [
+          {
+            "name": "showRoles",
+            "in": "query",
+            "description": "Show role list.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "example": true,
+              "exampleSetFlag": true,
+              "default": true
+            }
+          },
+          {
+            "name": "showOrgs",
+            "in": "query",
+            "description": "Show Organization lists.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "example": true,
+              "exampleSetFlag": true,
+              "default": true
+            }
+          },
+          {
+            "name": "showWarehouses",
+            "in": "query",
+            "description": "Show Warehouse lists.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "example": true,
+              "exampleSetFlag": true,
+              "default": true
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Username, password, role id, organization id, storage id. Only the first two are required.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "example": "admin",
+                    "exampleSetFlag": true
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "admin",
+                    "exampleSetFlag": true
+                  },
+                  "role": {
+                    "type": "string",
+                    "example": "0",
+                    "exampleSetFlag": true
+                  },
+                  "organization": {
+                    "type": "string",
+                    "example": "0",
+                    "exampleSetFlag": true
+                  },
+                  "warehouse": {
+                    "type": "string",
+                    "example": "0",
+                    "exampleSetFlag": true
+                  }
+                },
+                "exampleSetFlag": false
+              },
+              "exampleSetFlag": false
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Ok.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogResp",
+                  "exampleSetFlag": false
+                },
+                "exampleSetFlag": false
+              }
+            }
+          },
+          "401": {
+            "description": "No auth."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LogResp": {
+        "title": "Login response",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success",
+            "exampleSetFlag": true
+          },
+          "token": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJzd3MiLCJyb2xlIjoiMCIsIm9yZ2FuaXphdGlvbiI6IjAiLCJpc3MiOiJzd3MiLCJleHAiOjE1ODE1MjMxNTcsInVzZXIiOiIxMDAiLCJpYXQiOjE1ODE1MTU3Nzd9.ZyAwUz7B1xOuMJzrtt6LJo0O7UNi133W15Uv_RfW3IM",
+            "exampleSetFlag": true
+          },
+          "roleList": {
+            "type": "array",
+            "exampleSetFlag": false,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "0",
+                  "exampleSetFlag": true
+                },
+                "name": {
+                  "type": "string",
+                  "example": "System Administrator",
+                  "exampleSetFlag": true
+                },
+                "orgList": {
+                  "type": "array",
+                  "exampleSetFlag": false,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "example": "0",
+                        "exampleSetFlag": true
+                      },
+                      "name": {
+                        "type": "string",
+                        "example": "*",
+                        "exampleSetFlag": true
+                      },
+                      "warehouseList": {
+                        "type": "array",
+                        "exampleSetFlag": false,
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "example": "0",
+                              "exampleSetFlag": true
+                            },
+                            "name": {
+                              "type": "string",
+                              "example": "*",
+                              "exampleSetFlag": true
+                            }
+                          },
+                          "exampleSetFlag": false
+                        }
+                      }
+                    },
+                    "exampleSetFlag": false
+                  }
+                }
+              },
+              "exampleSetFlag": false
+            }
+          }
+        },
+        "exampleSetFlag": false
+      },
+      "FormInitResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "integer",
+                "format": "int32",
+                "example": 0,
+                "exampleSetFlag": true
+              },
+              "data": {
+                "type": "array",
+                "exampleSetFlag": false,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "_identifier": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "$ref": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "active": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "creationDate": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "createdBy": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "createdBy$_identifier": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "updated": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "updatedBy": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "updatedBy$_identifier": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "javaPackage": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "type": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "description": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "helpComment": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "version": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "versionLabel": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "inDevelopment": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "etrxIsrx": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "etrxIsreact": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "etrxRxmodule": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "translationRequired": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "isTranslationModule": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "language": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "hasChartOfAccounts": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "hasReferenceData": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "referenceDataDescription": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "licenseType": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "commercial": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "freeForTrial": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "licenseText": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "author": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "uRL": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "updateInformation": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "applyConfigurationScript": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "registerModule": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "enabled": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "default": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "client": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "sequenceNumber": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "updateVersion": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "maturityUpdate": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "organization": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "id": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    },
+                    "availableUpdate": {
+                      "type": "string",
+                      "example": "",
+                      "exampleSetFlag": true
+                    }
+                  },
+                  "description": "Entity data",
+                  "exampleSetFlag": false
+                }
+              }
+            },
+            "description": "Main object of the response",
+            "exampleSetFlag": false
+          }
+        },
+        "description": "Complete response object",
+        "exampleSetFlag": false
+      }
+    },
+    "securitySchemes": {
+      "basicAuth": {
+        "type": "http",
+        "description": "Basic authentication with username and password",
+        "scheme": "basic"
+      },
+      "bearerAuth": {
+        "type": "http",
+        "description": "Bearer token authentication using token from \u003Ca href=\"#/Login/post_sws_login\" target=\"_blank\"\u003ELogin\u003C/a\u003E endpoint.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
