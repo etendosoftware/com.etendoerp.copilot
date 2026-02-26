@@ -3,15 +3,6 @@ import types
 
 import pytest
 from copilot.core.mcp.auth_provider import CopilotAuthProvider
-from copilot.core.mcp.tools.agent_tools import MCPException
-
-
-class DummyResp:
-    def __init__(self, data):
-        self._data = data
-
-    def json(self):
-        return self._data
 
 
 @pytest.mark.asyncio
@@ -53,6 +44,8 @@ async def test_verify_token_calls_etendo_and_authorizes(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_verify_token_not_authorized(monkeypatch):
+    """When the agent is not in the assistants list, verify_token returns None (not raises)."""
+
     async def fake_fetch(self, token):
         await asyncio.sleep(0)
         return [{"app_id": "other", "assistant_id": "other", "name": "other"}]
@@ -60,5 +53,19 @@ async def test_verify_token_not_authorized(monkeypatch):
     monkeypatch.setattr(CopilotAuthProvider, "_fetch_assistants_for_token", fake_fetch)
 
     provider = CopilotAuthProvider(identifier="my-agent")
-    with pytest.raises(MCPException):
-        await provider.verify_token("Bearer abc")
+    res = await provider.verify_token("Bearer abc")
+    assert res is None
+
+
+@pytest.mark.asyncio
+async def test_verify_token_fetch_error(monkeypatch):
+    """When _fetch_assistants_for_token raises, verify_token returns None (not raises)."""
+
+    async def fake_fetch(self, token):
+        raise Exception("connection error")
+
+    monkeypatch.setattr(CopilotAuthProvider, "_fetch_assistants_for_token", fake_fetch)
+
+    provider = CopilotAuthProvider(identifier="my-agent")
+    res = await provider.verify_token("Bearer abc")
+    assert res is None

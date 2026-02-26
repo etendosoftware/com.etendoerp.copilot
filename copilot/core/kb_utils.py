@@ -9,6 +9,13 @@ from copilot.core.vectordb_utils import (
     get_vector_db_path,
 )
 from langchain_chroma.vectorstores import Chroma
+from pydantic import BaseModel, Field
+
+
+class KBSearchInput(BaseModel):
+    """Input schema for KnowledgeBaseSearch tool."""
+
+    query: str = Field(description="The term or question to search in the knowledge base.")
 
 
 def get_kb_tool(agent_config: AssistantSchema = None):
@@ -43,4 +50,8 @@ def get_kb_tool(agent_config: AssistantSchema = None):
                 name="KnowledgeBaseSearch",
                 description="Search in the knowledge base for a term or question.",
             )
+            # Override args_schema so the MCP conversion generates a proper
+            # function signature with named parameters (query: str) instead of
+            # the default (input: Any = "") which produces an empty schema.
+            kb_tool.args_schema = KBSearchInput
     return kb_tool

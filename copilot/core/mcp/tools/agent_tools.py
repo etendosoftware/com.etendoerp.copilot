@@ -117,16 +117,24 @@ def fetch_agent_structure_from_etendo(identifier: str, etendo_token: str) -> Opt
         copilot_error(f"HTTP error fetching agent structure: {e}")
 
 
+_EXEC_SAFE_TYPES = {"str", "int", "float", "bool", "list", "dict", "tuple", "set", "bytes", "Any", "None"}
+
+
 def _get_param_type_annotation(field_info) -> str:
-    """Extract type annotation from field info."""
+    """Extract type annotation from field info.
+
+    Returns concrete type names only for builtins that are available inside exec().
+    For complex types (e.g. dynamic Pydantic models) returns 'Any' to avoid
+    NameError in the generated code.  The full schema is still exposed to MCP
+    clients via model_json_schema().
+    """
     try:
         if hasattr(field_info, "annotation") and field_info.annotation:
-            if hasattr(field_info.annotation, "__name__") and (
-                field_info.annotation.__name__ not in ("Union", "Optional")
-            ):
-                return field_info.annotation.__name__
-            else:
-                return "Any"
+            if hasattr(field_info.annotation, "__name__"):
+                name = field_info.annotation.__name__
+                if name in _EXEC_SAFE_TYPES:
+                    return name
+            return "Any"
     except (AttributeError, TypeError):
         pass
     return "str"
@@ -664,7 +672,7 @@ def _gen_prompt_tool(agent_config: AssistantSchema, identifier: Optional[str] = 
     get_prompt_tool = Tool.from_function(
         fn=_get_prompt_tool,
         name="get_agent_prompt",
-        description="Retrieve the agent's system prompt and configuration",
+        description="Retrieve the agent's system prompt and configuration. IMPORTANT: It is strongly recommended to call this tool first before using any other tool, as the prompt contains instructions on how to properly use the available tools.",
         tags={"agent", "structure"},
         enabled=True,
     )

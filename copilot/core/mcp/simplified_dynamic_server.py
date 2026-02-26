@@ -28,7 +28,7 @@ from copilot.core.mcp.tools import (
     register_basic_tools_direct,
 )
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils.etendo_utils import normalize_etendo_token
+from copilot.core.utils.etendo_utils import get_url_copilot_mcp, normalize_etendo_token
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
@@ -359,16 +359,22 @@ class SimplifiedDynamicMCPServer:
         app = FastAPI(title="Etendo Copilot Dynamic MCP Server")
 
         # Add CORS middleware
+        # expose_headers is required so browsers can read custom response headers
+        # like mcp-session-id (needed by Streamable HTTP MCP transport).
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
+            expose_headers=["mcp-session-id"],
         )
 
         # Add basic endpoints
         self._add_basic_endpoints(app)
+
+        # Add OAuth endpoints (must be before MCP catch-all routing)
+        self._add_oauth_endpoints(app)
 
         # Add MCP routing
         self._add_mcp_routing(app)
@@ -432,6 +438,42 @@ class SimplifiedDynamicMCPServer:
 
             return {"active_instances": len(self.instances), "instances": instances_info}
 
+    def _add_oauth_endpoints(self, app: FastAPI):
+        """Add OAuth 2.1 endpoints for MCP client authentication.
+
+        Mounts the well-known discovery endpoints, OAuth authorization/token/register
+        routes from the SDK, and custom login routes for the Etendo login UI flow.
+        These must be registered before the catch-all MCP routing to avoid conflicts.
+        """
+        try:
+            from copilot.core.mcp.oauth_login import create_oauth_login_router
+            from copilot.core.mcp.oauth_provider import EtendoOAuthProvider
+
+            base_url = get_url_copilot_mcp(self.port)
+
+            self._oauth_provider = EtendoOAuthProvider(base_url=base_url)
+
+            # Mount SDK-generated OAuth routes (well-known, /authorize, /token, /register, /revoke)
+            oauth_routes = self._oauth_provider.get_routes()
+            for route in oauth_routes:
+                app.routes.insert(0, route)
+
+            # Mount custom login routes (must be before catch-all /{identifier}/mcp)
+            login_router = create_oauth_login_router(self._oauth_provider)
+            app.include_router(login_router)
+
+            # Start cleanup task on first request (event loop must be running)
+            @app.on_event("startup")
+            async def _start_oauth_cleanup():
+                self._oauth_provider.start_cleanup()
+
+            copilot_info(f"OAuth 2.1 endpoints configured (base_url={base_url})")
+
+        except ImportError as e:
+            copilot_warning(f"OAuth endpoints not available (missing dependencies): {e}")
+        except Exception as e:
+            copilot_error(f"Failed to configure OAuth endpoints: {e}")
+
     def _add_mcp_routing(self, app: FastAPI):
         """Add MCP routing endpoints."""
 
@@ -458,11 +500,15 @@ class SimplifiedDynamicMCPServer:
         # Extract and validate Etendo token from request
         etendo_token = extract_etendo_token_from_request(request)
         if not etendo_token:
+            base_url = get_url_copilot_mcp(self.port)
             raise HTTPException(
                 status_code=401,
-                detail="Authentication required. "
-                "Please provide a valid Etendo token in headers: 'etendo-token', "
-                "'Authorization', or 'X-Etendo-Token', or as query parameter '?token=<your-token>'.",
+                detail="Authentication required.",
+                headers={
+                    "WWW-Authenticate": (
+                        f'Bearer resource_metadata="{base_url}/.well-known/oauth-protected-resource"'
+                    )
+                },
             )
         etendo_token_wb = normalize_etendo_token(etendo_token)
         ThreadContext.set_data("extra_info", {"auth": {"ETENDO_TOKEN": etendo_token_wb}})
@@ -681,6 +727,10 @@ class SimplifiedDynamicMCPServer:
             host = self.host
         if port is None:
             port = self.port
+
+        # Update self.host/self.port so create_app() uses the actual values
+        self.host = host
+        self.port = port
 
         app = self.create_app()
 
