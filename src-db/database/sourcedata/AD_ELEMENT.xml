@@ -491,7 +491,15 @@
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <NAME><![CDATA[Hql]]></NAME>
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <PRINTNAME><![CDATA[Hql]]></PRINTNAME>
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <DESCRIPTION><![CDATA[HQL clause for agent context.]]></DESCRIPTION>
-<!--449B104D66B5430BA144C60E3E83B2FB-->  <HELP><![CDATA[Adds an HQL statement to model the data to be sent. This HQL will be evaluated and its results will be exported in a .csv file.]]></HELP>
+<!--449B104D66B5430BA144C60E3E83B2FB-->  <HELP><![CDATA[Adds an HQL statement to model the data to be sent. This HQL will be evaluated and its results will be exported in a .csv file.
+- Query Requirement: You must use the alias e for the main entity (e.g., from Product e) because the system automatically appends security filters (Client/Org) using that specific alias.
+
+Output Formats:
+
+- CSV: Returns a comma-separated list. Includes headers if you use aliases in the select statement.
+- Plain Text (Non-CSV): Returns data in Property: Value format. Records are separated by double line breaks (\n\n).
+
+- Full Entities: If selecting the whole object (select e), it returns a structured string containing all readable properties.]]></HELP>
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--449B104D66B5430BA144C60E3E83B2FB-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--449B104D66B5430BA144C60E3E83B2FB--></AD_ELEMENT>
@@ -509,6 +517,20 @@
 <!--455D579E05AB4D8EB7D81984545420D4-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--455D579E05AB4D8EB7D81984545420D4-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
 <!--455D579E05AB4D8EB7D81984545420D4--></AD_ELEMENT>
+
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4--><AD_ELEMENT>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <AD_ELEMENT_ID><![CDATA[48E8D99E010B48DF86E3FFDD98EF1FA4]]></AD_ELEMENT_ID>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <COLUMNNAME><![CDATA[Sync_Startup]]></COLUMNNAME>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <NAME><![CDATA[Sync On Startup]]></NAME>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <PRINTNAME><![CDATA[Sync On Startup]]></PRINTNAME>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <DESCRIPTION><![CDATA[Indicates if the agent should be included in the synchronization list on system startup when its status is 'Pending Synchronization'.]]></DESCRIPTION>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <HELP><![CDATA[Enable this checkbox to mark the agent for synchronization at system startup. Synchronization will only occur if the agent's status is 'Pending Synchronization'.]]></HELP>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4-->  <ISGLOSSARY><![CDATA[N]]></ISGLOSSARY>
+<!--48E8D99E010B48DF86E3FFDD98EF1FA4--></AD_ELEMENT>
 
 <!--4A3A8363E805476E84672269D7935842--><AD_ELEMENT>
 <!--4A3A8363E805476E84672269D7935842-->  <AD_ELEMENT_ID><![CDATA[4A3A8363E805476E84672269D7935842]]></AD_ELEMENT_ID>
