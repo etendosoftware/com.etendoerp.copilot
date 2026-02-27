@@ -1,6 +1,7 @@
 """Unit tests for OAuth login routes."""
 
-from unittest.mock import AsyncMock, patch
+import json as _json
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from copilot.core.mcp.oauth_login import create_oauth_login_router
@@ -78,19 +79,21 @@ class TestLoginSubmit:
     @patch("copilot.core.mcp.oauth_login.httpx.AsyncClient")
     def test_submit_success_with_defaults(self, mock_client_cls, client, pending_session):
         """Test successful login with use_defaults=true (single role/org)."""
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.is_success = True
-        mock_response.json.return_value = {
-            "status": "success",
-            "token": "jwt-token-abc",
-            "roleList": [
-                {
-                    "id": "role1",
-                    "name": "Admin",
-                    "orgList": [{"id": "org1", "name": "Main Org"}],
-                }
-            ],
-        }
+        mock_response.content = _json.dumps(
+            {
+                "status": "success",
+                "token": "jwt-token-abc",
+                "roleList": [
+                    {
+                        "id": "role1",
+                        "name": "Admin",
+                        "orgList": [{"id": "org1", "name": "Main Org"}],
+                    }
+                ],
+            }
+        ).encode("iso-8859-1")
 
         mock_client = AsyncMock()
         mock_client.post.return_value = mock_response
@@ -117,7 +120,7 @@ class TestLoginSubmit:
     @patch("copilot.core.mcp.oauth_login.httpx.AsyncClient")
     def test_submit_invalid_credentials(self, mock_client_cls, client, pending_session):
         """Test login with invalid credentials shows error."""
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.is_success = False
         mock_response.json.return_value = {
             "status": "error",
@@ -144,27 +147,29 @@ class TestLoginSubmit:
     @patch("copilot.core.mcp.oauth_login.httpx.AsyncClient")
     def test_submit_multiple_roles_shows_step2(self, mock_client_cls, client, pending_session):
         """Test that multiple roles show the role/org selection step."""
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.is_success = True
-        mock_response.json.return_value = {
-            "status": "success",
-            "token": "jwt-multi",
-            "roleList": [
-                {
-                    "id": "role1",
-                    "name": "Admin",
-                    "orgList": [
-                        {"id": "org1", "name": "Org 1"},
-                        {"id": "org2", "name": "Org 2"},
-                    ],
-                },
-                {
-                    "id": "role2",
-                    "name": "User",
-                    "orgList": [{"id": "org3", "name": "Org 3"}],
-                },
-            ],
-        }
+        mock_response.content = _json.dumps(
+            {
+                "status": "success",
+                "token": "jwt-multi",
+                "roleList": [
+                    {
+                        "id": "role1",
+                        "name": "Admin",
+                        "orgList": [
+                            {"id": "org1", "name": "Org 1"},
+                            {"id": "org2", "name": "Org 2"},
+                        ],
+                    },
+                    {
+                        "id": "role2",
+                        "name": "User",
+                        "orgList": [{"id": "org3", "name": "Org 3"}],
+                    },
+                ],
+            }
+        ).encode("iso-8859-1")
 
         mock_client = AsyncMock()
         mock_client.post.return_value = mock_response
@@ -191,12 +196,14 @@ class TestLoginSelect:
     @patch("copilot.core.mcp.oauth_login.httpx.AsyncClient")
     def test_select_success_redirects(self, mock_client_cls, client, pending_session):
         """Test successful role/org selection redirects with code."""
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.is_success = True
-        mock_response.json.return_value = {
-            "status": "success",
-            "token": "jwt-final-token",
-        }
+        mock_response.content = _json.dumps(
+            {
+                "status": "success",
+                "token": "jwt-final-token",
+            }
+        ).encode("iso-8859-1")
 
         mock_client = AsyncMock()
         mock_client.post.return_value = mock_response
@@ -234,7 +241,7 @@ class TestLoginSelect:
     @patch("copilot.core.mcp.oauth_login.httpx.AsyncClient")
     def test_select_etendo_failure(self, mock_client_cls, client, pending_session):
         """Test that Etendo login failure shows error."""
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.is_success = False
         mock_response.json.return_value = {
             "status": "error",

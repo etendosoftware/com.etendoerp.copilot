@@ -1,6 +1,7 @@
 """Integration tests for OAuth 2.1 MCP flow."""
 
-from unittest.mock import AsyncMock, patch
+import json as _json
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from copilot.core.mcp.oauth_login import create_oauth_login_router
@@ -57,7 +58,7 @@ class TestDynamicClientRegistration:
             "/register",
             json={
                 "redirect_uris": ["http://localhost:3000/callback"],
-                "grant_types": ["authorization_code"],
+                "grant_types": ["authorization_code", "refresh_token"],
                 "response_types": ["code"],
                 "token_endpoint_auth_method": "none",
             },
@@ -76,7 +77,7 @@ class TestFullOAuthFlow:
             "/register",
             json={
                 "redirect_uris": ["http://localhost:3000/callback"],
-                "grant_types": ["authorization_code"],
+                "grant_types": ["authorization_code", "refresh_token"],
                 "response_types": ["code"],
                 "token_endpoint_auth_method": "none",
             },
@@ -105,19 +106,21 @@ class TestFullOAuthFlow:
         session_id = login_url.split("session_id=")[1]
 
         # Step 3: Submit login credentials
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.is_success = True
-        mock_response.json.return_value = {
-            "status": "success",
-            "token": "etendo-jwt-e2e-test",
-            "roleList": [
-                {
-                    "id": "role1",
-                    "name": "Admin",
-                    "orgList": [{"id": "org1", "name": "Org"}],
-                }
-            ],
-        }
+        mock_response.content = _json.dumps(
+            {
+                "status": "success",
+                "token": "etendo-jwt-e2e-test",
+                "roleList": [
+                    {
+                        "id": "role1",
+                        "name": "Admin",
+                        "orgList": [{"id": "org1", "name": "Org"}],
+                    }
+                ],
+            }
+        ).encode("iso-8859-1")
         mock_client_inst = AsyncMock()
         mock_client_inst.post.return_value = mock_response
         mock_client_inst.__aenter__ = AsyncMock(return_value=mock_client_inst)
