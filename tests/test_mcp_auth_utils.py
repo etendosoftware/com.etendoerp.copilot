@@ -16,10 +16,11 @@ from copilot.core.mcp.auth_utils import (
 class TestExtractEtendoTokenFromRequest:
     """Test cases for extract_etendo_token_from_request function."""
 
-    def create_mock_request(self, headers: dict = None) -> MagicMock:
-        """Create a mock request object with given headers."""
+    def create_mock_request(self, headers: dict = None, query_params: dict = None) -> MagicMock:
+        """Create a mock request object with given headers and query params."""
         mock_request = MagicMock()
         mock_request.headers = headers or {}
+        mock_request.query_params = query_params or {}
         return mock_request
 
     def test_extract_token_from_etendo_token_header(self):

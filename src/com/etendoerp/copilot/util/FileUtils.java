@@ -124,6 +124,9 @@ public class FileUtils {
     } //so the file is stored in the DB
     var fileName = fileToSync.getFilename(); //includes extension
     File result = createSecureTempFile(null, "_" + fileName).toFile();
+    if (variant.getFiledata() == null) {
+      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorMissingFileData"), fileName));
+    }
     try {
       Files.write(result.toPath(), variant.getFiledata());
     } catch (IOException e) {

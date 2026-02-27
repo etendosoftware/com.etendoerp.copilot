@@ -51,6 +51,14 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
   public static final String LOCALHOST_WARNING = "LOCALHOST_WARNING";
   public static final String DIRECT = "Direct";
   public static final String REMOTE_MODE = "mcp_remote_mode";
+  private static final String BEARER_TOKEN = "Bearer TOKEN";
+  private static final String OTHER_MCP_CLIENTS = "Other MCP clients";
+  private static final String MCP_REMOTE = "mcp-remote";
+  private static final String HEADER_FLAG = "--header";
+  private static final String AUTH_TYPE_TOKEN_URL = "token_url";
+  private static final String AUTH_HEADER = "Authorization";
+  private static final String AUTH_TYPE_KEY = "auth_type";
+  private static final String TOKEN_QUERY = "?token=";
   private AutoCloseable mocks;
   private MockedStatic<CopilotUtils> mockedCopilotUtils;
   private MockedStatic<OBPropertiesProvider> mockedOBPropertiesProvider;
@@ -116,7 +124,7 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     String html = g.getHTMLConfigurations(params, List.of(a));
     assertNotNull(html);
     assertTrue(html.contains("/AGENT1/direct/mcp"));
-    assertTrue(html.contains("Bearer TOKEN"));
+    assertTrue(html.contains(BEARER_TOKEN));
   }
 
   @Test
@@ -145,7 +153,7 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     String html = g.getHTMLConfigurations(params, List.of(a));
     // remote example should include npx and mcp-remote
     assertTrue(html.contains("npx"));
-    assertTrue(html.contains("mcp-remote"));
+    assertTrue(html.contains(MCP_REMOTE));
   }
 
   @Test
@@ -255,7 +263,7 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     JSONObject cfg2 = new JSONObject();
     JSONObject inner2 = new JSONObject();
     JSONArray arr = new JSONArray();
-    arr.put("mcp-remote");
+    arr.put(MCP_REMOTE);
     arr.put("https://remote.example");
     inner2.put("args", arr);
     cfg2.put("k2", inner2);
@@ -277,6 +285,157 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     assertTrue(html.contains("SoloCustom"));
     // Key should be normalized to lowercase 'solocustom'
     assertTrue(html.contains("solocustom") || html.contains("solo-custom") || html.contains("solo_custom"));
+  }
+
+  // --- auth_type tests ---
+
+  @Test
+  public void testAuthType_oauth_standard() throws Exception {
+    GetMCPConfiguration g = new GetMCPConfiguration();
+    CopilotApp a = mockAgent("AGENT_OA", "Agent OAuth");
+
+    JSONObject params = new JSONObject();
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, false);
+    params.put(AUTH_TYPE_KEY, "oauth");
+
+    String html = g.getHTMLConfigurations(params, List.of(a));
+    // Clean URL, no token, no headers
+    assertTrue(html.contains("/AGENT_OA/mcp"));
+    assertFalse(html.contains(TOKEN_QUERY));
+    assertFalse(html.contains(AUTH_HEADER));
+    assertFalse(html.contains(BEARER_TOKEN));
+    // No OTHER_MCP_CLIENTS block (no headers)
+    assertFalse(html.contains(OTHER_MCP_CLIENTS));
+    // OAuth mode shows a separate URL copy field
+    assertTrue(html.contains("MCP Endpoint URL"));
+    assertTrue(html.contains("Copy URL"));
+  }
+
+  @Test
+  public void testAuthType_tokenHeader_standard() throws Exception {
+    GetMCPConfiguration g = new GetMCPConfiguration();
+    CopilotApp a = mockAgent("AGENT_TH", "Agent TokenHeader");
+
+    JSONObject params = new JSONObject();
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, false);
+    params.put(AUTH_TYPE_KEY, "token_header");
+
+    String html = g.getHTMLConfigurations(params, List.of(a));
+    // URL without token query param
+    assertFalse(html.contains("?token=TOKEN"));
+    // Should contain Authorization header
+    assertTrue(html.contains(BEARER_TOKEN));
+    // Should show OTHER_MCP_CLIENTS block (has headers)
+    assertTrue(html.contains(OTHER_MCP_CLIENTS));
+  }
+
+  @Test
+  public void testAuthType_tokenUrl_standard() throws Exception {
+    GetMCPConfiguration g = new GetMCPConfiguration();
+    CopilotApp a = mockAgent("AGENT_TU", "Agent TokenUrl");
+
+    JSONObject params = new JSONObject();
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, false);
+    params.put(AUTH_TYPE_KEY, AUTH_TYPE_TOKEN_URL);
+
+    String html = g.getHTMLConfigurations(params, List.of(a));
+    // URL should contain the token as query parameter
+    assertTrue(html.contains("/AGENT_TU/mcp?token=TOKEN"));
+    // Should NOT contain Authorization header
+    assertFalse(html.contains(AUTH_HEADER));
+    assertFalse(html.contains(BEARER_TOKEN));
+    // No OTHER_MCP_CLIENTS block (no headers)
+    assertFalse(html.contains(OTHER_MCP_CLIENTS));
+  }
+
+  @Test
+  public void testAuthType_tokenUrl_direct() throws Exception {
+    GetMCPConfiguration g = new GetMCPConfiguration();
+    CopilotApp a = mockAgent("AGENT_TU2", "Agent TokenUrl Direct");
+
+    JSONObject params = new JSONObject();
+    params.put(DIRECT, true);
+    params.put(REMOTE_MODE, false);
+    params.put(AUTH_TYPE_KEY, AUTH_TYPE_TOKEN_URL);
+
+    String html = g.getHTMLConfigurations(params, List.of(a));
+    assertTrue(html.contains("/AGENT_TU2/direct/mcp?token=TOKEN"));
+    assertFalse(html.contains(AUTH_HEADER));
+  }
+
+  @Test
+  public void testAuthType_oauth_remoteMode() throws Exception {
+    GetMCPConfiguration g = new GetMCPConfiguration();
+    CopilotApp a = mockAgent("AGENT_OAR", "Agent OAuth Remote");
+
+    JSONObject params = new JSONObject();
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, true);
+    params.put(AUTH_TYPE_KEY, "oauth");
+
+    String html = g.getHTMLConfigurations(params, List.of(a));
+    // Should contain npx/mcp-remote with clean URL
+    assertTrue(html.contains("npx"));
+    assertTrue(html.contains(MCP_REMOTE));
+    assertTrue(html.contains("/AGENT_OAR/mcp"));
+    // No --header, no token in URL
+    assertFalse(html.contains(HEADER_FLAG));
+    assertFalse(html.contains(TOKEN_QUERY));
+    assertFalse(html.contains(AUTH_HEADER));
+  }
+
+  @Test
+  public void testAuthType_tokenHeader_remoteMode() throws Exception {
+    GetMCPConfiguration g = new GetMCPConfiguration();
+    CopilotApp a = mockAgent("AGENT_THR", "Agent TokenHeader Remote");
+
+    JSONObject params = new JSONObject();
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, true);
+    params.put(AUTH_TYPE_KEY, "token_header");
+
+    String html = g.getHTMLConfigurations(params, List.of(a));
+    assertTrue(html.contains("npx"));
+    assertTrue(html.contains(MCP_REMOTE));
+    assertTrue(html.contains(HEADER_FLAG));
+    assertTrue(html.contains("Authorization: Bearer TOKEN"));
+    assertFalse(html.contains(TOKEN_QUERY));
+  }
+
+  @Test
+  public void testAuthType_tokenUrl_remoteMode() throws Exception {
+    GetMCPConfiguration g = new GetMCPConfiguration();
+    CopilotApp a = mockAgent("AGENT_TUR", "Agent TokenUrl Remote");
+
+    JSONObject params = new JSONObject();
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, true);
+    params.put(AUTH_TYPE_KEY, AUTH_TYPE_TOKEN_URL);
+
+    String html = g.getHTMLConfigurations(params, List.of(a));
+    assertTrue(html.contains("/AGENT_TUR/mcp?token=TOKEN"));
+    assertTrue(html.contains("npx"));
+    assertTrue(html.contains(MCP_REMOTE));
+    assertFalse(html.contains(HEADER_FLAG));
+    assertFalse(html.contains("Authorization: Bearer TOKEN"));
+  }
+
+  @Test
+  public void testAuthType_defaultsToTokenHeader() throws Exception {
+    GetMCPConfiguration g = new GetMCPConfiguration();
+    CopilotApp a = mockAgent("AGENT_DEF", "Agent Default");
+
+    // No auth_type -> should default to token_header
+    JSONObject params = new JSONObject();
+    params.put(DIRECT, false);
+    params.put(REMOTE_MODE, false);
+
+    String html = g.getHTMLConfigurations(params, List.of(a));
+    assertFalse(html.contains(TOKEN_QUERY));
+    assertTrue(html.contains(BEARER_TOKEN));
   }
 
   @Test
