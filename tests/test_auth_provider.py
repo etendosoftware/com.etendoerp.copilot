@@ -62,7 +62,7 @@ async def test_verify_token_fetch_error(monkeypatch):
     """When _fetch_assistants_for_token raises, verify_token returns None (not raises)."""
 
     async def fake_fetch(self, token):
-        raise Exception("connection error")
+        raise ConnectionError("connection error")
 
     monkeypatch.setattr(CopilotAuthProvider, "_fetch_assistants_for_token", fake_fetch)
 

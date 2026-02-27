@@ -610,12 +610,37 @@ class SimplifiedDynamicMCPServer:
 
         return instance
 
+    @staticmethod
+    def _build_proxy_response(response):
+        """Build the appropriate Response from an httpx response."""
+        response_headers = dict(response.headers)
+        content_type = response_headers.get("content-type", "")
+
+        is_streaming = (
+            "text/event-stream" in content_type or response_headers.get("transfer-encoding") == "chunked"
+        )
+        if is_streaming:
+            response_headers.pop("content-length", None)
+
+            def generate():
+                yield response.content
+
+            return StreamingResponse(
+                generate(),
+                status_code=response.status_code,
+                headers=response_headers,
+                media_type=content_type,
+            )
+
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers,
+        )
+
     async def _proxy_request(self, request: Request, instance: DynamicMCPInstance, path: str = ""):
         """Proxy the request to the MCP instance."""
-        # Build the target URL
-        target_url = f"{instance.get_url()}"
-        # Add /mcp
-        target_url += "/mcp"
+        target_url = f"{instance.get_url()}/mcp"
         if path:
             target_url += f"/{path}"
 
@@ -623,102 +648,35 @@ class SimplifiedDynamicMCPServer:
             f"🔀 Proxying {request.method} /{instance.identifier}/mcp{('/' + path) if path else ''} -> {target_url}"
         )
 
-        # Get request data
         method = request.method
         headers = dict(request.headers)
+        headers.pop("host", None)
 
-        # Remove host header to avoid conflicts
-        if "host" in headers:
-            del headers["host"]
-
-        # Ensure the Authorization header is present for the internal MCP instance.
-        # When the token comes from a query parameter, it won't be in the headers,
-        # but the internal FastMCP auth middleware requires a Bearer token header.
         etendo_token = extract_etendo_token_from_request(request)
         if etendo_token and "authorization" not in headers and "Authorization" not in headers:
             headers["authorization"] = etendo_token
 
-        # Get query parameters
         query_params = dict(request.query_params)
+        body = await request.body() if method in ["POST", "PUT", "PATCH"] else None
 
         try:
-            # Get request body if present
-            body = None
-            if method in ["POST", "PUT", "PATCH"]:
-                body = await request.body()
-
-            # Make the proxied request
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.request(
                     method=method, url=target_url, headers=headers, params=query_params, content=body
                 )
-                # Clean headers and check if it's a streaming response
-                response_headers = dict(response.headers)
-                content_type = response_headers.get("content-type", "")
-
-                if (
-                    "text/event-stream" in content_type
-                    or response_headers.get("transfer-encoding") == "chunked"
-                ):
-                    # For streaming responses, remove content-length and use StreamingResponse
-                    response_headers.pop("content-length", None)
-
-                    def generate():
-                        yield response.content
-
-                    return StreamingResponse(
-                        generate(),
-                        status_code=response.status_code,
-                        headers=response_headers,
-                        media_type=content_type,
-                    )
-                else:
-                    # For regular responses, use normal Response
-                    return Response(
-                        content=response.content,
-                        status_code=response.status_code,
-                        headers=response_headers,
-                    )
+                return self._build_proxy_response(response)
 
         except httpx.ConnectError:
-            # If connection fails, try to restart the instance
             logger.warning(f"Failed to connect to MCP instance {instance.identifier}, attempting restart")
             await instance.stop_server()
             await instance.start_server()
 
-            # Try once more
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     response = await client.request(
                         method=method, url=target_url, headers=headers, params=query_params, content=body
                     )
-                    # Clean headers and check if it's a streaming response
-                    response_headers = dict(response.headers)
-                    content_type = response_headers.get("content-type", "")
-
-                    if (
-                        "text/event-stream" in content_type
-                        or response_headers.get("transfer-encoding") == "chunked"
-                    ):
-                        # For streaming responses, remove content-length and use StreamingResponse
-                        response_headers.pop("content-length", None)
-
-                        def generate():
-                            yield response.content
-
-                        return StreamingResponse(
-                            generate(),
-                            status_code=response.status_code,
-                            headers=response_headers,
-                            media_type=content_type,
-                        )
-                    else:
-                        # For regular responses, use normal Response
-                        return Response(
-                            content=response.content,
-                            status_code=response.status_code,
-                            headers=response_headers,
-                        )
+                    return self._build_proxy_response(response)
 
             except Exception as e:
                 logger.error(f"Failed to proxy request to {instance.identifier} after restart: {e}")

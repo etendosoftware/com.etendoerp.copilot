@@ -52,6 +52,7 @@ public class GetMCPConfiguration extends Action {
   private static final Logger log = LogManager.getLogger();
   private static final String DIV_CLOSE = "</div>\n";
   private static final String LOCALHOST_PREFIX = "http://localhost";
+  private static final String AUTH_TYPE_TOKEN_HEADER = "token_header";
   public static final String HEADERS = "headers";
 
   @Override
@@ -125,7 +126,7 @@ public class GetMCPConfiguration extends Action {
     // Read auth_type: "oauth", "token_header", "token_url". Default to "token_header".
     String authType = readOptString(parameters, "auth_type");
     if (authType == null) {
-      authType = "token_header";
+      authType = AUTH_TYPE_TOKEN_HEADER;
     }
 
     String token = CopilotUtils.generateEtendoToken();
@@ -484,8 +485,9 @@ public class GetMCPConfiguration extends Action {
    * @return an HTML fragment with the input field and copy button.
    */
   public String buildUrlCopyField(String url) {
-    String inputId = "copilotMCP_oauthUrl_" + Math.abs(url.hashCode());
-    String btnId = "copilotMCP_btnCopyUrl_" + Math.abs(url.hashCode());
+    int urlHash = Math.abs(url.hashCode());
+    String inputId = "copilotMCP_oauthUrl_" + urlHash;
+    String btnId = "copilotMCP_btnCopyUrl_" + urlHash;
     StringBuilder sb = new StringBuilder();
     sb.append("<div style=\"margin-top: 0.5rem; padding: 0.5rem; background: #eef6ff; border: 1px solid #b3d4fc; border-radius: 6px;\">\n");
     sb.append("  <span style=\"font-weight: bold; color: #333; font-size: 13px;\">MCP Endpoint URL</span>\n");
@@ -497,8 +499,8 @@ public class GetMCPConfiguration extends Action {
         .append("\" style=\"border: 1px solid #d0d7de; background: #fff; border-radius: 6px; padding: .35rem .75rem; cursor: pointer; font-size: 12px; white-space: nowrap;\" ")
         .append("onclick=\"(function(btn){var inp=document.getElementById('").append(inputId)
         .append("'); if(!inp)return; try{ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(inp.value);} else {inp.select(); document.execCommand('copy');} btn.textContent='Copied!'; setTimeout(function(){btn.textContent='Copy URL';},1500);}catch(e){btn.textContent='Error';}})(this)\">Copy URL</button>\n");
-    sb.append("  </div>\n");
-    sb.append("</div>\n");
+    sb.append("  ").append(DIV_CLOSE);
+    sb.append(DIV_CLOSE);
     return sb.toString();
   }
 
@@ -616,7 +618,7 @@ public class GetMCPConfiguration extends Action {
       args.put("mcp-remote");
       args.put(url);
       // Only add --header for token_header mode
-      if ("token_header".equals(req.authType)) {
+      if (AUTH_TYPE_TOKEN_HEADER.equals(req.authType)) {
         args.put("--header");
         args.put("Authorization: Bearer " + req.token);
       }
@@ -631,7 +633,7 @@ public class GetMCPConfiguration extends Action {
       myMcpServer.put("type", "http");
 
       // Only add headers for token_header mode
-      if ("token_header".equals(req.authType)) {
+      if (AUTH_TYPE_TOKEN_HEADER.equals(req.authType)) {
         JSONObject headers = new JSONObject();
         headers.put("Authorization", "Bearer " + req.token);
         myMcpServer.put(HEADERS, headers);
@@ -709,7 +711,7 @@ public class GetMCPConfiguration extends Action {
       this.contextUrlMcp = contextUrlMcp;
       this.customName = customName;
       this.prefixMode = prefixMode;
-      this.authType = authType != null ? authType : "token_header";
+      this.authType = authType != null ? authType : AUTH_TYPE_TOKEN_HEADER;
     }
   }
 }

@@ -51,6 +51,14 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
   public static final String LOCALHOST_WARNING = "LOCALHOST_WARNING";
   public static final String DIRECT = "Direct";
   public static final String REMOTE_MODE = "mcp_remote_mode";
+  private static final String BEARER_TOKEN = "Bearer TOKEN";
+  private static final String OTHER_MCP_CLIENTS = "Other MCP clients";
+  private static final String MCP_REMOTE = "mcp-remote";
+  private static final String HEADER_FLAG = "--header";
+  private static final String AUTH_TYPE_TOKEN_URL = "token_url";
+  private static final String AUTH_HEADER = "Authorization";
+  private static final String AUTH_TYPE_KEY = "auth_type";
+  private static final String TOKEN_QUERY = "?token=";
   private AutoCloseable mocks;
   private MockedStatic<CopilotUtils> mockedCopilotUtils;
   private MockedStatic<OBPropertiesProvider> mockedOBPropertiesProvider;
@@ -116,7 +124,7 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     String html = g.getHTMLConfigurations(params, List.of(a));
     assertNotNull(html);
     assertTrue(html.contains("/AGENT1/direct/mcp"));
-    assertTrue(html.contains("Bearer TOKEN"));
+    assertTrue(html.contains(BEARER_TOKEN));
   }
 
   @Test
@@ -145,7 +153,7 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     String html = g.getHTMLConfigurations(params, List.of(a));
     // remote example should include npx and mcp-remote
     assertTrue(html.contains("npx"));
-    assertTrue(html.contains("mcp-remote"));
+    assertTrue(html.contains(MCP_REMOTE));
   }
 
   @Test
@@ -255,7 +263,7 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     JSONObject cfg2 = new JSONObject();
     JSONObject inner2 = new JSONObject();
     JSONArray arr = new JSONArray();
-    arr.put("mcp-remote");
+    arr.put(MCP_REMOTE);
     arr.put("https://remote.example");
     inner2.put("args", arr);
     cfg2.put("k2", inner2);
@@ -289,16 +297,16 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     JSONObject params = new JSONObject();
     params.put(DIRECT, false);
     params.put(REMOTE_MODE, false);
-    params.put("auth_type", "oauth");
+    params.put(AUTH_TYPE_KEY, "oauth");
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     // Clean URL, no token, no headers
     assertTrue(html.contains("/AGENT_OA/mcp"));
-    assertFalse(html.contains("?token="));
-    assertFalse(html.contains("Authorization"));
-    assertFalse(html.contains("Bearer TOKEN"));
-    // No "Other MCP clients" block (no headers)
-    assertFalse(html.contains("Other MCP clients"));
+    assertFalse(html.contains(TOKEN_QUERY));
+    assertFalse(html.contains(AUTH_HEADER));
+    assertFalse(html.contains(BEARER_TOKEN));
+    // No OTHER_MCP_CLIENTS block (no headers)
+    assertFalse(html.contains(OTHER_MCP_CLIENTS));
     // OAuth mode shows a separate URL copy field
     assertTrue(html.contains("MCP Endpoint URL"));
     assertTrue(html.contains("Copy URL"));
@@ -312,15 +320,15 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     JSONObject params = new JSONObject();
     params.put(DIRECT, false);
     params.put(REMOTE_MODE, false);
-    params.put("auth_type", "token_header");
+    params.put(AUTH_TYPE_KEY, "token_header");
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     // URL without token query param
     assertFalse(html.contains("?token=TOKEN"));
     // Should contain Authorization header
-    assertTrue(html.contains("Bearer TOKEN"));
-    // Should show "Other MCP clients" block (has headers)
-    assertTrue(html.contains("Other MCP clients"));
+    assertTrue(html.contains(BEARER_TOKEN));
+    // Should show OTHER_MCP_CLIENTS block (has headers)
+    assertTrue(html.contains(OTHER_MCP_CLIENTS));
   }
 
   @Test
@@ -331,16 +339,16 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     JSONObject params = new JSONObject();
     params.put(DIRECT, false);
     params.put(REMOTE_MODE, false);
-    params.put("auth_type", "token_url");
+    params.put(AUTH_TYPE_KEY, AUTH_TYPE_TOKEN_URL);
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     // URL should contain the token as query parameter
     assertTrue(html.contains("/AGENT_TU/mcp?token=TOKEN"));
     // Should NOT contain Authorization header
-    assertFalse(html.contains("Authorization"));
-    assertFalse(html.contains("Bearer TOKEN"));
-    // No "Other MCP clients" block (no headers)
-    assertFalse(html.contains("Other MCP clients"));
+    assertFalse(html.contains(AUTH_HEADER));
+    assertFalse(html.contains(BEARER_TOKEN));
+    // No OTHER_MCP_CLIENTS block (no headers)
+    assertFalse(html.contains(OTHER_MCP_CLIENTS));
   }
 
   @Test
@@ -351,11 +359,11 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     JSONObject params = new JSONObject();
     params.put(DIRECT, true);
     params.put(REMOTE_MODE, false);
-    params.put("auth_type", "token_url");
+    params.put(AUTH_TYPE_KEY, AUTH_TYPE_TOKEN_URL);
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     assertTrue(html.contains("/AGENT_TU2/direct/mcp?token=TOKEN"));
-    assertFalse(html.contains("Authorization"));
+    assertFalse(html.contains(AUTH_HEADER));
   }
 
   @Test
@@ -366,17 +374,17 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     JSONObject params = new JSONObject();
     params.put(DIRECT, false);
     params.put(REMOTE_MODE, true);
-    params.put("auth_type", "oauth");
+    params.put(AUTH_TYPE_KEY, "oauth");
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     // Should contain npx/mcp-remote with clean URL
     assertTrue(html.contains("npx"));
-    assertTrue(html.contains("mcp-remote"));
+    assertTrue(html.contains(MCP_REMOTE));
     assertTrue(html.contains("/AGENT_OAR/mcp"));
     // No --header, no token in URL
-    assertFalse(html.contains("--header"));
-    assertFalse(html.contains("?token="));
-    assertFalse(html.contains("Authorization"));
+    assertFalse(html.contains(HEADER_FLAG));
+    assertFalse(html.contains(TOKEN_QUERY));
+    assertFalse(html.contains(AUTH_HEADER));
   }
 
   @Test
@@ -387,14 +395,14 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     JSONObject params = new JSONObject();
     params.put(DIRECT, false);
     params.put(REMOTE_MODE, true);
-    params.put("auth_type", "token_header");
+    params.put(AUTH_TYPE_KEY, "token_header");
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     assertTrue(html.contains("npx"));
-    assertTrue(html.contains("mcp-remote"));
-    assertTrue(html.contains("--header"));
+    assertTrue(html.contains(MCP_REMOTE));
+    assertTrue(html.contains(HEADER_FLAG));
     assertTrue(html.contains("Authorization: Bearer TOKEN"));
-    assertFalse(html.contains("?token="));
+    assertFalse(html.contains(TOKEN_QUERY));
   }
 
   @Test
@@ -405,13 +413,13 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     JSONObject params = new JSONObject();
     params.put(DIRECT, false);
     params.put(REMOTE_MODE, true);
-    params.put("auth_type", "token_url");
+    params.put(AUTH_TYPE_KEY, AUTH_TYPE_TOKEN_URL);
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     assertTrue(html.contains("/AGENT_TUR/mcp?token=TOKEN"));
     assertTrue(html.contains("npx"));
-    assertTrue(html.contains("mcp-remote"));
-    assertFalse(html.contains("--header"));
+    assertTrue(html.contains(MCP_REMOTE));
+    assertFalse(html.contains(HEADER_FLAG));
     assertFalse(html.contains("Authorization: Bearer TOKEN"));
   }
 
@@ -426,8 +434,8 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
     params.put(REMOTE_MODE, false);
 
     String html = g.getHTMLConfigurations(params, List.of(a));
-    assertFalse(html.contains("?token="));
-    assertTrue(html.contains("Bearer TOKEN"));
+    assertFalse(html.contains(TOKEN_QUERY));
+    assertTrue(html.contains(BEARER_TOKEN));
   }
 
   @Test
