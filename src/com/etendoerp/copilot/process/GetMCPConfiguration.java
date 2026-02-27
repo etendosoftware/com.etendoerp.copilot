@@ -485,9 +485,9 @@ public class GetMCPConfiguration extends Action {
    * @return an HTML fragment with the input field and copy button.
    */
   public String buildUrlCopyField(String url) {
-    int urlHash = Math.abs(url.hashCode());
-    String inputId = "copilotMCP_oauthUrl_" + urlHash;
-    String btnId = "copilotMCP_btnCopyUrl_" + urlHash;
+    String hashSuffix = Integer.toHexString(url.hashCode());
+    String inputId = "copilotMCP_oauthUrl_" + hashSuffix;
+    String btnId = "copilotMCP_btnCopyUrl_" + hashSuffix;
     StringBuilder sb = new StringBuilder();
     sb.append("<div style=\"margin-top: 0.5rem; padding: 0.5rem; background: #eef6ff; border: 1px solid #b3d4fc; border-radius: 6px;\">\n");
     sb.append("  <span style=\"font-weight: bold; color: #333; font-size: 13px;\">MCP Endpoint URL</span>\n");

@@ -138,6 +138,148 @@ def _complete_auth_or_expired(provider, session_id: str, token: str):
     return RedirectResponse(url=redirect_url, status_code=302)
 
 
+async def _handle_login_page(provider, session_id: str):
+    """Render the login page for a pending OAuth authorization."""
+    if not session_id:
+        return _render_login(session_id="", error=_MSG_MISSING_SESSION)
+
+    if provider.get_pending_auth(session_id) is None:
+        return _render_login(
+            session_id="",
+            error="Session expired or invalid. Please try connecting again from your MCP client.",
+        )
+
+    return _render_login(session_id=session_id)
+
+
+async def _handle_login_submit(provider, session_id, username, password, use_defaults):
+    """Handle login form submission (Step 1: credentials)."""
+    if not session_id:
+        return _render_login(session_id="", error=_MSG_MISSING_SESSION)
+
+    if provider.get_pending_auth(session_id) is None:
+        return _render_login(session_id="", error=_MSG_SESSION_EXPIRED)
+
+    if not username or not password:
+        return _render_login(
+            session_id=session_id,
+            error="Username and password are required.",
+            username=username,
+        )
+
+    etendo_host = get_etendo_host()
+    response, conn_err = await _call_etendo_login(
+        f"{etendo_host}/sws/login",
+        {"username": username, "password": password},
+    )
+    if conn_err:
+        logger.error(f"OAuth login: error contacting Etendo: {conn_err}")
+        return _render_login(
+            session_id=session_id,
+            error="Could not connect to Etendo server. Please try again later.",
+            username=username,
+        )
+
+    if not response.is_success:
+        return _render_login(
+            session_id=session_id,
+            error=_extract_error_message(response, "Invalid credentials."),
+            username=username,
+        )
+
+    data = _parse_etendo_response(response)
+    if data is None:
+        return _render_login(
+            session_id=session_id,
+            error="Unexpected response from Etendo server.",
+            username=username,
+        )
+
+    token = data.get("token", "")
+    if not token:
+        return _render_login(
+            session_id=session_id,
+            error="Login failed: no token received.",
+            username=username,
+        )
+
+    role_list = data.get("roleList", [])
+
+    if use_defaults == "true" or _is_single_choice(role_list):
+        return _complete_auth_or_expired(provider, session_id, token)
+
+    all_orgs = [org for role in role_list for org in role.get("orgList", [])]
+
+    return _render_login(
+        session_id=session_id,
+        step2_active=True,
+        login_token=token,
+        role_options=_build_role_options(role_list),
+        org_options=_build_org_options(all_orgs),
+        role_org_map=_build_role_org_map(role_list),
+    )
+
+
+async def _handle_login_select(provider, session_id, token, role, organization):
+    """Handle role/org selection (Step 2)."""
+    if not session_id:
+        return _render_login(session_id="", error=_MSG_MISSING_SESSION)
+
+    if provider.get_pending_auth(session_id) is None:
+        return _render_login(session_id="", error=_MSG_SESSION_EXPIRED)
+
+    if not token or not role or not organization:
+        return _render_login(
+            session_id=session_id,
+            error="Please select a role and organization.",
+            step2_active=True,
+            login_token=token,
+        )
+
+    etendo_host = get_etendo_host()
+    response, conn_err = await _call_etendo_login(
+        f"{etendo_host}/sws/login",
+        {"role": role, "organization": organization},
+        extra_headers={"Authorization": f"Bearer {token}"},
+    )
+    if conn_err:
+        logger.error(f"OAuth login select: error contacting Etendo: {conn_err}")
+        return _render_login(
+            session_id=session_id,
+            error="Could not connect to Etendo server.",
+            step2_active=True,
+            login_token=token,
+        )
+
+    if not response.is_success:
+        return _render_login(
+            session_id=session_id,
+            error=_extract_error_message(response, "Failed to set role/organization."),
+            step2_active=True,
+            login_token=token,
+        )
+
+    data = _parse_etendo_response(response)
+    if data is None:
+        return _render_login(
+            session_id=session_id,
+            error="Unexpected response from Etendo server.",
+            step2_active=True,
+            login_token=token,
+        )
+
+    final_token = data.get("token", "")
+    if not final_token:
+        return _render_login(
+            session_id=session_id,
+            error="Login failed: no token received after role selection.",
+            step2_active=True,
+            login_token=token,
+        )
+
+    return _complete_auth_or_expired(provider, session_id, final_token)
+
+
 def create_oauth_login_router(provider: "EtendoOAuthProvider") -> APIRouter:
     """Create the FastAPI router for OAuth login endpoints.
 
@@ -151,18 +293,7 @@ def create_oauth_login_router(provider: "EtendoOAuthProvider") -> APIRouter:
 
     @router.get("/oauth/login")
     async def login_page(session_id: str = ""):
-        """Render the login page for a pending OAuth authorization."""
-        if not session_id:
-            return _render_login(session_id="", error=_MSG_MISSING_SESSION)
-
-        pending = provider.get_pending_auth(session_id)
-        if pending is None:
-            return _render_login(
-                session_id="",
-                error="Session expired or invalid. Please try connecting again from your MCP client.",
-            )
-
-        return _render_login(session_id=session_id)
+        return await _handle_login_page(provider, session_id)
 
     @router.post("/oauth/login")
     async def login_submit(
@@ -172,72 +303,7 @@ def create_oauth_login_router(provider: "EtendoOAuthProvider") -> APIRouter:
         password: str = Form(""),
         use_defaults: str = Form(""),
     ):
-        """Handle login form submission (Step 1: credentials)."""
-        if not session_id:
-            return _render_login(session_id="", error=_MSG_MISSING_SESSION)
-
-        if provider.get_pending_auth(session_id) is None:
-            return _render_login(session_id="", error=_MSG_SESSION_EXPIRED)
-
-        if not username or not password:
-            return _render_login(
-                session_id=session_id,
-                error="Username and password are required.",
-                username=username,
-            )
-
-        etendo_host = get_etendo_host()
-        response, conn_err = await _call_etendo_login(
-            f"{etendo_host}/sws/login",
-            {"username": username, "password": password},
-        )
-        if conn_err:
-            logger.error(f"OAuth login: error contacting Etendo: {conn_err}")
-            return _render_login(
-                session_id=session_id,
-                error="Could not connect to Etendo server. Please try again later.",
-                username=username,
-            )
-
-        if not response.is_success:
-            return _render_login(
-                session_id=session_id,
-                error=_extract_error_message(response, "Invalid credentials."),
-                username=username,
-            )
-
-        data = _parse_etendo_response(response)
-        if data is None:
-            return _render_login(
-                session_id=session_id,
-                error="Unexpected response from Etendo server.",
-                username=username,
-            )
-
-        token = data.get("token", "")
-        if not token:
-            return _render_login(
-                session_id=session_id,
-                error="Login failed: no token received.",
-                username=username,
-            )
-
-        role_list = data.get("roleList", [])
-
-        if use_defaults == "true" or _is_single_choice(role_list):
-            return _complete_auth_or_expired(provider, session_id, token)
-
-        # Multiple roles/orgs: show step 2
-        all_orgs = [org for role in role_list for org in role.get("orgList", [])]
-
-        return _render_login(
-            session_id=session_id,
-            step2_active=True,
-            login_token=token,
-            role_options=_build_role_options(role_list),
-            org_options=_build_org_options(all_orgs),
-            role_org_map=_build_role_org_map(role_list),
-        )
+        return await _handle_login_submit(provider, session_id, username, password, use_defaults)
 
     @router.post("/oauth/login/select")
     async def login_select(
@@ -247,63 +313,7 @@ def create_oauth_login_router(provider: "EtendoOAuthProvider") -> APIRouter:
         role: str = Form(""),
         organization: str = Form(""),
     ):
-        """Handle role/org selection (Step 2)."""
-        if not session_id:
-            return _render_login(session_id="", error=_MSG_MISSING_SESSION)
-
-        if provider.get_pending_auth(session_id) is None:
-            return _render_login(session_id="", error=_MSG_SESSION_EXPIRED)
-
-        if not token or not role or not organization:
-            return _render_login(
-                session_id=session_id,
-                error="Please select a role and organization.",
-                step2_active=True,
-                login_token=token,
-            )
-
-        etendo_host = get_etendo_host()
-        response, conn_err = await _call_etendo_login(
-            f"{etendo_host}/sws/login",
-            {"role": role, "organization": organization},
-            extra_headers={"Authorization": f"Bearer {token}"},
-        )
-        if conn_err:
-            logger.error(f"OAuth login select: error contacting Etendo: {conn_err}")
-            return _render_login(
-                session_id=session_id,
-                error="Could not connect to Etendo server.",
-                step2_active=True,
-                login_token=token,
-            )
-
-        if not response.is_success:
-            return _render_login(
-                session_id=session_id,
-                error=_extract_error_message(response, "Failed to set role/organization."),
-                step2_active=True,
-                login_token=token,
-            )
-
-        data = _parse_etendo_response(response)
-        if data is None:
-            return _render_login(
-                session_id=session_id,
-                error="Unexpected response from Etendo server.",
-                step2_active=True,
-                login_token=token,
-            )
-
-        final_token = data.get("token", "")
-        if not final_token:
-            return _render_login(
-                session_id=session_id,
-                error="Login failed: no token received after role selection.",
-                step2_active=True,
-                login_token=token,
-            )
-
-        return _complete_auth_or_expired(provider, session_id, final_token)
+        return await _handle_login_select(provider, session_id, token, role, organization)
 
     return router
 
