@@ -9,6 +9,8 @@ from copilot.core.mcp.oauth_provider import EtendoOAuthProvider
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+_TEST_CREDENTIAL = "admin"  # noqa: S105  test-only dummy credential
+
 
 @pytest.fixture
 def provider():
@@ -131,8 +133,8 @@ class TestFullOAuthFlow:
             "/oauth/login",
             data={
                 "session_id": session_id,
-                "username": "admin",
-                "password": "admin",
+                "username": _TEST_CREDENTIAL,
+                "password": _TEST_CREDENTIAL,
                 "use_defaults": "true",
             },
             follow_redirects=False,

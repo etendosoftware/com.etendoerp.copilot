@@ -11,6 +11,9 @@ from fastapi.testclient import TestClient
 from mcp.server.auth.provider import AuthorizationParams
 from pydantic import AnyHttpUrl
 
+_TEST_CREDENTIAL = "admin"  # noqa: S105  test-only dummy credential
+_TEST_BAD_CREDENTIAL = "wrong"  # noqa: S105  test-only dummy credential
+
 
 @pytest.fixture
 def provider():
@@ -105,8 +108,8 @@ class TestLoginSubmit:
             "/oauth/login",
             data={
                 "session_id": pending_session,
-                "username": "admin",
-                "password": "admin",
+                "username": _TEST_CREDENTIAL,
+                "password": _TEST_CREDENTIAL,
                 "use_defaults": "true",
             },
             follow_redirects=False,
@@ -137,8 +140,8 @@ class TestLoginSubmit:
             "/oauth/login",
             data={
                 "session_id": pending_session,
-                "username": "wrong",
-                "password": "wrong",
+                "username": _TEST_BAD_CREDENTIAL,
+                "password": _TEST_BAD_CREDENTIAL,
             },
         )
         assert response.status_code == 200
@@ -181,8 +184,8 @@ class TestLoginSubmit:
             "/oauth/login",
             data={
                 "session_id": pending_session,
-                "username": "admin",
-                "password": "admin",
+                "username": _TEST_CREDENTIAL,
+                "password": _TEST_CREDENTIAL,
             },
         )
         assert response.status_code == 200
