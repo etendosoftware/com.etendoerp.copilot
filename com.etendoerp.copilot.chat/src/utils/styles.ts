@@ -1,7 +1,7 @@
 import { ROLE_ERROR, ROLE_USER } from "./constants";
 
 export const getMessageContainerClasses = (sender: string) => {
-  const baseClasses = "flex text-sm mt-[12px]";
+  const baseClasses = "flex text-sm mt-[12px] min-w-0";
   switch (sender) {
     case ROLE_USER:
       return `${baseClasses} justify-end text-right user-message slide-up-fade-in`;
