@@ -2,8 +2,8 @@ package com.etendoerp.copilot.process;
 
 import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_EVAL;
 import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_IN_PROGRESS;
+import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_REVIEW;
 import static com.etendoerp.copilot.process.AddBulkTasks.getStatus;
-import static com.etendoerp.copilot.process.EvalTask.REQUIRES_REVIEW;
 import static com.etendoerp.copilot.process.EvalTask.evaluateTask;
 import static com.etendoerp.copilot.rest.RestServiceUtil.APP_ID;
 import static com.etendoerp.copilot.util.CopilotConstants.PROP_QUESTION;
@@ -137,7 +137,7 @@ public class ExecTask extends Action {
       if (logger != null) {
         logger.log("Error processing task " + task.getId() + ": " + e.getMessage() + "\n");
       }
-      task.setStatus(getStatus(REQUIRES_REVIEW));
+      task.setStatus(getStatus(TASK_STATUS_REVIEW));
     } finally {
       OBDal.getInstance().save(task);
       OBDal.getInstance().flush();

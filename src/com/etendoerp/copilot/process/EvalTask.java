@@ -1,6 +1,7 @@
 package com.etendoerp.copilot.process;
 
 
+import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_REVIEW;
 import static com.etendoerp.copilot.process.AddBulkTasks.getStatus;
 import static com.etendoerp.copilot.process.ExecTask.getTaskList;
 import static com.etendoerp.copilot.rest.RestServiceUtil.APP_ID;
@@ -31,7 +32,6 @@ public class EvalTask extends Action {
 
   private static final Logger log = LoggerFactory.getLogger(EvalTask.class);
   private static final String EVALUATOR_ID = "3A583408E7484BF48ED8E45DF09A6044";
-  public static final String REQUIRES_REVIEW = "REQ";
 
   @Override
   protected ActionResult action(JSONObject parameters, MutableBoolean isStopped) {
@@ -89,14 +89,14 @@ public class EvalTask extends Action {
       if (nextStatus == null) {
         String resp = responseQuest.optString("response");
         log.error("Status not found for response: {}", resp);
-        nextStatus = getStatus(REQUIRES_REVIEW);
+        nextStatus = getStatus(TASK_STATUS_REVIEW);
       }
       task.setStatus(nextStatus);
     } catch (Exception e) {
       if (logger != null) {
         logger.log("Error processing task " + task.getId() + ": " + e.getMessage() + "\n");
       }
-      task.setStatus(getStatus(REQUIRES_REVIEW));
+      task.setStatus(getStatus(TASK_STATUS_REVIEW));
     } finally {
       OBDal.getInstance().save(task);
       OBDal.getInstance().flush();
