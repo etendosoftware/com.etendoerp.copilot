@@ -500,13 +500,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
       JSONObject result = new JSONObject();
       JSONObject errorMessage = new JSONObject();
       Throwable ex = DbUtility.getUnderlyingSQLException(e);
-      String message;
-      try {
-        message = OBMessageUtils.translateError(ex.getMessage()).getMessage();
-      } catch (Exception translateEx) {
-        log.debug("Could not translate error message, using raw message", translateEx);
-        message = ex.getMessage();
-      }
+      String message = translateErrorMessage(ex);
       errorMessage.put("severity", ERROR);
       errorMessage.put("title", "Error");
       errorMessage.put("text", message);
@@ -515,6 +509,15 @@ public class SyncAssistant extends BaseProcessActionHandler {
     } catch (Exception ex) {
       log.error("Error building error result", ex);
       return new JSONObject();
+    }
+  }
+
+  private String translateErrorMessage(Throwable ex) {
+    try {
+      return OBMessageUtils.translateError(ex.getMessage()).getMessage();
+    } catch (Exception translateEx) {
+      log.debug("Could not translate error message, using raw message", translateEx);
+      return ex.getMessage();
     }
   }
 }
