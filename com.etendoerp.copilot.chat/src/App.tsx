@@ -703,7 +703,7 @@ function App() {
         )}
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Top Assistants Selector for non-maximized mode */}
           {assistants.length > 0 && !isMaximized && (
             <AssistantSelector
@@ -717,7 +717,7 @@ function App() {
 
           {/* Chat display area */}
           <div
-            className={`flex-1 min-h-0 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200`}
+            className={`flex-1 min-h-0 min-w-0 hide-scrollbar overflow-y-auto overflow-x-hidden px-[12px] pb-[12px] bg-gray-200`}
           >
             {messages.length === 0 && (
               <div className="inline-flex mt-[12px] mb-[20px] rounded-lg text-blue-900 font-medium">
