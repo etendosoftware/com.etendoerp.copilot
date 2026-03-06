@@ -124,25 +124,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
       OBDal.getInstance().flush();
     } catch (Exception e) {
       log.error("Error in process", e);
-      try {
-        OBDal.getInstance().getConnection().rollback();
-        result = new JSONObject();
-        JSONObject errorMessage = new JSONObject();
-        Throwable ex = DbUtility.getUnderlyingSQLException(e);
-        String message;
-        try {
-          message = OBMessageUtils.translateError(ex.getMessage()).getMessage();
-        } catch (Exception translateEx) {
-          // translateError requires RequestContext which is not available in background threads
-          message = ex.getMessage();
-        }
-        errorMessage.put("severity", ERROR);
-        errorMessage.put("title", "Error");
-        errorMessage.put("text", message);
-        result.put("message", errorMessage);
-      } catch (Exception ex) {
-        log.error("Error in process", ex);
-      }
+      result = buildErrorResult(e);
     } finally {
       cleanupKBFiles(appList);
       OBContext.restorePreviousMode();
@@ -510,5 +492,29 @@ public class SyncAssistant extends BaseProcessActionHandler {
     actions.put(showMsgInProcessViewAction);
     result.put("responseActions", actions);
     return result;
+  }
+
+  private JSONObject buildErrorResult(Exception e) {
+    try {
+      OBDal.getInstance().getConnection().rollback();
+      JSONObject result = new JSONObject();
+      JSONObject errorMessage = new JSONObject();
+      Throwable ex = DbUtility.getUnderlyingSQLException(e);
+      String message;
+      try {
+        message = OBMessageUtils.translateError(ex.getMessage()).getMessage();
+      } catch (Exception translateEx) {
+        log.debug("Could not translate error message, using raw message", translateEx);
+        message = ex.getMessage();
+      }
+      errorMessage.put("severity", ERROR);
+      errorMessage.put("title", "Error");
+      errorMessage.put("text", message);
+      result.put("message", errorMessage);
+      return result;
+    } catch (Exception ex) {
+      log.error("Error building error result", ex);
+      return new JSONObject();
+    }
   }
 }

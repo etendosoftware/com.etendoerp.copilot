@@ -1,9 +1,23 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance
+ * with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.modulescript;
 
 import java.sql.PreparedStatement;
 
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.modulescript.ModuleScript;
+import org.openbravo.modulescript.ModuleScriptExecutionLimits;
 
 /**
  * Module script that marks agents with "Sync on startup" enabled as Pending Synchronization
@@ -11,10 +25,15 @@ import org.openbravo.modulescript.ModuleScript;
  * <p>
  * This ensures that when Tomcat starts after an update.database, {@code CopilotSyncStartup}
  * will re-sync those agents because their status will be "PS" (Pending Synchronization).
- * <p>
- * This script runs on every update.database (no execution limits).
  */
 public class MarkSyncStartupAgentsPending extends ModuleScript {
+
+  private static final String MODULE_ID = "0B8480670F614D4CA99921D68BB0DD87";
+
+  @Override
+  protected ModuleScriptExecutionLimits getModuleScriptExecutionLimits() {
+    return new ModuleScriptExecutionLimits(MODULE_ID, null, null);
+  }
 
   @Override
   public void execute() {

@@ -1,3 +1,16 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance
+ * with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import java.util.HashSet;
@@ -6,7 +19,8 @@ import java.util.Set;
 
 import javax.enterprise.event.Observes;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
@@ -43,7 +57,7 @@ public class OpenApiSyncStatusHandler extends EntityPersistenceEventObserver {
       ModelProvider.getInstance().getEntity(OpenApiFlowPoint.class)
   };
 
-  protected Logger logger = Logger.getLogger(OpenApiSyncStatusHandler.class);
+  private static final Logger log = LogManager.getLogger(OpenApiSyncStatusHandler.class);
 
   @Override
   protected Entity[] getObservedEntities() {
@@ -87,6 +101,10 @@ public class OpenApiSyncStatusHandler extends EntityPersistenceEventObserver {
    */
   private Set<OpenApiFlow> resolveAffectedFlows(Object targetInstance) {
     Set<OpenApiFlow> flows = new HashSet<>();
+
+    if (targetInstance == null) {
+      return flows;
+    }
 
     if (targetInstance instanceof OpenApiFlow) {
       flows.add((OpenApiFlow) targetInstance);
