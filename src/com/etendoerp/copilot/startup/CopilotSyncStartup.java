@@ -1,6 +1,13 @@
 package com.etendoerp.copilot.startup;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -20,6 +27,7 @@ import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.process.SyncAssistant;
 import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
+import com.etendoerp.copilot.util.CopilotUtils;
 import org.openbravo.client.kernel.ApplicationInitializer;
 
 /**
@@ -31,6 +39,9 @@ import org.openbravo.client.kernel.ApplicationInitializer;
 public class CopilotSyncStartup implements ApplicationInitializer {
   public static final String COPILOT_SYNC_STARTUP = "copilotSyncStartup";
   private static final Logger log = LogManager.getLogger(CopilotSyncStartup.class);
+  private static final int MAX_RETRIES = 5;
+  private static final long RETRY_DELAY_MS = 30_000L;
+  private static final long PROGRESS_INTERVAL_MS = 60_000L;
 
 
   @Override
@@ -92,22 +103,49 @@ public class CopilotSyncStartup implements ApplicationInitializer {
     try {
       // Ensure admin mode inside the worker thread (must be inside try)
       OBContext.setAdminMode();
-      JSONObject res = assistant.doExecute(null, content.toString());
+
+      // Wait for the Copilot service to be reachable before attempting sync
+      waitForCopilotService();
+
+      int agentCount = content.optJSONArray("recordIds") != null
+          ? content.optJSONArray("recordIds").length() : 0;
+      AtomicLong startTime = new AtomicLong(System.currentTimeMillis());
+      Timer progressTimer = new Timer("CopilotSync-Progress", true);
+      progressTimer.scheduleAtFixedRate(new TimerTask() {
+        @Override
+        public void run() {
+          long elapsed = (System.currentTimeMillis() - startTime.get()) / 1000;
+          log.info("Copilot startup sync still in progress... ({} agents, {} seconds elapsed)",
+              agentCount, elapsed);
+        }
+      }, PROGRESS_INTERVAL_MS, PROGRESS_INTERVAL_MS);
+
+      JSONObject res;
+      try {
+        res = assistant.doExecute(null, content.toString());
+      } finally {
+        progressTimer.cancel();
+      }
       log.info("Copilot startup sync result: {}", res);
 
-      // Additionally, ensure AppInfo records are marked as synchronized for the provided ids
-      JSONArray ids = content.optJSONArray("recordIds");
-      if (ids != null) {
-        for (int i = 0; i < ids.length(); i++) {
-          String appId = ids.optString(i);
-          if (appId == null || appId.isEmpty()) continue;
-          CopilotApp app = OBDal.getInstance().get(CopilotApp.class, appId);
-          if (app != null) {
-            CopilotAppInfoUtils.markAsSynchronized(app);
+      boolean syncFailed = isSyncError(res);
+      if (syncFailed) {
+        log.warn("Copilot startup sync returned an error, agents will NOT be marked as synchronized");
+      } else {
+        // Only mark as synchronized when the sync actually succeeded
+        JSONArray ids = content.optJSONArray("recordIds");
+        if (ids != null) {
+          for (int i = 0; i < ids.length(); i++) {
+            String appId = ids.optString(i);
+            if (appId == null || appId.isEmpty()) continue;
+            CopilotApp app = OBDal.getInstance().get(CopilotApp.class, appId);
+            if (app != null) {
+              CopilotAppInfoUtils.markAsSynchronized(app);
+            }
           }
+          OBDal.getInstance().flush();
+          log.info("Copilot startup: marked {} agents as synchronized", ids.length());
         }
-        OBDal.getInstance().flush();
-        log.info("Copilot startup: marked {} agents as synchronized", ids.length());
       }
       // Commit and close the DAL session/transaction used by this thread
       commitChanges();
@@ -121,6 +159,47 @@ public class CopilotSyncStartup implements ApplicationInitializer {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private void waitForCopilotService() throws InterruptedException {
+    String host = CopilotUtils.getCopilotHost();
+    String port = CopilotUtils.getCopilotPort();
+    if (StringUtils.isEmpty(host)) {
+      host = "localhost";
+    }
+    String healthUrl = String.format("http://%s:%s/", host, port);
+
+    for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        HttpClient client = HttpClient.newBuilder().build();
+        HttpRequest req = HttpRequest.newBuilder()
+            .uri(new URI(healthUrl))
+            .GET()
+            .build();
+        client.send(req, HttpResponse.BodyHandlers.ofString());
+        log.info("Copilot service is reachable at {}", healthUrl);
+        return;
+      } catch (Exception e) {
+        if (attempt < MAX_RETRIES) {
+          log.info("Copilot service not available yet at {} (attempt {}/{}). Retrying in {} seconds...",
+              healthUrl, attempt, MAX_RETRIES, RETRY_DELAY_MS / 1000);
+          Thread.sleep(RETRY_DELAY_MS);
+        } else {
+          log.warn("Copilot service not reachable after {} attempts. Proceeding with sync attempt anyway.", MAX_RETRIES);
+        }
+      }
+    }
+  }
+
+  private boolean isSyncError(JSONObject res) {
+    if (res == null) {
+      return true;
+    }
+    JSONObject message = res.optJSONObject("message");
+    if (message != null && "error".equalsIgnoreCase(message.optString("severity"))) {
+      return true;
+    }
+    return false;
   }
 
   protected SyncAssistant createSyncAssistant() {

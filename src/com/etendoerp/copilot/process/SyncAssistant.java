@@ -129,9 +129,15 @@ public class SyncAssistant extends BaseProcessActionHandler {
         result = new JSONObject();
         JSONObject errorMessage = new JSONObject();
         Throwable ex = DbUtility.getUnderlyingSQLException(e);
-        String message = OBMessageUtils.translateError(ex.getMessage()).getMessage();
+        String message;
+        try {
+          message = OBMessageUtils.translateError(ex.getMessage()).getMessage();
+        } catch (Exception translateEx) {
+          // translateError requires RequestContext which is not available in background threads
+          message = ex.getMessage();
+        }
         errorMessage.put("severity", ERROR);
-        errorMessage.put("title", OBMessageUtils.messageBD("Error"));
+        errorMessage.put("title", "Error");
         errorMessage.put("text", message);
         result.put("message", errorMessage);
       } catch (Exception ex) {
