@@ -34,6 +34,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.Properties;
 
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -42,6 +43,7 @@ import org.junit.Test;
 import org.mockito.MockedStatic;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
@@ -175,12 +177,14 @@ public class CopilotUtilsTest extends WeldBaseTest {
   }
 
   /**
-   * Test getCopilotHost returns the correct Copilot host.
-   * Verifies that the method returns the expected localhost value.
+   * Test getCopilotHost returns a non-null value matching the configured property.
+   * Verifies that the method returns the value from the COPILOT_HOST property.
    */
   @Test
   public void testGetCopilotHost() {
-    assertEquals("localhost", CopilotUtils.getCopilotHost());
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String expectedHost = properties.getProperty(CopilotUtils.COPILOT_HOST, "");
+    assertEquals(expectedHost, CopilotUtils.getCopilotHost());
   }
 
   /**
