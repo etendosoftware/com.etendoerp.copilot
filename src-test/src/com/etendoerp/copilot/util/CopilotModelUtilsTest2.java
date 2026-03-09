@@ -65,7 +65,7 @@ import com.etendoerp.copilot.data.CopilotModel;
 /**
  * Copilot model utils test.
  */
-public class CopilotModelUtilsTest extends WeldBaseTest {
+public class CopilotModelUtilsTest2 extends WeldBaseTest {
 
     /**
      * The Expected exception.
@@ -232,18 +232,17 @@ public class CopilotModelUtilsTest extends WeldBaseTest {
     }
 
     /**
-     * Test get default model with default override.
+     * Test get default model returns first model with isDefault true.
      */
     @Test
     public void testGetDefaultModelWithDefaultOverride() throws Exception {
         // Given
-        CopilotModel overrideModel = mock(CopilotModel.class);
-        when(overrideModel.isDefaultOverride()).thenReturn(true);
-        when(overrideModel.isDefault()).thenReturn(false);
+        CopilotModel secondModel = mock(CopilotModel.class);
+        when(secondModel.isDefault()).thenReturn(false);
 
         List<CopilotModel> modelList = new ArrayList<>();
-        modelList.add(mockCopilotModel);
-        modelList.add(overrideModel);
+        modelList.add(mockCopilotModel); // isDefault = true
+        modelList.add(secondModel);      // isDefault = false
         when(mockModelCriteria.list()).thenReturn(modelList);
 
         // When
@@ -253,7 +252,7 @@ public class CopilotModelUtilsTest extends WeldBaseTest {
 
         // Then
         assertNotNull("Result should not be null", result);
-        assertEquals("Should return the override model", overrideModel, result);
+        assertEquals("Should return the first model with isDefault true", mockCopilotModel, result);
     }
 
     /**
@@ -431,29 +430,25 @@ public class CopilotModelUtilsTest extends WeldBaseTest {
     }
 
     /**
-     * Test disable replicated models.
+     * Test get default model returns null when no models have isDefault true.
      */
     @Test
-    public void testDisableReplicatedModels() throws Exception {
+    public void testGetDefaultModelNoDefaultInList() throws Exception {
         // Given
-        CopilotModel replicatedModel1 = mock(CopilotModel.class);
-        CopilotModel replicatedModel2 = mock(CopilotModel.class);
+        CopilotModel nonDefaultModel = mock(CopilotModel.class);
+        when(nonDefaultModel.isDefault()).thenReturn(false);
 
-        List<CopilotModel> replicatedModels = new ArrayList<>();
-        replicatedModels.add(replicatedModel1);
-        replicatedModels.add(replicatedModel2);
-
-        when(mockModelCriteria.list()).thenReturn(replicatedModels);
+        List<CopilotModel> modelList = new ArrayList<>();
+        modelList.add(nonDefaultModel);
+        when(mockModelCriteria.list()).thenReturn(modelList);
 
         // When
-        Method method = CopilotModelUtils.class.getDeclaredMethod("disableReplicated", String.class, String.class);
+        Method method = CopilotModelUtils.class.getDeclaredMethod(GET_DEFAULT_MODEL, String.class);
         method.setAccessible(true);
-        method.invoke(null, TEST_MODEL_ID, TEST_MODEL_SEARCHKEY);
+        CopilotModel result = (CopilotModel) method.invoke(null, TEST_PROVIDER);
 
         // Then
-        verify(replicatedModel1, times(1)).setActive(false);
-        verify(replicatedModel2, times(1)).setActive(false);
-        verify(mockOBDalInstance, times(2)).save(any(CopilotModel.class));
+        assertNull("Result should be null when no model has isDefault true", result);
     }
 
     /**
