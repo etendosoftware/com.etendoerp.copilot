@@ -51,13 +51,16 @@ def get_llm(model, provider, temperature):
         )
 
     else:
-        provider_to_use = PROVIDER_ALIASES.get(provider, provider)
         model_to_use = model
         if get_proxy_url() is not None:
             # When a proxy (e.g. LiteLLM) is configured, route everything through
-            # the OpenAI-compatible API
-            model_to_use = provider_to_use + "/" + model
+            # the OpenAI-compatible API. Use the original provider name for the
+            # model prefix (e.g. "gemini/model") since the proxy knows its own aliases.
+            model_to_use = provider + "/" + model
             provider_to_use = "openai"
+        else:
+            # Direct mode: map provider aliases to LangChain-supported names
+            provider_to_use = PROVIDER_ALIASES.get(provider, provider)
 
         # OpenAI-specific kwargs (base_url, stream_options) should only be passed
         # when actually using the OpenAI provider to avoid issues with other SDKs
