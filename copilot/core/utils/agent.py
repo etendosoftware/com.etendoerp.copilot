@@ -32,10 +32,12 @@ def get_llm(model, provider, temperature):
     Returns:
         ChatModel: An initialized language model instance.
     """
-    # Map provider aliases to LangChain-supported provider names
+    # Map provider aliases to LangChain-supported provider names.
+    # Providers in this map use their own SDK and must NOT receive OpenAI-specific kwargs.
     PROVIDER_ALIASES = {
         "gemini": "google_genai",
     }
+    _NATIVE_SDK_PROVIDERS = set(PROVIDER_ALIASES.values())
 
     # Initialize the language model
     if provider and "ollama" in provider:
@@ -62,10 +64,10 @@ def get_llm(model, provider, temperature):
             # Direct mode: map provider aliases to LangChain-supported names
             provider_to_use = PROVIDER_ALIASES.get(provider, provider)
 
-        # OpenAI-specific kwargs (base_url, stream_options) should only be passed
-        # when actually using the OpenAI provider to avoid issues with other SDKs
+        # Providers with native SDKs (e.g. google_genai) don't accept OpenAI-specific
+        # kwargs like base_url and stream_options
         extra_kwargs = {}
-        if provider_to_use == "openai":
+        if provider_to_use not in _NATIVE_SDK_PROVIDERS:
             extra_kwargs["base_url"] = get_proxy_url()
             extra_kwargs["model_kwargs"] = {"stream_options": {"include_usage": True}}
 

@@ -272,10 +272,21 @@ def _process_array_schema(sub_schema: Dict, body_model_name: str, index: int, ty
     return List[item_type]
 
 
+def _select_oneof_model(models):
+    """Pick the first BaseModel subclass from oneOf alternatives, or fallback to first model.
+
+    Avoids Union/anyOf types since some providers (e.g. Gemini) don't support them.
+    """
+    for model in models:
+        if isinstance(model, type) and issubclass(model, BaseModel):
+            return model
+    return models[0]
+
+
 def _process_request_body(method: str, operation: Dict, path: str, type_map: Dict) -> Optional[tuple]:
     """
     Process request body for POST/PUT methods and return body model and field info.
-    
+
     For POST requests: Supports oneOf schemas with objects, arrays, and primitive types.
     For PUT requests: Only processes standard object schemas (no oneOf support).
     """
@@ -296,13 +307,7 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
         models = _process_oneof_schema(schema_dict, body_model_name, type_map)
         if models:
             body_description = request_body.get("description", "Request body.")
-            # Avoid Union/anyOf types since some providers (e.g. Gemini) don't support them.
-            # Pick the first object model (BaseModel subclass) from the alternatives.
-            for model in models:
-                if isinstance(model, type) and issubclass(model, BaseModel):
-                    return model, body_description
-            # Fallback: use the first available model
-            return models[0], body_description
+            return _select_oneof_model(models), body_description
 
     if schema_dict.get("type") != "object" or "properties" not in schema_dict:
         return None

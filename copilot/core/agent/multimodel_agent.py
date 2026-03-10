@@ -96,88 +96,75 @@ def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
     return agent_configuration.code_execution
 
 
+def _resolve_ref(obj, defs):
+    """Inline $ref references from $defs."""
+    if not isinstance(obj, dict) or "$ref" not in obj or not defs:
+        return obj
+    ref_name = obj["$ref"].rsplit("/", 1)[-1]
+    if ref_name not in defs:
+        return obj
+    resolved = defs[ref_name].copy()
+    for k, v in obj.items():
+        if k != "$ref":
+            resolved.setdefault(k, v)
+    return _resolve_ref(resolved, defs)
+
+
+def _resolve_anyof(schema, defs):
+    """Resolve anyOf by picking the first non-null alternative (Gemini doesn't support anyOf)."""
+    if "anyOf" not in schema:
+        return schema
+    alternatives = schema.pop("anyOf")
+    chosen = next(
+        (_resolve_ref(alt, defs) for alt in alternatives if _resolve_ref(alt, defs).get("type") != "null"),
+        None,
+    )
+    if not chosen:
+        return schema
+    parent_desc = schema.get("description")
+    parent_title = schema.get("title")
+    schema.update(chosen)
+    if parent_desc and "description" not in chosen:
+        schema["description"] = parent_desc
+    if parent_title and "title" not in chosen:
+        schema["title"] = parent_title
+    return schema
+
+
+def _fix_type_defaults(schema):
+    """Add missing 'items' to arrays and missing 'properties' to objects."""
+    if schema.get("type") == "array" and "items" not in schema:
+        schema["items"] = {"type": "string"}
+    if schema.get("type") == "object" and "properties" not in schema:
+        schema["properties"] = {}
+    return schema
+
+
+def _fix_nested_schemas(schema):
+    """Recursively apply _fix_array_schemas to nested properties, items, and additionalProperties."""
+    if "properties" in schema:
+        schema["properties"] = {k: _fix_array_schemas(v) for k, v in schema["properties"].items()}
+    if "items" in schema:
+        schema["items"] = _fix_array_schemas(schema["items"])
+    if isinstance(schema.get("additionalProperties"), dict):
+        schema["additionalProperties"] = _fix_array_schemas(schema["additionalProperties"])
+    return schema
+
+
 def _fix_array_schemas(schema):
     """
     Recursively fix schemas for provider compatibility (especially Gemini).
-    - Adds missing 'items' to array types
-    - Adds missing 'properties' to object types
-    - Resolves 'anyOf' by picking the first non-null alternative
-    - Inlines '$ref' references using '$defs'
-
-    Args:
-        schema: The schema dictionary to fix
-
-    Returns:
-        Fixed schema dictionary
+    Resolves $ref/anyOf patterns and ensures arrays have items and objects have properties.
     """
     if not isinstance(schema, dict):
         return schema
-
-    # Create a copy to avoid modifying the original
-    fixed_schema = schema.copy()
-
-    # Resolve $ref references using $defs
-    defs = fixed_schema.pop("$defs", None) or schema.get("$defs")
-
-    def _resolve_ref(obj):
-        """Inline $ref references from $defs."""
-        if not isinstance(obj, dict):
-            return obj
-        if "$ref" in obj and defs:
-            ref_path = obj["$ref"]  # e.g. "#/$defs/ModelName"
-            ref_name = ref_path.rsplit("/", 1)[-1]
-            if ref_name in defs:
-                resolved = defs[ref_name].copy()
-                # Merge any extra keys from the referencing object (e.g. description)
-                for k, v in obj.items():
-                    if k != "$ref":
-                        resolved.setdefault(k, v)
-                return _resolve_ref(resolved)
-        return obj
-
-    fixed_schema = _resolve_ref(fixed_schema)
-
-    # Resolve anyOf by picking the first non-null alternative (Gemini doesn't support anyOf)
-    if "anyOf" in fixed_schema:
-        alternatives = fixed_schema.pop("anyOf")
-        chosen = None
-        for alt in alternatives:
-            alt = _resolve_ref(alt)
-            if alt.get("type") != "null":
-                chosen = alt
-                break
-        if chosen:
-            # Preserve description/title from the parent
-            parent_desc = fixed_schema.get("description")
-            parent_title = fixed_schema.get("title")
-            fixed_schema.update(chosen)
-            if parent_desc and "description" not in chosen:
-                fixed_schema["description"] = parent_desc
-            if parent_title and "title" not in chosen:
-                fixed_schema["title"] = parent_title
-
-    # Fix array type missing items
-    if fixed_schema.get("type") == "array" and "items" not in fixed_schema:
-        fixed_schema["items"] = {"type": "string"}  # Default to string items
-
-    # Fix object type missing properties
-    if fixed_schema.get("type") == "object" and "properties" not in fixed_schema:
-        fixed_schema["properties"] = {}
-
-    # Recursively fix nested schemas
-    if "properties" in fixed_schema:
-        fixed_properties = {}
-        for key, value in fixed_schema["properties"].items():
-            fixed_properties[key] = _fix_array_schemas(value)
-        fixed_schema["properties"] = fixed_properties
-
-    if "items" in fixed_schema:
-        fixed_schema["items"] = _fix_array_schemas(fixed_schema["items"])
-
-    if "additionalProperties" in fixed_schema and isinstance(fixed_schema["additionalProperties"], dict):
-        fixed_schema["additionalProperties"] = _fix_array_schemas(fixed_schema["additionalProperties"])
-
-    return fixed_schema
+    fixed = schema.copy()
+    defs = fixed.pop("$defs", None) or schema.get("$defs")
+    fixed = _resolve_ref(fixed, defs)
+    fixed = _resolve_anyof(fixed, defs)
+    fixed = _fix_type_defaults(fixed)
+    fixed = _fix_nested_schemas(fixed)
+    return fixed
 
 
 async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
