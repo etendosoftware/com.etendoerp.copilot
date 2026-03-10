@@ -32,6 +32,11 @@ def get_llm(model, provider, temperature):
     Returns:
         ChatModel: An initialized language model instance.
     """
+    # Map provider aliases to LangChain-supported provider names
+    PROVIDER_ALIASES = {
+        "gemini": "google_genai",
+    }
+
     # Initialize the language model
     if provider and "ollama" in provider:
         ollama_host = os.getenv("COPILOT_OLLAMA_HOST", "ollama")
@@ -46,21 +51,27 @@ def get_llm(model, provider, temperature):
         )
 
     else:
-        provider_to_use = provider
+        provider_to_use = PROVIDER_ALIASES.get(provider, provider)
         model_to_use = model
         if get_proxy_url() is not None:
+            # When a proxy (e.g. LiteLLM) is configured, route everything through
+            # the OpenAI-compatible API
             model_to_use = provider_to_use + "/" + model
             provider_to_use = "openai"
 
+        # OpenAI-specific kwargs (base_url, stream_options) should only be passed
+        # when actually using the OpenAI provider to avoid issues with other SDKs
+        extra_kwargs = {}
+        if provider_to_use == "openai":
+            extra_kwargs["base_url"] = get_proxy_url()
+            extra_kwargs["model_kwargs"] = {"stream_options": {"include_usage": True}}
+
         llm = init_chat_model(
-            # If a proxy URL is set, we always use OpenAI as the provider to use
-            # the OpenAI compatible API
             model_provider=provider_to_use,
             model=model_to_use,
             temperature=temperature,
-            base_url=get_proxy_url(),
-            model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
+            **extra_kwargs,
         )
     # Adjustments for specific models, because some models have different
     # default parameters

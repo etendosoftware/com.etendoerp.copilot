@@ -199,8 +199,20 @@ def _create_body_model_from_schema(schema_dict: Dict, model_name: str, type_map:
         # Determine if field is required
         is_required = prop_name in schema_dict.get("required", [])
 
-        # Create the Field with the correct property description
-        field_type, _ = type_map.get(prop_type_str, (Any, Field(description="")))
+        # Handle array types with items schema (Gemini requires items field)
+        if prop_type_str == "array":
+            items_schema = prop_data.get("items", {})
+            item_type_str = items_schema.get("type", "string")
+            if item_type_str == "object" or "properties" in items_schema:
+                item_model_name = f"{model_name}{prop_name.capitalize()}Item"
+                item_model = _create_body_model_from_schema(items_schema, item_model_name, type_map)
+                field_type = List[item_model]
+            else:
+                item_type, _ = type_map.get(item_type_str, (Any, Field(description="")))
+                field_type = List[item_type]
+        else:
+            # Create the Field with the correct property description
+            field_type, _ = type_map.get(prop_type_str, (Any, Field(description="")))
 
         if is_required and not is_nullable:
             # Truly required field
@@ -283,8 +295,14 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
     if method == "post" and "oneOf" in schema_dict:
         models = _process_oneof_schema(schema_dict, body_model_name, type_map)
         if models:
-            body_description = request_body.get("description", "Request body (one of alternatives).")
-            return Union[tuple(models)], body_description
+            body_description = request_body.get("description", "Request body.")
+            # Avoid Union/anyOf types since some providers (e.g. Gemini) don't support them.
+            # Pick the first object model (BaseModel subclass) from the alternatives.
+            for model in models:
+                if isinstance(model, type) and issubclass(model, BaseModel):
+                    return model, body_description
+            # Fallback: use the first available model
+            return models[0], body_description
 
     if schema_dict.get("type") != "object" or "properties" not in schema_dict:
         return None

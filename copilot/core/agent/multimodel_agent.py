@@ -14,6 +14,7 @@ from copilot.core.agent.agent import (
 from copilot.core.agent.agent_utils import (
     build_metadata,
     get_checkpoint_file,
+    normalize_content,
     process_local_files,
 )
 from copilot.core.agent.codeact import create_default_prompt
@@ -97,7 +98,11 @@ def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
 
 def _fix_array_schemas(schema):
     """
-    Recursively fix array schemas by adding missing 'items' property.
+    Recursively fix schemas for provider compatibility (especially Gemini).
+    - Adds missing 'items' to array types
+    - Adds missing 'properties' to object types
+    - Resolves 'anyOf' by picking the first non-null alternative
+    - Inlines '$ref' references using '$defs'
 
     Args:
         schema: The schema dictionary to fix
@@ -110,6 +115,46 @@ def _fix_array_schemas(schema):
 
     # Create a copy to avoid modifying the original
     fixed_schema = schema.copy()
+
+    # Resolve $ref references using $defs
+    defs = fixed_schema.pop("$defs", None) or schema.get("$defs")
+
+    def _resolve_ref(obj):
+        """Inline $ref references from $defs."""
+        if not isinstance(obj, dict):
+            return obj
+        if "$ref" in obj and defs:
+            ref_path = obj["$ref"]  # e.g. "#/$defs/ModelName"
+            ref_name = ref_path.rsplit("/", 1)[-1]
+            if ref_name in defs:
+                resolved = defs[ref_name].copy()
+                # Merge any extra keys from the referencing object (e.g. description)
+                for k, v in obj.items():
+                    if k != "$ref":
+                        resolved.setdefault(k, v)
+                return _resolve_ref(resolved)
+        return obj
+
+    fixed_schema = _resolve_ref(fixed_schema)
+
+    # Resolve anyOf by picking the first non-null alternative (Gemini doesn't support anyOf)
+    if "anyOf" in fixed_schema:
+        alternatives = fixed_schema.pop("anyOf")
+        chosen = None
+        for alt in alternatives:
+            alt = _resolve_ref(alt)
+            if alt.get("type") != "null":
+                chosen = alt
+                break
+        if chosen:
+            # Preserve description/title from the parent
+            parent_desc = fixed_schema.get("description")
+            parent_title = fixed_schema.get("title")
+            fixed_schema.update(chosen)
+            if parent_desc and "description" not in chosen:
+                fixed_schema["description"] = parent_desc
+            if parent_title and "title" not in chosen:
+                fixed_schema["title"] = parent_title
 
     # Fix array type missing items
     if fixed_schema.get("type") == "array" and "items" not in fixed_schema:
@@ -267,6 +312,14 @@ class MultimodelAgent(CopilotAgent):
         if mcp_tools is not None:
             _enabled_tools.extend(mcp_tools or [])
 
+        # Fix tool schemas for provider compatibility (e.g. Gemini requires items on arrays,
+        # does not support anyOf/$ref). Applied to ALL tools, not just MCP tools.
+        for tool in _enabled_tools:
+            if hasattr(tool, "args_schema"):
+                schema = tool.args_schema
+                if isinstance(schema, dict):
+                    tool.args_schema = _fix_array_schemas(schema)
+
         # Replace the instance configured tools with the complete list
         self._configured_tools = _enabled_tools
         tools_loaded[agent_configuration.assistant_id] = _enabled_tools
@@ -324,7 +377,7 @@ class MultimodelAgent(CopilotAgent):
             return AgentResponse(
                 input=full_question,
                 output=AssistantResponse(
-                    response=new_ai_message.content,
+                    response=normalize_content(new_ai_message.content),
                     conversation_id=question.conversation_id,
                     metadata=build_metadata(usage_data),
                 ),

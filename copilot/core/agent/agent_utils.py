@@ -122,6 +122,33 @@ def get_checkpoint_file(agent_id: str):
     return base + agent_id + "_checkpoints.sqlite"
 
 
+def normalize_content(content):
+    """
+    Normalize message content to a plain string.
+
+    Some providers (e.g. Gemini) return content as a list of content blocks
+    like [{"type": "text", "text": "..."}] instead of a plain string.
+    This function extracts the text in those cases.
+
+    Args:
+        content: The message content (str or list).
+
+    Returns:
+        str: The normalized text content.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        text_parts = []
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                text_parts.append(block.get("text", ""))
+            elif isinstance(block, str):
+                text_parts.append(block)
+        return "\n".join(text_parts) if text_parts else str(content)
+    return str(content) if content is not None else ""
+
+
 def build_metadata(usage_data):
     """
     Builds metadata dictionary from usage data.

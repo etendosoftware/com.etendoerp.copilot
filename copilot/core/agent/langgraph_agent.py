@@ -11,6 +11,7 @@ from copilot.core.agent.agent import AgentResponse, AssistantResponse, CopilotAg
 from copilot.core.agent.agent_utils import (
     build_metadata,
     get_checkpoint_file,
+    normalize_content,
     process_local_files,
 )
 from copilot.core.langgraph.members_util import MembersUtil
@@ -112,7 +113,9 @@ async def _handle_on_chain_end(event, thread_id):
         message = messages[-1]
         if isinstance(message, (HumanMessage, AIMessage)):
             response = AssistantResponse(
-                response=message.content, conversation_id=thread_id, metadata=build_metadata(usage_data)
+                response=normalize_content(message.content),
+                conversation_id=thread_id,
+                metadata=build_metadata(usage_data),
             )
     if output.get("structured_response"):
         response = AssistantResponse(
@@ -295,7 +298,7 @@ class LanggraphAgent(CopilotAgent):
                     new_ai_message = agent_response.get("structured_response")
                 else:
                     if messages and len(messages) > 0:
-                        new_ai_message = messages[-1].content
+                        new_ai_message = normalize_content(messages[-1].content)
                     else:
                         new_ai_message = ""
                 return AgentResponse(
