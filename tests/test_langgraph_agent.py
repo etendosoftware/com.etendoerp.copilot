@@ -5,6 +5,7 @@ import pytest
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.agent.langgraph_agent import (
     LanggraphAgent,
+    _extract_response_text,
     _handle_on_chain_end,
     build_config,
     build_msg_input,
@@ -276,6 +277,60 @@ class TestHandleOnChainEnd:
         result = await _handle_on_chain_end(event, "thread-1")
         assert result is not None
         assert result.response == "I'll help"
+
+
+class TestExtractResponseText:
+    """Test cases for _extract_response_text helper."""
+
+    def test_structured_response_preferred(self):
+        """Test that structured_response takes priority over messages."""
+        response = {
+            "structured_response": "structured",
+            "messages": [AIMessage(content="from messages")],
+        }
+        assert _extract_response_text(response) == "structured"
+
+    def test_last_non_empty_ai_message(self):
+        """Test finding last non-empty AIMessage."""
+        response = {
+            "messages": [
+                AIMessage(content="first"),
+                AIMessage(content="second"),
+                AIMessage(content=""),
+            ]
+        }
+        assert _extract_response_text(response) == "second"
+
+    def test_all_empty_returns_empty(self):
+        """Test returns empty string when all messages are empty."""
+        response = {"messages": [AIMessage(content=""), AIMessage(content="")]}
+        assert _extract_response_text(response) == ""
+
+    def test_no_messages_returns_empty(self):
+        """Test returns empty string when no messages."""
+        assert _extract_response_text({}) == ""
+        assert _extract_response_text({"messages": []}) == ""
+        assert _extract_response_text({"messages": None}) == ""
+
+    def test_normalizes_gemini_content(self):
+        """Test Gemini list content is normalized."""
+        response = {
+            "messages": [
+                AIMessage(content=[{"type": "text", "text": "Gemini says hi"}]),
+            ]
+        }
+        assert _extract_response_text(response) == "Gemini says hi"
+
+    def test_skips_non_ai_messages(self):
+        """Test that HumanMessage and ToolMessage are skipped."""
+        response = {
+            "messages": [
+                HumanMessage(content="user question"),
+                AIMessage(content="answer"),
+                ToolMessage(content="tool result", tool_call_id="tc-1"),
+            ]
+        }
+        assert _extract_response_text(response) == "answer"
 
 
 class TestBuildMsgInput:

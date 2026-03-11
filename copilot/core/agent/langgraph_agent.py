@@ -103,34 +103,21 @@ async def _handle_on_chain_end(event, thread_id):
     Returns:
         AssistantResponse or None: The response generated from the event, or None if no response is generated.
     """
-    response = None
     output = event["data"]["output"]
     if not isinstance(output, dict):
         return None
-    messages = output.get("messages", [])
-    usage_data = read_accum_usage_data_from_msg_arr(messages)
     if len(event["parent_ids"]) != 0:
         return None
-    if messages:
-        # Walk backwards to find the last AIMessage with actual content.
-        # The supervisor may return an empty response after a child agent finishes.
-        for msg in reversed(messages):
-            if isinstance(msg, AIMessage):
-                text = normalize_content(msg.content)
-                if text:
-                    response = AssistantResponse(
-                        response=text,
-                        conversation_id=thread_id,
-                        metadata=build_metadata(usage_data),
-                    )
-                    break
-    if output.get("structured_response"):
-        response = AssistantResponse(
-            response=output["structured_response"],
-            conversation_id=thread_id,
-            metadata=build_metadata(usage_data),
-        )
-    return response
+    messages = output.get("messages", [])
+    usage_data = read_accum_usage_data_from_msg_arr(messages)
+    text = _extract_response_text(output)
+    if not text:
+        return None
+    return AssistantResponse(
+        response=text,
+        conversation_id=thread_id,
+        metadata=build_metadata(usage_data),
+    )
 
 
 async def _handle_on_tool_start(event, thread_id):
@@ -248,6 +235,23 @@ def build_config(thread_id):
     return config
 
 
+def _extract_response_text(agent_response):
+    """Extract the response text from an agent response dict.
+
+    Prefers structured_response if present, otherwise walks backwards through
+    messages to find the last AIMessage with actual content.
+    """
+    if agent_response.get("structured_response"):
+        return agent_response["structured_response"]
+    messages = agent_response.get("messages") or []
+    for msg in reversed(messages):
+        if isinstance(msg, AIMessage):
+            text = normalize_content(msg.content)
+            if text:
+                return text
+    return ""
+
+
 class LanggraphAgent(CopilotAgent):
     _memory: MemoryHandler = None
 
@@ -301,21 +305,7 @@ class LanggraphAgent(CopilotAgent):
 
                 messages = agent_response.get("messages")
                 usage_data = read_accum_usage_data_from_msg_arr(messages)
-                if agent_response.get("structured_response"):
-                    new_ai_message = agent_response.get("structured_response")
-                else:
-                    new_ai_message = ""
-                    if messages:
-                        # Walk backwards to find the last AIMessage with actual content.
-                        # The supervisor may return an empty response after a child agent
-                        # finishes (especially with Gemini), so we fall back to the last
-                        # non-empty AI message.
-                        for msg in reversed(messages):
-                            if isinstance(msg, AIMessage):
-                                text = normalize_content(msg.content)
-                                if text:
-                                    new_ai_message = text
-                                    break
+                new_ai_message = _extract_response_text(agent_response)
                 return AgentResponse(
                     input=question.model_dump_json(),
                     output=AssistantResponse(
