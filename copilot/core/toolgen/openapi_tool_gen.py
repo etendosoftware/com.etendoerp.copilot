@@ -273,10 +273,17 @@ def _process_array_schema(sub_schema: Dict, body_model_name: str, index: int, ty
 
 
 def _select_oneof_model(models):
-    """Pick the first BaseModel subclass from oneOf alternatives, or fallback to first model.
+    """Pick the best model from oneOf alternatives avoiding Union/anyOf (unsupported by Gemini).
 
-    Avoids Union/anyOf types since some providers (e.g. Gemini) don't support them.
+    Prefers List types over single BaseModel subclasses because a list of one item
+    still covers the single-object case while also allowing batch requests.
     """
+    # Prefer List types (they cover both single and multi-item use cases)
+    for model in models:
+        origin = getattr(model, "__origin__", None)
+        if origin is list:
+            return model
+    # Fallback to the first BaseModel subclass
     for model in models:
         if isinstance(model, type) and issubclass(model, BaseModel):
             return model

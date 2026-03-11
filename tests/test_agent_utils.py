@@ -7,6 +7,7 @@ This module tests the utility functions for agent configuration and model initia
 import os
 from unittest.mock import MagicMock, Mock, patch
 
+from copilot.core.agent.agent_utils import normalize_content
 from copilot.core.schemas import AssistantSchema, QuestionSchema
 from copilot.core.utils.agent import (
     get_full_question,
@@ -14,6 +15,75 @@ from copilot.core.utils.agent import (
     get_model_config,
     get_structured_output,
 )
+
+
+class TestNormalizeContent:
+    """Test cases for normalize_content function."""
+
+    def test_plain_string(self):
+        """Test that a plain string is returned as-is."""
+        assert normalize_content("hello world") == "hello world"
+
+    def test_empty_string(self):
+        """Test that an empty string is returned as-is."""
+        assert normalize_content("") == ""
+
+    def test_list_of_text_blocks(self):
+        """Test Gemini-style list of content blocks."""
+        content = [
+            {"type": "text", "text": "Hello"},
+            {"type": "text", "text": "World"},
+        ]
+        assert normalize_content(content) == "Hello\nWorld"
+
+    def test_list_of_text_blocks_single(self):
+        """Test list with a single text block."""
+        content = [{"type": "text", "text": "Only one block"}]
+        assert normalize_content(content) == "Only one block"
+
+    def test_list_of_plain_strings(self):
+        """Test list of plain strings."""
+        content = ["Part 1", "Part 2"]
+        assert normalize_content(content) == "Part 1\nPart 2"
+
+    def test_list_mixed_blocks_and_strings(self):
+        """Test list mixing dict blocks and plain strings."""
+        content = [
+            {"type": "text", "text": "Block"},
+            "Plain string",
+        ]
+        assert normalize_content(content) == "Block\nPlain string"
+
+    def test_list_with_non_text_blocks(self):
+        """Test list with non-text blocks (e.g. image) are ignored."""
+        content = [
+            {"type": "image", "url": "http://example.com/img.png"},
+            {"type": "text", "text": "Caption"},
+        ]
+        assert normalize_content(content) == "Caption"
+
+    def test_empty_list_fallback(self):
+        """Test empty list returns str representation."""
+        assert normalize_content([]) == "[]"
+
+    def test_list_with_no_extractable_text(self):
+        """Test list with no text blocks falls back to str representation."""
+        content = [{"type": "image", "url": "http://example.com"}]
+        result = normalize_content(content)
+        assert result == str(content)
+
+    def test_none_returns_empty_string(self):
+        """Test that None returns empty string."""
+        assert normalize_content(None) == ""
+
+    def test_integer_returns_string(self):
+        """Test that non-string/non-list types are converted to string."""
+        assert normalize_content(42) == "42"
+
+    def test_text_block_with_empty_text(self):
+        """Test text block with empty text field."""
+        content = [{"type": "text", "text": ""}]
+        assert normalize_content(content) == ""
 
 
 class TestGetFullQuestion:
@@ -229,6 +299,50 @@ class TestGetLlm:
         assert result == mock_llm
         # Verify max_tokens was not accessed/set since it's not in config
         assert "max_tokens" not in mock_llm.__dict__
+
+    @patch("copilot.core.utils.agent.init_chat_model")
+    @patch("copilot.core.utils.agent.get_model_config")
+    @patch("copilot.core.utils.agent.get_proxy_url")
+    def test_get_llm_gemini_direct(self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model):
+        """Test get_llm with Gemini provider in direct mode (no proxy)."""
+        mock_get_proxy_url.return_value = None
+        mock_get_model_config.return_value = {}
+        mock_llm = Mock()
+        mock_init_chat_model.return_value = mock_llm
+
+        result = get_llm("gemini-2.0-flash", "gemini", 0.5)
+
+        # Gemini should be mapped to google_genai and NOT receive OpenAI-specific kwargs
+        mock_init_chat_model.assert_called_once_with(
+            model_provider="google_genai",
+            model="gemini-2.0-flash",
+            temperature=0.5,
+            streaming=True,
+        )
+        assert result == mock_llm
+
+    @patch("copilot.core.utils.agent.init_chat_model")
+    @patch("copilot.core.utils.agent.get_model_config")
+    @patch("copilot.core.utils.agent.get_proxy_url")
+    def test_get_llm_gemini_with_proxy(self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model):
+        """Test get_llm with Gemini provider when a proxy is configured."""
+        mock_get_proxy_url.return_value = "https://llm.etendo.software"
+        mock_get_model_config.return_value = {}
+        mock_llm = Mock()
+        mock_init_chat_model.return_value = mock_llm
+
+        result = get_llm("gemini-2.0-flash", "gemini", 0.5)
+
+        # With proxy, Gemini should route through OpenAI-compatible API
+        mock_init_chat_model.assert_called_once_with(
+            model_provider="openai",
+            model="gemini/gemini-2.0-flash",
+            temperature=0.5,
+            base_url="https://llm.etendo.software",
+            model_kwargs={"stream_options": {"include_usage": True}},
+            streaming=True,
+        )
+        assert result == mock_llm
 
 
 class TestGetModelConfig:

@@ -9,6 +9,11 @@ import pytest
 from copilot.core.agent.agent import AgentResponse, AssistantResponse
 from copilot.core.agent.multimodel_agent import (
     MultimodelAgent,
+    _fix_array_schemas,
+    _fix_nested_schemas,
+    _fix_type_defaults,
+    _resolve_anyof,
+    _resolve_ref,
     convert_mcp_servers_config,
     is_code_act_enabled,
 )
@@ -483,3 +488,177 @@ class TestCodeActIntegration:
         mock_code_executor_class.assert_called_once_with("original")
         mock_create_codeact.assert_called_once()
         assert result == mock_agent
+
+
+class TestSchemaFixHelpers:
+    """Test cases for schema fixing helper functions (Gemini compatibility)."""
+
+    def test_resolve_ref_no_ref(self):
+        """Test _resolve_ref with schema that has no $ref."""
+        schema = {"type": "string"}
+        assert _resolve_ref(schema, {}) == {"type": "string"}
+
+    def test_resolve_ref_with_valid_ref(self):
+        """Test _resolve_ref resolves a $ref to its definition."""
+        defs = {"MyModel": {"type": "object", "properties": {"name": {"type": "string"}}}}
+        schema = {"$ref": "#/$defs/MyModel"}
+        result = _resolve_ref(schema, defs)
+        assert result["type"] == "object"
+        assert "name" in result["properties"]
+
+    def test_resolve_ref_preserves_extra_keys(self):
+        """Test _resolve_ref preserves keys from original schema not in definition."""
+        defs = {"MyModel": {"type": "object"}}
+        schema = {"$ref": "#/$defs/MyModel", "description": "My description"}
+        result = _resolve_ref(schema, defs)
+        assert result["type"] == "object"
+        assert result["description"] == "My description"
+
+    def test_resolve_ref_unknown_ref(self):
+        """Test _resolve_ref returns original schema when ref is not found."""
+        defs = {"Other": {"type": "string"}}
+        schema = {"$ref": "#/$defs/Missing"}
+        result = _resolve_ref(schema, defs)
+        assert "$ref" in result
+
+    def test_resolve_ref_none_defs(self):
+        """Test _resolve_ref with None defs returns schema unchanged."""
+        schema = {"$ref": "#/$defs/Foo"}
+        assert _resolve_ref(schema, None) == schema
+
+    def test_resolve_ref_non_dict(self):
+        """Test _resolve_ref with non-dict input returns it unchanged."""
+        assert _resolve_ref("not a dict", {}) == "not a dict"
+
+    def test_resolve_anyof_no_anyof(self):
+        """Test _resolve_anyof with schema that has no anyOf."""
+        schema = {"type": "string"}
+        result = _resolve_anyof(schema, {})
+        assert result == {"type": "string"}
+
+    def test_resolve_anyof_picks_non_null(self):
+        """Test _resolve_anyof picks the first non-null alternative."""
+        schema = {
+            "anyOf": [
+                {"type": "null"},
+                {"type": "string"},
+            ]
+        }
+        result = _resolve_anyof(schema, {})
+        assert result["type"] == "string"
+
+    def test_resolve_anyof_preserves_parent_description(self):
+        """Test _resolve_anyof preserves parent description when chosen alternative lacks one."""
+        schema = {
+            "description": "Parent desc",
+            "anyOf": [
+                {"type": "null"},
+                {"type": "integer"},
+            ],
+        }
+        result = _resolve_anyof(schema, {})
+        assert result["type"] == "integer"
+        assert result["description"] == "Parent desc"
+
+    def test_resolve_anyof_all_null(self):
+        """Test _resolve_anyof when all alternatives are null."""
+        schema = {
+            "anyOf": [
+                {"type": "null"},
+                {"type": "null"},
+            ]
+        }
+        result = _resolve_anyof(schema, {})
+        assert "type" not in result
+
+    def test_fix_type_defaults_array_missing_items(self):
+        """Test _fix_type_defaults adds items to array without items."""
+        schema = {"type": "array"}
+        result = _fix_type_defaults(schema)
+        assert result["items"] == {"type": "string"}
+
+    def test_fix_type_defaults_array_with_items(self):
+        """Test _fix_type_defaults does not overwrite existing items."""
+        schema = {"type": "array", "items": {"type": "integer"}}
+        result = _fix_type_defaults(schema)
+        assert result["items"] == {"type": "integer"}
+
+    def test_fix_type_defaults_object_missing_properties(self):
+        """Test _fix_type_defaults adds empty properties to object without properties."""
+        schema = {"type": "object"}
+        result = _fix_type_defaults(schema)
+        assert result["properties"] == {}
+
+    def test_fix_type_defaults_object_with_properties(self):
+        """Test _fix_type_defaults does not overwrite existing properties."""
+        schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+        result = _fix_type_defaults(schema)
+        assert "name" in result["properties"]
+
+    def test_fix_type_defaults_string_unchanged(self):
+        """Test _fix_type_defaults does not modify string schemas."""
+        schema = {"type": "string"}
+        result = _fix_type_defaults(schema)
+        assert result == {"type": "string"}
+
+    def test_fix_array_schemas_non_dict(self):
+        """Test _fix_array_schemas with non-dict returns input unchanged."""
+        assert _fix_array_schemas("not a dict") == "not a dict"
+        assert _fix_array_schemas(42) == 42
+        assert _fix_array_schemas(None) is None
+
+    def test_fix_array_schemas_nested_array(self):
+        """Test _fix_array_schemas recursively fixes nested array missing items."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "tags": {"type": "array"},
+            },
+        }
+        result = _fix_array_schemas(schema)
+        assert result["properties"]["tags"]["items"] == {"type": "string"}
+
+    def test_fix_array_schemas_resolves_ref(self):
+        """Test _fix_array_schemas resolves $ref in schemas."""
+        schema = {
+            "$defs": {"Item": {"type": "object", "properties": {"id": {"type": "string"}}}},
+            "$ref": "#/$defs/Item",
+        }
+        result = _fix_array_schemas(schema)
+        assert result["type"] == "object"
+        assert "id" in result["properties"]
+        assert "$ref" not in result
+
+    def test_fix_array_schemas_resolves_anyof(self):
+        """Test _fix_array_schemas resolves anyOf in schemas."""
+        schema = {
+            "anyOf": [
+                {"type": "null"},
+                {"type": "string"},
+            ]
+        }
+        result = _fix_array_schemas(schema)
+        assert result["type"] == "string"
+
+    def test_fix_array_schemas_full_pipeline(self):
+        """Test _fix_array_schemas applies all fixes together (anyOf + missing items)."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "name": {"anyOf": [{"type": "null"}, {"type": "string"}]},
+                "items": {"type": "array"},
+            },
+        }
+        result = _fix_array_schemas(schema)
+        assert result["properties"]["name"]["type"] == "string"
+        assert result["properties"]["items"]["items"] == {"type": "string"}
+
+    def test_fix_array_schemas_additional_properties(self):
+        """Test _fix_array_schemas fixes additionalProperties."""
+        schema = {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {"type": "array"},
+        }
+        result = _fix_array_schemas(schema)
+        assert result["additionalProperties"]["items"] == {"type": "string"}
