@@ -105,18 +105,25 @@ async def _handle_on_chain_end(event, thread_id):
     """
     response = None
     output = event["data"]["output"]
+    if not isinstance(output, dict):
+        return None
     messages = output.get("messages", [])
     usage_data = read_accum_usage_data_from_msg_arr(messages)
     if len(event["parent_ids"]) != 0:
         return None
     if messages:
-        message = messages[-1]
-        if isinstance(message, (HumanMessage, AIMessage)):
-            response = AssistantResponse(
-                response=normalize_content(message.content),
-                conversation_id=thread_id,
-                metadata=build_metadata(usage_data),
-            )
+        # Walk backwards to find the last AIMessage with actual content.
+        # The supervisor may return an empty response after a child agent finishes.
+        for msg in reversed(messages):
+            if isinstance(msg, AIMessage):
+                text = normalize_content(msg.content)
+                if text:
+                    response = AssistantResponse(
+                        response=text,
+                        conversation_id=thread_id,
+                        metadata=build_metadata(usage_data),
+                    )
+                    break
     if output.get("structured_response"):
         response = AssistantResponse(
             response=output["structured_response"],
@@ -297,10 +304,18 @@ class LanggraphAgent(CopilotAgent):
                 if agent_response.get("structured_response"):
                     new_ai_message = agent_response.get("structured_response")
                 else:
-                    if messages and len(messages) > 0:
-                        new_ai_message = normalize_content(messages[-1].content)
-                    else:
-                        new_ai_message = ""
+                    new_ai_message = ""
+                    if messages:
+                        # Walk backwards to find the last AIMessage with actual content.
+                        # The supervisor may return an empty response after a child agent
+                        # finishes (especially with Gemini), so we fall back to the last
+                        # non-empty AI message.
+                        for msg in reversed(messages):
+                            if isinstance(msg, AIMessage):
+                                text = normalize_content(msg.content)
+                                if text:
+                                    new_ai_message = text
+                                    break
                 return AgentResponse(
                     input=question.model_dump_json(),
                     output=AssistantResponse(
