@@ -108,13 +108,9 @@ class MembersUtil:
 
             # Fix tool schemas for provider compatibility (e.g. Gemini requires items
             # on arrays, does not support anyOf/$ref).
-            from copilot.core.agent.multimodel_agent import _fix_array_schemas
+            from copilot.core.agent.multimodel_agent import fix_tool_schemas
 
-            for tool in tools:
-                if hasattr(tool, "args_schema"):
-                    schema = tool.args_schema
-                    if isinstance(schema, dict):
-                        tool.args_schema = _fix_array_schemas(schema)
+            fix_tool_schemas(tools)
 
             agent_tools.extend(tools)
             from copilot.core.agent.multimodel_agent import get_llm

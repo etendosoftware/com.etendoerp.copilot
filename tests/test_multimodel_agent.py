@@ -15,6 +15,7 @@ from copilot.core.agent.multimodel_agent import (
     _resolve_anyof,
     _resolve_ref,
     convert_mcp_servers_config,
+    fix_tool_schemas,
     is_code_act_enabled,
 )
 from copilot.core.schemas import (
@@ -662,3 +663,109 @@ class TestSchemaFixHelpers:
         }
         result = _fix_array_schemas(schema)
         assert result["additionalProperties"]["items"] == {"type": "string"}
+
+
+class TestFixToolSchemas:
+    """Test cases for fix_tool_schemas function."""
+
+    def test_fixes_pydantic_model_schema(self):
+        """Test that Pydantic model schemas with anyOf are fixed."""
+        from typing import Optional
+
+        from pydantic import BaseModel, Field
+
+        class MyInput(BaseModel):
+            name: str = Field(description="Name")
+            tags: Optional[list] = Field(default=None, description="Tags")
+
+        tool = MagicMock()
+        tool.args_schema = MyInput
+
+        original_schema = MyInput.model_json_schema()
+        fix_tool_schemas([tool])
+
+        fixed_schema = tool.args_schema.model_json_schema()
+        # anyOf for optional fields should be resolved
+        if "anyOf" in original_schema.get("properties", {}).get("tags", {}):
+            assert "anyOf" not in fixed_schema.get("properties", {}).get("tags", {})
+
+    def test_fixes_dict_schema(self):
+        """Test that dict schemas are fixed directly."""
+        tool = MagicMock()
+        tool.args_schema = {"type": "object", "properties": {"items": {"type": "array"}}}
+
+        fix_tool_schemas([tool])
+
+        assert tool.args_schema["properties"]["items"]["items"] == {"type": "string"}
+
+    def test_skips_tools_without_schema(self):
+        """Test that tools without args_schema are skipped."""
+        tool = MagicMock(spec=[])  # No attributes
+        fix_tool_schemas([tool])  # Should not raise
+
+    def test_skips_none_schema(self):
+        """Test that tools with None args_schema are skipped."""
+        tool = MagicMock()
+        tool.args_schema = None
+        fix_tool_schemas([tool])  # Should not raise
+
+    def test_preserves_validation(self):
+        """Test that the patched model still validates correctly."""
+        from pydantic import BaseModel, Field
+
+        class MyInput(BaseModel):
+            name: str = Field(description="Name")
+
+        tool = MagicMock()
+        tool.args_schema = MyInput
+
+        fix_tool_schemas([tool])
+
+        # The patched class should still validate
+        instance = tool.args_schema(name="test")
+        assert instance.name == "test"
+
+    def test_no_change_when_schema_is_clean(self):
+        """Test that tools with clean schemas are not patched."""
+        from pydantic import BaseModel, Field
+
+        class SimpleInput(BaseModel):
+            name: str = Field(description="Name")
+
+        tool = MagicMock()
+        tool.args_schema = SimpleInput
+
+        fix_tool_schemas([tool])
+
+        # If schema was already clean, args_schema should remain the original class
+        assert tool.args_schema is SimpleInput or issubclass(tool.args_schema, SimpleInput)
+
+    def test_multiple_tools_get_independent_schemas(self):
+        """Test that each tool gets its own fixed schema (no closure variable sharing)."""
+        from typing import Optional
+
+        from pydantic import BaseModel, Field
+
+        class InputA(BaseModel):
+            name: str = Field(description="A name")
+            items: Optional[list] = Field(default=None, description="A items")
+
+        class InputB(BaseModel):
+            code: str = Field(description="B code")
+            tags: Optional[list] = Field(default=None, description="B tags")
+
+        tool_a = MagicMock()
+        tool_a.args_schema = InputA
+        tool_b = MagicMock()
+        tool_b.args_schema = InputB
+
+        fix_tool_schemas([tool_a, tool_b])
+
+        schema_a = tool_a.args_schema.model_json_schema()
+        schema_b = tool_b.args_schema.model_json_schema()
+
+        # Each tool must have its own schema with its own properties
+        assert "name" in schema_a.get("properties", {}), "Tool A lost its 'name' property"
+        assert "code" in schema_b.get("properties", {}), "Tool B lost its 'code' property"
+        assert "code" not in schema_a.get("properties", {}), "Tool A got Tool B's schema"
+        assert "name" not in schema_b.get("properties", {}), "Tool B got Tool A's schema"

@@ -167,6 +167,31 @@ def _fix_array_schemas(schema):
     return fixed
 
 
+def fix_tool_schemas(tools):
+    """Fix tool schemas for provider compatibility (especially Gemini).
+
+    For tools with a Pydantic args_schema, overrides model_json_schema() to return
+    a fixed version without anyOf/$ref/$defs that Gemini cannot handle.
+    For tools with a dict args_schema, fixes the dict directly.
+    """
+    from pydantic import BaseModel
+
+    for tool in tools:
+        schema_cls = getattr(tool, "args_schema", None)
+        if schema_cls is None:
+            continue
+        if isinstance(schema_cls, dict):
+            tool.args_schema = _fix_array_schemas(schema_cls)
+        elif isinstance(schema_cls, type) and issubclass(schema_cls, BaseModel):
+            original_schema = schema_cls.model_json_schema()
+            fixed_schema = _fix_array_schemas(original_schema)
+            if fixed_schema != original_schema:
+                # Subclass to override JSON schema generation without affecting validation
+                patched_cls = type(schema_cls.__name__, (schema_cls,), {})
+                patched_cls.model_json_schema = classmethod(lambda cls, _fs=fixed_schema, **kw: _fs)
+                tool.args_schema = patched_cls
+
+
 async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
     """
     Get MCP tools from configured MCP servers.
@@ -301,11 +326,7 @@ class MultimodelAgent(CopilotAgent):
 
         # Fix tool schemas for provider compatibility (e.g. Gemini requires items on arrays,
         # does not support anyOf/$ref). Applied to ALL tools, not just MCP tools.
-        for tool in _enabled_tools:
-            if hasattr(tool, "args_schema"):
-                schema = tool.args_schema
-                if isinstance(schema, dict):
-                    tool.args_schema = _fix_array_schemas(schema)
+        fix_tool_schemas(_enabled_tools)
 
         # Replace the instance configured tools with the complete list
         self._configured_tools = _enabled_tools
