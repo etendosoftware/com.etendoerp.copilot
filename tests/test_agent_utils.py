@@ -57,7 +57,7 @@ class TestNormalizeContent:
     def test_list_with_non_text_blocks(self):
         """Test list with non-text blocks (e.g. image) are ignored."""
         content = [
-            {"type": "image", "url": "http://example.com/img.png"},
+            {"type": "image", "url": "https://example.com/img.png"},
             {"type": "text", "text": "Caption"},
         ]
         assert normalize_content(content) == "Caption"
@@ -68,7 +68,7 @@ class TestNormalizeContent:
 
     def test_list_with_no_extractable_text(self):
         """Test list with no text blocks falls back to str representation."""
-        content = [{"type": "image", "url": "http://example.com"}]
+        content = [{"type": "image", "url": "https://example.com"}]
         result = normalize_content(content)
         assert result == str(content)
 
