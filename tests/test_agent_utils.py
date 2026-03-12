@@ -170,7 +170,6 @@ class TestGetLlm:
             model_provider="openai",
             model="gpt-4",
             temperature=0.7,
-            base_url=None,
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )
@@ -195,7 +194,6 @@ class TestGetLlm:
             model_provider=None,
             model="claude-3",
             temperature=0.5,
-            base_url=None,
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )
@@ -526,7 +524,6 @@ class TestModuleIntegration:
             model_provider="openai",
             model="gpt-4",
             temperature=0.7,
-            base_url=None,
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )

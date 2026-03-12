@@ -106,16 +106,11 @@ class MembersUtil:
                 include_openapi_tools=True,
             )
 
-            # Fix tool schemas for provider compatibility (e.g. Gemini requires items
-            # on arrays, does not support anyOf/$ref).
-            from copilot.core.agent.multimodel_agent import fix_tool_schemas
-
-            fix_tool_schemas(tools)
-
             agent_tools.extend(tools)
-            from copilot.core.agent.multimodel_agent import get_llm
+            from copilot.core.utils.agent import fix_tools_for_provider, get_llm
 
             llm = get_llm(assistant.model, assistant.provider, assistant.temperature)
+            fix_tools_for_provider(tools, assistant.provider)
 
             member = create_agent(
                 model=llm,

@@ -10,13 +10,12 @@ from copilot.core.agent.agent import AgentResponse, AssistantResponse
 from copilot.core.agent.multimodel_agent import (
     MultimodelAgent,
     _fix_array_schemas,
-    _fix_nested_schemas,
-    _fix_type_defaults,
-    _resolve_anyof,
-    _resolve_ref,
     convert_mcp_servers_config,
-    fix_tool_schemas,
     is_code_act_enabled,
+)
+from copilot.core.utils.agent import (
+    _fix_annotation,
+    fix_tools_for_provider,
 )
 from copilot.core.schemas import (
     AssistantSchema,
@@ -90,12 +89,11 @@ class TestMultimodelAgent:
 
         get_llm("gpt-4.1", "openai", 0.7)
 
-        # When no proxy is configured, model must be passed as-is
+        # When no proxy is configured, model must be passed as-is (no base_url)
         mock_init_chat_model.assert_called_once_with(
             model_provider="openai",
             model="gpt-4.1",
             temperature=0.7,
-            base_url=None,
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )
@@ -494,119 +492,35 @@ class TestCodeActIntegration:
 class TestSchemaFixHelpers:
     """Test cases for schema fixing helper functions (Gemini compatibility)."""
 
-    def test_resolve_ref_no_ref(self):
-        """Test _resolve_ref with schema that has no $ref."""
-        schema = {"type": "string"}
-        assert _resolve_ref(schema, {}) == {"type": "string"}
-
-    def test_resolve_ref_with_valid_ref(self):
-        """Test _resolve_ref resolves a $ref to its definition."""
-        defs = {"MyModel": {"type": "object", "properties": {"name": {"type": "string"}}}}
-        schema = {"$ref": "#/$defs/MyModel"}
-        result = _resolve_ref(schema, defs)
-        assert result["type"] == "object"
-        assert "name" in result["properties"]
-
-    def test_resolve_ref_preserves_extra_keys(self):
-        """Test _resolve_ref preserves keys from original schema not in definition."""
-        defs = {"MyModel": {"type": "object"}}
-        schema = {"$ref": "#/$defs/MyModel", "description": "My description"}
-        result = _resolve_ref(schema, defs)
-        assert result["type"] == "object"
-        assert result["description"] == "My description"
-
-    def test_resolve_ref_unknown_ref(self):
-        """Test _resolve_ref returns original schema when ref is not found."""
-        defs = {"Other": {"type": "string"}}
-        schema = {"$ref": "#/$defs/Missing"}
-        result = _resolve_ref(schema, defs)
-        assert "$ref" in result
-
-    def test_resolve_ref_none_defs(self):
-        """Test _resolve_ref with None defs returns schema unchanged."""
-        schema = {"$ref": "#/$defs/Foo"}
-        assert _resolve_ref(schema, None) == schema
-
-    def test_resolve_ref_non_dict(self):
-        """Test _resolve_ref with non-dict input returns it unchanged."""
-        assert _resolve_ref("not a dict", {}) == "not a dict"
-
-    def test_resolve_anyof_no_anyof(self):
-        """Test _resolve_anyof with schema that has no anyOf."""
-        schema = {"type": "string"}
-        result = _resolve_anyof(schema, {})
-        assert result == {"type": "string"}
-
-    def test_resolve_anyof_picks_non_null(self):
-        """Test _resolve_anyof picks the first non-null alternative."""
-        schema = {
-            "anyOf": [
-                {"type": "null"},
-                {"type": "string"},
-            ]
-        }
-        result = _resolve_anyof(schema, {})
-        assert result["type"] == "string"
-
-    def test_resolve_anyof_preserves_parent_description(self):
-        """Test _resolve_anyof preserves parent description when chosen alternative lacks one."""
-        schema = {
-            "description": "Parent desc",
-            "anyOf": [
-                {"type": "null"},
-                {"type": "integer"},
-            ],
-        }
-        result = _resolve_anyof(schema, {})
-        assert result["type"] == "integer"
-        assert result["description"] == "Parent desc"
-
-    def test_resolve_anyof_all_null(self):
-        """Test _resolve_anyof when all alternatives are null."""
-        schema = {
-            "anyOf": [
-                {"type": "null"},
-                {"type": "null"},
-            ]
-        }
-        result = _resolve_anyof(schema, {})
-        assert "type" not in result
-
-    def test_fix_type_defaults_array_missing_items(self):
-        """Test _fix_type_defaults adds items to array without items."""
-        schema = {"type": "array"}
-        result = _fix_type_defaults(schema)
-        assert result["items"] == {"type": "string"}
-
-    def test_fix_type_defaults_array_with_items(self):
-        """Test _fix_type_defaults does not overwrite existing items."""
-        schema = {"type": "array", "items": {"type": "integer"}}
-        result = _fix_type_defaults(schema)
-        assert result["items"] == {"type": "integer"}
-
-    def test_fix_type_defaults_object_missing_properties(self):
-        """Test _fix_type_defaults adds empty properties to object without properties."""
-        schema = {"type": "object"}
-        result = _fix_type_defaults(schema)
-        assert result["properties"] == {}
-
-    def test_fix_type_defaults_object_with_properties(self):
-        """Test _fix_type_defaults does not overwrite existing properties."""
-        schema = {"type": "object", "properties": {"name": {"type": "string"}}}
-        result = _fix_type_defaults(schema)
-        assert "name" in result["properties"]
-
-    def test_fix_type_defaults_string_unchanged(self):
-        """Test _fix_type_defaults does not modify string schemas."""
-        schema = {"type": "string"}
-        result = _fix_type_defaults(schema)
-        assert result == {"type": "string"}
-
     def test_fix_array_schemas_non_dict(self):
         """Test _fix_array_schemas with non-dict returns input unchanged."""
         assert _fix_array_schemas("not a dict") == "not a dict"
         assert _fix_array_schemas(42) == 42
         assert _fix_array_schemas(None) is None
+
+    def test_fix_array_schemas_adds_items_to_bare_array(self):
+        """Test _fix_array_schemas adds items to array without items."""
+        schema = {"type": "array"}
+        result = _fix_array_schemas(schema)
+        assert result["items"] == {"type": "string"}
+
+    def test_fix_array_schemas_adds_items_to_empty_items(self):
+        """Test _fix_array_schemas fixes empty items dict."""
+        schema = {"type": "array", "items": {}}
+        result = _fix_array_schemas(schema)
+        assert result["items"] == {"type": "string"}
+
+    def test_fix_array_schemas_preserves_existing_items(self):
+        """Test _fix_array_schemas does not overwrite existing items."""
+        schema = {"type": "array", "items": {"type": "integer"}}
+        result = _fix_array_schemas(schema)
+        assert result["items"] == {"type": "integer"}
+
+    def test_fix_array_schemas_adds_properties_to_object(self):
+        """Test _fix_array_schemas adds empty properties to object without properties."""
+        schema = {"type": "object"}
+        result = _fix_array_schemas(schema)
+        assert result["properties"] == {}
 
     def test_fix_array_schemas_nested_array(self):
         """Test _fix_array_schemas recursively fixes nested array missing items."""
@@ -619,41 +533,6 @@ class TestSchemaFixHelpers:
         result = _fix_array_schemas(schema)
         assert result["properties"]["tags"]["items"] == {"type": "string"}
 
-    def test_fix_array_schemas_resolves_ref(self):
-        """Test _fix_array_schemas resolves $ref in schemas."""
-        schema = {
-            "$defs": {"Item": {"type": "object", "properties": {"id": {"type": "string"}}}},
-            "$ref": "#/$defs/Item",
-        }
-        result = _fix_array_schemas(schema)
-        assert result["type"] == "object"
-        assert "id" in result["properties"]
-        assert "$ref" not in result
-
-    def test_fix_array_schemas_resolves_anyof(self):
-        """Test _fix_array_schemas resolves anyOf in schemas."""
-        schema = {
-            "anyOf": [
-                {"type": "null"},
-                {"type": "string"},
-            ]
-        }
-        result = _fix_array_schemas(schema)
-        assert result["type"] == "string"
-
-    def test_fix_array_schemas_full_pipeline(self):
-        """Test _fix_array_schemas applies all fixes together (anyOf + missing items)."""
-        schema = {
-            "type": "object",
-            "properties": {
-                "name": {"anyOf": [{"type": "null"}, {"type": "string"}]},
-                "items": {"type": "array"},
-            },
-        }
-        result = _fix_array_schemas(schema)
-        assert result["properties"]["name"]["type"] == "string"
-        assert result["properties"]["items"]["items"] == {"type": "string"}
-
     def test_fix_array_schemas_additional_properties(self):
         """Test _fix_array_schemas fixes additionalProperties."""
         schema = {
@@ -664,108 +543,211 @@ class TestSchemaFixHelpers:
         result = _fix_array_schemas(schema)
         assert result["additionalProperties"]["items"] == {"type": "string"}
 
+    def test_fix_array_schemas_anyof(self):
+        """Test _fix_array_schemas fixes arrays inside anyOf."""
+        schema = {
+            "anyOf": [
+                {"type": "object", "properties": {"name": {"type": "string"}}},
+                {"type": "array"},
+            ]
+        }
+        result = _fix_array_schemas(schema)
+        assert result["anyOf"][1]["items"] == {"type": "string"}
 
-class TestFixToolSchemas:
-    """Test cases for fix_tool_schemas function."""
+    def test_fix_array_schemas_oneof(self):
+        """Test _fix_array_schemas fixes arrays inside oneOf."""
+        schema = {
+            "oneOf": [
+                {"type": "array", "items": {}},
+            ]
+        }
+        result = _fix_array_schemas(schema)
+        assert result["oneOf"][0]["items"] == {"type": "string"}
 
-    def test_fixes_pydantic_model_schema(self):
-        """Test that Pydantic model schemas with anyOf are fixed."""
+    def test_fix_array_schemas_defs(self):
+        """Test _fix_array_schemas fixes arrays inside $defs."""
+        schema = {
+            "$defs": {"Items": {"type": "array"}},
+            "type": "object",
+            "properties": {},
+        }
+        result = _fix_array_schemas(schema)
+        assert result["$defs"]["Items"]["items"] == {"type": "string"}
+
+
+class TestFixAnnotation:
+    """Test cases for _fix_annotation function (Gemini type annotation fixes)."""
+
+    def test_bare_list(self):
+        """Test bare list is fixed to list[str]."""
+        result = _fix_annotation(list)
+        assert result == list[str]
+
+    def test_list_any(self):
+        """Test List[Any] is fixed to list[str]."""
+        from typing import Any, List
+
+        result = _fix_annotation(List[Any])
+        assert result == list[str]
+
+    def test_list_str_unchanged(self):
+        """Test List[str] is not changed."""
+        from typing import List
+
+        result = _fix_annotation(List[str])
+        assert result == List[str]
+
+    def test_optional_list(self):
+        """Test Optional[list] is fixed to Optional[list[str]]."""
+        from typing import Optional
+
+        result = _fix_annotation(Optional[list])
+        assert result == Optional[list[str]]
+
+    def test_union_simplifies_to_model(self):
+        """Test Union[Model, List[Model]] is simplified to Model for Gemini."""
+        from typing import List, Union
+
+        from pydantic import BaseModel, Field
+
+        class BodyOption1(BaseModel):
+            name: str = Field(description="name")
+
+        class BodyOption2Item(BaseModel):
+            id: str = Field(description="id")
+
+        result = _fix_annotation(Union[BodyOption1, List[BodyOption2Item]])
+        assert result is BodyOption1
+
+    def test_optional_model_unchanged(self):
+        """Test Optional[Model] (Union[Model, None]) is unchanged."""
         from typing import Optional
 
         from pydantic import BaseModel, Field
 
+        class MyModel(BaseModel):
+            name: str = Field(description="name")
+
+        result = _fix_annotation(Optional[MyModel])
+        # Should remain Optional[MyModel], not simplify away
+        assert result == Optional[MyModel]
+
+    def test_str_unchanged(self):
+        """Test str annotation is unchanged."""
+        result = _fix_annotation(str)
+        assert result is str
+
+    def test_nested_pydantic_model(self):
+        """Test that nested Pydantic models with bare list fields are fixed."""
+        from pydantic import BaseModel, Field
+
+        class Inner(BaseModel):
+            items: list = Field(description="items")
+
+        result = _fix_annotation(Inner)
+        schema = Inner.model_json_schema()
+        assert schema["properties"]["items"]["items"] == {"type": "string"}
+
+
+class TestFixToolsForProvider:
+    """Test cases for fix_tools_for_provider function."""
+
+    def test_noop_for_openai(self):
+        """Test that fix_tools_for_provider is a no-op for OpenAI."""
+        tool = MagicMock()
+        tool.args_schema = MagicMock()
+        result = fix_tools_for_provider([tool], "openai")
+        assert result == [tool]
+
+    def test_fixes_bare_list_for_gemini(self):
+        """Test that bare list annotations are fixed for Gemini."""
+        from pydantic import BaseModel, Field
+
         class MyInput(BaseModel):
-            name: str = Field(description="Name")
-            tags: Optional[list] = Field(default=None, description="Tags")
+            body: list = Field(description="body")
 
         tool = MagicMock()
         tool.args_schema = MyInput
 
-        original_schema = MyInput.model_json_schema()
-        fix_tool_schemas([tool])
+        fix_tools_for_provider([tool], "gemini")
 
-        fixed_schema = tool.args_schema.model_json_schema()
-        # anyOf for optional fields should be resolved
-        if "anyOf" in original_schema.get("properties", {}).get("tags", {}):
-            assert "anyOf" not in fixed_schema.get("properties", {}).get("tags", {})
+        schema = tool.args_schema.model_json_schema()
+        assert schema["properties"]["body"]["items"] == {"type": "string"}
 
-    def test_fixes_dict_schema(self):
-        """Test that dict schemas are fixed directly."""
+    def test_fixes_union_anyof_for_gemini(self):
+        """Test that Union annotations (anyOf) are simplified for Gemini."""
+        from typing import List, Union
+
+        from pydantic import BaseModel, Field, create_model
+
+        class Option1(BaseModel):
+            name: str = Field(description="name")
+
+        class Option2Item(BaseModel):
+            id: str = Field(description="id")
+
+        ToolSchema = create_model(
+            "ToolInput",
+            body=(Union[Option1, List[Option2Item]], Field(description="body")),
+        )
+
+        tool = MagicMock()
+        tool.args_schema = ToolSchema
+
+        fix_tools_for_provider([tool], "gemini")
+
+        schema = tool.args_schema.model_json_schema()
+        body = schema["properties"]["body"]
+        # Should NOT have anyOf after fix
+        assert "anyOf" not in body
+
+    def test_fixes_dict_schema_for_gemini(self):
+        """Test that dict schemas are fixed for Gemini."""
         tool = MagicMock()
         tool.args_schema = {"type": "object", "properties": {"items": {"type": "array"}}}
 
-        fix_tool_schemas([tool])
+        fix_tools_for_provider([tool], "gemini")
 
         assert tool.args_schema["properties"]["items"]["items"] == {"type": "string"}
 
     def test_skips_tools_without_schema(self):
         """Test that tools without args_schema are skipped."""
         tool = MagicMock(spec=[])  # No attributes
-        fix_tool_schemas([tool])  # Should not raise
+        fix_tools_for_provider([tool], "gemini")  # Should not raise
 
     def test_skips_none_schema(self):
         """Test that tools with None args_schema are skipped."""
         tool = MagicMock()
         tool.args_schema = None
-        fix_tool_schemas([tool])  # Should not raise
+        fix_tools_for_provider([tool], "gemini")  # Should not raise
+
+    def test_preserves_clean_schema(self):
+        """Test that tools with clean schemas are not modified."""
+        from pydantic import BaseModel, Field
+
+        class CleanInput(BaseModel):
+            name: str = Field(description="Name")
+
+        tool = MagicMock()
+        tool.args_schema = CleanInput
+
+        fix_tools_for_provider([tool], "gemini")
+
+        assert tool.args_schema is CleanInput
 
     def test_preserves_validation(self):
-        """Test that the patched model still validates correctly."""
+        """Test that the fixed model still validates correctly."""
         from pydantic import BaseModel, Field
 
         class MyInput(BaseModel):
             name: str = Field(description="Name")
+            tags: list = Field(description="Tags")
 
         tool = MagicMock()
         tool.args_schema = MyInput
 
-        fix_tool_schemas([tool])
+        fix_tools_for_provider([tool], "gemini")
 
-        # The patched class should still validate
-        instance = tool.args_schema(name="test")
+        instance = tool.args_schema(name="test", tags=["a", "b"])
         assert instance.name == "test"
-
-    def test_no_change_when_schema_is_clean(self):
-        """Test that tools with clean schemas are not patched."""
-        from pydantic import BaseModel, Field
-
-        class SimpleInput(BaseModel):
-            name: str = Field(description="Name")
-
-        tool = MagicMock()
-        tool.args_schema = SimpleInput
-
-        fix_tool_schemas([tool])
-
-        # If schema was already clean, args_schema should remain the original class
-        assert tool.args_schema is SimpleInput or issubclass(tool.args_schema, SimpleInput)
-
-    def test_multiple_tools_get_independent_schemas(self):
-        """Test that each tool gets its own fixed schema (no closure variable sharing)."""
-        from typing import Optional
-
-        from pydantic import BaseModel, Field
-
-        class InputA(BaseModel):
-            name: str = Field(description="A name")
-            items: Optional[list] = Field(default=None, description="A items")
-
-        class InputB(BaseModel):
-            code: str = Field(description="B code")
-            tags: Optional[list] = Field(default=None, description="B tags")
-
-        tool_a = MagicMock()
-        tool_a.args_schema = InputA
-        tool_b = MagicMock()
-        tool_b.args_schema = InputB
-
-        fix_tool_schemas([tool_a, tool_b])
-
-        schema_a = tool_a.args_schema.model_json_schema()
-        schema_b = tool_b.args_schema.model_json_schema()
-
-        # Each tool must have its own schema with its own properties
-        assert "name" in schema_a.get("properties", {}), "Tool A lost its 'name' property"
-        assert "code" in schema_b.get("properties", {}), "Tool B lost its 'code' property"
-        assert "code" not in schema_a.get("properties", {}), "Tool A got Tool B's schema"
-        assert "name" not in schema_b.get("properties", {}), "Tool B got Tool A's schema"
+        assert instance.tags == ["a", "b"]

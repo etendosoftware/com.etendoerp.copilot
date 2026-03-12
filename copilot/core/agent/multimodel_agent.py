@@ -14,7 +14,6 @@ from copilot.core.agent.agent import (
 from copilot.core.agent.agent_utils import (
     build_metadata,
     get_checkpoint_file,
-    normalize_content,
     process_local_files,
 )
 from copilot.core.agent.codeact import create_default_prompt
@@ -24,7 +23,7 @@ from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
 from copilot.core.threadcontextutils import (
     read_accum_usage_data_from_msg_arr,
 )
-from copilot.core.utils.agent import get_full_question, get_llm, get_structured_output
+from copilot.core.utils.agent import fix_tools_for_provider, get_full_question, get_llm, get_structured_output
 from langchain.agents import create_agent
 from langchain_classic.agents import AgentOutputParser
 from langchain_core.agents import AgentAction, AgentFinish
@@ -96,100 +95,55 @@ def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
     return agent_configuration.code_execution
 
 
-def _resolve_ref(obj, defs):
-    """Inline $ref references from $defs."""
-    if not isinstance(obj, dict) or "$ref" not in obj or not defs:
-        return obj
-    ref_name = obj["$ref"].rsplit("/", 1)[-1]
-    if ref_name not in defs:
-        return obj
-    resolved = defs[ref_name].copy()
-    for k, v in obj.items():
-        if k != "$ref":
-            resolved.setdefault(k, v)
-    return _resolve_ref(resolved, defs)
-
-
-def _resolve_anyof(schema, defs):
-    """Resolve anyOf by picking the first non-null alternative (Gemini doesn't support anyOf)."""
-    if "anyOf" not in schema:
-        return schema
-    alternatives = schema.pop("anyOf")
-    chosen = next(
-        (_resolve_ref(alt, defs) for alt in alternatives if _resolve_ref(alt, defs).get("type") != "null"),
-        None,
-    )
-    if not chosen:
-        return schema
-    parent_desc = schema.get("description")
-    parent_title = schema.get("title")
-    schema.update(chosen)
-    if parent_desc and "description" not in chosen:
-        schema["description"] = parent_desc
-    if parent_title and "title" not in chosen:
-        schema["title"] = parent_title
-    return schema
-
-
-def _fix_type_defaults(schema):
-    """Add missing 'items' to arrays and missing 'properties' to objects."""
-    if schema.get("type") == "array" and "items" not in schema:
-        schema["items"] = {"type": "string"}
-    if schema.get("type") == "object" and "properties" not in schema:
-        schema["properties"] = {}
-    return schema
-
-
-def _fix_nested_schemas(schema):
-    """Recursively apply _fix_array_schemas to nested properties, items, and additionalProperties."""
-    if "properties" in schema:
-        schema["properties"] = {k: _fix_array_schemas(v) for k, v in schema["properties"].items()}
-    if "items" in schema:
-        schema["items"] = _fix_array_schemas(schema["items"])
-    if isinstance(schema.get("additionalProperties"), dict):
-        schema["additionalProperties"] = _fix_array_schemas(schema["additionalProperties"])
-    return schema
-
-
 def _fix_array_schemas(schema):
     """
-    Recursively fix schemas for provider compatibility (especially Gemini).
-    Resolves $ref/anyOf patterns and ensures arrays have items and objects have properties.
+    Recursively fix array schemas by adding missing 'items' property.
+
+    Args:
+        schema: The schema dictionary to fix
+
+    Returns:
+        Fixed schema dictionary
     """
     if not isinstance(schema, dict):
         return schema
-    fixed = schema.copy()
-    defs = fixed.pop("$defs", None) or schema.get("$defs")
-    fixed = _resolve_ref(fixed, defs)
-    fixed = _resolve_anyof(fixed, defs)
-    fixed = _fix_type_defaults(fixed)
-    fixed = _fix_nested_schemas(fixed)
-    return fixed
 
+    # Create a copy to avoid modifying the original
+    fixed_schema = schema.copy()
 
-def fix_tool_schemas(tools):
-    """Fix tool schemas for provider compatibility (especially Gemini).
+    # Fix array type missing or empty items
+    if fixed_schema.get("type") == "array" and (
+        "items" not in fixed_schema or fixed_schema.get("items") == {}
+    ):
+        fixed_schema["items"] = {"type": "string"}  # Default to string items
 
-    For tools with a Pydantic args_schema, overrides model_json_schema() to return
-    a fixed version without anyOf/$ref/$defs that Gemini cannot handle.
-    For tools with a dict args_schema, fixes the dict directly.
-    """
-    from pydantic import BaseModel
+    # Fix object type missing properties
+    if fixed_schema.get("type") == "object" and "properties" not in fixed_schema:
+        fixed_schema["properties"] = {}
 
-    for tool in tools:
-        schema_cls = getattr(tool, "args_schema", None)
-        if schema_cls is None:
-            continue
-        if isinstance(schema_cls, dict):
-            tool.args_schema = _fix_array_schemas(schema_cls)
-        elif isinstance(schema_cls, type) and issubclass(schema_cls, BaseModel):
-            original_schema = schema_cls.model_json_schema()
-            fixed_schema = _fix_array_schemas(original_schema)
-            if fixed_schema != original_schema:
-                # Subclass to override JSON schema generation without affecting validation
-                patched_cls = type(schema_cls.__name__, (schema_cls,), {})
-                patched_cls.model_json_schema = classmethod(lambda cls, _fs=fixed_schema, **kw: _fs)
-                tool.args_schema = patched_cls
+    # Recursively fix nested schemas
+    if "properties" in fixed_schema:
+        fixed_properties = {}
+        for key, value in fixed_schema["properties"].items():
+            fixed_properties[key] = _fix_array_schemas(value)
+        fixed_schema["properties"] = fixed_properties
+
+    if "items" in fixed_schema:
+        fixed_schema["items"] = _fix_array_schemas(fixed_schema["items"])
+
+    if "additionalProperties" in fixed_schema and isinstance(fixed_schema["additionalProperties"], dict):
+        fixed_schema["additionalProperties"] = _fix_array_schemas(fixed_schema["additionalProperties"])
+
+    for keyword in ("anyOf", "oneOf", "allOf"):
+        if keyword in fixed_schema and isinstance(fixed_schema[keyword], list):
+            fixed_schema[keyword] = [_fix_array_schemas(item) for item in fixed_schema[keyword]]
+
+    if "$defs" in fixed_schema:
+        fixed_schema["$defs"] = {
+            k: _fix_array_schemas(v) for k, v in fixed_schema["$defs"].items()
+        }
+
+    return fixed_schema
 
 
 async def get_mcp_tools(mcp_servers_config: dict = None) -> list:
@@ -324,10 +278,6 @@ class MultimodelAgent(CopilotAgent):
         if mcp_tools is not None:
             _enabled_tools.extend(mcp_tools or [])
 
-        # Fix tool schemas for provider compatibility (e.g. Gemini requires items on arrays,
-        # does not support anyOf/$ref). Applied to ALL tools, not just MCP tools.
-        fix_tool_schemas(_enabled_tools)
-
         # Replace the instance configured tools with the complete list
         self._configured_tools = _enabled_tools
         tools_loaded[agent_configuration.assistant_id] = _enabled_tools
@@ -339,6 +289,8 @@ class MultimodelAgent(CopilotAgent):
         ]
 
         ChatPromptTemplate.from_messages(prompt_structure)
+
+        fix_tools_for_provider(_enabled_tools, provider)
 
         if is_code_act_enabled(agent_configuration):
             agent = self._create_code_act_agent(llm, _enabled_tools, system_prompt)
@@ -382,6 +334,15 @@ class MultimodelAgent(CopilotAgent):
             )
             new_ai_message = agent_response.get("messages")[-1]
             usage_data = read_accum_usage_data_from_msg_arr(agent_response.get("messages"))
+
+            if not new_ai_message.content and usage_data.get("output_tokens", 0) == 0:
+                raise RuntimeError(
+                    "The model returned an empty response with 0 output tokens. "
+                    "This usually indicates a rate limit, quota exhaustion, or content filtering issue "
+                    "with the model provider. Please check the model's API status and try again."
+                )
+            from copilot.core.agent.agent_utils import normalize_content
+
             return AgentResponse(
                 input=full_question,
                 output=AssistantResponse(

@@ -64,7 +64,7 @@ def _get_type_mapping():
         "integer": (int, Field(description="")),
         "number": (float, Field(description="")),
         "boolean": (bool, Field(description="")),
-        "array": (list, Field(description="")),
+        "array": (List[str], Field(description="")),
         "object": (dict, Field(description="")),
     }
 
@@ -199,20 +199,8 @@ def _create_body_model_from_schema(schema_dict: Dict, model_name: str, type_map:
         # Determine if field is required
         is_required = prop_name in schema_dict.get("required", [])
 
-        # Handle array types with items schema (Gemini requires items field)
-        if prop_type_str == "array":
-            items_schema = prop_data.get("items", {})
-            item_type_str = items_schema.get("type", "string")
-            if item_type_str == "object" or "properties" in items_schema:
-                item_model_name = f"{model_name}{prop_name.capitalize()}Item"
-                item_model = _create_body_model_from_schema(items_schema, item_model_name, type_map)
-                field_type = List[item_model]
-            else:
-                item_type, _ = type_map.get(item_type_str, (Any, Field(description="")))
-                field_type = List[item_type]
-        else:
-            # Create the Field with the correct property description
-            field_type, _ = type_map.get(prop_type_str, (Any, Field(description="")))
+        # Create the Field with the correct property description
+        field_type, _ = type_map.get(prop_type_str, (Any, Field(description="")))
 
         if is_required and not is_nullable:
             # Truly required field
@@ -268,32 +256,14 @@ def _process_array_schema(sub_schema: Dict, body_model_name: str, index: int, ty
     
     # Array of primitive types
     item_type_str = items_schema.get("type", "string")
-    item_type, _ = type_map.get(item_type_str, (Any, Field(description="")))
+    item_type, _ = type_map.get(item_type_str, (str, Field(description="")))
     return List[item_type]
-
-
-def _select_oneof_model(models):
-    """Pick the best model from oneOf alternatives avoiding Union/anyOf (unsupported by Gemini).
-
-    Prefers List types over single BaseModel subclasses because a list of one item
-    still covers the single-object case while also allowing batch requests.
-    """
-    # Prefer List types (they cover both single and multi-item use cases)
-    for model in models:
-        origin = getattr(model, "__origin__", None)
-        if origin is list:
-            return model
-    # Fallback to the first BaseModel subclass
-    for model in models:
-        if isinstance(model, type) and issubclass(model, BaseModel):
-            return model
-    return models[0]
 
 
 def _process_request_body(method: str, operation: Dict, path: str, type_map: Dict) -> Optional[tuple]:
     """
     Process request body for POST/PUT methods and return body model and field info.
-
+    
     For POST requests: Supports oneOf schemas with objects, arrays, and primitive types.
     For PUT requests: Only processes standard object schemas (no oneOf support).
     """
@@ -313,8 +283,8 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
     if method == "post" and "oneOf" in schema_dict:
         models = _process_oneof_schema(schema_dict, body_model_name, type_map)
         if models:
-            body_description = request_body.get("description", "Request body.")
-            return _select_oneof_model(models), body_description
+            body_description = request_body.get("description", "Request body (one of alternatives).")
+            return Union[tuple(models)], body_description
 
     if schema_dict.get("type") != "object" or "properties" not in schema_dict:
         return None

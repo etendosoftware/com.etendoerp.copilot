@@ -51,11 +51,6 @@ class LangSupervisorPattern(BasePattern):
             ),
             state_schema=LangSupervisorState,
             response_format=get_structured_output(full_question),
-            # Exclude supervisor handoff messages (AIMessage with transfer_to_* tool call
-            # + ToolMessage) from the child agent's input. Required for Gemini compatibility:
-            # Gemini rejects function calls in history for functions not declared in the
-            # current tool set, causing child agents to produce no output.
-            add_handoff_messages=False,
         )
 
         # Compile and run

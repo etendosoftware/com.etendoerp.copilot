@@ -103,21 +103,37 @@ async def _handle_on_chain_end(event, thread_id):
     Returns:
         AssistantResponse or None: The response generated from the event, or None if no response is generated.
     """
+    response = None
     output = event["data"]["output"]
-    if not isinstance(output, dict):
-        return None
-    if len(event["parent_ids"]) != 0:
-        return None
     messages = output.get("messages", [])
     usage_data = read_accum_usage_data_from_msg_arr(messages)
-    text = _extract_response_text(output)
-    if not text:
+    if len(event["parent_ids"]) != 0:
         return None
-    return AssistantResponse(
-        response=text,
-        conversation_id=thread_id,
-        metadata=build_metadata(usage_data),
-    )
+    if messages:
+        message = messages[-1]
+        if isinstance(message, (HumanMessage, AIMessage)):
+            response = AssistantResponse(
+                response=normalize_content(message.content),
+                conversation_id=thread_id,
+                metadata=build_metadata(usage_data),
+            )
+    if output.get("structured_response"):
+        response = AssistantResponse(
+            response=output["structured_response"],
+            conversation_id=thread_id,
+            metadata=build_metadata(usage_data),
+        )
+
+    if response is not None and not response.response and usage_data.get("output_tokens", 0) == 0:
+        response = AssistantResponse(
+            response="The model returned an empty response with 0 output tokens. "
+            "This usually indicates a rate limit, quota exhaustion, or content filtering issue "
+            "with the model provider. Please check the model's API status and try again.",
+            conversation_id=thread_id,
+            role="error",
+            metadata=build_metadata(usage_data),
+        )
+    return response
 
 
 async def _handle_on_tool_start(event, thread_id):
@@ -235,23 +251,6 @@ def build_config(thread_id):
     return config
 
 
-def _extract_response_text(agent_response):
-    """Extract the response text from an agent response dict.
-
-    Prefers structured_response if present, otherwise walks backwards through
-    messages to find the last AIMessage with actual content.
-    """
-    if agent_response.get("structured_response"):
-        return agent_response["structured_response"]
-    messages = agent_response.get("messages") or []
-    for msg in reversed(messages):
-        if isinstance(msg, AIMessage):
-            text = normalize_content(msg.content)
-            if text:
-                return text
-    return ""
-
-
 class LanggraphAgent(CopilotAgent):
     _memory: MemoryHandler = None
 
@@ -305,7 +304,20 @@ class LanggraphAgent(CopilotAgent):
 
                 messages = agent_response.get("messages")
                 usage_data = read_accum_usage_data_from_msg_arr(messages)
-                new_ai_message = _extract_response_text(agent_response)
+                if agent_response.get("structured_response"):
+                    new_ai_message = agent_response.get("structured_response")
+                else:
+                    if messages and len(messages) > 0:
+                        new_ai_message = messages[-1].content
+                    else:
+                        new_ai_message = ""
+
+                if not new_ai_message and usage_data.get("output_tokens", 0) == 0:
+                    raise RuntimeError(
+                        "The model returned an empty response with 0 output tokens. "
+                        "This usually indicates a rate limit, quota exhaustion, or content filtering issue "
+                        "with the model provider. Please check the model's API status and try again."
+                    )
                 return AgentResponse(
                     input=question.model_dump_json(),
                     output=AssistantResponse(
