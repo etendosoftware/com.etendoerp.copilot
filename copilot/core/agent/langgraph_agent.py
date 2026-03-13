@@ -105,32 +105,30 @@ async def _handle_on_chain_end(event, thread_id):
     """
     response = None
     output = event["data"]["output"]
+    if not isinstance(output, dict):
+        return None
     messages = output.get("messages", [])
     usage_data = read_accum_usage_data_from_msg_arr(messages)
     if len(event["parent_ids"]) != 0:
         return None
     if messages:
-        message = messages[-1]
-        if isinstance(message, (HumanMessage, AIMessage)):
-            response = AssistantResponse(
-                response=normalize_content(message.content),
-                conversation_id=thread_id,
-                metadata=build_metadata(usage_data),
-            )
+        # Walk backwards to find the last AIMessage with non-empty content,
+        # skipping empty supervisor messages and tool messages.
+        for message in reversed(messages):
+            if not isinstance(message, AIMessage):
+                continue
+            content = normalize_content(message.content)
+            if content:
+                response = AssistantResponse(
+                    response=content,
+                    conversation_id=thread_id,
+                    metadata=build_metadata(usage_data),
+                )
+                break
     if output.get("structured_response"):
         response = AssistantResponse(
             response=output["structured_response"],
             conversation_id=thread_id,
-            metadata=build_metadata(usage_data),
-        )
-
-    if response is not None and not response.response and usage_data.get("output_tokens", 0) == 0:
-        response = AssistantResponse(
-            response="The model returned an empty response with 0 output tokens. "
-            "This usually indicates a rate limit, quota exhaustion, or content filtering issue "
-            "with the model provider. Please check the model's API status and try again.",
-            conversation_id=thread_id,
-            role="error",
             metadata=build_metadata(usage_data),
         )
     return response

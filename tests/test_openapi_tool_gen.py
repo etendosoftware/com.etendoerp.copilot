@@ -422,7 +422,7 @@ class TestProcessRequestBodyOneOf:
 
         result = _process_request_body("post", operation, "/purchaseinvoiceline", type_map)
         assert result is not None
-        body_model, description = result
+        _, description = result
         assert description == "Invoice lines"
 
 
