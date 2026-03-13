@@ -144,3 +144,26 @@ def build_metadata(usage_data):
             "total_tokens": usage_data.get("input_tokens", 0) + usage_data.get("output_tokens", 0),
         }
     return metadata
+
+
+def normalize_content(content):
+    """Normalize message content to a plain string.
+
+    Some providers (e.g. Gemini) return content as a list of content blocks
+    like ``[{"type": "text", "text": "..."}]`` instead of a plain string.
+    """
+    if isinstance(content, str):
+        return content
+    if content is None:
+        return ""
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict) and "text" in block:
+                parts.append(block["text"])
+            elif isinstance(block, str):
+                parts.append(block)
+        if parts:
+            return "\n".join(parts)
+        # No extractable text — fall through to str()
+    return str(content)
