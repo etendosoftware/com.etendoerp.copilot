@@ -35,6 +35,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
+DEFS_KEY = "$defs"
 tools_loaded = {}
 
 
@@ -95,6 +96,40 @@ def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
     return agent_configuration.code_execution
 
 
+def _fix_type_defaults(schema):
+    """Fix missing defaults for array and object type schemas."""
+    if schema.get("type") == "array" and (
+        "items" not in schema or schema.get("items") == {}
+    ):
+        schema["items"] = {"type": "string"}
+
+    if schema.get("type") == "object" and "properties" not in schema:
+        schema["properties"] = {}
+
+
+def _fix_nested_schemas(schema):
+    """Recursively fix nested sub-schemas within a schema dict."""
+    if "properties" in schema:
+        schema["properties"] = {
+            k: _fix_array_schemas(v) for k, v in schema["properties"].items()
+        }
+
+    if "items" in schema:
+        schema["items"] = _fix_array_schemas(schema["items"])
+
+    if "additionalProperties" in schema and isinstance(schema["additionalProperties"], dict):
+        schema["additionalProperties"] = _fix_array_schemas(schema["additionalProperties"])
+
+    for keyword in ("anyOf", "oneOf", "allOf"):
+        if keyword in schema and isinstance(schema[keyword], list):
+            schema[keyword] = [_fix_array_schemas(item) for item in schema[keyword]]
+
+    if DEFS_KEY in schema:
+        schema[DEFS_KEY] = {
+            k: _fix_array_schemas(v) for k, v in schema[DEFS_KEY].items()
+        }
+
+
 def _fix_array_schemas(schema):
     """
     Recursively fix array schemas by adding missing 'items' property.
@@ -108,40 +143,9 @@ def _fix_array_schemas(schema):
     if not isinstance(schema, dict):
         return schema
 
-    # Create a copy to avoid modifying the original
     fixed_schema = schema.copy()
-
-    # Fix array type missing or empty items
-    if fixed_schema.get("type") == "array" and (
-        "items" not in fixed_schema or fixed_schema.get("items") == {}
-    ):
-        fixed_schema["items"] = {"type": "string"}  # Default to string items
-
-    # Fix object type missing properties
-    if fixed_schema.get("type") == "object" and "properties" not in fixed_schema:
-        fixed_schema["properties"] = {}
-
-    # Recursively fix nested schemas
-    if "properties" in fixed_schema:
-        fixed_properties = {}
-        for key, value in fixed_schema["properties"].items():
-            fixed_properties[key] = _fix_array_schemas(value)
-        fixed_schema["properties"] = fixed_properties
-
-    if "items" in fixed_schema:
-        fixed_schema["items"] = _fix_array_schemas(fixed_schema["items"])
-
-    if "additionalProperties" in fixed_schema and isinstance(fixed_schema["additionalProperties"], dict):
-        fixed_schema["additionalProperties"] = _fix_array_schemas(fixed_schema["additionalProperties"])
-
-    for keyword in ("anyOf", "oneOf", "allOf"):
-        if keyword in fixed_schema and isinstance(fixed_schema[keyword], list):
-            fixed_schema[keyword] = [_fix_array_schemas(item) for item in fixed_schema[keyword]]
-
-    if "$defs" in fixed_schema:
-        fixed_schema["$defs"] = {
-            k: _fix_array_schemas(v) for k, v in fixed_schema["$defs"].items()
-        }
+    _fix_type_defaults(fixed_schema)
+    _fix_nested_schemas(fixed_schema)
 
     return fixed_schema
 

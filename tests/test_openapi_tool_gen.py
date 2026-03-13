@@ -1,11 +1,10 @@
 """Tests for OpenAPI tool generation functionality."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from copilot.core.tool_wrapper import CopilotTool
-from pydantic import BaseModel
 from copilot.core.toolgen.openapi_tool_gen import (
     _generate_function_code,
     _generate_tool_name,
@@ -13,7 +12,6 @@ from copilot.core.toolgen.openapi_tool_gen import (
     _process_openapi_parameters,
     _process_request_body,
     _process_single_operation,
-    _select_oneof_model,
     generate_tools_from_openapi,
     replace_base64_filepaths,
     sanitize_tool_name,
@@ -385,54 +383,11 @@ class TestGenerateToolsFromOpenapi:
             mock_create_tool.assert_called_once()
 
 
-class TestSelectOneofModel:
-    """Test cases for _select_oneof_model function."""
+class TestProcessRequestBodyOneOf:
+    """Test cases for oneOf handling in _process_request_body."""
 
-    def test_prefers_list_over_basemodel(self):
-        """Test that List types are preferred over BaseModel subclasses."""
-        class MyModel(BaseModel):
-            name: str = ""
-
-        models = [MyModel, List[MyModel]]
-        result = _select_oneof_model(models)
-        # Should pick the List type, not the single BaseModel
-        assert getattr(result, "__origin__", None) is list
-
-    def test_prefers_list_when_first(self):
-        """Test that List type is picked even when it comes first."""
-        class MyModel(BaseModel):
-            name: str = ""
-
-        models = [List[MyModel], MyModel]
-        result = _select_oneof_model(models)
-        assert getattr(result, "__origin__", None) is list
-
-    def test_falls_back_to_basemodel(self):
-        """Test fallback to BaseModel when no List type is available."""
-        class MyModel(BaseModel):
-            name: str = ""
-
-        models = [MyModel]
-        result = _select_oneof_model(models)
-        assert result is MyModel
-
-    def test_falls_back_to_first_model(self):
-        """Test fallback to first model when no List or BaseModel is available."""
-        models = [str, int]
-        result = _select_oneof_model(models)
-        assert result is str
-
-    def test_list_of_primitives(self):
-        """Test that List of primitives is preferred."""
-        class MyModel(BaseModel):
-            name: str = ""
-
-        models = [MyModel, List[str]]
-        result = _select_oneof_model(models)
-        assert getattr(result, "__origin__", None) is list
-
-    def test_process_request_body_oneof_prefers_list(self):
-        """Test that _process_request_body with oneOf schema returns List type for batch support."""
+    def test_process_request_body_oneof_returns_union(self):
+        """Test that _process_request_body with oneOf schema returns a Union type."""
         type_map = _get_type_mapping()
         operation = {
             "requestBody": {
@@ -467,9 +422,8 @@ class TestSelectOneofModel:
 
         result = _process_request_body("post", operation, "/purchaseinvoiceline", type_map)
         assert result is not None
-        body_model, _ = result
-        # The body model should be a List type to support batch requests
-        assert getattr(body_model, "__origin__", None) is list
+        body_model, description = result
+        assert description == "Invoice lines"
 
 
 if __name__ == "__main__":

@@ -644,7 +644,7 @@ class TestFixAnnotation:
         class Inner(BaseModel):
             items: list = Field(description="items")
 
-        result = _fix_annotation(Inner)
+        _fix_annotation(Inner)
         schema = Inner.model_json_schema()
         assert schema["properties"]["items"]["items"] == {"type": "string"}
 

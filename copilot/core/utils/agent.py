@@ -11,6 +11,7 @@ _PROVIDER_ALIAS_MAP = {
     "gemini": "google_genai",
 }
 _NATIVE_SDK_PROVIDERS = {"google_genai"}
+DEFS_KEY = "$defs"
 
 
 def get_full_question(question: QuestionSchema) -> str:
@@ -121,9 +122,9 @@ def _fix_array_schemas(schema):
         if keyword in fixed_schema and isinstance(fixed_schema[keyword], list):
             fixed_schema[keyword] = [_fix_array_schemas(item) for item in fixed_schema[keyword]]
 
-    if "$defs" in fixed_schema:
-        fixed_schema["$defs"] = {
-            k: _fix_array_schemas(v) for k, v in fixed_schema["$defs"].items()
+    if DEFS_KEY in fixed_schema:
+        fixed_schema[DEFS_KEY] = {
+            k: _fix_array_schemas(v) for k, v in fixed_schema[DEFS_KEY].items()
         }
 
     return fixed_schema
@@ -256,7 +257,6 @@ def fix_tools_for_provider(tools, provider):
             _fix_tool_schema(tool)
         except Exception:
             pass
-    return tools
 
 
 def get_model_config(provider, model):
