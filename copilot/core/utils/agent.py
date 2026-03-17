@@ -235,7 +235,8 @@ def _fix_tool_schema(tool):
         if fixed != tool.args_schema:
             tool.args_schema = fixed
     elif isinstance(tool.args_schema, type) and issubclass(tool.args_schema, BaseModel):
-        if _fix_model_fields(tool.args_schema, visited=None):
+        visited = set()
+        if _fix_model_fields(tool.args_schema, visited=visited):
             tool.args_schema.model_rebuild(force=True)
 
 
