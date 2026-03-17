@@ -11,6 +11,7 @@ from copilot.core.agent.agent import AgentResponse, AssistantResponse, CopilotAg
 from copilot.core.agent.agent_utils import (
     build_metadata,
     get_checkpoint_file,
+    normalize_content,
     process_local_files,
 )
 from copilot.core.langgraph.members_util import MembersUtil
@@ -104,16 +105,26 @@ async def _handle_on_chain_end(event, thread_id):
     """
     response = None
     output = event["data"]["output"]
+    if not isinstance(output, dict):
+        return None
     messages = output.get("messages", [])
     usage_data = read_accum_usage_data_from_msg_arr(messages)
     if len(event["parent_ids"]) != 0:
         return None
     if messages:
-        message = messages[-1]
-        if isinstance(message, (HumanMessage, AIMessage)):
-            response = AssistantResponse(
-                response=message.content, conversation_id=thread_id, metadata=build_metadata(usage_data)
-            )
+        # Walk backwards to find the last AIMessage with non-empty content,
+        # skipping empty supervisor messages and tool messages.
+        for message in reversed(messages):
+            if not isinstance(message, AIMessage):
+                continue
+            content = normalize_content(message.content)
+            if content:
+                response = AssistantResponse(
+                    response=content,
+                    conversation_id=thread_id,
+                    metadata=build_metadata(usage_data),
+                )
+                break
     if output.get("structured_response"):
         response = AssistantResponse(
             response=output["structured_response"],
@@ -298,6 +309,13 @@ class LanggraphAgent(CopilotAgent):
                         new_ai_message = messages[-1].content
                     else:
                         new_ai_message = ""
+
+                if not new_ai_message and usage_data.get("output_tokens", 0) == 0:
+                    raise RuntimeError(
+                        "The model returned an empty response with 0 output tokens. "
+                        "This usually indicates a rate limit, quota exhaustion, or content filtering issue "
+                        "with the model provider. Please check the model's API status and try again."
+                    )
                 return AgentResponse(
                     input=question.model_dump_json(),
                     output=AssistantResponse(

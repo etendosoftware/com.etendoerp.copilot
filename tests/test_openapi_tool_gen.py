@@ -202,11 +202,11 @@ class TestHelperFunctions:
         param_names = ["param1", "param2", "token"]
         param_locations = {"param1": "query", "param2": "path"}
 
-        code = _generate_function_code("get", "http://api.test", "/test", param_names, param_locations)
+        code = _generate_function_code("get", "https://api.test", "/test", param_names, param_locations)
 
         assert "def _run_dynamic(self, param1, param2, token):" in code
         assert "method='GET'" in code
-        assert "url='http://api.test'" in code
+        assert "url='https://api.test'" in code
         assert "endpoint='/test'" in code
 
 
@@ -381,6 +381,49 @@ class TestGenerateToolsFromOpenapi:
 
             assert result == mock_tool
             mock_create_tool.assert_called_once()
+
+
+class TestProcessRequestBodyOneOf:
+    """Test cases for oneOf handling in _process_request_body."""
+
+    def test_process_request_body_oneof_returns_union(self):
+        """Test that _process_request_body with oneOf schema returns a Union type."""
+        type_map = _get_type_mapping()
+        operation = {
+            "requestBody": {
+                "description": "Invoice lines",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "oneOf": [
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "invoice": {"type": "string"},
+                                        "product": {"type": "string"},
+                                    },
+                                },
+                                {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "invoice": {"type": "string"},
+                                            "product": {"type": "string"},
+                                        },
+                                    },
+                                },
+                            ]
+                        }
+                    }
+                },
+            }
+        }
+
+        result = _process_request_body("post", operation, "/purchaseinvoiceline", type_map)
+        assert result is not None
+        _, description = result
+        assert description == "Invoice lines"
 
 
 if __name__ == "__main__":
