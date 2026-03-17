@@ -56,7 +56,7 @@ public class CopilotSyncStartup implements ApplicationInitializer {
       List<CopilotApp> allApps = crit.list();
 
       List<CopilotApp> appsToSync = allApps.stream().filter(app -> {
-        if (Boolean.FALSE.equals(app.isSyncStartup())) {
+        if (!Boolean.TRUE.equals(app.isSyncStartup())) {
           return false;
         }
         List<AppInfo> appInfo = app.getEtcopAppInfoList();
