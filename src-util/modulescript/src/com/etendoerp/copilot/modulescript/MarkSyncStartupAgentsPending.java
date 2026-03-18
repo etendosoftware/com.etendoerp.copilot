@@ -21,8 +21,7 @@ import org.openbravo.modulescript.ModuleScript;
 import org.openbravo.modulescript.ModuleScriptExecutionLimits;
 
 /**
- * Module script that defaults {@code sync_startup} to 'N' for agents where it is null,
- * and marks agents with "Sync on startup" enabled as Pending Synchronization
+ * Module script that marks agents with "Sync on startup" enabled as Pending Synchronization
  * during update.database.
  * <p>
  * This ensures that when Tomcat starts after an update.database, {@code CopilotSyncStartup}
@@ -39,16 +38,12 @@ public class MarkSyncStartupAgentsPending extends ModuleScript {
 
   @Override
   public void execute() {
+    ConnectionProvider cp = getConnectionProvider();
+    PreparedStatement updatePs = null;
+    PreparedStatement insertPs = null;
     try {
-      ConnectionProvider cp = getConnectionProvider();
-
-      // Default sync_startup to 'N' for agents where it is null
-      PreparedStatement defaultPs = cp.getPreparedStatement(
-          "UPDATE etcop_app SET sync_startup = 'N' WHERE sync_startup IS NULL");
-      defaultPs.executeUpdate();
-
       // Update existing etcop_app_info records to 'PS' for agents with sync_startup = 'Y'
-      PreparedStatement updatePs = cp.getPreparedStatement(
+      updatePs = cp.getPreparedStatement(
           "UPDATE etcop_app_info SET sync_status = 'PS', updated = NOW() "
               + "WHERE etcop_app_id IN ("
               + "  SELECT etcop_app_id FROM etcop_app WHERE sync_startup = 'Y'"
@@ -57,7 +52,7 @@ public class MarkSyncStartupAgentsPending extends ModuleScript {
 
       // Insert etcop_app_info records for agents that have sync_startup = 'Y'
       // but no etcop_app_info record yet
-      PreparedStatement insertPs = cp.getPreparedStatement(
+      insertPs = cp.getPreparedStatement(
           "INSERT INTO etcop_app_info "
               + "(etcop_app_info_id, ad_client_id, ad_org_id, isactive, "
               + " created, createdby, updated, updatedby, etcop_app_id, sync_status) "
@@ -72,6 +67,19 @@ public class MarkSyncStartupAgentsPending extends ModuleScript {
 
     } catch (Exception e) {
       handleError(e);
+    } finally {
+      releasePreparedStatement(cp, updatePs);
+      releasePreparedStatement(cp, insertPs);
+    }
+  }
+
+  private void releasePreparedStatement(ConnectionProvider cp, PreparedStatement ps) {
+    if (ps != null) {
+      try {
+        cp.releasePreparedStatement(ps);
+      } catch (Exception e) {
+        handleError(e);
+      }
     }
   }
 }

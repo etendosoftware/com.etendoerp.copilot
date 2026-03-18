@@ -20,8 +20,6 @@ import java.util.Set;
 
 import javax.enterprise.event.Observes;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
@@ -53,9 +51,9 @@ import com.etendoerp.openapi.data.OpenAPIRequest;
 public class OpenApiSyncStatusHandler extends EntityPersistenceEventObserver {
 
   private static Entity[] entities = {
-      ModelProvider.getInstance().getEntity(OpenApiFlow.class),
-      ModelProvider.getInstance().getEntity(OpenAPIRequest.class),
-      ModelProvider.getInstance().getEntity(OpenApiFlowPoint.class)
+      ModelProvider.getInstance().getEntity(OpenApiFlow.ENTITY_NAME),
+      ModelProvider.getInstance().getEntity(OpenAPIRequest.ENTITY_NAME),
+      ModelProvider.getInstance().getEntity(OpenApiFlowPoint.ENTITY_NAME)
   };
 
   @Override
