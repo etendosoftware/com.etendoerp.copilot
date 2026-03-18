@@ -192,6 +192,14 @@ def _process_request_body(method: str, operation: Dict, path: str, type_map: Dic
     content = request_body.get("content", {})
     schema_dict = content.get("application/json", {}).get("schema", {})
 
+    # Handle oneOf/anyOf schemas by extracting the first object variant
+    if "oneOf" in schema_dict or "anyOf" in schema_dict:
+        variants = schema_dict.get("oneOf", schema_dict.get("anyOf", []))
+        for variant in variants:
+            if variant.get("type") == "object" and "properties" in variant:
+                schema_dict = variant
+                break
+
     if schema_dict.get("type") != "object" or "properties" not in schema_dict:
         return None
 

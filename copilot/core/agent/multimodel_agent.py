@@ -14,6 +14,7 @@ from copilot.core.agent.agent import (
 from copilot.core.agent.agent_utils import (
     build_metadata,
     get_checkpoint_file,
+    normalize_content,
     process_local_files,
 )
 from copilot.core.agent.codeact import create_default_prompt
@@ -343,10 +344,17 @@ class MultimodelAgent(CopilotAgent):
                 )
                 new_ai_message = agent_response.get("messages")[-1]
                 usage_data = read_accum_usage_data_from_msg_arr(agent_response.get("messages"))
+
+                if not new_ai_message.content and usage_data.get("output_tokens", 0) == 0:
+                    raise RuntimeError(
+                        "The model returned an empty response with 0 output tokens. "
+                        "This usually indicates a rate limit, quota exhaustion, or content filtering issue "
+                        "with the model provider. Please check the model's API status and try again."
+                    )
                 return AgentResponse(
                     input=full_question,
                     output=AssistantResponse(
-                        response=new_ai_message.content,
+                        response=normalize_content(new_ai_message.content),
                         conversation_id=question.conversation_id,
                         metadata=build_metadata(usage_data),
                     ),

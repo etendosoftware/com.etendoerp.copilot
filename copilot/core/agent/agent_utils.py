@@ -144,3 +144,26 @@ def build_metadata(usage_data):
             "total_tokens": usage_data.get("input_tokens", 0) + usage_data.get("output_tokens", 0),
         }
     return metadata
+
+
+def normalize_content(content):
+    """
+    Normalize message content to a plain string.
+
+    AIMessage.content can be a string or a list of content blocks
+    (e.g. [{"type": "text", "text": "..."}]). This helper collapses
+    both forms into a single string, returning empty string for empty/None.
+    """
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and "text" in block:
+                parts.append(block["text"])
+        return "\n".join(parts)
+    return str(content)
