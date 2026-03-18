@@ -105,12 +105,8 @@ public class CheckHostsButton extends BaseProcessActionHandler {
    *     The security token used for authentication.
    * @param checks
    *     The JSON object to store the results of the check.
-   * @throws IOException
-   *     If an error occurs while connecting to the Copilot host.
-   * @throws JSONException
-   *     If an error occurs while processing JSON responses.
    */
-  private JSONObject checkCopilotHost(String token, JSONObject checks) throws IOException, JSONException {
+  private JSONObject checkCopilotHost(String token, JSONObject checks) {
     String copilotHost = CopilotUtils.getCopilotHost();
     String copilotPort = CopilotUtils.getCopilotPort();
 
@@ -127,7 +123,7 @@ public class CheckHostsButton extends BaseProcessActionHandler {
           return checks;
         }
 
-        log4j.debug("COPILOT_HOST is working.");
+        log4j.debug("copilot.host (COPILOT_HOST) is working.");
         checks.put(COPILOT_HOST, true);
 
         StringBuilder responseBuilder = new StringBuilder();
@@ -138,12 +134,12 @@ public class CheckHostsButton extends BaseProcessActionHandler {
         String responseBody = responseBuilder.toString();
 
         boolean status = StringUtils.contains(responseBody, SUCCESS);
-        log4j.debug("ETENDO_HOST_DOCKER is " + (status ? "" : "not") + " working.");
+        log4j.debug("etendo.host.docker (ETENDO_HOST_DOCKER) is " + (status ? "" : "not") + " working.");
         checks.put(ETENDO_HOST_DOCKER, status);
         return checks;
       }
     } catch (Exception e) {
-      throw new OBException("Error when checking COPILOT_HOST and ETENDO_HOST_DOCKER: " + e.getMessage());
+      throw new OBException("Error when checking copilot.host (COPILOT_HOST) and etendo.host.docker (ETENDO_HOST_DOCKER): " + e.getMessage());
     } finally {
       if (pythonConnection != null) {
         pythonConnection.disconnect();
@@ -162,34 +158,34 @@ public class CheckHostsButton extends BaseProcessActionHandler {
   private void returnMessage(JSONObject checks) throws JSONException {
     String messageType = SUCCESS;
     if (!checks.optBoolean(ETENDO_HOST, false) ||
-        !checks.optBoolean(COPILOT_HOST, false) ||
-        !checks.optBoolean(ETENDO_HOST_DOCKER, false)) {
+      !checks.optBoolean(COPILOT_HOST, false) ||
+      !checks.optBoolean(ETENDO_HOST_DOCKER, false)) {
       messageType = "error";
     }
 
     StringBuilder message = new StringBuilder();
-    String ETENDO_HOST_STATUS = VERIFICATION_FAILED;
-    String COPILOT_HOST_STATUS = VERIFICATION_FAILED;
-    String ETENDO_HOST_DOCKER_STATUS = " not verified.";
+    String etendoHostStatus = VERIFICATION_FAILED;
+    String copilotHostStatus = VERIFICATION_FAILED;
+    String etendoHostDockerStatus = " not verified.";
 
     if (checks.optBoolean(ETENDO_HOST)) {
-      ETENDO_HOST_STATUS = SUCESSFULLY_VERIFIED;
+      etendoHostStatus = SUCESSFULLY_VERIFIED;
     }
     if (checks.optBoolean(COPILOT_HOST)) {
-      COPILOT_HOST_STATUS = SUCESSFULLY_VERIFIED;
+      copilotHostStatus = SUCESSFULLY_VERIFIED;
     }
     if (checks.has(ETENDO_HOST_DOCKER)) {
       if (checks.optBoolean(ETENDO_HOST_DOCKER)) {
-        ETENDO_HOST_DOCKER_STATUS = SUCESSFULLY_VERIFIED;
+        etendoHostDockerStatus = SUCESSFULLY_VERIFIED;
       } else {
-        ETENDO_HOST_DOCKER_STATUS = VERIFICATION_FAILED;
+        etendoHostDockerStatus = VERIFICATION_FAILED;
       }
     }
 
-    message.append(String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), ETENDO_HOST, ETENDO_HOST_STATUS));
-    message.append(String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), COPILOT_HOST, COPILOT_HOST_STATUS));
+    message.append(String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), ETENDO_HOST, etendoHostStatus));
+    message.append(String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), COPILOT_HOST, copilotHostStatus));
     message.append(
-        String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), ETENDO_HOST_DOCKER, ETENDO_HOST_DOCKER_STATUS));
+      String.format(OBMessageUtils.messageBD(ETCOP_HOST_CHECK), ETENDO_HOST_DOCKER, etendoHostDockerStatus));
 
     JSONArray actions = new JSONArray();
     JSONObject showMsgInProcessView = new JSONObject();

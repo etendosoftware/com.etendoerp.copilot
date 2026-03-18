@@ -677,7 +677,9 @@ class TestRegisterAgentTools:
         ):
             mock_app = MagicMock()
 
-            result = await register_agent_tools(mock_app, "test_agent", "test_token", agent_config=MagicMock())
+            result = await register_agent_tools(
+                mock_app, "test_agent", "test_token", agent_config=MagicMock()
+            )
 
             assert result["success"] is False
             assert "Unexpected error" in result["error"]

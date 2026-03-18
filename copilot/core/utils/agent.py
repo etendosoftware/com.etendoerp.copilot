@@ -1,10 +1,10 @@
 import json
 import os
 
-from copilot.baseutils.logging_envvar import copilot_error
+from copilot.baseutils.logging_envvar import copilot_error, read_optional_env_var
 from copilot.core.schemas import QuestionSchema
 from copilot.core.utils import etendo_utils
-from copilot.core.utils.models import get_proxy_url
+from copilot.core.utils.models import get_api_key, get_proxy_url
 from langchain.chat_models import init_chat_model
 
 
@@ -34,8 +34,8 @@ def get_llm(model, provider, temperature):
     """
     # Initialize the language model
     if provider and "ollama" in provider:
-        ollama_host = os.getenv("COPILOT_OLLAMA_HOST", "ollama")
-        ollama_port = os.getenv("COPILOT_OLLAMA_PORT", "11434")
+        ollama_host = read_optional_env_var("copilot.ollama.host", "ollama")
+        ollama_port = read_optional_env_var("copilot.ollama.port", "11434")
         llm = init_chat_model(
             model_provider=provider,
             model=model,
@@ -48,7 +48,11 @@ def get_llm(model, provider, temperature):
     else:
         provider_to_use = provider
         model_to_use = model
-        if get_proxy_url() is not None:
+        if provider == "gemini":
+            provider_to_use = "google_genai"
+        if (
+            get_proxy_url() is not None
+        ):  # Overrides the provider and model to use if a proxy URL is set, to use the OpenAI compatible API
             model_to_use = provider_to_use + "/" + model
             provider_to_use = "openai"
 
@@ -59,6 +63,7 @@ def get_llm(model, provider, temperature):
             model=model_to_use,
             temperature=temperature,
             base_url=get_proxy_url(),
+            api_key=get_api_key(provider_to_use),
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )

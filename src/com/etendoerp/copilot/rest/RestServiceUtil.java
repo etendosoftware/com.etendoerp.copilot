@@ -1,6 +1,7 @@
 package com.etendoerp.copilot.rest;
 
 import static com.etendoerp.copilot.util.CopilotUtils.getAppSourceContent;
+import static com.etendoerp.copilot.util.CopilotUtils.readPropertyWithLegacyCompatibility;
 import static com.etendoerp.copilot.util.TrackingUtil.getLastConversation;
 import static com.etendoerp.copilot.util.TrackingUtil.trackNullResponse;
 import static com.etendoerp.webhookevents.webhook_util.OpenAPISpecUtils.PROP_NAME;
@@ -23,7 +24,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -198,92 +198,14 @@ public class RestServiceUtil {
         continue;
       }
       DiskFileItem itemDisk = (DiskFileItem) item;
-      String answer = processFileItem(itemDisk, endpoint);
+      String answer = FileUtils.processFileItem(itemDisk, endpoint);
       responseJson.put(item.getFieldName(), answer);
     }
 
     return responseJson;
   }
 
-  /**
-   * Process a single uploaded file item by creating a safe temporary file and
-   * delegating the actual upload to the existing file-handling path.
-   *
-   * <p>The method normalizes a possibly-null original filename, extracts the file
-   * extension (when present), ensures the prefix is valid for
-   * {@link File#createTempFile}, and then writes (or moves) the uploaded data into
-   * the temporary file. The resulting temporary file is validated and then
-   * uploaded to the provided endpoint.</p>
-   *
-   * @param itemDisk
-   *     the uploaded {@link DiskFileItem} to process
-   * @param endpoint
-   *     the Copilot endpoint to which the file will be sent (for example {@link
-   *     #FILE})
-   * @return the answer string returned by Copilot for the uploaded file
-   * @throws Exception
-   *     on IO errors, OBException or any failure during temporary file creation or upload
-   */
-  static String processFileItem(DiskFileItem itemDisk, String endpoint) throws Exception {
-    String originalFileName = normalizeOriginalFileName(itemDisk);
-    int dotIndex = originalFileName.lastIndexOf('.');
-    String extension = dotIndex == -1 ? null : originalFileName.substring(dotIndex);
-    String filenameWithoutExt = dotIndex == -1 ? originalFileName : originalFileName.substring(0, dotIndex);
 
-    String prefix = filenameWithoutExt + "_";
-    if (prefix.length() < 3) {
-      prefix = (prefix + "___").substring(0, 3);
-    }
-
-    Path tempPath = FileUtils.createSecureTempFile(prefix, extension);
-    File f = tempPath.toFile();
-    f.deleteOnExit();
-
-    setOwnerOnlyPermissions(tempPath, f);
-    writeDiskItemToFile(itemDisk, f);
-    checkSizeFile(f);
-    return handleFile(f, endpoint);
-  }
-
-  private static String normalizeOriginalFileName(DiskFileItem itemDisk) {
-    String originalFileName = itemDisk.getName();
-    if (originalFileName == null || originalFileName.isEmpty()) {
-      return "default";
-    }
-    return originalFileName;
-  }
-
-  private static void setOwnerOnlyPermissions(Path tempPath, File f) {
-    try {
-      Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rw-------");
-      Files.setPosixFilePermissions(tempPath, perms);
-    } catch (UnsupportedOperationException | IOException e) {
-      try {
-        boolean ok;
-        ok = f.setReadable(false, false);
-        if (!ok) log.debug("Failed to set non-owner readable on temp file: {}", f.getAbsolutePath());
-        ok = f.setWritable(false, false);
-        if (!ok) log.debug("Failed to set non-owner writable on temp file: {}", f.getAbsolutePath());
-        ok = f.setReadable(true, true);
-        if (!ok) log.debug("Failed to set owner-readable on temp file: {}", f.getAbsolutePath());
-        ok = f.setWritable(true, true);
-        if (!ok) log.debug("Failed to set owner-writable on temp file: {}", f.getAbsolutePath());
-      } catch (Exception ignore) {
-        log.debug("Could not set secure permissions on temp file: {}", f.getAbsolutePath());
-      }
-    }
-  }
-
-  private static void writeDiskItemToFile(DiskFileItem itemDisk, File f) throws Exception {
-    if (itemDisk.isInMemory()) {
-      itemDisk.write(f);
-    } else {
-      boolean successRename = itemDisk.getStoreLocation().renameTo(f);
-      if (!successRename) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"), itemDisk.getName()));
-      }
-    }
-  }
 
 
   /**
@@ -312,21 +234,6 @@ public class RestServiceUtil {
     return new JSONObject(jsonResponseStr).optString(PROP_ANSWER);
   }
 
-
-  /**
-   * Validate that the provided file does not exceed the maximum allowed size
-   * (512 MB). Throws an {@link OBException} when the file is too large.
-   *
-   * @param f
-   *     the file to validate
-   */
-  private static void checkSizeFile(File f) {
-    //check the size of the file: must be max 512mb
-    long size = f.length();
-    if (size > 512 * 1024 * 1024) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_FileTooBig"), f.getName()));
-    }
-  }
 
   /**
    * Log a debug-level message when debug logging is enabled.
@@ -385,7 +292,7 @@ public class RestServiceUtil {
     String conversationId = jsonRequest.optString(PROP_CONVERSATION_ID, null);
     String appId = jsonRequest.getString(APP_ID);
     String question = jsonRequest.getString(PROP_QUESTION);
-    List<String> filesReceived = getFilesReceived(jsonRequest);
+    List<String> filesReceived = FileUtils.getFilesReceived(jsonRequest);
     CopilotApp copilotApp = CopilotUtils.getAssistantByIDOrName(appId);
     switch (copilotApp.getAppType()) {
       case CopilotConstants.APP_TYPE_OPENAI:
@@ -410,34 +317,6 @@ public class RestServiceUtil {
     return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived);
   }
 
-
-  /**
-   * Extracts a list of file identifiers from a JSON request.
-   *
-   * @param jsonRequest
-   *     the JSON object containing the file identifiers.
-   * @return a list of file identifiers. If the "file" field is empty or not a valid JSON array, an empty list is returned.
-   */
-  public static List<String> getFilesReceived(JSONObject jsonRequest) {
-    List<String> result = new ArrayList<>();
-    String questionAttachedFileIds = jsonRequest.optString("file");
-    if (StringUtils.isEmpty(questionAttachedFileIds)) {
-      return result;
-    }
-    if (!StringUtils.startsWith(questionAttachedFileIds, "[")) {
-      result.add(questionAttachedFileIds);
-      return result;
-    }
-    try {
-      JSONArray jsonArray = new JSONArray(questionAttachedFileIds);
-      for (int i = 0; i < jsonArray.length(); i++) {
-        result.add(jsonArray.getString(i));
-      }
-    } catch (JSONException e) {
-      log.error(e);
-    }
-    return result;
-  }
 
   /**
    * Processes server-sent events (SSE) coming from the Copilot backend and forwards them to the
@@ -661,8 +540,8 @@ public class RestServiceUtil {
   public static JSONObject sendRequestToCopilot(boolean asyncRequest, HttpServletResponse queue,
       JSONObject jsonRequestForCopilot, CopilotApp copilotApp) throws IOException, JSONException {
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-    String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+    String copilotPort = readPropertyWithLegacyCompatibility(properties,"copilot.port", "5005");
+    String copilotHost = readPropertyWithLegacyCompatibility(properties,"copilot.host", "localhost");
     String endpoint = determineEndpoint(asyncRequest, copilotApp);
 
     logIfDebug("Request to Copilot:);");
@@ -1120,8 +999,9 @@ public class RestServiceUtil {
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     try {
       HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+
+      String copilotPort = readPropertyWithLegacyCompatibility(properties, "copilot.port", "5005");
+      String copilotHost = readPropertyWithLegacyCompatibility(properties, "copilot.host", "localhost");
       JSONObject jsonRequestForCopilot = new JSONObject();
       // appType was unused after refactor; get it inline where needed
       String conversationId = UUID.randomUUID().toString();

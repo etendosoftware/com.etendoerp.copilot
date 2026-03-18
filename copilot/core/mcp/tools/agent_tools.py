@@ -257,8 +257,9 @@ async def dynamic_tool_executor({param_string}):
     return executor
 
 
-def _create_executor_dict(langchain_tool: BaseTool, tool_args_model: dict) -> Callable[
-    ..., Coroutine[Any, Any, Any]]:
+def _create_executor_dict(
+    langchain_tool: BaseTool, tool_args_model: dict
+) -> Callable[..., Coroutine[Any, Any, Any]]:
     """
     Create a dynamic tool executor for tools with dictionary schema.
 
@@ -269,8 +270,7 @@ def _create_executor_dict(langchain_tool: BaseTool, tool_args_model: dict) -> Ca
     Returns:
         Callable: The dynamic executor function
     """
-    copilot_debug(
-        f"Tool {langchain_tool.name} has dict args_schema. Creating dynamic executor.")
+    copilot_debug(f"Tool {langchain_tool.name} has dict args_schema. Creating dynamic executor.")
 
     # Try to extract properties from dict schema
     try:
@@ -323,9 +323,7 @@ async def dynamic_tool_executor({param_string}):
         return executor
 
     except Exception as e:
-        copilot_error(
-            f"Failed to create dynamic executor for dict schema: {e}. Fallback to simple executor."
-        )
+        copilot_error(f"Failed to create dynamic executor for dict schema: {e}. Fallback to simple executor.")
 
         return _create_simple_executor(langchain_tool, wrap_input=True)
 
@@ -649,7 +647,7 @@ def _gen_prompt_tool(agent_config: AssistantSchema, identifier: Optional[str] = 
     Returns:
         Tool: The generated prompt retrieval tool
     """
-    # add a tool that retrieves the agent prompt
+
     def _get_prompt_tool() -> dict:
         """Tool to retrieve the agent structure."""
         try:

@@ -29,6 +29,7 @@ import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotAppTool;
 import com.etendoerp.copilot.data.CopilotTool;
+import com.etendoerp.copilot.util.CopilotUtils;
 
 public class SyncToolStructure extends BaseProcessActionHandler {
   private static final Logger log = LogManager.getLogger(SyncToolStructure.class);
@@ -65,8 +66,8 @@ public class SyncToolStructure extends BaseProcessActionHandler {
       //get the tools info from copilot
 
       HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty("COPILOT_PORT", "5005");
-      String copilotHost = properties.getProperty("COPILOT_HOST", "localhost");
+      String copilotPort = CopilotUtils.readPropertyWithLegacyCompatibility(properties, "copilot.port", "5005");
+      String copilotHost = CopilotUtils.readPropertyWithLegacyCompatibility(properties, "copilot.host", "localhost");
       HttpRequest copilotRequest = HttpRequest.newBuilder()
           .uri(new URI(String.format("http://%s:%s/tools", copilotHost, copilotPort)))
           .headers(HEADER_CONTENT_TYPE, "application/json;charset=UTF-8")

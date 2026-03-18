@@ -6,7 +6,7 @@ from copilot.core.schemas import AssistantSchema
 
 
 class OutputNode:
-    OPENAI_MODEL: Final[str] = read_optional_env_var("OPENAI_MODEL", "gpt-4o")
+    OPENAI_MODEL: Final[str] = read_optional_env_var("openai.model", "gpt-4o")
 
     async def build(self, system_prompt=None, temperature=1):
         if system_prompt is None:

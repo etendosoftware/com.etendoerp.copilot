@@ -122,7 +122,9 @@ class TestDynamicMCPInstanceInit:
                 direct_mode=False,
                 agent_config=mock_agent_config,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False
+            )
 
             assert instance.identifier == "test_agent"
             assert instance.direct_mode is False
@@ -158,7 +160,9 @@ class TestDynamicMCPInstanceInit:
                 direct_mode=True,
                 agent_config=mock_agent_config,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=True)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=True
+            )
 
             assert instance.direct_mode is True
             assert instance.instance_key == "test_agent_direct"
@@ -213,7 +217,9 @@ class TestDynamicMCPInstanceSetupTools:
                 direct_mode=False,
                 agent_config=mock_agent_config,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False
+            )
 
             # Verify agent ask tool was created and added
             mock_make_tool.assert_called_once_with(mock_agent_config, "test_agent")
@@ -235,7 +241,9 @@ class TestDynamicMCPInstanceSetupTools:
                 direct_mode=False,
                 agent_config=None,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False
+            )
 
             # Verify agent ask tool was not created since no config
             mock_make_tool.assert_not_called()
@@ -260,7 +268,9 @@ class TestDynamicMCPInstanceSetupTools:
                 direct_mode=False,
                 agent_config=mock_agent_config,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=False
+            )
 
             assert instance
 
@@ -271,7 +281,9 @@ class TestDynamicMCPInstanceSetupTools:
             patch("copilot.core.mcp.simplified_dynamic_server.FastMCP"),
             patch("copilot.core.mcp.simplified_dynamic_server.CopilotAuthProvider"),
             patch("copilot.core.mcp.simplified_dynamic_server.register_basic_tools_direct") as mock_direct,
-            patch("copilot.core.mcp.simplified_dynamic_server.register_agent_tools", new_callable=AsyncMock) as mock_agent,
+            patch(
+                "copilot.core.mcp.simplified_dynamic_server.register_agent_tools", new_callable=AsyncMock
+            ) as mock_agent,
         ):
             instance = DynamicMCPInstance(
                 identifier="test_agent",
@@ -280,7 +292,9 @@ class TestDynamicMCPInstanceSetupTools:
                 direct_mode=True,
                 agent_config=mock_agent_config,
             )
-            await instance.setup_tools(identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=True)
+            await instance.setup_tools(
+                identifier="test_agent", etendo_token=mock_etendo_token, direct_mode=True
+            )
 
             # Verify direct mode tools
             mock_direct.assert_called_once()
