@@ -147,23 +147,23 @@ def build_metadata(usage_data):
 
 
 def normalize_content(content):
-    """
-    Normalize message content to a plain string.
+    """Normalize message content to a plain string.
 
-    AIMessage.content can be a string or a list of content blocks
-    (e.g. [{"type": "text", "text": "..."}]). This helper collapses
-    both forms into a single string, returning empty string for empty/None.
+    Some providers (e.g. Gemini) return content as a list of content blocks
+    like ``[{"type": "text", "text": "..."}]`` instead of a plain string.
     """
-    if content is None:
-        return ""
     if isinstance(content, str):
         return content
+    if content is None:
+        return ""
     if isinstance(content, list):
         parts = []
         for block in content:
-            if isinstance(block, str):
-                parts.append(block)
-            elif isinstance(block, dict) and "text" in block:
+            if isinstance(block, dict) and "text" in block:
                 parts.append(block["text"])
-        return "\n".join(parts)
+            elif isinstance(block, str):
+                parts.append(block)
+        if parts:
+            return "\n".join(parts)
+        # No extractable text — fall through to str()
     return str(content)

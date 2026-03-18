@@ -146,3 +146,38 @@ body {
   text-align: left;
   margin-left: 4px;
 }
+
+/* Prevent markdown content (code blocks, images) from overflowing message containers */
+.space-y-2 > div {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Constrain react-native-web View elements inside message bubbles */
+.space-y-2 > div div[dir="auto"] {
+  min-width: 0;
+}
+
+/* Make code blocks scrollable horizontally within message bubbles */
+.space-y-2 pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Constrain images inside message bubbles */
+.space-y-2 img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Image container links should not exceed message width */
+.space-y-2 a {
+  max-width: 100%;
+  display: block;
+}
+
+/* Ensure the syntax highlighter container doesn't overflow */
+.space-y-2 code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

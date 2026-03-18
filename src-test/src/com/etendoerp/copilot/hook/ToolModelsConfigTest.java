@@ -336,7 +336,7 @@ public class ToolModelsConfigTest extends WeldBaseTest {
     when(mockTeamMemberApp.getETCOPAppToolList()).thenReturn(teamAppTools);
 
     // Setup team member
-    when(mockTeamMember.getCopilotApp()).thenReturn(mockTeamMemberApp);
+    when(mockTeamMember.getMember()).thenReturn(mockTeamMemberApp);
     List<TeamMember> teamMembers = new ArrayList<>();
     teamMembers.add(mockTeamMember);
     when(mockApp.getETCOPTeamMemberList()).thenReturn(teamMembers);
