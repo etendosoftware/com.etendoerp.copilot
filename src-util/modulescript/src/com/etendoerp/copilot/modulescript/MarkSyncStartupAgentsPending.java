@@ -21,7 +21,8 @@ import org.openbravo.modulescript.ModuleScript;
 import org.openbravo.modulescript.ModuleScriptExecutionLimits;
 
 /**
- * Module script that marks agents with "Sync on startup" enabled as Pending Synchronization
+ * Module script that defaults {@code sync_startup} to 'N' for agents where it is null,
+ * and marks agents with "Sync on startup" enabled as Pending Synchronization
  * during update.database.
  * <p>
  * This ensures that when Tomcat starts after an update.database, {@code CopilotSyncStartup}
@@ -40,6 +41,11 @@ public class MarkSyncStartupAgentsPending extends ModuleScript {
   public void execute() {
     try {
       ConnectionProvider cp = getConnectionProvider();
+
+      // Default sync_startup to 'N' for agents where it is null
+      PreparedStatement defaultPs = cp.getPreparedStatement(
+          "UPDATE etcop_app SET sync_startup = 'N' WHERE sync_startup IS NULL");
+      defaultPs.executeUpdate();
 
       // Update existing etcop_app_info records to 'PS' for agents with sync_startup = 'Y'
       PreparedStatement updatePs = cp.getPreparedStatement(
