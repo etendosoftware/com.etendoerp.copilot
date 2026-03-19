@@ -52,6 +52,7 @@ public class GetMCPConfiguration extends Action {
   private static final Logger log = LogManager.getLogger();
   private static final String DIV_CLOSE = "</div>\n";
   private static final String LOCALHOST_PREFIX = "http://localhost";
+  private static final String AUTH_TYPE_TOKEN_HEADER = "token_header";
   public static final String HEADERS = "headers";
 
   @Override
@@ -122,6 +123,12 @@ public class GetMCPConfiguration extends Action {
     var direct = parameters.getBoolean("Direct");
     var mcpRemoteCompatibilityMode = parameters.getBoolean("mcp_remote_mode");
 
+    // Read auth_type: "oauth", "token_header", "token_url". Default to "token_header".
+    String authType = readOptString(parameters, "auth_type");
+    if (authType == null) {
+      authType = AUTH_TYPE_TOKEN_HEADER;
+    }
+
     String token = CopilotUtils.generateEtendoToken();
 
     String customName = readOptString(parameters, "custom_name");
@@ -130,7 +137,7 @@ public class GetMCPConfiguration extends Action {
     boolean prefixMode = parameters.optBoolean("prefixMode", false);
 
     List<JSONObject> configs = buildConfigsFromAgents(agents, direct, mcpRemoteCompatibilityMode, token,
-        contextUrlMcp, customName, prefixMode);
+        contextUrlMcp, customName, prefixMode, authType);
 
     boolean hasLocalhost = detectLocalhostFromConfigs(configs);
     StringBuilder htmlCodeSB = new StringBuilder();
@@ -142,6 +149,12 @@ public class GetMCPConfiguration extends Action {
 
     for (JSONObject cfg : configs) {
       htmlCodeSB.append(buildConfigFragment(cfg));
+      if ("oauth".equals(authType)) {
+        String serverUrl = getServerUrlFromConfig(cfg);
+        if (serverUrl != null) {
+          htmlCodeSB.append(buildUrlCopyField(serverUrl));
+        }
+      }
       htmlCodeSB.append("<br>");
     }
 
@@ -202,17 +215,21 @@ public class GetMCPConfiguration extends Action {
    *     optional custom name to use for the generated key/display name.
    * @param prefixMode
    *     when true and customName is set, the agent name is appended to the key.
+   * @param authType
+   *     authentication type: "oauth" (clean URL, no token), "token_header" (Authorization header),
+   *     "token_url" (token as query parameter).
    * @return a list of {@link JSONObject} configurations (one per agent).
    * @throws JSONException
    *     when JSON construction fails.
    */
   public List<JSONObject> buildConfigsFromAgents(List<CopilotApp> agents, boolean direct,
       boolean mcpRemoteCompatibilityMode, String token, String contextUrlMcp, String customName,
-      boolean prefixMode) throws JSONException {
+      boolean prefixMode, String authType) throws JSONException {
     List<JSONObject> configs = new ArrayList<>();
     for (CopilotApp agent : agents) {
       ConfigRequest req = new ConfigRequest(agent.getId(), agent.getName());
-      req.setOptions(direct, mcpRemoteCompatibilityMode, token, contextUrlMcp, customName, prefixMode);
+      req.setOptions(direct, mcpRemoteCompatibilityMode, token, contextUrlMcp, customName, prefixMode,
+          authType);
       configs.add(getConfig(req));
     }
     return configs;
@@ -293,12 +310,18 @@ public class GetMCPConfiguration extends Action {
     String buttonLink = "vscode:mcp/install?" + encodedJson;
     String idSuffix = normalize(key != null ? key : "cfg");
 
+    boolean hasHeaders = cfgInternal.has(HEADERS);
+
     StringBuilder html = new StringBuilder();
     html.append("<br>");
     html.append(buildInstallBadge(buttonLink));
     html.append(buildCodeBlock(json, idSuffix + "vsc", "VSCode"));
-    html.append("<br>");
-    html.append(buildCodeBlock(adaptJsonToJetBrains(json), idSuffix + "jb", "Other MCP clients"));
+    // Only show "Other MCP clients" block when there are headers to transform (requestInit)
+    // For oauth and token_url modes, the VSCode config works for all clients
+    if (hasHeaders) {
+      html.append("<br>");
+      html.append(buildCodeBlock(adaptJsonToJetBrains(json), idSuffix + "jb", "Other MCP clients"));
+    }
     return html.toString();
   }
 
@@ -455,6 +478,33 @@ public class GetMCPConfiguration extends Action {
   }
 
   /**
+   * Builds an HTML fragment with the MCP endpoint URL in a read-only input field and a copy button.
+   * Used in OAuth mode so the user can easily copy the URL to paste into MCP clients.
+   *
+   * @param url the MCP endpoint URL to display.
+   * @return an HTML fragment with the input field and copy button.
+   */
+  public String buildUrlCopyField(String url) {
+    String hashSuffix = Integer.toHexString(url.hashCode());
+    String inputId = "copilotMCP_oauthUrl_" + hashSuffix;
+    String btnId = "copilotMCP_btnCopyUrl_" + hashSuffix;
+    StringBuilder sb = new StringBuilder();
+    sb.append("<div style=\"margin-top: 0.5rem; padding: 0.5rem; background: #eef6ff; border: 1px solid #b3d4fc; border-radius: 6px;\">\n");
+    sb.append("  <span style=\"font-weight: bold; color: #333; font-size: 13px;\">MCP Endpoint URL</span>\n");
+    sb.append("  <div style=\"display: flex; align-items: center; margin-top: 0.25rem; gap: 0.5rem;\">\n");
+    sb.append("    <input type=\"text\" readonly value=\"").append(org.apache.commons.lang3.StringEscapeUtils.escapeHtml4(url))
+        .append("\" id=\"").append(inputId)
+        .append("\" style=\"flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; padding: 0.35rem 0.5rem; border: 1px solid #d0d7de; border-radius: 4px; background: #fff; color: #24292f;\" />\n");
+    sb.append("    <button id=\"").append(btnId)
+        .append("\" style=\"border: 1px solid #d0d7de; background: #fff; border-radius: 6px; padding: .35rem .75rem; cursor: pointer; font-size: 12px; white-space: nowrap;\" ")
+        .append("onclick=\"(function(btn){var inp=document.getElementById('").append(inputId)
+        .append("'); if(!inp)return; try{ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(inp.value);} else {inp.select(); document.execCommand('copy');} btn.textContent='Copied!'; setTimeout(function(){btn.textContent='Copy URL';},1500);}catch(e){btn.textContent='Error';}})(this)\">Copy URL</button>\n");
+    sb.append("  ").append(DIV_CLOSE);
+    sb.append(DIV_CLOSE);
+    return sb.toString();
+  }
+
+  /**
    * Resolves the MCP context URL using configuration properties. The method checks
    * {@code context.url.copilot.mcp}, falls back to {@code context.url} + port or finally to
    * localhost with the configured MCP port.
@@ -553,6 +603,11 @@ public class GetMCPConfiguration extends Action {
       displayName = req.agentName;
     }
 
+    // Append token to URL for token_url mode
+    if ("token_url".equals(req.authType)) {
+      url += "?token=" + req.token;
+    }
+
     if (req.mcpRemoteCompatibilityMode) {
       // MCP Remote Compatibility Mode: build remote example with npx args
       JSONObject remoteExample = new JSONObject();
@@ -562,8 +617,11 @@ public class GetMCPConfiguration extends Action {
       JSONArray args = new JSONArray();
       args.put("mcp-remote");
       args.put(url);
-      args.put("--header");
-      args.put("Authorization: Bearer " + req.token);
+      // Only add --header for token_header mode
+      if (AUTH_TYPE_TOKEN_HEADER.equals(req.authType)) {
+        args.put("--header");
+        args.put("Authorization: Bearer " + req.token);
+      }
 
       remoteExample.put("args", args);
       config.put(key, remoteExample);
@@ -574,9 +632,12 @@ public class GetMCPConfiguration extends Action {
       myMcpServer.put("url", url);
       myMcpServer.put("type", "http");
 
-      JSONObject headers = new JSONObject();
-      headers.put("Authorization", "Bearer " + req.token);
-      myMcpServer.put(HEADERS, headers);
+      // Only add headers for token_header mode
+      if (AUTH_TYPE_TOKEN_HEADER.equals(req.authType)) {
+        JSONObject headers = new JSONObject();
+        headers.put("Authorization", "Bearer " + req.token);
+        myMcpServer.put(HEADERS, headers);
+      }
 
       config.put(key, myMcpServer);
     }
@@ -609,6 +670,7 @@ public class GetMCPConfiguration extends Action {
     String contextUrlMcp;
     String customName;
     boolean prefixMode;
+    String authType;
 
     /**
      * Creates a new ConfigRequest for the given agent id and name.
@@ -638,15 +700,18 @@ public class GetMCPConfiguration extends Action {
      *     optional custom name
      * @param prefixMode
      *     prefix mode flag
+     * @param authType
+     *     authentication type: "oauth", "token_header", or "token_url"
      */
     public void setOptions(boolean direct, boolean mcpRemoteCompatibilityMode, String token, String contextUrlMcp,
-        String customName, boolean prefixMode) {
+        String customName, boolean prefixMode, String authType) {
       this.direct = direct;
       this.mcpRemoteCompatibilityMode = mcpRemoteCompatibilityMode;
       this.token = token;
       this.contextUrlMcp = contextUrlMcp;
       this.customName = customName;
       this.prefixMode = prefixMode;
+      this.authType = authType != null ? authType : AUTH_TYPE_TOKEN_HEADER;
     }
   }
 }

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Etendo - MCP Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #333;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 420px;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .logo h1 {
+      font-size: 1.5rem;
+      color: #1a56db;
+      font-weight: 700;
+    }
+    .logo p {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 0.25rem;
+    }
+    .error-msg {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 0.35rem;
+      color: #444;
+    }
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #1a56db;
+      box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .checkbox-group input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+    }
+    .checkbox-group label {
+      margin-bottom: 0;
+      font-weight: 400;
+    }
+    button[type="submit"] {
+      width: 100%;
+      padding: 0.7rem;
+      background: #1a56db;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button[type="submit"]:hover {
+      background: #1e40af;
+    }
+    button[type="submit"]:disabled {
+      background: #93c5fd;
+      cursor: not-allowed;
+    }
+    .step { display: none; }
+    .step.active { display: block; }
+    .step-indicator {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <h1>Etendo</h1>
+      <p>MCP Server Authentication</p>
+    </div>
+
+    {{error_html}}
+
+    <!-- Step 1: Credentials (hidden when step2 is active) -->
+    <div id="step1" class="step {{step1_active}}">
+      <div class="step-indicator">Step 1 of 2 - Enter credentials</div>
+      <form method="POST" action="/oauth/login" id="loginForm">
+        <input type="hidden" name="session_id" value="{{session_id}}">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required autocomplete="username"
+                 value="{{username}}" autofocus>
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <div class="checkbox-group">
+          <input type="checkbox" id="use_defaults" name="use_defaults" value="true">
+          <label for="use_defaults">Use default role and organization</label>
+        </div>
+        <button type="submit">Sign In</button>
+      </form>
+    </div>
+
+    <!-- Step 2: Role/Org Selection -->
+    <div id="step2" class="step {{step2_active}}">
+      <div class="step-indicator">Step 2 of 2 - Select role and organization</div>
+      <form method="POST" action="/oauth/login/select" id="selectForm">
+        <input type="hidden" name="session_id" value="{{session_id}}">
+        <input type="hidden" name="token" value="{{login_token}}">
+        <div class="form-group">
+          <label for="role">Role</label>
+          <select id="role" name="role" required>
+            <option value="">-- Select role --</option>
+            {{role_options}}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="organization">Organization</label>
+          <select id="organization" name="organization" required>
+            <option value="">-- Select organization --</option>
+            {{org_options}}
+          </select>
+        </div>
+        <button type="submit">Continue</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Role/Org cascade data (injected by server)
+    var roleOrgMap = {{role_org_map_json}};
+
+    var roleSelect = document.getElementById('role');
+    var orgSelect = document.getElementById('organization');
+
+    if (roleSelect && orgSelect && roleOrgMap && Object.keys(roleOrgMap).length > 0) {
+      roleSelect.addEventListener('change', function() {
+        var roleId = this.value;
+        var orgs = roleOrgMap[roleId] || [];
+        // Clear current org options
+        orgSelect.innerHTML = '<option value="">-- Select organization --</option>';
+        orgs.forEach(function(org) {
+          var opt = document.createElement('option');
+          opt.value = org.id;
+          opt.textContent = org.name;
+          orgSelect.appendChild(opt);
+        });
+        // If only one org, auto-select it
+        if (orgs.length === 1) {
+          orgSelect.value = orgs[0].id;
+        }
+      });
+
+      // Trigger initial cascade if role is pre-selected
+      if (roleSelect.value) {
+        roleSelect.dispatchEvent(new Event('change'));
+      }
+    }
+  </script>
+</body>
+</html>
