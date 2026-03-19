@@ -93,11 +93,13 @@ public class RestService {
         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
         JSONObject errorJson = new JSONObject();
-        errorJson.put("error", e.getMessage());
+        errorJson.put("error", "An error occurred processing the request.");
         response.getWriter().write(errorJson.toString());
       } catch (Exception ioException) {
         log4j.error(ioException);
-        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+        if (!response.isCommitted()) {
+          response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
+        }
       }
     } finally {
       OBContext.restorePreviousMode();

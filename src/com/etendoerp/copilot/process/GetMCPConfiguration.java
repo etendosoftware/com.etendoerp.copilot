@@ -492,7 +492,7 @@ public class GetMCPConfiguration extends Action {
     sb.append("<div style=\"margin-top: 0.5rem; padding: 0.5rem; background: #eef6ff; border: 1px solid #b3d4fc; border-radius: 6px;\">\n");
     sb.append("  <span style=\"font-weight: bold; color: #333; font-size: 13px;\">MCP Endpoint URL</span>\n");
     sb.append("  <div style=\"display: flex; align-items: center; margin-top: 0.25rem; gap: 0.5rem;\">\n");
-    sb.append("    <input type=\"text\" readonly value=\"").append(url)
+    sb.append("    <input type=\"text\" readonly value=\"").append(org.apache.commons.lang3.StringEscapeUtils.escapeHtml4(url))
         .append("\" id=\"").append(inputId)
         .append("\" style=\"flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; padding: 0.35rem 0.5rem; border: 1px solid #d0d7de; border-radius: 4px; background: #fff; color: #24292f;\" />\n");
     sb.append("    <button id=\"").append(btnId)

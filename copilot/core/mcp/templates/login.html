@@ -172,12 +172,12 @@
 
   <script>
     // Role/Org cascade data (injected by server)
-    var roleOrgMap = {{role_org_map_json}};
+    var roleOrgMap = {{role_org_map_json}} || {};
 
     var roleSelect = document.getElementById('role');
     var orgSelect = document.getElementById('organization');
 
-    if (roleSelect && orgSelect && Object.keys(roleOrgMap).length > 0) {
+    if (roleSelect && orgSelect && roleOrgMap && Object.keys(roleOrgMap).length > 0) {
       roleSelect.addEventListener('change', function() {
         var roleId = this.value;
         var orgs = roleOrgMap[roleId] || [];

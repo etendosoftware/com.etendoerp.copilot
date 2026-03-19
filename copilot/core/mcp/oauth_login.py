@@ -6,6 +6,7 @@ endpoint and Etendo's /sws/login API. After successful login, the user is redire
 back to the MCP client with an authorization code.
 """
 
+import html as html_module
 import json
 import logging
 from pathlib import Path
@@ -54,9 +55,9 @@ def _render_login(
     if error:
         error_html = f'<div class="error-msg">{error}</div>'
 
-    html = template.replace("{{session_id}}", session_id)
+    html = template.replace("{{session_id}}", html_module.escape(session_id))
     html = html.replace("{{error_html}}", error_html)
-    html = html.replace("{{username}}", username)
+    html = html.replace("{{username}}", html_module.escape(username))
     html = html.replace("{{step1_active}}", "" if step2_active else "active")
     html = html.replace("{{step2_active}}", "active" if step2_active else "")
     html = html.replace("{{login_token}}", login_token)

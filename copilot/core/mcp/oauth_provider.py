@@ -1,4 +1,20 @@
 """
+*************************************************************************
+The contents of this file are subject to the Etendo License
+(the "License"), you may not use this file except in compliance with
+the License.
+You may obtain a copy of the License at
+https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+Software distributed under the License is distributed on an
+"AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+implied. See the License for the specific language governing rights
+and limitations under the License.
+All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+All Rights Reserved.
+Contributor(s): Futit Services S.L.
+*************************************************************************
+"""
+"""
 OAuth 2.1 Authorization Server Provider for Etendo Copilot MCP Server.
 
 Implements the full OAuth 2.1 flow with PKCE, using Etendo's login system
@@ -12,6 +28,7 @@ import secrets
 import time
 from dataclasses import dataclass, field
 from typing import Dict, Optional
+from urllib.parse import urlencode
 
 from fastmcp.server.auth.auth import (
     ClientRegistrationOptions,
@@ -32,6 +49,7 @@ logger = logging.getLogger(__name__)
 # TTL constants
 AUTH_CODE_TTL_SECONDS = 5 * 60  # 5 minutes
 PENDING_AUTH_TTL_SECONDS = 5 * 60  # 5 minutes
+TOKEN_TTL_SECONDS = 24 * 60 * 60  # 24 hours (Etendo JWT expiry handled server-side)
 CLEANUP_INTERVAL_SECONDS = 60  # cleanup every 60s
 
 
@@ -82,6 +100,7 @@ class EtendoOAuthProvider(OAuthProvider):
         self._clients: Dict[str, OAuthClientInformationFull] = {}
         self._auth_codes: Dict[str, AuthCodeData] = {}
         self._tokens: Dict[str, AccessToken] = {}
+        self._token_created_at: Dict[str, float] = {}
         self._pending_auth: Dict[str, PendingAuth] = {}
 
         # Start background cleanup task
@@ -114,10 +133,20 @@ class EtendoOAuthProvider(OAuthProvider):
                 for k in expired_pending:
                     del self._pending_auth[k]
 
-                if expired_codes or expired_pending:
+                # Clean expired tokens (TTL-based since JWT expiry is handled by Etendo)
+                expired_tokens = [
+                    k for k, created in self._token_created_at.items()
+                    if now - created > TOKEN_TTL_SECONDS
+                ]
+                for k in expired_tokens:
+                    self._tokens.pop(k, None)
+                    del self._token_created_at[k]
+
+                if expired_codes or expired_pending or expired_tokens:
                     logger.debug(
                         f"OAuth cleanup: removed {len(expired_codes)} auth codes, "
-                        f"{len(expired_pending)} pending auth sessions"
+                        f"{len(expired_pending)} pending auth sessions, "
+                        f"{len(expired_tokens)} expired tokens"
                     )
         except asyncio.CancelledError:
             logger.debug("OAuth cleanup task cancelled")
@@ -140,6 +169,11 @@ class EtendoOAuthProvider(OAuthProvider):
         params: AuthorizationParams,
     ) -> str:
         """Start authorization: create a pending session and redirect to login page."""
+        # Validate redirect_uri against registered URIs for the client
+        if params.redirect_uri and client.redirect_uris:
+            if str(params.redirect_uri) not in [str(u) for u in client.redirect_uris]:
+                raise TokenError("invalid_request", "Invalid redirect_uri")
+
         session_id = secrets.token_urlsafe(32)
         self._pending_auth[session_id] = PendingAuth(
             params=params,
@@ -191,6 +225,7 @@ class EtendoOAuthProvider(OAuthProvider):
             scopes=authorization_code.scopes,
             expires_at=None,  # JWT expiry handled by Etendo
         )
+        self._token_created_at[etendo_jwt] = time.time()
 
         logger.debug(f"OAuth: exchanged auth code for JWT, client {client.client_id}")
 
@@ -238,6 +273,7 @@ class EtendoOAuthProvider(OAuthProvider):
     ) -> None:
         if isinstance(token, AccessToken) and token.token in self._tokens:
             del self._tokens[token.token]
+            self._token_created_at.pop(token.token, None)
             logger.debug("OAuth: revoked access token")
 
     # ── Pending Auth helpers (used by oauth_login.py) ────────────────
@@ -282,9 +318,9 @@ class EtendoOAuthProvider(OAuthProvider):
         # Build redirect URI
         redirect_url = str(params.redirect_uri)
         separator = "&" if "?" in redirect_url else "?"
-        redirect_url += f"{separator}code={code_value}"
+        redirect_url += f"{separator}{urlencode({'code': code_value})}"
         if params.state:
-            redirect_url += f"&state={params.state}"
+            redirect_url += f"&{urlencode({'state': params.state})}"
 
         logger.debug(f"OAuth: completed auth for session {session_id}, code issued")
         return redirect_url
