@@ -1,9 +1,8 @@
 package com.etendoerp.copilot.process;
 
-
-import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_COMPLETED;
 import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_EVAL;
 import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_IN_PROGRESS;
+import static com.etendoerp.copilot.background.BulkTaskExec.TASK_STATUS_REVIEW;
 import static com.etendoerp.copilot.process.AddBulkTasks.getStatus;
 import static com.etendoerp.copilot.process.EvalTask.evaluateTask;
 import static com.etendoerp.copilot.rest.RestServiceUtil.APP_ID;
@@ -14,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.etendoerp.asyncprocess.startup.AsyncProcessStartup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.codehaus.jettison.json.JSONArray;
@@ -99,8 +97,7 @@ public class ExecTask extends Action {
       }
       return List.of(task);
     }
-    JSONObject paramValuesJson = parameters;
-    JSONArray recordIdsJson = paramValuesJson.getJSONArray("recordIds");
+    JSONArray recordIdsJson = parameters.getJSONArray("recordIds");
     ArrayList<String> recordIds = new ArrayList<>();
     for (int i = 0; i < recordIdsJson.length(); i++) {
       recordIds.add(recordIdsJson.getString(i));
@@ -115,7 +112,7 @@ public class ExecTask extends Action {
    *
    * <p>
    * On successful execution, the task status is set to completed. If an exception occurs,
-   * the task status is set to in progress and the error is logged. In all cases, the task
+   * the task status is set to Requires Review and the error is logged. In all cases, the task
    * is saved and the session is committed.
    * </p>
    *
@@ -140,7 +137,7 @@ public class ExecTask extends Action {
       if (logger != null) {
         logger.log("Error processing task " + task.getId() + ": " + e.getMessage() + "\n");
       }
-      task.setStatus(getStatus(TASK_STATUS_IN_PROGRESS));
+      task.setStatus(getStatus(TASK_STATUS_REVIEW));
     } finally {
       OBDal.getInstance().save(task);
       OBDal.getInstance().flush();
