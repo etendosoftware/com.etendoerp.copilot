@@ -73,10 +73,6 @@
         <default/>
         <onCreateDefault/>
       </column>
-      <column name="SYSTEM_APP" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
-        <default><![CDATA[N]]></default>
-        <onCreateDefault/>
-      </column>
       <column name="SYNC_ASSISTANT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[Y]]></default>
         <onCreateDefault/>
@@ -109,6 +105,14 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="AGENT_SCOPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default><![CDATA[CS]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="FEATURED" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
       <column name="SYNC_STARTUP" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
@@ -126,7 +130,7 @@
         <reference local="ETCOP_OPENAI_MODEL_ID" foreign="ETCOP_OPENAI_MODEL_ID"/>
       </foreign-key>
       <check name="ETCOP_APP_CODE_INTERP_CHK"><![CDATA[CODE_INTERPRETER IN ('Y', 'N')]]></check>
-      <check name="ETCOP_APP_IS_SYS_CHK"><![CDATA[SYSTEM_APP IN ('Y', 'N')]]></check>
+      <check name="ETCOP_APP_FEATURED_CHK"><![CDATA[FEATURED IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_ISACTIVE_CHK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_SYNC_ASSIS_CHK"><![CDATA[SYNC_ASSISTANT IN ('Y', 'N')]]></check>
       <check name="ETCOP_APP_TEMPERATURE_CHECK"><![CDATA[TEMPERATURE >= 0 AND TEMPERATURE <= 2]]></check>

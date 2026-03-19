@@ -250,7 +250,7 @@ public class CopilotModelUtilsTest2 extends WeldBaseTest {
         method.setAccessible(true);
         CopilotModel result = (CopilotModel) method.invoke(null, TEST_PROVIDER);
 
-        // Then
+        // Then: the first model with isDefault=true is returned
         assertNotNull("Result should not be null", result);
         assertEquals("Should return the first model with isDefault true", mockCopilotModel, result);
     }

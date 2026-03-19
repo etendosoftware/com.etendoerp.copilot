@@ -115,6 +115,7 @@ public class SyncAssistantTest extends WeldBaseTest {
   private static final String TEST_APP_ID = "testAppId";
   private static final String RECORD_IDS = "recordIds";
   private static final String RESULT_NOT_NULL = "Result should not be null";
+  private static final String TEST_API_KEY = "test-api-key";
 
 
   @Before
@@ -256,7 +257,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     when(criteria.uniqueResult()).thenReturn(mockApp);
 
     // Mock getApiKey
-    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
+    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(TEST_API_KEY);
 
     // When
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
@@ -331,7 +332,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     when(criteria.uniqueResult()).thenReturn(mockApp);
 
     // Mock getApiKey
-    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
+    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(TEST_API_KEY);
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
 
       // When
@@ -397,4 +398,47 @@ public class SyncAssistantTest extends WeldBaseTest {
     }
   }
 
+  /**
+   * Test do execute unsupported app type.
+   *
+   * @throws Exception
+   *     the exception
+   */
+  @Test
+  public void testDoExecuteUnsupportedAppType() throws Exception {
+    // Given
+    Map<String, Object> parameters = new HashMap<>();
+    JSONObject content = new JSONObject();
+    JSONArray recordIds = new JSONArray();
+    recordIds.put(TEST_APP_ID);
+    content.put(RECORD_IDS, recordIds);
+
+    // Mock CopilotRoleApp criteria
+    OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
+    when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
+    when(roleCriteria.add(any())).thenReturn(roleCriteria);
+
+    // Create empty role list
+    List<CopilotRoleApp> roleApps = new ArrayList<>();
+    when(roleCriteria.list()).thenReturn(roleApps);
+
+    when(mockApp.getAppType()).thenReturn("UNSUPPORTED_TYPE");
+    when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
+    when(criteria.uniqueResult()).thenReturn(null);
+
+    // Mock getApiKey
+    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(TEST_API_KEY);
+
+    try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
+      // When
+      JSONObject result = syncAssistant.doExecute(parameters, content.toString());
+
+      // Then
+      assertNotNull(RESULT_NOT_NULL, result);
+
+      // Verify that no synchronization methods were called
+      mockedOpenAIUtils.verify(() -> OpenAIUtils.syncAppSource(any(), any()), never());
+      mockedCopilotUtils.verify(() -> CopilotUtils.syncAppLangchainSource(any()), never());
+    }
+  }
 }

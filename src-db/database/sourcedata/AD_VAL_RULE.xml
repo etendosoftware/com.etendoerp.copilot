@@ -58,8 +58,7 @@ AND
 <!--517D7E47FDB3448E9A6AF58C12DAEE0A-->  <CODE><![CDATA[NOT EXISTS (SELECT 1 FROM etcop_role_app rp WHERE rp.ad_role_id = @AD_Role_ID@ 
 and rp.etcop_app_id = etcop_app.etcop_app_id and rp.etcop_role_app_id <> coalesce(@Etcop_Role_App_ID@,'')
 )
-and (etcop_app.system_app ='N' OR (etcop_app.system_app = 'Y' AND @AD_Role_ID@ = '0'))
-]]></CODE>
+and (etcop_app.agent_scope !='S' OR (etcop_app.agent_scope = 'S' AND @AD_Role_ID@ = '0'))]]></CODE>
 <!--517D7E47FDB3448E9A6AF58C12DAEE0A-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--517D7E47FDB3448E9A6AF58C12DAEE0A--></AD_VAL_RULE>
 

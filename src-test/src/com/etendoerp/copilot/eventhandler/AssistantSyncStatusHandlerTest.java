@@ -99,7 +99,7 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
             CopilotApp.PROPERTY_ORGANIZATION,
             CopilotApp.PROPERTY_DESCRIPTION,
             CopilotApp.PROPERTY_MODULE,
-            CopilotApp.PROPERTY_SYSTEMAPP,
+            CopilotApp.PROPERTY_AGENTSCOPE,
             CopilotApp.PROPERTY_PROVIDER,
             CopilotApp.PROPERTY_MODEL,
             CopilotApp.PROPERTY_TEMPERATURE
@@ -140,7 +140,7 @@ public class AssistantSyncStatusHandlerTest extends WeldBaseTest {
             CopilotApp.PROPERTY_ORGANIZATION,
             CopilotApp.PROPERTY_DESCRIPTION,
             CopilotApp.PROPERTY_MODULE,
-            CopilotApp.PROPERTY_SYSTEMAPP,
+            CopilotApp.PROPERTY_AGENTSCOPE,
             CopilotApp.PROPERTY_PROVIDER,
             CopilotApp.PROPERTY_MODEL,
             CopilotApp.PROPERTY_TEMPERATURE
