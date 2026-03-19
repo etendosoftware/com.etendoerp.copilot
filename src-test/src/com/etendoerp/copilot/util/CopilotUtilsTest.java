@@ -183,7 +183,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
   @Test
   public void testGetCopilotHost() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String expectedHost = properties.getProperty(CopilotUtils.COPILOT_HOST, "");
+    String expectedHost = CopilotUtils.readPropertyWithLegacyCompatibility(properties, CopilotUtils.COPILOT_HOST, "");
     assertEquals(expectedHost, CopilotUtils.getCopilotHost());
   }
 
