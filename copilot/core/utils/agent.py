@@ -62,6 +62,7 @@ def get_llm(model, provider, temperature):
                 model=model_to_use,
                 temperature=temperature,
                 base_url=get_proxy_url(),
+                api_key=get_api_key("openai"),
                 model_kwargs={"stream_options": {"include_usage": True}},
                 streaming=True,
             )
