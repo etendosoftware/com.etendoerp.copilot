@@ -115,7 +115,7 @@ public class SyncAssistantTest extends WeldBaseTest {
   private static final String TEST_APP_ID = "testAppId";
   private static final String RECORD_IDS = "recordIds";
   private static final String RESULT_NOT_NULL = "Result should not be null";
-  private static final String TEST_API_KEY = TEST_API_KEY;
+  private static final String TEST_API_KEY = "test-api-key";
 
 
   @Before
