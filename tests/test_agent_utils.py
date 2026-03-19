@@ -323,13 +323,15 @@ class TestGetLlm:
         )
         assert result == mock_llm
 
+    @patch("copilot.core.utils.agent.get_api_key")
     @patch("copilot.core.utils.agent.init_chat_model")
     @patch("copilot.core.utils.agent.get_model_config")
     @patch("copilot.core.utils.agent.get_proxy_url")
-    def test_get_llm_gemini_with_proxy(self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model):
+    def test_get_llm_gemini_with_proxy(self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model, mock_get_api_key):
         """Test get_llm with Gemini provider when a proxy is configured."""
         mock_get_proxy_url.return_value = "https://llm.etendo.software"
         mock_get_model_config.return_value = {}
+        mock_get_api_key.return_value = "test-api-key"
         mock_llm = Mock()
         mock_init_chat_model.return_value = mock_llm
 
@@ -341,6 +343,7 @@ class TestGetLlm:
             model="gemini/gemini-2.0-flash",
             temperature=0.5,
             base_url="https://llm.etendo.software",
+            api_key="test-api-key",
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )
