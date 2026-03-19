@@ -1,10 +1,12 @@
 import json
 from typing import Any, Dict, List, Optional, Union
-from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
 import requests
-from copilot.baseutils.logging_envvar import copilot_debug, read_optional_env_var
+from copilot.baseutils.logging_envvar import (
+    copilot_debug,
+    read_optional_env_var_bool,
+)
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field, create_model
 
@@ -96,7 +98,7 @@ def read_schema_type(schema):
 
 
 def summarize(method, url, text):
-    simple_mode = read_optional_env_var("COPILOT_SIMPLE_MODE", "false").lower() == "true"
+    simple_mode = read_optional_env_var_bool("copilot.simple.mode", False)
     if (method.upper() in ["POST", "PUT"]) and "com.etendoerp.etendorx.datasource" in url and simple_mode:
         try:
             # lest resume the json

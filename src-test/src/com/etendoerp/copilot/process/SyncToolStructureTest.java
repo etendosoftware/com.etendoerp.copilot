@@ -121,8 +121,8 @@ public class SyncToolStructureTest extends WeldBaseTest {
 
         // Configure properties
         Properties properties = new Properties();
-        properties.setProperty("COPILOT_PORT", "5005");
-        properties.setProperty("COPILOT_HOST", "host");
+        properties.setProperty("copilot.port", "5005");
+        properties.setProperty("copilot.host", "host");
         when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(properties);
 
         // Configure criteria
@@ -164,7 +164,7 @@ public class SyncToolStructureTest extends WeldBaseTest {
         // Given
         Map<String, Object> parameters = new HashMap<>();
         String content = new JSONObject().put(RECORD_IDS, new JSONArray()).toString();
-        
+
         // Configure message
         OBError error = new OBError();
         String errorMsg = "No records selected";

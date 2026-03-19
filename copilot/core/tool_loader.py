@@ -10,6 +10,7 @@ from copilot.baseutils.logging_envvar import (
     print_green,
     print_yellow,
     read_optional_env_var,
+    read_optional_env_var_bool,
 )
 
 from . import tool_installer, utils
@@ -37,12 +38,9 @@ LangChainTools: TypeAlias = List[ToolWrapper]
 NATIVE_TOOL_IMPLEMENTATION: Final[str] = "copilot"  # noqa: F405
 NATIVE_TOOLS_NODE_NAME: Final[str] = "native_tools"  # noqa: F405
 THIRD_PARTY_TOOLS_NODE_NAME: Final[str] = "third_party_tools"  # noqa: F405
-CONFIGURED_TOOLS_FILENAME: Optional[str] = read_optional_env_var(
-    "CONFIGURED_TOOLS_FILENAME", "tools_config.json"
-)
-DEPENDENCIES_TOOLS_FILENAME: Optional[str] = read_optional_env_var(
-    "DEPENDENCIES_TOOLS_FILENAME", "tools_deps.toml"
-)
+CONFIGURED_TOOLS_FILENAME: Final[str] = "tools_config.json"
+
+DEPENDENCIES_TOOLS_FILENAME: Final[str] = "tools_deps.toml"
 
 
 class ToolLoader:
@@ -283,7 +281,7 @@ class ToolLoader:
             if spec.type == "FLOW":
                 try:
                     api_spec = json.loads(spec.spec)
-                    if read_optional_env_var("COPILOT_OLD_OPENAPI_TOOLS", "false").lower() == "true":
+                    if read_optional_env_var_bool("copilot.old.openapi.tools", False):
                         # Use old OpenAPI tool generation logic
                         openapi_tools = generate_tools_from_openapi_old(api_spec)
                     else:

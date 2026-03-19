@@ -6,9 +6,10 @@ This module manages the lifecycle of the simplified dynamic MCP server.
 
 import asyncio
 import logging
-import os
 import threading
 from typing import Optional
+
+from copilot.baseutils.logging_envvar import read_optional_env_var_int
 
 from .simplified_dynamic_server import (
     SimplifiedDynamicMCPServer,
@@ -68,7 +69,7 @@ class SimplifiedDynamicMCPManager:
 
         # Get port from environment if not provided
         if port is None:
-            port = int(os.getenv("COPILOT_PORT_MCP", "5006"))
+            port = read_optional_env_var_int("copilot.port.mcp", 5006)
 
         try:
             # Start server in daemon thread

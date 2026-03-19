@@ -261,7 +261,6 @@ public class SyncAssistantTest extends WeldBaseTest {
     // When
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
 
-
       JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
       // Then

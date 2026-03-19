@@ -1,4 +1,4 @@
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 
 class MemoryHandler:

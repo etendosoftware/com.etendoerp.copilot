@@ -82,15 +82,17 @@ Local Files Ids for Context:
 class TestGetLlm:
     """Test cases for get_llm function."""
 
+    @patch("copilot.core.utils.agent.get_api_key")
     @patch("copilot.core.utils.agent.init_chat_model")
     @patch("copilot.core.utils.agent.get_model_config")
     @patch("copilot.core.utils.agent.get_proxy_url")
     def test_get_llm_with_openai_provider(
-        self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model
+        self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model, mock_get_api_key
     ):
         """Test get_llm with OpenAI provider."""
         mock_get_proxy_url.return_value = None
         mock_get_model_config.return_value = {}
+        mock_get_api_key.return_value = "test-api-key"
         mock_llm = Mock()
         mock_init_chat_model.return_value = mock_llm
 
@@ -101,21 +103,24 @@ class TestGetLlm:
             model="gpt-4",
             temperature=0.7,
             base_url=None,
+            api_key="test-api-key",
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )
         mock_get_model_config.assert_called_once_with("openai", "gpt-4")
         assert result == mock_llm
 
+    @patch("copilot.core.utils.agent.get_api_key")
     @patch("copilot.core.utils.agent.init_chat_model")
     @patch("copilot.core.utils.agent.get_model_config")
     @patch("copilot.core.utils.agent.get_proxy_url")
     def test_get_llm_with_none_provider_non_gpt_model(
-        self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model
+        self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model, mock_get_api_key
     ):
         """Test get_llm with None provider and non-GPT model."""
         mock_get_proxy_url.return_value = None
         mock_get_model_config.return_value = {}
+        mock_get_api_key.return_value = None
         mock_llm = MagicMock()
         mock_init_chat_model.return_value = mock_llm
 
@@ -126,6 +131,7 @@ class TestGetLlm:
             model="claude-3",
             temperature=0.5,
             base_url=None,
+            api_key=None,
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )
@@ -396,7 +402,8 @@ class TestModuleIntegration:
             full_question = get_full_question(question)
 
         # Initialize LLM
-        llm = get_llm("gpt-4", "openai", 0.7)
+        with patch("copilot.core.utils.agent.get_api_key", return_value="test-api-key"):
+            llm = get_llm("gpt-4", "openai", 0.7)
 
         # Verify results
         assert "Analyze the code structure" in full_question
@@ -413,6 +420,7 @@ class TestModuleIntegration:
             model="gpt-4",
             temperature=0.7,
             base_url=None,
+            api_key="test-api-key",
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )

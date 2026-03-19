@@ -232,17 +232,17 @@ public class CopilotModelUtilsTest2 extends WeldBaseTest {
     }
 
     /**
-     * Test get default model with multiple default models returns the first with isDefault true.
+     * Test get default model returns first model with isDefault true.
      */
     @Test
     public void testGetDefaultModelWithDefaultOverride() throws Exception {
-        // Given: two models both with isDefault=true; the criteria returns them in order
+        // Given
         CopilotModel secondModel = mock(CopilotModel.class);
-        when(secondModel.isDefault()).thenReturn(true);
+        when(secondModel.isDefault()).thenReturn(false);
 
         List<CopilotModel> modelList = new ArrayList<>();
-        modelList.add(mockCopilotModel);
-        modelList.add(secondModel);
+        modelList.add(mockCopilotModel); // isDefault = true
+        modelList.add(secondModel);      // isDefault = false
         when(mockModelCriteria.list()).thenReturn(modelList);
 
         // When
@@ -252,7 +252,7 @@ public class CopilotModelUtilsTest2 extends WeldBaseTest {
 
         // Then: the first model with isDefault=true is returned
         assertNotNull("Result should not be null", result);
-        assertEquals("Should return the first default model", mockCopilotModel, result);
+        assertEquals("Should return the first model with isDefault true", mockCopilotModel, result);
     }
 
     /**
@@ -427,6 +427,28 @@ public class CopilotModelUtilsTest2 extends WeldBaseTest {
 
         // Note: syncModels() is difficult to test in isolation due to HttpURLConnection
         // This would be better suited for an integration test
+    }
+
+    /**
+     * Test get default model returns null when no models have isDefault true.
+     */
+    @Test
+    public void testGetDefaultModelNoDefaultInList() throws Exception {
+        // Given
+        CopilotModel nonDefaultModel = mock(CopilotModel.class);
+        when(nonDefaultModel.isDefault()).thenReturn(false);
+
+        List<CopilotModel> modelList = new ArrayList<>();
+        modelList.add(nonDefaultModel);
+        when(mockModelCriteria.list()).thenReturn(modelList);
+
+        // When
+        Method method = CopilotModelUtils.class.getDeclaredMethod(GET_DEFAULT_MODEL, String.class);
+        method.setAccessible(true);
+        CopilotModel result = (CopilotModel) method.invoke(null, TEST_PROVIDER);
+
+        // Then
+        assertNull("Result should be null when no model has isDefault true", result);
     }
 
     /**
