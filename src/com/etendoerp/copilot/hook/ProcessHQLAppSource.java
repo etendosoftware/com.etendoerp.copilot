@@ -26,6 +26,7 @@ import org.openbravo.service.json.JsonConstants;
 
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
+import com.etendoerp.copilot.util.FileUtils;
 
 public class ProcessHQLAppSource {
   private static final ProcessHQLAppSource INSTANCE = new ProcessHQLAppSource();
@@ -45,7 +46,7 @@ public class ProcessHQLAppSource {
       String hql = appSource.getFile().getHql();
       hql = hql.replaceAll("\\r\\n|\\r|\\n", " ");
 
-      String result = getHQLResult(hql, "e", extension);
+      String result = getHQLResult(hql, "e", extension, OBContext.getOBContext().getCurrentClient().getId());
 
       return createAttachment(fileName, result);
     } catch (IOException e) {
@@ -101,7 +102,7 @@ public class ProcessHQLAppSource {
   }
 
   private File createAttachment(String fileName, String result) throws IOException {
-    Path tempDirectory = Files.createTempDirectory("temporary_queries");
+    Path tempDirectory = FileUtils.createSecureTempDirectory("temporary_queries");
     Path tempFile = tempDirectory.resolve(fileName);
     try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile.toFile())) {
       fileOutputStream.write(result.getBytes());
@@ -111,13 +112,23 @@ public class ProcessHQLAppSource {
     return new File(tempFile.toString());
   }
 
-  private String getHQLResult(String hql, String entityAlias, String extension) {
+  /**
+   * Retrieves the result of an HQL query and formats it based on the specified extension.
+   * This method applies client and organization filters to the query.
+   *
+   * @param hql The HQL query string.
+   * @param entityAlias The alias for the entity in the HQL query.
+   * @param extension The file extension (e.g., "csv", "json") to determine the format.
+   * @param clientId The client ID to filter the results.
+   * @return A string representation of the query results.
+   */
+  public static String getHQLResult(String hql, String entityAlias, String extension, String clientId) {
     boolean isCsv = StringUtils.equalsIgnoreCase(extension, "csv");
     final org.hibernate.Session session = OBDal.getInstance().getSession();
     Map<String, String> parameters = new HashMap<>();
     String additionalFilter = entityAlias + ".client.id in ('0', :clientId)";
     // client filter
-    parameters.put(CLIENT_ID, OBContext.getOBContext().getCurrentClient().getId());
+    parameters.put(CLIENT_ID, clientId);
 
     // organization filter
     final String orgs = DataSourceUtils.getOrgs(parameters.get(JsonConstants.ORG_PARAMETER));
@@ -153,7 +164,7 @@ public class ProcessHQLAppSource {
       }
       final Object[] values = (Object[]) resultObject;
       var listColumnValues = Arrays.stream(values)
-          .map(this::printObject).collect(Collectors.toList());
+          .map(ProcessHQLAppSource::printObject).collect(Collectors.toList());
       if (!isCsv) {
         addAliasesForColumns(listColumnValues, headersArray);
       }
@@ -183,7 +194,7 @@ public class ProcessHQLAppSource {
   }
 
 
-  private String printObject(Object value) {
+  private static String printObject(Object value) {
     if (value == null) {
       return "NULL";
     }
@@ -193,7 +204,7 @@ public class ProcessHQLAppSource {
     return value.toString();
   }
 
-  private String printBaseOBObject(BaseOBObject bob) {
+  private static String printBaseOBObject(BaseOBObject bob) {
     final boolean derivedReadable = OBContext.getOBContext()
         .getEntityAccessChecker()
         .isDerivedReadable(bob.getEntity());
@@ -219,7 +230,7 @@ public class ProcessHQLAppSource {
     return "[entity: " + bob.getEntityName() + ", " + properties + "]";
   }
 
-  private String getEntityLink(BaseOBObject bob, String title) {
+  private static  String  getEntityLink(BaseOBObject bob, String title) {
     String contextName = OBPropertiesProvider.getInstance()
         .getOpenbravoProperties()
         .getProperty("context.name");

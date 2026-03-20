@@ -162,4 +162,44 @@ public class FileUtilsTest {
     FileUtils.cleanupTempFile(rootPath, true);
     FileUtils.cleanupTempFile(rootPath, false);
   }
+
+  /**
+   * Test createSecureTempFile creates a file in the secure temp directory.
+   *
+   * @throws IOException if an I/O error occurs during file operations
+   */
+  @Test
+  public void testCreateSecureTempFile() throws IOException {
+    // Create a secure temp file
+    Path tempFile = FileUtils.createSecureTempFile("test_", ".txt");
+
+    // Verify file was created
+    assertTrue(Files.exists(tempFile));
+    assertTrue(tempFile.toString().contains("tmp_copilot"));
+    assertTrue(tempFile.toString().contains("test_"));
+    assertTrue(tempFile.toString().endsWith(".txt"));
+
+    // Cleanup
+    Files.deleteIfExists(tempFile);
+  }
+
+  /**
+   * Test createSecureTempDirectory creates a directory in the secure temp directory.
+   *
+   * @throws IOException if an I/O error occurs during file operations
+   */
+  @Test
+  public void testCreateSecureTempDirectory() throws IOException {
+    // Create a secure temp directory
+    Path tempDirectory = FileUtils.createSecureTempDirectory("test_dir_");
+
+    // Verify directory was created
+    assertTrue(Files.exists(tempDirectory));
+    assertTrue(Files.isDirectory(tempDirectory));
+    assertTrue(tempDirectory.toString().contains("tmp_copilot"));
+    assertTrue(tempDirectory.toString().contains("test_dir_"));
+
+    // Cleanup
+    Files.deleteIfExists(tempDirectory);
+  }
 }

@@ -18,6 +18,8 @@ package com.etendoerp.copilot.hook;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import com.etendoerp.copilot.util.CopilotVarReplacerUtil;
 import org.junit.After;
@@ -44,6 +46,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
@@ -98,6 +102,7 @@ public class RemoteFileHookTest extends WeldBaseTest {
 
         mockedCopilotVarReplacerUtil = mockStatic(CopilotVarReplacerUtil.class);
         mockedFileUtils = mockStatic(FileUtils.class);
+        mockedFileUtils.when(() -> FileUtils.createSecureTempDirectory(any(String.class))).thenAnswer(invocation -> Files.createTempDirectory(invocation.getArgument(0).toString()));
     }
 
     /**
@@ -196,8 +201,8 @@ public class RemoteFileHookTest extends WeldBaseTest {
                 .thenReturn(testUrl);
 
         // Mock file operations
-        mockedFileUtils.when(() -> FileUtils.attachFile(any(), any(), any())).thenAnswer(invocation -> null);
-        mockedFileUtils.when(() -> FileUtils.removeAttachment(any(), any())).thenAnswer(invocation -> null);
+        mockedFileUtils.when(() -> FileUtils.processFileAttachment(any(), any(), anyBoolean())).thenAnswer(invocation -> null);
+        mockedFileUtils.when(() -> FileUtils.cleanupTempFileIfNeeded(any(), any())).thenAnswer(invocation -> null);
 
         // When
         remoteFileHook.exec(mockCopilotFile);
@@ -205,8 +210,8 @@ public class RemoteFileHookTest extends WeldBaseTest {
         // Then
         verify(mockCopilotFile).getUrl();
         verify(mockCopilotFile).getFilename();
-        mockedFileUtils.verify(() -> FileUtils.removeAttachment(any(), any()));
-        mockedFileUtils.verify(() -> FileUtils.attachFile(any(), any(), any()));
+        mockedFileUtils.verify(() -> FileUtils.processFileAttachment(eq(mockCopilotFile), any(), anyBoolean()));
+        mockedFileUtils.verify(() -> FileUtils.cleanupTempFileIfNeeded(eq(mockCopilotFile), any()));
     }
 
     /**

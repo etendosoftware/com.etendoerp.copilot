@@ -496,8 +496,12 @@ class RestServiceUtilTest {
     Mockito.when(mockUser.getId()).thenReturn("user-123");
     Role mockRole = Mockito.mock(Role.class);
     Mockito.when(mockRole.getId()).thenReturn("role-1");
+    // Ensure current client is available in the mocked OBContext to avoid NPE
+    org.openbravo.model.ad.system.Client mockClient = Mockito.mock(org.openbravo.model.ad.system.Client.class);
+    Mockito.when(mockClient.getId()).thenReturn("client-1");
     Mockito.when(mockCtx.getUser()).thenReturn(mockUser);
     Mockito.when(mockCtx.getRole()).thenReturn(mockRole);
+    Mockito.when(mockCtx.getCurrentClient()).thenReturn(mockClient);
 
     try (org.mockito.MockedStatic<OBContext> mockOB = org.mockito.Mockito.mockStatic(OBContext.class);
          org.mockito.MockedStatic<CopilotUtils> mockCu = org.mockito.Mockito.mockStatic(CopilotUtils.class);
