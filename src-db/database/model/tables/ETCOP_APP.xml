@@ -105,15 +105,15 @@
         <default/>
         <onCreateDefault/>
       </column>
+      <column name="SYNC_STARTUP" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
       <column name="AGENT_SCOPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
         <default><![CDATA[CS]]></default>
         <onCreateDefault/>
       </column>
       <column name="FEATURED" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
-        <default><![CDATA[N]]></default>
-        <onCreateDefault/>
-      </column>
-      <column name="SYNC_STARTUP" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
         <default><![CDATA[N]]></default>
         <onCreateDefault/>
       </column>
