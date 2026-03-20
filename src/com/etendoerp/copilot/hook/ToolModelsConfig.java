@@ -137,7 +137,7 @@ public class ToolModelsConfig implements CopilotQuestionHook {
     var toolConfigJson = new JSONObject();
     var tool = appTool.getCopilotTool();
     var modelStr = appTool.getModel();
-    if (modelStr == null) {
+    if (modelStr == null || modelStr.getSearchkey() == null) {
       return;
     }
     toolConfigJson.put("model", modelStr.getSearchkey());

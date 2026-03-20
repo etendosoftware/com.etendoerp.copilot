@@ -53,14 +53,14 @@ def _render_login(
 
     error_html = ""
     if error:
-        error_html = f'<div class="error-msg">{error}</div>'
+        error_html = f'<div class="error-msg">{html_module.escape(error)}</div>'
 
     html = template.replace("{{session_id}}", html_module.escape(session_id))
     html = html.replace("{{error_html}}", error_html)
     html = html.replace("{{username}}", html_module.escape(username))
     html = html.replace("{{step1_active}}", "" if step2_active else "active")
     html = html.replace("{{step2_active}}", "active" if step2_active else "")
-    html = html.replace("{{login_token}}", login_token)
+    html = html.replace("{{login_token}}", html_module.escape(login_token))
     html = html.replace("{{role_options}}", role_options)
     html = html.replace("{{org_options}}", org_options)
     html = html.replace("{{role_org_map_json}}", json.dumps(role_org_map or {}))
@@ -74,7 +74,7 @@ def _build_role_options(role_list: list) -> str:
     for role in role_list:
         role_id = role.get("id", "")
         role_name = role.get("name", role_id)
-        options.append(f'<option value="{role_id}">{role_name}</option>')
+        options.append(f'<option value="{html_module.escape(role_id)}">{html_module.escape(role_name)}</option>')
     return "\n".join(options)
 
 
@@ -84,7 +84,7 @@ def _build_org_options(org_list: list) -> str:
     for org in org_list:
         org_id = org.get("id", "")
         org_name = org.get("name", org_id)
-        options.append(f'<option value="{org_id}">{org_name}</option>')
+        options.append(f'<option value="{html_module.escape(org_id)}">{html_module.escape(org_name)}</option>')
     return "\n".join(options)
 
 

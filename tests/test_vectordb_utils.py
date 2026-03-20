@@ -80,7 +80,7 @@ class TestGetEmbedding:
         self, mock_embeddings, mock_get_proxy_url, mock_read_env
     ):
         """Test that get_embedding creates OpenAIEmbeddings with correct config."""
-        mock_get_proxy_url.return_value = "http://proxy.example.com"
+        mock_get_proxy_url.return_value = "https://proxy.example.com"
         mock_read_env.return_value = None  # No real API key
 
         result = get_embedding()
@@ -88,7 +88,7 @@ class TestGetEmbedding:
         mock_embeddings.assert_called_once_with(
             disallowed_special=(),
             show_progress_bar=True,
-            base_url="http://proxy.example.com",
+            base_url="https://proxy.example.com",
             api_key="dummy",
         )
         assert result == mock_embeddings.return_value
@@ -97,7 +97,7 @@ class TestGetEmbedding:
     @patch("copilot.core.vectordb_utils.OpenAIEmbeddings")
     def test_get_embedding_uses_proxy_url(self, mock_embeddings, mock_get_proxy_url):
         """Test that proxy URL is properly fetched and used."""
-        expected_url = "http://test-proxy.local:8080"
+        expected_url = "https://test-proxy.local:8080"
         mock_get_proxy_url.return_value = expected_url
 
         get_embedding()
