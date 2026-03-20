@@ -522,7 +522,10 @@ public class FileUtils {
     } else {
       boolean successRename = itemDisk.getStoreLocation().renameTo(f);
       if (!successRename) {
-        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"), itemDisk.getName()));
+        // renameTo fails across different filesystems (e.g. Docker volumes);
+        // fall back to copying the file contents
+        Files.copy(itemDisk.getStoreLocation().toPath(), f.toPath(),
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
       }
     }
   }
