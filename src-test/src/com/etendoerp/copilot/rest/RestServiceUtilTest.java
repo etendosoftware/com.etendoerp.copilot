@@ -417,7 +417,9 @@ class RestServiceUtilTest {
 
   @Test
   void testProcessFileItemDiskRenameFail() throws Exception {
-    // Mock DiskFileItem for disk store where rename fails
+    // Mock DiskFileItem for disk store where rename fails —
+    // the code now falls back to Files.copy, which throws NoSuchFileException
+    // when the source store location does not exist on disk.
     org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
         org.apache.commons.fileupload.disk.DiskFileItem.class);
     Mockito.when(itemDisk.isFormField()).thenReturn(false);
@@ -434,16 +436,10 @@ class RestServiceUtilTest {
     };
     Mockito.when(itemDisk.getStoreLocation()).thenReturn(fakeStore);
 
-    try (org.mockito.MockedStatic<org.openbravo.erpCommon.utility.OBMessageUtils> mockedMsg = org.mockito.Mockito
-        .mockStatic(org.openbravo.erpCommon.utility.OBMessageUtils.class)) {
-      mockedMsg.when(
-              () -> org.openbravo.erpCommon.utility.OBMessageUtils.messageBD(org.mockito.ArgumentMatchers.anyString()))
-          .thenReturn("ETCOP_ErrorSavingFile");
-
-      // call package-private helper directly and expect OBException
-      Assertions.assertThrows(org.openbravo.base.exception.OBException.class,
-          () -> RestServiceUtil.processFileItem(itemDisk, ENDPOINT));
-    }
+    // When renameTo fails the code falls back to Files.copy; since the fake store
+    // does not exist on disk, a NoSuchFileException is thrown.
+    Assertions.assertThrows(java.nio.file.NoSuchFileException.class,
+        () -> RestServiceUtil.processFileItem(itemDisk, ENDPOINT));
   }
 
   @Test
