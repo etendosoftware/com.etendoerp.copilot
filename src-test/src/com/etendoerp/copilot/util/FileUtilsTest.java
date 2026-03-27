@@ -263,15 +263,9 @@ public class FileUtilsTest {
     };
     Mockito.when(itemDisk.getStoreLocation()).thenReturn(fakeStore);
 
-    try (org.mockito.MockedStatic<org.openbravo.erpCommon.utility.OBMessageUtils> mockedMsg = org.mockito.Mockito
-        .mockStatic(org.openbravo.erpCommon.utility.OBMessageUtils.class)) {
-      mockedMsg.when(
-              () -> org.openbravo.erpCommon.utility.OBMessageUtils.messageBD(org.mockito.ArgumentMatchers.anyString()))
-          .thenReturn("ETCOP_ErrorSavingFile");
-
-      // call package-private helper directly and expect OBException
-      assertThrows(org.openbravo.base.exception.OBException.class,
-          () -> FileUtils.processFileItem(itemDisk, "/endpoint"));
-    }
+    // When renameTo fails the code falls back to Files.copy; since the fake store
+    // does not exist on disk, a NoSuchFileException is thrown.
+    assertThrows(java.nio.file.NoSuchFileException.class,
+        () -> FileUtils.processFileItem(itemDisk, "/endpoint"));
   }
 }
