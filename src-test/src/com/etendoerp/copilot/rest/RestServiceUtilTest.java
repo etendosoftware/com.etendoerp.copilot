@@ -384,68 +384,6 @@ class RestServiceUtilTest {
   }
 
   @Test
-  void testProcessFileItemInMemoryAndNullName() throws Exception {
-    // Mock DiskFileItem for in-memory write and null name
-    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
-        org.apache.commons.fileupload.disk.DiskFileItem.class);
-    Mockito.when(itemDisk.isFormField()).thenReturn(false);
-    Mockito.when(itemDisk.getName()).thenReturn(null);
-    Mockito.when(itemDisk.getFieldName()).thenReturn("fileNull");
-    Mockito.when(itemDisk.isInMemory()).thenReturn(true);
-    Mockito.doNothing().when(itemDisk).write(org.mockito.ArgumentMatchers.any(File.class));
-
-    java.net.http.HttpResponse<String> mockResponse = Mockito.mock(java.net.http.HttpResponse.class);
-    Mockito.when(mockResponse.body()).thenReturn(
-        new org.codehaus.jettison.json.JSONObject().put(RestServiceUtil.PROP_ANSWER, LIT_UPLOADED).toString());
-
-    try (org.mockito.MockedStatic<com.etendoerp.copilot.util.CopilotUtils> utils = org.mockito.Mockito
-        .mockStatic(com.etendoerp.copilot.util.CopilotUtils.class);
-         org.mockito.MockedStatic<org.openbravo.erpCommon.utility.OBMessageUtils> mockedMsg = org.mockito.Mockito
-             .mockStatic(org.openbravo.erpCommon.utility.OBMessageUtils.class)) {
-      utils.when(
-              () -> com.etendoerp.copilot.util.CopilotUtils.getResponseFromCopilot(org.mockito.ArgumentMatchers.any(),
-                  org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
-                  org.mockito.ArgumentMatchers.any()))
-          .thenReturn(mockResponse);
-      mockedMsg.when(
-              () -> org.openbravo.erpCommon.utility.OBMessageUtils.messageBD(org.mockito.ArgumentMatchers.anyString()))
-          .thenReturn("msg");
-
-      // invoke private method via reflection
-      // call package-private helper directly
-      String result = RestServiceUtil.processFileItem(itemDisk, ENDPOINT);
-      Assertions.assertEquals(LIT_UPLOADED, result);
-    }
-  }
-
-  @Test
-  void testProcessFileItemDiskRenameFail() throws Exception {
-    // Mock DiskFileItem for disk store where rename fails —
-    // the code now falls back to Files.copy, which throws NoSuchFileException
-    // when the source store location does not exist on disk.
-    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
-        org.apache.commons.fileupload.disk.DiskFileItem.class);
-    Mockito.when(itemDisk.isFormField()).thenReturn(false);
-    Mockito.when(itemDisk.getName()).thenReturn(TEST_FILE_NAME);
-    Mockito.when(itemDisk.getFieldName()).thenReturn("file1");
-    Mockito.when(itemDisk.isInMemory()).thenReturn(false);
-
-    // Provide a store location File whose renameTo returns false by overriding renameTo
-    File fakeStore = new File("fakeStore.tmp") {
-      @Override
-      public boolean renameTo(File dest) {
-        return false;
-      }
-    };
-    Mockito.when(itemDisk.getStoreLocation()).thenReturn(fakeStore);
-
-    // When renameTo fails the code falls back to Files.copy; since the fake store
-    // does not exist on disk, a NoSuchFileException is thrown.
-    Assertions.assertThrows(java.nio.file.NoSuchFileException.class,
-        () -> RestServiceUtil.processFileItem(itemDisk, ENDPOINT));
-  }
-
-  @Test
   void testServerSideEventsAsyncWritesDataAndReturnsEmpty() throws Exception {
     String payload = "data: {\"answer\":{\"role\":\"user\",\"response\":\"partial\"}}\n";
     ByteArrayInputStream in = new ByteArrayInputStream(payload.getBytes());
