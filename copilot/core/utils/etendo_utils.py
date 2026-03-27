@@ -162,6 +162,10 @@ def call_etendo(method: str, url: str, endpoint: str, body_params, access_token:
         return {"error": result.text}
 
 
+def get_url_copilot_mcp(port) -> str:
+    return read_optional_env_var("context.url.copilot.mcp", f"http://localhost:{port}")
+
+
 def get_etendo_host():
     """
     Retrieves the Etendo host from the environment variables or returns a default value.
@@ -169,7 +173,7 @@ def get_etendo_host():
     Returns:
     str: The Etendo host URL.
     """
-    return read_optional_env_var("ETENDO_HOST_DOCKER", "http://host.docker.internal:8080/etendo")
+    return read_optional_env_var("etendo.host.docker", "http://host.docker.internal:8080/etendo")
 
 
 def login_etendo(server_url, client_admin_user, client_admin_password):

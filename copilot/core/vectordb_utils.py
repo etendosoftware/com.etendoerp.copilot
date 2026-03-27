@@ -43,11 +43,23 @@ def get_embedding():
             - disallowed_special: Empty tuple (allows all special characters)
             - show_progress_bar: True (displays progress during embedding generation)
             - base_url: Proxy URL from configuration
+            - api_key: "dummy" if a proxy URL is set and no API key is provided,
+              to avoid validation errors.
 
     Notes:
         The base URL is retrieved using get_proxy_url() to route requests through the configured proxy.
     """
-    return OpenAIEmbeddings(disallowed_special=(), show_progress_bar=True, base_url=get_proxy_url())
+    proxy_url = get_proxy_url()
+    api_key = read_optional_env_var("openai.api.key", None)
+
+    # If we have a proxy URL but no API key, we use a dummy key to bypass the client's validation,
+    # as the proxy usually handles authentication or doesn't require a real OpenAI key.
+    if proxy_url and not api_key:
+        api_key = "dummy"
+
+    return OpenAIEmbeddings(
+        disallowed_special=(), show_progress_bar=True, base_url=proxy_url, api_key=api_key
+    )
 
 
 def get_vector_db_path(vector_db_id):
@@ -743,7 +755,8 @@ def get_sim_threshold_with_ignore(similarity_threshold, ignore_env: bool = False
 
     # Get similarity threshold from env var if not provided
     if similarity_threshold is None:
-        threshold_str = read_optional_env_var("COPILOT_REFERENCE_SIMILARITY_THRESHOLD", None)
+        threshold_str = read_optional_env_var("copilot.reference.similarity.threshold", None)
+        # in properties must be copilot.reference.similarity.threshold
         if threshold_str:
             try:
                 similarity_threshold = float(threshold_str)

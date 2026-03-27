@@ -1,16 +1,9 @@
 package com.etendoerp.copilot.process;
 
-import static com.etendoerp.copilot.util.OpenAIUtils.HEADER_CONTENT_TYPE;
-import static com.etendoerp.copilot.util.OpenAIUtils.wrappWithJSONSchema;
-
 import java.net.ConnectException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -20,7 +13,6 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
 import org.openbravo.client.application.process.ResponseActionsBuilder;
 import org.openbravo.dal.service.OBCriteria;
@@ -30,13 +22,11 @@ import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppTool;
-import com.etendoerp.copilot.data.CopilotTool;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 
 public class SyncGraphImg extends BaseProcessActionHandler {
   private static final Logger log = LogManager.getLogger(SyncGraphImg.class);
-  public static final String OPENAI_API_KEY = "OPENAI_API_KEY";
   public static final String DESCRIPTION = "description";
 
   @Override
@@ -54,7 +44,6 @@ public class SyncGraphImg extends BaseProcessActionHandler {
         throw new OBException(OBMessageUtils.messageBD("ETCOP_NoSelectedRecords"));
       }
       int syncCount = 0;
-      Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
 
       //convert the JSONArray to a list of strings
       List<String> selectedRecordsList = new ArrayList<>();

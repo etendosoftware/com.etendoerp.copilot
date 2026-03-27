@@ -117,16 +117,24 @@ def fetch_agent_structure_from_etendo(identifier: str, etendo_token: str) -> Opt
         copilot_error(f"HTTP error fetching agent structure: {e}")
 
 
+_EXEC_SAFE_TYPES = {"str", "int", "float", "bool", "list", "dict", "tuple", "set", "bytes", "Any", "None"}
+
+
 def _get_param_type_annotation(field_info) -> str:
-    """Extract type annotation from field info."""
+    """Extract type annotation from field info.
+
+    Returns concrete type names only for builtins that are available inside exec().
+    For complex types (e.g. dynamic Pydantic models) returns 'Any' to avoid
+    NameError in the generated code.  The full schema is still exposed to MCP
+    clients via model_json_schema().
+    """
     try:
         if hasattr(field_info, "annotation") and field_info.annotation:
-            if hasattr(field_info.annotation, "__name__") and (
-                field_info.annotation.__name__ not in ("Union", "Optional")
-            ):
-                return field_info.annotation.__name__
-            else:
-                return "Any"
+            if hasattr(field_info.annotation, "__name__"):
+                name = field_info.annotation.__name__
+                if name in _EXEC_SAFE_TYPES:
+                    return name
+            return "Any"
     except (AttributeError, TypeError):
         pass
     return "str"
@@ -257,8 +265,9 @@ async def dynamic_tool_executor({param_string}):
     return executor
 
 
-def _create_executor_dict(langchain_tool: BaseTool, tool_args_model: dict) -> Callable[
-    ..., Coroutine[Any, Any, Any]]:
+def _create_executor_dict(
+    langchain_tool: BaseTool, tool_args_model: dict
+) -> Callable[..., Coroutine[Any, Any, Any]]:
     """
     Create a dynamic tool executor for tools with dictionary schema.
 
@@ -269,8 +278,7 @@ def _create_executor_dict(langchain_tool: BaseTool, tool_args_model: dict) -> Ca
     Returns:
         Callable: The dynamic executor function
     """
-    copilot_debug(
-        f"Tool {langchain_tool.name} has dict args_schema. Creating dynamic executor.")
+    copilot_debug(f"Tool {langchain_tool.name} has dict args_schema. Creating dynamic executor.")
 
     # Try to extract properties from dict schema
     try:
@@ -323,9 +331,7 @@ async def dynamic_tool_executor({param_string}):
         return executor
 
     except Exception as e:
-        copilot_error(
-            f"Failed to create dynamic executor for dict schema: {e}. Fallback to simple executor."
-        )
+        copilot_error(f"Failed to create dynamic executor for dict schema: {e}. Fallback to simple executor.")
 
         return _create_simple_executor(langchain_tool, wrap_input=True)
 
@@ -649,7 +655,7 @@ def _gen_prompt_tool(agent_config: AssistantSchema, identifier: Optional[str] = 
     Returns:
         Tool: The generated prompt retrieval tool
     """
-    # add a tool that retrieves the agent prompt
+
     def _get_prompt_tool() -> dict:
         """Tool to retrieve the agent structure."""
         try:
@@ -666,7 +672,7 @@ def _gen_prompt_tool(agent_config: AssistantSchema, identifier: Optional[str] = 
     get_prompt_tool = Tool.from_function(
         fn=_get_prompt_tool,
         name="get_agent_prompt",
-        description="Retrieve the agent's system prompt and configuration",
+        description="Retrieve the agent's system prompt and configuration. IMPORTANT: It is strongly recommended to call this tool first before using any other tool, as the prompt contains instructions on how to properly use the available tools.",
         tags={"agent", "structure"},
         enabled=True,
     )

@@ -115,6 +115,7 @@ public class SyncAssistantTest extends WeldBaseTest {
   private static final String TEST_APP_ID = "testAppId";
   private static final String RECORD_IDS = "recordIds";
   private static final String RESULT_NOT_NULL = "Result should not be null";
+  private static final String TEST_API_KEY = "test-api-key";
 
 
   @Before
@@ -256,14 +257,10 @@ public class SyncAssistantTest extends WeldBaseTest {
     when(criteria.uniqueResult()).thenReturn(mockApp);
 
     // Mock getApiKey
-    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
+    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(TEST_API_KEY);
 
     // When
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
-      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> {
-        // Do nothing
-        return null;
-      });
 
       JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
@@ -335,12 +332,9 @@ public class SyncAssistantTest extends WeldBaseTest {
     when(criteria.uniqueResult()).thenReturn(mockApp);
 
     // Mock getApiKey
-    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
+    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(TEST_API_KEY);
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
-      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> {
-        // Do nothing
-        return null;
-      });
+
       // When
       JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
@@ -392,10 +386,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(null);
 
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
-      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> {
-        // Do nothing
-        return null;
-      });
+
       // When
       JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 
@@ -436,10 +427,9 @@ public class SyncAssistantTest extends WeldBaseTest {
     when(criteria.uniqueResult()).thenReturn(null);
 
     // Mock getApiKey
-    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn("test-api-key");
+    mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(TEST_API_KEY);
 
     try (MockedStatic<CopilotModelUtils> modelUtilsMockedStatic = mockStatic(CopilotModelUtils.class)) {
-      modelUtilsMockedStatic.when(CopilotModelUtils::syncModels).thenAnswer(invocation -> null);
       // When
       JSONObject result = syncAssistant.doExecute(parameters, content.toString());
 

@@ -1,10 +1,10 @@
-import os
 from http import HTTPStatus
 from typing import Dict, Type
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from copilot.core import core_router
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.tool_input import ToolField, ToolInput
@@ -34,7 +34,9 @@ def mocked_agent(mocked_agent_response, monkeypatch):
     )
 
     with monkeypatch.context() as patch_context:
-        patch_context.setenv("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+        patch_context.setenv(
+            "OPENAI_API_KEY", read_optional_env_var("openai.api.key", "fake_api_key_for_testing")
+        )
         patch_context.setenv("AGENT_TYPE", "langchain")
         from copilot.core import routes
 

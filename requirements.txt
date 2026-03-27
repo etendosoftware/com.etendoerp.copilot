@@ -14,7 +14,7 @@ aiosqlite==0.21.0
     #   langgraph-checkpoint-sqlite
 annotated-types==0.7.0
     # via pydantic
-anthropic==0.76.0
+anthropic==0.77.1
     # via langchain-anthropic
 anyio==4.12.1
     # via
@@ -56,7 +56,7 @@ black==25.12.0
     # via etendo-copilot-core
 build==1.4.0
     # via chromadb
-cachetools==6.2.4
+cachetools==7.0.0
     # via
     #   py-key-value-aio
     #   tox
@@ -97,21 +97,22 @@ colorama==0.4.6
     #   uvicorn
 coloredlogs==15.0.1
     # via onnxruntime
-coverage==7.13.1
+coverage==7.13.3
     # via pytest-cov
-cryptography==46.0.3
+cryptography==46.0.4
     # via
     #   authlib
+    #   google-auth
     #   jwt
     #   pyjwt
     #   secretstorage
 curlify==2.2.1
     # via etendo-copilot-core
-cyclopts==4.5.0
+cyclopts==4.5.1
     # via fastmcp
 dataclasses-json==0.6.7
     # via langchain-community
-debugpy==1.8.19
+debugpy==1.8.20
     # via etendo-copilot-core
 decorator==5.2.1
     # via ipython
@@ -178,7 +179,7 @@ google-ai-generativelanguage==0.10.0
     # via langchain-google-genai
 google-api-core==2.29.0
     # via google-ai-generativelanguage
-google-auth==2.47.0
+google-auth==2.48.0
     # via
     #   google-ai-generativelanguage
     #   google-api-core
@@ -189,7 +190,7 @@ googleapis-common-protos==1.72.0
     #   opentelemetry-exporter-otlp-proto-grpc
 grandalf==0.8
     # via etendo-copilot-core
-greenlet==3.3.0 ; platform_machine == 'AMD64' or platform_machine == 'WIN32' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'ppc64le' or platform_machine == 'win32' or platform_machine == 'x86_64'
+greenlet==3.3.1 ; platform_machine == 'AMD64' or platform_machine == 'WIN32' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'ppc64le' or platform_machine == 'win32' or platform_machine == 'x86_64'
     # via sqlalchemy
 grpcio==1.76.0
     # via
@@ -225,7 +226,7 @@ httpx-sse==0.4.3
     # via
     #   langchain-community
     #   mcp
-huggingface-hub==0.36.0
+huggingface-hub==0.36.1
     # via
     #   fastembed
     #   tokenizers
@@ -267,7 +268,7 @@ jeepney==0.9.0 ; sys_platform == 'linux'
     # via
     #   keyring
     #   secretstorage
-jiter==0.12.0
+jiter==0.13.0
     # via
     #   anthropic
     #   openai
@@ -291,7 +292,7 @@ keyring==25.7.0
     # via py-key-value-aio
 kubernetes==35.0.0
     # via chromadb
-langchain==1.2.6
+langchain==1.2.8
     # via
     #   etendo-copilot-core
     #   langmem
@@ -308,7 +309,7 @@ langchain-community==0.4.1
     # via
     #   etendo-copilot-core
     #   langchain-experimental
-langchain-core==1.2.7
+langchain-core==1.2.9
     # via
     #   etendo-copilot-core
     #   langchain
@@ -348,7 +349,7 @@ langchain-text-splitters==1.1.0
     # via
     #   etendo-copilot-core
     #   langchain-classic
-langgraph==1.0.6
+langgraph==1.0.7
     # via
     #   etendo-copilot-core
     #   langchain
@@ -364,7 +365,7 @@ langgraph-checkpoint==3.0.1
     #   langmem
 langgraph-checkpoint-sqlite==3.0.3
     # via etendo-copilot-core
-langgraph-prebuilt==1.0.6
+langgraph-prebuilt==1.0.7
     # via langgraph
 langgraph-sdk==0.3.3
     # via langgraph
@@ -372,7 +373,7 @@ langgraph-supervisor==0.0.31
     # via etendo-copilot-core
 langmem==0.0.30
     # via etendo-copilot-core
-langsmith==0.6.4
+langsmith==0.6.8
     # via
     #   etendo-copilot-core
     #   langchain-classic
@@ -390,7 +391,7 @@ matplotlib-inline==0.2.1
     # via ipython
 mccabe==0.7.0
     # via pylint
-mcp==1.25.0
+mcp==1.26.0
     # via
     #   fastmcp
     #   langchain-mcp-adapters
@@ -412,7 +413,7 @@ more-itertools==10.8.0
     #   jaraco-functools
 mpmath==1.3.0
     # via sympy
-multidict==6.7.0
+multidict==6.7.1
     # via
     #   aiohttp
     #   yarl
@@ -434,7 +435,7 @@ numpy==1.26.4 ; python_full_version < '3.12'
     #   onnx
     #   onnxruntime
     #   pandas
-numpy==2.4.1 ; python_full_version >= '3.12'
+numpy==2.4.2 ; python_full_version >= '3.12'
     # via
     #   chromadb
     #   fastembed
@@ -484,7 +485,7 @@ opentelemetry-sdk==1.39.1
     #   opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-semantic-conventions==0.60b1
     # via opentelemetry-sdk
-orjson==3.11.5
+orjson==3.11.7
     # via
     #   chromadb
     #   langgraph-sdk
@@ -512,7 +513,7 @@ parso==0.8.5
     # via jedi
 pathable==0.4.4
     # via jsonschema-path
-pathspec==1.0.3
+pathspec==1.0.4
     # via black
 pathvalidate==3.3.1
     # via py-key-value-aio
@@ -545,11 +546,11 @@ propcache==0.4.1
     # via
     #   aiohttp
     #   yarl
-proto-plus==1.27.0
+proto-plus==1.27.1
     # via
     #   google-ai-generativelanguage
     #   google-api-core
-protobuf==6.33.4
+protobuf==6.33.5
     # via
     #   google-ai-generativelanguage
     #   google-api-core
@@ -559,7 +560,7 @@ protobuf==6.33.4
     #   onnxruntime
     #   opentelemetry-proto
     #   proto-plus
-psutil==7.2.1
+psutil==7.2.2
     # via memory-profiler
 psycopg2-binary==2.9.11
     # via etendo-copilot-core
@@ -579,7 +580,7 @@ pyasn1-modules==0.4.2
     # via google-auth
 pybase64==1.4.3
     # via chromadb
-pycparser==2.23 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
+pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
     # via cffi
 pydantic==2.12.5
     # via
@@ -614,17 +615,17 @@ pygments==2.19.2
     # via
     #   ipython
     #   rich
-pyjwt==2.10.1
+pyjwt==2.11.0
     # via mcp
 pylint==3.3.9
     # via etendo-copilot-core
 pymupdf==1.26.7
     # via etendo-copilot-core
-pyparsing==3.3.1
+pyparsing==3.3.2
     # via grandalf
 pyperclip==1.11.0
     # via fastmcp
-pypika==0.50.0
+pypika==0.51.1
     # via chromadb
 pyproject-api==1.9.0
     # via tox
@@ -662,7 +663,7 @@ python-multipart==0.0.20
     # via
     #   etendo-copilot-core
     #   mcp
-pytokens==0.4.0
+pytokens==0.4.1
     # via black
 pytz==2025.2
     # via pandas
@@ -713,7 +714,7 @@ requests-toolbelt==1.0.0
     # via langsmith
 restrictedpython==8.1
     # via etendo-copilot-core
-rich==14.2.0
+rich==14.3.2
     # via
     #   chromadb
     #   cyclopts
@@ -749,7 +750,7 @@ sniffio==1.3.1
     #   rizaio
 snowballstemmer==2.2.0
     # via fastembed
-sqlalchemy==2.0.45
+sqlalchemy==2.0.46
     # via
     #   langchain-classic
     #   langchain-community
@@ -766,7 +767,7 @@ starlette==0.46.2
     #   mcp
 sympy==1.14.0
     # via onnxruntime
-tenacity==9.1.2
+tenacity==9.1.3
     # via
     #   chromadb
     #   langchain-community
@@ -794,7 +795,7 @@ tomlkit==0.14.0
     # via pylint
 tox==4.27.0
     # via etendo-copilot-core
-tqdm==4.67.1
+tqdm==4.67.3
     # via
     #   chromadb
     #   fastembed
@@ -860,7 +861,7 @@ urllib3==2.6.3
     # via
     #   kubernetes
     #   requests
-uuid-utils==0.13.0
+uuid-utils==0.14.0
     # via
     #   langchain-core
     #   langsmith
@@ -878,7 +879,7 @@ virtualenv==20.36.1
     #   tox
 watchfiles==1.1.1
     # via uvicorn
-wcwidth==0.2.14
+wcwidth==0.5.3
     # via prompt-toolkit
 websocket-client==1.9.0
     # via kubernetes
@@ -889,7 +890,9 @@ websockets==16.0
 win32-setctime==1.2.0 ; sys_platform == 'win32'
     # via loguru
 xxhash==3.6.0
-    # via langgraph
+    # via
+    #   langgraph
+    #   langsmith
 yarl==1.22.0
     # via aiohttp
 zipp==3.23.0

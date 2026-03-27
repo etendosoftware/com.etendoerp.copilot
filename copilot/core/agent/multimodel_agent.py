@@ -1,10 +1,10 @@
 import asyncio
-import os
 from typing import AsyncGenerator, Final, Union
 
 import langchain_core.tools
 from copilot.baseutils.logging_envvar import (
     read_optional_env_var,
+    read_optional_env_var_bool,
 )
 from copilot.core.agent.agent import (
     AgentResponse,
@@ -383,7 +383,7 @@ class MultimodelAgent(CopilotAgent):
         return self._configured_tools
 
     async def aexecute(self, question: QuestionSchema) -> AsyncGenerator[AgentResponse, None]:
-        copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
+        copilot_stream_debug = read_optional_env_var_bool("copilot.stream.debug", False)  # Debug mode
         async with AsyncSqliteSaver.from_conn_string(
             get_checkpoint_file(question.assistant_id)
         ) as checkpointer:

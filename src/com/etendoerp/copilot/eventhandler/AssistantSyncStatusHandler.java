@@ -98,7 +98,7 @@ public class AssistantSyncStatusHandler extends EntityPersistenceEventObserver {
         CopilotApp.PROPERTY_ORGANIZATION,
         CopilotApp.PROPERTY_DESCRIPTION,
         CopilotApp.PROPERTY_MODULE,
-        CopilotApp.PROPERTY_SYSTEMAPP,
+        CopilotApp.PROPERTY_AGENTSCOPE,
         CopilotApp.PROPERTY_PROVIDER,
         CopilotApp.PROPERTY_MODEL,
         CopilotApp.PROPERTY_TEMPERATURE

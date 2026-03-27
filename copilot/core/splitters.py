@@ -48,6 +48,8 @@ class CopilotRecursiveJsonSplitter:
             document_content = document.page_content
             document_content = json.loads(document_content)
             metadata = document.metadata
-            split_documents = self.json_splitter.create_documents(texts=[document_content], metadatas=[metadata])
+            split_documents = self.json_splitter.create_documents(
+                texts=[document_content], metadatas=[metadata]
+            )
             result.extend(split_documents)
         return result

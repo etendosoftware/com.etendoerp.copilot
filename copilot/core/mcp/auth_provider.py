@@ -6,12 +6,16 @@ factory functions: `createAuthProvider` (camelCase) and
 different call sites.
 """
 
+import json
 from typing import Any, List, Optional
 
-from copilot.baseutils.logging_envvar import copilot_debug, copilot_error
-from copilot.core.mcp.tools.agent_tools import MCPException
+import httpx
+from copilot.baseutils.logging_envvar import (
+    copilot_debug,
+    copilot_error,
+    copilot_warning,
+)
 from copilot.core.utils.etendo_utils import (
-    call_etendo,
     get_etendo_host,
     normalize_etendo_token,
 )
@@ -26,10 +30,10 @@ class CopilotAuthProvider(AuthProvider):
 
     Behavior:
     - If token is cached in `authenticated_tokens` it is accepted.
-    - Otherwise it calls GET {ETENDO_HOST}/sws/assistants with the Bearer token and
-      checks whether this provider's `identifier` appears in the returned list
-      (matching by `assistant_id` or `name`). If present, the token is cached and
-      an AccessToken is returned.
+    - Otherwise it calls GET {ETENDO_HOST}/sws/copilot/assistants with the Bearer
+      token and checks whether this provider's `identifier` appears in the returned
+      list (matching by `app_id`). If present, the token is cached and an
+      AccessToken is returned.
     """
 
     # Simple in-memory cache mapping token_value -> AccessToken
@@ -63,45 +67,62 @@ class CopilotAuthProvider(AuthProvider):
             return None
 
         try:
-            assistants = await self._fetch_assistants_for_token(token)
+            assistants = await self._fetch_assistants_for_token(token_value)
             if not assistants:
-                copilot_debug("AuthProvider: no assistants returned by Etendo")
+                copilot_warning(
+                    f"AuthProvider: no assistants returned by Etendo for identifier '{self.identifier}'"
+                )
                 return None
         except Exception as e:
-            copilot_error(f"AuthProvider: error verifying token: {e}")
-            raise MCPException(
-                "Error getting assistants available to the user. Check the host and the token."
-            ) from e
+            copilot_error(f"AuthProvider: error fetching assistants: {e}")
+            return None
 
         for a in assistants:
-            if a["app_id"] == self.identifier:
+            app_id = a.get("app_id", "") if isinstance(a, dict) else ""
+            if app_id == self.identifier:
                 access = AccessToken(token=token_value, client_id="copilot", scopes=[], expires_at=None)
                 # Cache and return
                 self.authenticated_tokens[token_value] = access
-                copilot_debug(f"AuthProvider: token authorized for identifier {self.identifier}")
+                copilot_debug(f"AuthProvider: token authorized for identifier '{self.identifier}'")
                 return access
 
-        raise MCPException(f"User not authorized for agent '{self.identifier}'")
+        # Log details to help diagnose mismatches
+        found_ids = [a.get("app_id", "?") if isinstance(a, dict) else "?" for a in assistants]
+        copilot_warning(
+            f"AuthProvider: agent '{self.identifier}' not found in assistants list. "
+            f"Available app_ids: {found_ids}"
+        )
+        return None
 
     async def _fetch_assistants_for_token(self, token: str) -> List[Any]:
-        """Helper: call Etendo /sws/assistants and return a list of assistant objects."""
+        """Fetch assistants list from Etendo using async HTTP to avoid blocking the event loop."""
         etendo_host = get_etendo_host()
-        copilot_debug(f"AuthProvider: querying Etendo assistants at {etendo_host}/sws/assistants")
+        url = f"{etendo_host}/sws/copilot/assistants"
+        headers = {
+            "Authorization": normalize_etendo_token(token),
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
 
-        # Use internal call_etendo util which handles headers and errors consistently
-        response = call_etendo(
-            method="GET",
-            url=etendo_host,
-            endpoint="/sws/copilot/assistants",
-            body_params={},
-            access_token=token,
-        )
+        copilot_debug(f"AuthProvider: querying {url}")
 
-        if not response or isinstance(response, dict) and response.get("error"):
-            copilot_debug(f"AuthProvider: call_etendo returned error: {response}")
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(url, headers=headers)
+        except httpx.RequestError as e:
+            copilot_error(f"AuthProvider: HTTP error contacting Etendo: {e}")
             return []
 
-        body = response
+        if not response.is_success:
+            copilot_warning(f"AuthProvider: Etendo returned {response.status_code} for assistants endpoint")
+            return []
+
+        try:
+            # Etendo may return ISO-8859-1 encoded responses
+            body = json.loads(response.content.decode("iso-8859-1"))
+        except Exception as e:
+            copilot_error(f"AuthProvider: failed to parse assistants response: {e}")
+            return []
 
         # Determine assistants list shape
         if isinstance(body, list):
@@ -109,12 +130,3 @@ class CopilotAuthProvider(AuthProvider):
         if isinstance(body, dict):
             return body.get("assistants") or body.get("data") or []
         return []
-
-    def _assistant_matches(self, a: Any) -> bool:
-        """Helper: return True if assistant object/dict matches this provider's identifier."""
-        try:
-            aid = a.get("assistant_id") if isinstance(a, dict) else getattr(a, "assistant_id", None)
-            aname = a.get("name") if isinstance(a, dict) else getattr(a, "name", None)
-            return aid == self.identifier or aname == self.identifier
-        except Exception:
-            return False
