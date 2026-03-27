@@ -27,13 +27,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 import org.openbravo.base.exception.OBException;
-
-import com.etendoerp.copilot.rest.RestServiceUtil;
 
 /**
  * Test class for FileUtils utility methods.
@@ -264,8 +261,15 @@ public class FileUtilsTest {
     Mockito.when(itemDisk.getStoreLocation()).thenReturn(fakeStore);
 
     // When renameTo fails the code falls back to Files.copy; since the fake store
-    // does not exist on disk, a NoSuchFileException is thrown.
-    assertThrows(java.nio.file.NoSuchFileException.class,
-        () -> FileUtils.processFileItem(itemDisk, "/endpoint"));
+    // does not exist on disk, the IOException is wrapped in an OBException.
+    try (org.mockito.MockedStatic<org.openbravo.erpCommon.utility.OBMessageUtils> mockedMsg =
+             Mockito.mockStatic(org.openbravo.erpCommon.utility.OBMessageUtils.class)) {
+      mockedMsg.when(
+              () -> org.openbravo.erpCommon.utility.OBMessageUtils.messageBD(org.mockito.ArgumentMatchers.anyString()))
+          .thenReturn("Error saving file: %s");
+
+      assertThrows(OBException.class,
+          () -> FileUtils.processFileItem(itemDisk, "/endpoint"));
+    }
   }
 }
