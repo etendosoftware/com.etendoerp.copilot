@@ -548,8 +548,9 @@ public class RestServiceUtil {
     logIfDebug(new JSONObject(jsonRequestForCopilot.toString()).toString(2));
 
     URL url = new URL(String.format("http://%s:%s%s", copilotHost, copilotPort, endpoint));
+    HttpURLConnection connection = null;
     try {
-      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+      connection = (HttpURLConnection) url.openConnection();
       connection.setRequestMethod("POST");
       connection.setRequestProperty("Content-Type", "application/json");
       connection.setDoOutput(true);
@@ -564,9 +565,12 @@ public class RestServiceUtil {
         return new JSONObject(responseFromCopilot);
       }
     } catch (Exception e) {
-      log.error(e);
-      Thread.currentThread().interrupt();
+      log.error("Error sending request to Copilot: " + e.getMessage(), e);
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
+    } finally {
+      if (connection != null) {
+        connection.disconnect();
+      }
     }
   }
 

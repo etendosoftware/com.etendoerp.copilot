@@ -350,7 +350,7 @@ class MultimodelAgent(CopilotAgent):
 
         async def _execute_async():
             async with AsyncSqliteSaver.from_conn_string(
-                get_checkpoint_file(question.assistant_id)
+                get_checkpoint_file(question.assistant_id, question.conversation_id)
             ) as checkpointer:
                 agent, config, messages, full_question = await self._prepare_agent_execution(
                     question, checkpointer
@@ -385,7 +385,7 @@ class MultimodelAgent(CopilotAgent):
     async def aexecute(self, question: QuestionSchema) -> AsyncGenerator[AgentResponse, None]:
         copilot_stream_debug = read_optional_env_var_bool("copilot.stream.debug", False)  # Debug mode
         async with AsyncSqliteSaver.from_conn_string(
-            get_checkpoint_file(question.assistant_id)
+            get_checkpoint_file(question.assistant_id, question.conversation_id)
         ) as checkpointer:
             agent, config, messages, full_question = await self._prepare_agent_execution(
                 question, checkpointer

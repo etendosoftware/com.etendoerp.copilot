@@ -134,8 +134,17 @@ public class ExecTask extends Action {
         evaluateTask(task, logger);
       }
     } catch (Exception e) {
+      log.error("Error processing task " + task.getId(), e);
       if (logger != null) {
         logger.log("Error processing task " + task.getId() + ": " + e.getMessage() + "\n");
+      }
+      try {
+        JSONObject errorResponse = new JSONObject();
+        errorResponse.put("error", e.getClass().getSimpleName());
+        errorResponse.put("message", e.getMessage());
+        task.setEtcopRawResponse(errorResponse.toString());
+      } catch (Exception ignored) {
+        // best-effort error storage
       }
       task.setStatus(getStatus(TASK_STATUS_REVIEW));
     } finally {
