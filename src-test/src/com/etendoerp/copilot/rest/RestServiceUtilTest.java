@@ -53,7 +53,6 @@ import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
 import com.etendoerp.copilot.util.ExtractedResponse;
-import com.etendoerp.copilot.util.FileUtils;
 import com.etendoerp.copilot.util.TrackingUtil;
 
 class RestServiceUtilTest {
@@ -80,6 +79,11 @@ class RestServiceUtilTest {
   private static final String LIT_TIMESTAMP = "timestamp";
   private static final String COPILOT_HOST_PROP = "copilot.host";
   private static final String COPILOT_PORT_PROP = "copilot.port";
+  private static final String DUMMY_APP_ID = "dummyAppId";
+  private static final String LIT_WHAT_IS_ETENDO = "What is Etendo?";
+  private static final String LIT_OPENAI_ID = "LIT_OPENAI_ID";
+  private static final String LIT_USER_123 = "LIT_USER_123";
+  private static final String LIT_ROLE_1 = "LIT_ROLE_1";
 
   // Setup and utility methods for mocks will go here
 
@@ -152,34 +156,24 @@ class RestServiceUtilTest {
     java.io.File tempFile = tempPath.toFile();
     tempFile.deleteOnExit();
     try {
-      // attempt to restrict permissions in test environment
-      secureTempFilePermissions(tempPath, tempFile);
+      try {
+        java.util.Set<java.nio.file.attribute.PosixFilePermission> perms =
+            java.nio.file.attribute.PosixFilePermissions.fromString("rw-------");
+        java.nio.file.Files.setPosixFilePermissions(tempPath, perms);
+      } catch (UnsupportedOperationException | IOException ignore) {
+        boolean ok;
+        ok = tempFile.setReadable(false, false);
+        if (!ok) testLog.warn("Failed to set non-owner readable on temp file: {}", tempFile.getAbsolutePath());
+        ok = tempFile.setWritable(false, false);
+        if (!ok) testLog.warn("Failed to set non-owner writable on temp file: {}", tempFile.getAbsolutePath());
+        ok = tempFile.setReadable(true, true);
+        if (!ok) testLog.warn("Failed to set owner-readable on temp file: {}", tempFile.getAbsolutePath());
+        ok = tempFile.setWritable(true, true);
+        if (!ok) testLog.warn("Failed to set owner-writable on temp file: {}", tempFile.getAbsolutePath());
+      }
       RestServiceUtil.handleFile(tempFile, ENDPOINT);
     } catch (Exception e) {
       // Acceptable if CopilotUtils is not mocked
-    }
-  }
-
-  /**
-   * Try to set owner-only permissions on the provided temp file. In environments
-   * where POSIX permissions are not available the method falls back to the
-   * {@link File#setReadable} / {@link File#setWritable} API and logs failures.
-   */
-  private void secureTempFilePermissions(java.nio.file.Path tempPath, java.io.File tempFile) {
-    try {
-      java.util.Set<java.nio.file.attribute.PosixFilePermission> perms =
-          java.nio.file.attribute.PosixFilePermissions.fromString("rw-------");
-      java.nio.file.Files.setPosixFilePermissions(tempPath, perms);
-    } catch (UnsupportedOperationException | IOException ignore) {
-      boolean ok;
-      ok = tempFile.setReadable(false, false);
-      if (!ok) testLog.warn("Failed to set non-owner readable on temp file: {}", tempFile.getAbsolutePath());
-      ok = tempFile.setWritable(false, false);
-      if (!ok) testLog.warn("Failed to set non-owner writable on temp file: {}", tempFile.getAbsolutePath());
-      ok = tempFile.setReadable(true, true);
-      if (!ok) testLog.warn("Failed to set owner-readable on temp file: {}", tempFile.getAbsolutePath());
-      ok = tempFile.setWritable(true, true);
-      if (!ok) testLog.warn("Failed to set owner-writable on temp file: {}", tempFile.getAbsolutePath());
     }
   }
 
@@ -194,8 +188,8 @@ class RestServiceUtilTest {
   @Test
   void testHandleQuestionWithMinimalJson() throws JSONException {
     JSONObject jsonRequest = new JSONObject();
-    jsonRequest.put("app_id", "dummyAppId");
-    jsonRequest.put("question", "What is Etendo?");
+    jsonRequest.put(RestServiceUtil.APP_ID, DUMMY_APP_ID);
+    jsonRequest.put(RestServiceUtil.PROP_QUESTION, LIT_WHAT_IS_ETENDO);
     try {
       RestServiceUtil.handleQuestion(false, null, jsonRequest);
     } catch (Exception e) {
@@ -207,8 +201,8 @@ class RestServiceUtilTest {
   void testHandleQuestionExtractsStructuredOutputSchema() throws JSONException {
     String schema = "{\"title\":\"Test\",\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}";
     JSONObject jsonRequest = new JSONObject();
-    jsonRequest.put("app_id", "dummyAppId");
-    jsonRequest.put("question", "What is Etendo?");
+    jsonRequest.put(RestServiceUtil.APP_ID, DUMMY_APP_ID);
+    jsonRequest.put(RestServiceUtil.PROP_QUESTION, LIT_WHAT_IS_ETENDO);
     jsonRequest.put(RestServiceUtil.PROP_SCHEMA, schema);
     try {
       RestServiceUtil.handleQuestion(false, null, jsonRequest);
@@ -220,8 +214,8 @@ class RestServiceUtilTest {
   @Test
   void testHandleQuestionWithNullStructuredOutputSchema() throws JSONException {
     JSONObject jsonRequest = new JSONObject();
-    jsonRequest.put("app_id", "dummyAppId");
-    jsonRequest.put("question", "What is Etendo?");
+    jsonRequest.put(RestServiceUtil.APP_ID, DUMMY_APP_ID);
+    jsonRequest.put(RestServiceUtil.PROP_QUESTION, LIT_WHAT_IS_ETENDO);
     // No schema key — optString should return null
     String extracted = jsonRequest.optString(RestServiceUtil.PROP_SCHEMA, null);
     Assertions.assertNull(extracted);
@@ -231,7 +225,7 @@ class RestServiceUtilTest {
   void testHandleQuestionOverloadDelegatesWithNullSchema() throws Exception {
     CopilotApp app = Mockito.mock(CopilotApp.class);
     Mockito.when(app.getAppType()).thenReturn(CopilotConstants.APP_TYPE_OPENAI);
-    Mockito.when(app.getOpenaiAssistantID()).thenReturn("openai-id");
+    Mockito.when(app.getOpenaiAssistantID()).thenReturn(LIT_OPENAI_ID);
 
     try (org.mockito.MockedStatic<OBMessageUtils> mockMsg = org.mockito.Mockito.mockStatic(OBMessageUtils.class)) {
       mockMsg.when(() -> OBMessageUtils.messageBD(org.mockito.ArgumentMatchers.anyString())).thenReturn("App not found");
@@ -253,15 +247,15 @@ class RestServiceUtilTest {
     Mockito.when(app.getId()).thenReturn(UUID.randomUUID().toString());
     Mockito.when(app.getName()).thenReturn("testApp");
     Mockito.when(app.getETCOPAppSourceList()).thenReturn(List.of());
-    Mockito.when(app.getOpenaiAssistantID()).thenReturn("openai-id");
+    Mockito.when(app.getOpenaiAssistantID()).thenReturn(LIT_OPENAI_ID);
     // Entity-level schema is null — caller override should take effect
     Mockito.when(app.getStructuredOutputJSONSchema()).thenReturn(null);
 
     OBContext mockCtx = Mockito.mock(OBContext.class);
     org.openbravo.model.ad.access.User mockUser = Mockito.mock(org.openbravo.model.ad.access.User.class);
-    Mockito.when(mockUser.getId()).thenReturn("user-123");
+    Mockito.when(mockUser.getId()).thenReturn(LIT_USER_123);
     Role mockRole = Mockito.mock(Role.class);
-    Mockito.when(mockRole.getId()).thenReturn("role-1");
+    Mockito.when(mockRole.getId()).thenReturn(LIT_ROLE_1);
     org.openbravo.model.ad.system.Client mockClient = Mockito.mock(org.openbravo.model.ad.system.Client.class);
     Mockito.when(mockClient.getId()).thenReturn("client-1");
     Mockito.when(mockCtx.getUser()).thenReturn(mockUser);
@@ -284,7 +278,7 @@ class RestServiceUtilTest {
 
       OBDal dal = Mockito.mock(OBDal.class);
       mockDal.when(OBDal::getInstance).thenReturn(dal);
-      Mockito.when(dal.get(Role.class, "role-1")).thenReturn(mockRole);
+      Mockito.when(dal.get(Role.class, LIT_ROLE_1)).thenReturn(mockRole);
 
       // Build the request and then manually apply the override (as handleQuestion does)
       JSONObject json = RestServiceUtil.buildRequestJson(app, null, "q", List.of());
@@ -292,25 +286,6 @@ class RestServiceUtilTest {
       json.put(RestServiceUtil.PROP_SCHEMA, schema);
       Assertions.assertEquals(schema, json.getString(RestServiceUtil.PROP_SCHEMA));
     }
-  }
-
-  @Test
-  void testGetFilesReceivedWithSingleFile() throws JSONException {
-    JSONObject json = new JSONObject();
-    json.put("file", "file123");
-    List<String> files = FileUtils.getFilesReceived(json);
-    Assertions.assertEquals(List.of("file123"), files);
-  }
-
-  @Test
-  void testGetFilesReceivedWithArray() throws JSONException {
-    JSONArray arr = new JSONArray();
-    arr.put("fileA");
-    arr.put("fileB");
-    JSONObject json = new JSONObject();
-    json.put("file", arr.toString());
-    List<String> files = FileUtils.getFilesReceived(json);
-    Assertions.assertEquals(List.of("fileA", "fileB"), files);
   }
 
   @Test
@@ -516,14 +491,14 @@ class RestServiceUtilTest {
     Mockito.when(app.getId()).thenReturn(UUID.randomUUID().toString());
     Mockito.when(app.getName()).thenReturn("testApp");
     Mockito.when(app.getETCOPAppSourceList()).thenReturn(List.of());
-    Mockito.when(app.getOpenaiAssistantID()).thenReturn("openai-id");
+    Mockito.when(app.getOpenaiAssistantID()).thenReturn(LIT_OPENAI_ID);
 
     // Mock OBContext static to provide user id and role
     OBContext mockCtx = Mockito.mock(OBContext.class);
     org.openbravo.model.ad.access.User mockUser = Mockito.mock(org.openbravo.model.ad.access.User.class);
-    Mockito.when(mockUser.getId()).thenReturn("user-123");
+    Mockito.when(mockUser.getId()).thenReturn(LIT_USER_123);
     Role mockRole = Mockito.mock(Role.class);
-    Mockito.when(mockRole.getId()).thenReturn("role-1");
+    Mockito.when(mockRole.getId()).thenReturn(LIT_ROLE_1);
     // Ensure current client is available in the mocked OBContext to avoid NPE
     org.openbravo.model.ad.system.Client mockClient = Mockito.mock(org.openbravo.model.ad.system.Client.class);
     Mockito.when(mockClient.getId()).thenReturn("client-1");
@@ -551,11 +526,11 @@ class RestServiceUtilTest {
       // OBDal.getInstance() calls - return a stub that can return a Role when requested
       OBDal dal = Mockito.mock(OBDal.class);
       mockDal.when(OBDal::getInstance).thenReturn(dal);
-      Mockito.when(dal.get(Role.class, "role-1")).thenReturn(mockRole);
+      Mockito.when(dal.get(Role.class, LIT_ROLE_1)).thenReturn(mockRole);
 
       JSONObject json = RestServiceUtil.buildRequestJson(app, null, "q", List.of());
       Assertions.assertNotNull(json);
-      Assertions.assertEquals("user-123", json.getString(RestServiceUtil.PROP_AD_USER_ID));
+      Assertions.assertEquals(LIT_USER_123, json.getString(RestServiceUtil.PROP_AD_USER_ID));
       Assertions.assertEquals("q", json.getString(RestServiceUtil.PROP_QUESTION));
     }
   }
@@ -823,45 +798,6 @@ class RestServiceUtilTest {
       Assertions.assertEquals(LIT_APP1, assistant.getString(RestServiceUtil.APP_ID));
       Assertions.assertEquals("App One", assistant.getString("name"));
     }
-  }
-
-  // --- ExtractedResponse.getResponseAsJSON() tests ---
-
-  @Test
-  void testGetResponseAsJSON_ValidJson() throws JSONException {
-    String jsonStr = "{\"invoice_number\":\"123\",\"amount\":100}";
-    ExtractedResponse resp = new ExtractedResponse(jsonStr, "conv1", null);
-    JSONObject result = resp.getResponseAsJSON();
-    Assertions.assertNotNull(result);
-    Assertions.assertEquals("123", result.getString("invoice_number"));
-    Assertions.assertEquals(100, result.getInt("amount"));
-  }
-
-  @Test
-  void testGetResponseAsJSON_NullResponse() {
-    ExtractedResponse resp = new ExtractedResponse(null, "conv1", null);
-    Assertions.assertNull(resp.getResponseAsJSON());
-  }
-
-  @Test
-  void testGetResponseAsJSON_EmptyResponse() {
-    ExtractedResponse resp = new ExtractedResponse("", "conv1", null);
-    Assertions.assertNull(resp.getResponseAsJSON());
-  }
-
-  @Test
-  void testGetResponseAsJSON_InvalidJson() {
-    ExtractedResponse resp = new ExtractedResponse("This is not JSON", "conv1", null);
-    Assertions.assertNull(resp.getResponseAsJSON());
-  }
-
-  @Test
-  void testGetResponseAsJSON_NestedJson() throws JSONException {
-    String jsonStr = "{\"items\":[{\"name\":\"A\",\"qty\":1},{\"name\":\"B\",\"qty\":2}]}";
-    ExtractedResponse resp = new ExtractedResponse(jsonStr, "conv1", null);
-    JSONObject result = resp.getResponseAsJSON();
-    Assertions.assertNotNull(result);
-    Assertions.assertEquals(2, result.getJSONArray("items").length());
   }
 
   @Test

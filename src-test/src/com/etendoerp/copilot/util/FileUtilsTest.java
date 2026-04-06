@@ -26,7 +26,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
+import org.codehaus.jettison.json.JSONArray;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
@@ -271,5 +275,24 @@ public class FileUtilsTest {
       assertThrows(OBException.class,
           () -> FileUtils.processFileItem(itemDisk, "/endpoint"));
     }
+  }
+
+  @Test
+  void testGetFilesReceivedWithSingleFile() throws JSONException {
+    JSONObject json = new JSONObject();
+    json.put("file", "file123");
+    List<String> files = FileUtils.getFilesReceived(json);
+    assertEquals(List.of("file123"), files);
+  }
+
+  @Test
+  void testGetFilesReceivedWithArray() throws JSONException {
+    JSONArray arr = new JSONArray();
+    arr.put("fileA");
+    arr.put("fileB");
+    JSONObject json = new JSONObject();
+    json.put("file", arr.toString());
+    List<String> files = FileUtils.getFilesReceived(json);
+    assertEquals(List.of("fileA", "fileB"), files);
   }
 }

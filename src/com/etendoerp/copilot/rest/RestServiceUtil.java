@@ -190,7 +190,7 @@ public class RestServiceUtil {
    *     If an error occurs during file processing or temporary file creation.
    */
   public static JSONObject handleFile(List<FileItem> items, String endpoint) throws Exception {
-    logIfDebug(String.format("items: %d", items.size()));
+    log.debug("items: {}", items.size());
     JSONObject responseJson = new JSONObject();
     // Create a list of files to delete them later when the process finishes
     for (FileItem item : items) {
@@ -230,7 +230,7 @@ public class RestServiceUtil {
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"));
     }
     String jsonResponseStr = response.body();
-    logIfDebug("Response from Copilot: " + jsonResponseStr);
+    log.debug("Response from Copilot: {}", jsonResponseStr);
     return new JSONObject(jsonResponseStr).optString(PROP_ANSWER);
   }
 
@@ -241,12 +241,6 @@ public class RestServiceUtil {
    * @param msg
    *     the message to log
    */
-  private static void logIfDebug(String msg) {
-    if (log.isDebugEnabled()) {
-      log.debug(msg);
-    }
-  }
-
 
   /**
    * Transfer the provided data item to the given {@link TransferQueue}. If the
@@ -584,8 +578,10 @@ public class RestServiceUtil {
     String copilotHost = readPropertyWithLegacyCompatibility(properties,"copilot.host", "localhost");
     String endpoint = determineEndpoint(asyncRequest, copilotApp);
 
-    logIfDebug("Request to Copilot:);");
-    logIfDebug(new JSONObject(jsonRequestForCopilot.toString()).toString(2));
+    if (log.isDebugEnabled()) {
+      log.debug("Request to Copilot:");
+      log.debug(new JSONObject(jsonRequestForCopilot.toString()).toString(2));
+    }
 
     URL url = new URL(String.format("http://%s:%s%s", copilotHost, copilotPort, endpoint));
     try {
@@ -886,7 +882,7 @@ public class RestServiceUtil {
       for (String questionAttachedFileId : questionAttachedFileIds) {
         if (StringUtils.isNotEmpty(questionAttachedFileId)) {
 
-          logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
+          log.debug("questionAttachedFileId: {}", questionAttachedFileId);
           filesIds.put(questionAttachedFileId);
         }
       }
@@ -1056,8 +1052,10 @@ public class RestServiceUtil {
       jsonRequestForCopilot.put(PROP_QUESTION, question);
       addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
       String bodyReq = jsonRequestForCopilot.toString();
-      logIfDebug("Request to Copilot:);");
-      logIfDebug(new JSONObject(bodyReq).toString(2));
+      if (log.isDebugEnabled()) {
+        log.debug("Request to Copilot:");
+        log.debug(new JSONObject(bodyReq).toString(2));
+      }
       HttpRequest copilotRequest = HttpRequest.newBuilder().uri(
           new URI(String.format("http://%s:%s" + GRAPH, copilotHost, copilotPort))).headers("Content-Type",
           APPLICATION_JSON_CHARSET_UTF_8).version(HttpClient.Version.HTTP_1_1).POST(
@@ -1159,7 +1157,7 @@ public class RestServiceUtil {
    */
   private static void sendEventToFront(PrintWriter writerToFront, String x, boolean addData) {
     String line = (addData ? "data: " : "") + x + "\n\n";
-    logIfDebug(line);
+    log.debug("{}", line);
     writerToFront.println(line);
     writerToFront.flush();
   }
