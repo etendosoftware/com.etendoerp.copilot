@@ -101,43 +101,11 @@ class RestServiceUtilTest {
   }
 
   @Test
-  void testHandleFileWithFile() throws Exception {
-    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
-        org.apache.commons.fileupload.disk.DiskFileItem.class);
-    Mockito.when(itemDisk.isFormField()).thenReturn(false);
-    Mockito.when(itemDisk.getName()).thenReturn(TEST_FILE_NAME);
-    Mockito.when(itemDisk.getFieldName()).thenReturn("file1");
-    Mockito.when(itemDisk.isInMemory()).thenReturn(true);
-    Mockito.doNothing().when(itemDisk).write(org.mockito.ArgumentMatchers.any(File.class));
-    List<FileItem> items = List.of(itemDisk);
+  void testHandleFileWithDiskItem() throws Exception {
     java.net.http.HttpResponse<String> mockResponse = Mockito.mock(java.net.http.HttpResponse.class);
     Mockito.when(mockResponse.body()).thenReturn(
         new org.codehaus.jettison.json.JSONObject().put(RestServiceUtil.PROP_ANSWER, LIT_UPLOADED).toString());
-    try (org.mockito.MockedStatic<com.etendoerp.copilot.util.CopilotUtils> utils = org.mockito.Mockito
-        .mockStatic(com.etendoerp.copilot.util.CopilotUtils.class)) {
-      utils.when(
-              () -> com.etendoerp.copilot.util.CopilotUtils.getResponseFromCopilot(org.mockito.ArgumentMatchers.any(),
-                  org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
-                  org.mockito.ArgumentMatchers.any()))
-          .thenReturn(mockResponse);
-      JSONObject result = RestServiceUtil.handleFile(items, ENDPOINT);
-      Assertions.assertNotNull(result);
-    }
-  }
 
-  @Test
-  void testHandleFileWithNullName() throws Exception {
-    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
-        org.apache.commons.fileupload.disk.DiskFileItem.class);
-    Mockito.when(itemDisk.isFormField()).thenReturn(false);
-    Mockito.when(itemDisk.getName()).thenReturn(null);
-    Mockito.when(itemDisk.getFieldName()).thenReturn("fileNull");
-    Mockito.when(itemDisk.isInMemory()).thenReturn(true);
-    Mockito.doNothing().when(itemDisk).write(org.mockito.ArgumentMatchers.any(File.class));
-    List<FileItem> items = List.of(itemDisk);
-    java.net.http.HttpResponse<String> mockResponse = Mockito.mock(java.net.http.HttpResponse.class);
-    Mockito.when(mockResponse.body()).thenReturn(
-        new org.codehaus.jettison.json.JSONObject().put(RestServiceUtil.PROP_ANSWER, LIT_UPLOADED).toString());
     try (org.mockito.MockedStatic<com.etendoerp.copilot.util.CopilotUtils> utils = org.mockito.Mockito
         .mockStatic(com.etendoerp.copilot.util.CopilotUtils.class)) {
       utils.when(
@@ -145,8 +113,26 @@ class RestServiceUtilTest {
                   org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
                   org.mockito.ArgumentMatchers.any()))
           .thenReturn(mockResponse);
-      JSONObject result = RestServiceUtil.handleFile(items, ENDPOINT);
-      Assertions.assertNotNull(result);
+
+      // Verify with a valid file name
+      org.apache.commons.fileupload.disk.DiskFileItem item1 = Mockito.mock(
+          org.apache.commons.fileupload.disk.DiskFileItem.class);
+      Mockito.when(item1.isFormField()).thenReturn(false);
+      Mockito.when(item1.getName()).thenReturn(TEST_FILE_NAME);
+      Mockito.when(item1.getFieldName()).thenReturn("file1");
+      Mockito.when(item1.isInMemory()).thenReturn(true);
+      Mockito.doNothing().when(item1).write(org.mockito.ArgumentMatchers.any(File.class));
+      Assertions.assertNotNull(RestServiceUtil.handleFile(List.of(item1), ENDPOINT));
+
+      // Verify with a null file name (edge case)
+      org.apache.commons.fileupload.disk.DiskFileItem item2 = Mockito.mock(
+          org.apache.commons.fileupload.disk.DiskFileItem.class);
+      Mockito.when(item2.isFormField()).thenReturn(false);
+      Mockito.when(item2.getName()).thenReturn(null);
+      Mockito.when(item2.getFieldName()).thenReturn("fileNull");
+      Mockito.when(item2.isInMemory()).thenReturn(true);
+      Mockito.doNothing().when(item2).write(org.mockito.ArgumentMatchers.any(File.class));
+      Assertions.assertNotNull(RestServiceUtil.handleFile(List.of(item2), ENDPOINT));
     }
   }
 
@@ -240,7 +226,7 @@ class RestServiceUtilTest {
   }
 
   @Test
-  void testBuildRequestJsonIncludesStructuredOutputOverride() throws Exception {
+  void testBuildRequestJson() throws Exception {
     String schema = "{\"title\":\"Invoice\",\"type\":\"object\",\"properties\":{\"amount\":{\"type\":\"number\"}}}";
     CopilotApp app = Mockito.mock(CopilotApp.class);
     Mockito.when(app.getAppType()).thenReturn(CopilotConstants.APP_TYPE_OPENAI);
@@ -248,7 +234,6 @@ class RestServiceUtilTest {
     Mockito.when(app.getName()).thenReturn("testApp");
     Mockito.when(app.getETCOPAppSourceList()).thenReturn(List.of());
     Mockito.when(app.getOpenaiAssistantID()).thenReturn(LIT_OPENAI_ID);
-    // Entity-level schema is null — caller override should take effect
     Mockito.when(app.getStructuredOutputJSONSchema()).thenReturn(null);
 
     OBContext mockCtx = Mockito.mock(OBContext.class);
@@ -271,18 +256,19 @@ class RestServiceUtilTest {
       mockCu.when(() -> CopilotUtils.getAppSourceContent(org.mockito.ArgumentMatchers.any(),
               org.mockito.ArgumentMatchers.anyString()))
           .thenReturn("");
-
       CopilotQuestionHookManager hookManager = Mockito.mock(CopilotQuestionHookManager.class);
       mockWeld.when(() -> WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class)).thenReturn(
           hookManager);
-
       OBDal dal = Mockito.mock(OBDal.class);
       mockDal.when(OBDal::getInstance).thenReturn(dal);
       Mockito.when(dal.get(Role.class, LIT_ROLE_1)).thenReturn(mockRole);
 
-      // Build the request and then manually apply the override (as handleQuestion does)
       JSONObject json = RestServiceUtil.buildRequestJson(app, null, "q", List.of());
-      // Before override, the schema from the entity is null
+      // Verify basic fields are present
+      Assertions.assertNotNull(json);
+      Assertions.assertEquals(LIT_USER_123, json.getString(RestServiceUtil.PROP_AD_USER_ID));
+      Assertions.assertEquals("q", json.getString(RestServiceUtil.PROP_QUESTION));
+      // Verify caller-supplied schema override is applied correctly
       json.put(RestServiceUtil.PROP_SCHEMA, schema);
       Assertions.assertEquals(schema, json.getString(RestServiceUtil.PROP_SCHEMA));
     }
@@ -481,58 +467,6 @@ class RestServiceUtilTest {
     JSONObject answer = RestServiceUtil.serverSideEvents(false, resp, in);
     Assertions.assertNotNull(answer);
     Assertions.assertEquals("err", answer.getString(RestServiceUtil.PROP_RESPONSE));
-  }
-
-  @Test
-  void testBuildRequestJsonMinimalOpenAI() throws Exception {
-    // Setup CopilotApp stub
-    CopilotApp app = Mockito.mock(CopilotApp.class);
-    Mockito.when(app.getAppType()).thenReturn(CopilotConstants.APP_TYPE_OPENAI);
-    Mockito.when(app.getId()).thenReturn(UUID.randomUUID().toString());
-    Mockito.when(app.getName()).thenReturn("testApp");
-    Mockito.when(app.getETCOPAppSourceList()).thenReturn(List.of());
-    Mockito.when(app.getOpenaiAssistantID()).thenReturn(LIT_OPENAI_ID);
-
-    // Mock OBContext static to provide user id and role
-    OBContext mockCtx = Mockito.mock(OBContext.class);
-    org.openbravo.model.ad.access.User mockUser = Mockito.mock(org.openbravo.model.ad.access.User.class);
-    Mockito.when(mockUser.getId()).thenReturn(LIT_USER_123);
-    Role mockRole = Mockito.mock(Role.class);
-    Mockito.when(mockRole.getId()).thenReturn(LIT_ROLE_1);
-    // Ensure current client is available in the mocked OBContext to avoid NPE
-    org.openbravo.model.ad.system.Client mockClient = Mockito.mock(org.openbravo.model.ad.system.Client.class);
-    Mockito.when(mockClient.getId()).thenReturn("client-1");
-    Mockito.when(mockCtx.getUser()).thenReturn(mockUser);
-    Mockito.when(mockCtx.getRole()).thenReturn(mockRole);
-    Mockito.when(mockCtx.getCurrentClient()).thenReturn(mockClient);
-
-    try (org.mockito.MockedStatic<OBContext> mockOB = org.mockito.Mockito.mockStatic(OBContext.class);
-         org.mockito.MockedStatic<CopilotUtils> mockCu = org.mockito.Mockito.mockStatic(CopilotUtils.class);
-         org.mockito.MockedStatic<WeldUtils> mockWeld = org.mockito.Mockito.mockStatic(WeldUtils.class);
-         org.mockito.MockedStatic<OBDal> mockDal = org.mockito.Mockito.mockStatic(OBDal.class)) {
-      mockOB.when(OBContext::getOBContext).thenReturn(mockCtx);
-      // stub CopilotUtils static helpers used in buildRequestJson
-      mockCu.when(() -> CopilotUtils.checkQuestionPrompt(org.mockito.ArgumentMatchers.anyString())).thenAnswer(
-          i -> null);
-      mockCu.when(() -> CopilotUtils.getAppSourceContent(org.mockito.ArgumentMatchers.any(),
-              org.mockito.ArgumentMatchers.anyString()))
-          .thenReturn("");
-
-      // WeldUtils hook manager stub
-      CopilotQuestionHookManager hookManager = Mockito.mock(CopilotQuestionHookManager.class);
-      mockWeld.when(() -> WeldUtils.getInstanceFromStaticBeanManager(CopilotQuestionHookManager.class)).thenReturn(
-          hookManager);
-
-      // OBDal.getInstance() calls - return a stub that can return a Role when requested
-      OBDal dal = Mockito.mock(OBDal.class);
-      mockDal.when(OBDal::getInstance).thenReturn(dal);
-      Mockito.when(dal.get(Role.class, LIT_ROLE_1)).thenReturn(mockRole);
-
-      JSONObject json = RestServiceUtil.buildRequestJson(app, null, "q", List.of());
-      Assertions.assertNotNull(json);
-      Assertions.assertEquals(LIT_USER_123, json.getString(RestServiceUtil.PROP_AD_USER_ID));
-      Assertions.assertEquals("q", json.getString(RestServiceUtil.PROP_QUESTION));
-    }
   }
 
   @Test
