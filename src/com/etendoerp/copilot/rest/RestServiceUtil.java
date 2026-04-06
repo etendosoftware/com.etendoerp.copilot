@@ -118,7 +118,7 @@ public class RestServiceUtil {
   public static final String PROP_AD_CLIENT_ID = "ad_client_id";
   public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
   public static final String METADATA = "metadata";
-  public static final String PROP_STRUCTURED_OUTPUT_JSON_SCHEMA = "structured_output_json_schema";
+  public static final String PROP_SCHEMA = "schema";
 
   /**
    * Private constructor to prevent instantiation of utility class.
@@ -314,7 +314,8 @@ public class RestServiceUtil {
       default:
         log.warn("Unsupported app type: {}", copilotApp.getAppType());
     }
-    return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived);
+    return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived,
+        jsonRequest.optString(PROP_SCHEMA, null));
   }
 
 
@@ -425,6 +426,40 @@ public class RestServiceUtil {
    */
   public static JSONObject handleQuestion(boolean asyncRequest, HttpServletResponse queue, CopilotApp copilotApp,
       String conversationId, String question, List<String> questionAttachedFileIds) throws IOException, JSONException {
+    return handleQuestion(asyncRequest, queue, copilotApp, conversationId, question, questionAttachedFileIds, null);
+  }
+
+  /**
+   * Processes a question with an optional structured output JSON schema override.
+   * When {@code schema} is provided it takes precedence over any
+   * schema configured on the {@link CopilotApp} entity, allowing Java processes to
+   * request a specific response format at call time.
+   *
+   * @param asyncRequest
+   *     whether the request should be processed asynchronously (SSE)
+   * @param queue
+   *     the {@link HttpServletResponse} used for streaming SSE events when async
+   * @param copilotApp
+   *     the assistant to use
+   * @param conversationId
+   *     the conversation id (may be null)
+   * @param question
+   *     the user question text
+   * @param questionAttachedFileIds
+   *     optional list of file ids attached to the question
+   * @param schema
+   *     a JSON schema string that defines the desired response structure.
+   *     When non-null/non-empty this overrides the schema configured on the CopilotApp.
+   *     Pass {@code null} to use the default behaviour.
+   * @return a {@link JSONObject} containing the processed response
+   * @throws IOException
+   *     on IO errors
+   * @throws JSONException
+   *     on JSON parsing errors
+   */
+  public static JSONObject handleQuestion(boolean asyncRequest, HttpServletResponse queue, CopilotApp copilotApp,
+      String conversationId, String question, List<String> questionAttachedFileIds,
+      String schema) throws IOException, JSONException {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
@@ -432,6 +467,11 @@ public class RestServiceUtil {
 
     // Build request JSON
     JSONObject jsonRequestForCopilot = buildRequestJson(copilotApp, conversationId, question, questionAttachedFileIds);
+
+    // Override structured output schema if provided at call time
+    if (StringUtils.isNotEmpty(schema)) {
+      jsonRequestForCopilot.put(PROP_SCHEMA, schema);
+    }
 
     if (TelemetryUsageInfo.getInstance().getSessionId() != null) {
       TrackingUtil.sendUsageData(copilotApp);

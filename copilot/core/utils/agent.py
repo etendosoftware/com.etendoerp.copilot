@@ -285,11 +285,11 @@ def get_model_config(provider, model):
 
 def get_structured_output(agent_configuration):
     """Get structured output format based on agent configuration."""
-    if agent_configuration.structured_output_json_schema is None:
+    if agent_configuration.schema is None:
         return None
     try:
         # convert string to json
-        json_schema_obj = json.loads(agent_configuration.structured_output_json_schema)
+        json_schema_obj = json.loads(agent_configuration.schema)
         return json_schema_obj
     except Exception as e:
         copilot_error("Error parsing structured output schema, falling back to default. Error: " + str(e))

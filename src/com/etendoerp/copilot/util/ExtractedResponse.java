@@ -1,6 +1,7 @@
 package com.etendoerp.copilot.util;
 
 
+import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
 /**
@@ -49,5 +50,25 @@ public class ExtractedResponse {
    */
   public JSONObject getMetadata() {
     return metadata;
+  }
+
+  /**
+   * Attempts to parse the response string as a JSON object.
+   * This is useful when the Copilot agent was invoked with a
+   * {@code schema}: the response will contain
+   * the structured data serialised as a JSON string.
+   *
+   * @return the response parsed as a {@link JSONObject}, or {@code null}
+   *     if the response is not valid JSON
+   */
+  public JSONObject getResponseAsJSON() {
+    if (response == null || response.isEmpty()) {
+      return null;
+    }
+    try {
+      return new JSONObject(response);
+    } catch (JSONException e) {
+      return null;
+    }
   }
 }
