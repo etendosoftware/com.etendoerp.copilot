@@ -126,7 +126,7 @@ def accuracy(outputs: dict, reference_outputs: dict) -> bool:
         .replace("{next_generated}", outputs["next"])
         .replace("{generated_instructions}", outputs["instructions"])
     )
-    response = openai_client.beta.chat.completions.parse(
+    response = openai_client.chat.completions.parse(
         model="gpt-4o",
         messages=[{"role": "system", "content": instructions}, {"role": "user", "content": content}],
         response_format=Grade,
