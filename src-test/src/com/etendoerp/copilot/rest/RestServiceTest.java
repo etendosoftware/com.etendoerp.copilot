@@ -198,6 +198,23 @@ public class RestServiceTest extends WeldBaseTest {
   }
 
   /**
+   * Test doGet with /archivedConversations path.
+   */
+  @Test
+  public void testDoGetWithArchivedConversations() throws Exception {
+    // Given
+    when(mockRequest.getPathInfo()).thenReturn("/archivedConversations");
+    mockedConversationUtils.when(() -> ConversationUtils.handleArchivedConversations(mockRequest, mockResponse))
+        .thenAnswer(invocation -> null);
+
+    // When
+    restService.doGet(mockRequest, mockResponse);
+
+    // Then
+    mockedConversationUtils.verify(() -> ConversationUtils.handleArchivedConversations(mockRequest, mockResponse), times(1));
+  }
+
+  /**
    * Test doGet with /aquestion path (async question).
    */
   @Test
@@ -360,6 +377,74 @@ public class RestServiceTest extends WeldBaseTest {
 
     // Then
     mockedConversationUtils.verify(() -> ConversationUtils.handleGetTitleConversation(mockRequest, mockResponse), times(1));
+  }
+
+  /**
+   * Test doPost with /renameConversation path.
+   */
+  @Test
+  public void testDoPostWithRenameConversation() throws Exception {
+    // Given
+    when(mockRequest.getPathInfo()).thenReturn("/renameConversation");
+    mockedConversationUtils.when(() -> ConversationUtils.handleRenameConversation(mockRequest, mockResponse))
+        .thenAnswer(invocation -> null);
+
+    // When
+    restService.doPost(mockRequest, mockResponse);
+
+    // Then
+    mockedConversationUtils.verify(() -> ConversationUtils.handleRenameConversation(mockRequest, mockResponse), times(1));
+  }
+
+  /**
+   * Test doPost with /deleteConversation path.
+   */
+  @Test
+  public void testDoPostWithDeleteConversation() throws Exception {
+    // Given
+    when(mockRequest.getPathInfo()).thenReturn("/deleteConversation");
+    mockedConversationUtils.when(() -> ConversationUtils.handleDeleteConversation(mockRequest, mockResponse))
+        .thenAnswer(invocation -> null);
+
+    // When
+    restService.doPost(mockRequest, mockResponse);
+
+    // Then
+    mockedConversationUtils.verify(() -> ConversationUtils.handleDeleteConversation(mockRequest, mockResponse), times(1));
+  }
+
+  /**
+   * Test doPost with /restoreConversation path.
+   */
+  @Test
+  public void testDoPostWithRestoreConversation() throws Exception {
+    // Given
+    when(mockRequest.getPathInfo()).thenReturn("/restoreConversation");
+    mockedConversationUtils.when(() -> ConversationUtils.handleRestoreConversation(mockRequest, mockResponse))
+        .thenAnswer(invocation -> null);
+
+    // When
+    restService.doPost(mockRequest, mockResponse);
+
+    // Then
+    mockedConversationUtils.verify(() -> ConversationUtils.handleRestoreConversation(mockRequest, mockResponse), times(1));
+  }
+
+  /**
+   * Test doPost with /permanentDeleteConversation path.
+   */
+  @Test
+  public void testDoPostWithPermanentDeleteConversation() throws Exception {
+    // Given
+    when(mockRequest.getPathInfo()).thenReturn("/permanentDeleteConversation");
+    mockedConversationUtils.when(() -> ConversationUtils.handlePermanentDeleteConversation(mockRequest, mockResponse))
+        .thenAnswer(invocation -> null);
+
+    // When
+    restService.doPost(mockRequest, mockResponse);
+
+    // Then
+    mockedConversationUtils.verify(() -> ConversationUtils.handlePermanentDeleteConversation(mockRequest, mockResponse), times(1));
   }
 
   /**

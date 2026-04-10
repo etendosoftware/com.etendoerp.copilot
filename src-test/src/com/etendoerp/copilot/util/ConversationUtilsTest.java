@@ -41,6 +41,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.codehaus.jettison.json.JSONArray;
+import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Order;
 import org.junit.After;
@@ -131,6 +132,7 @@ public class ConversationUtilsTest {
     when(obDal.createCriteria(Conversation.class)).thenReturn(mockConversationCriteria);
     doNothing().when(obDal).save(any(Conversation.class));
     doNothing().when(obDal).flush();
+    doNothing().when(obDal).remove(any());
 
     // Configure OBContext mock
     mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
@@ -319,6 +321,176 @@ public class ConversationUtilsTest {
   }
 
   /**
+   * Test handleArchivedConversations with valid app ID.
+   *
+   * @throws Exception if test fails
+   */
+  @Test
+  public void testHandleArchivedConversationsWithValidAppId() throws Exception {
+    // Given
+    when(mockRequest.getParameter(CopilotConstants.PROP_APP_ID)).thenReturn(TEST_APP_ID);
+    mockedCopilotUtils.when(() -> CopilotUtils.getAssistantByIDOrName(TEST_APP_ID))
+        .thenReturn(mockAssistant);
+
+    List<Conversation> conversations = new ArrayList<>();
+    conversations.add(mockConversation);
+    when(mockConversationCriteria.list()).thenReturn(conversations);
+
+    StringWriter stringWriter = new StringWriter();
+    PrintWriter writer = new PrintWriter(stringWriter);
+    when(mockResponse.getWriter()).thenReturn(writer);
+
+    // When
+    ConversationUtils.handleArchivedConversations(mockRequest, mockResponse);
+
+    // Then
+    writer.flush();
+    String response = stringWriter.toString();
+    assertTrue("Response should be a JSON array", response.startsWith("["));
+    verify(mockResponse, times(1)).setContentType(anyString());
+  }
+
+  /**
+   * Test handleArchivedConversations with missing app ID.
+   *
+   * @throws Exception if test fails
+   */
+  @Test
+  public void testHandleArchivedConversationsMissingAppId() throws Exception {
+    // Given
+    when(mockRequest.getParameter(CopilotConstants.PROP_APP_ID)).thenReturn(null);
+
+    // When
+    ConversationUtils.handleArchivedConversations(mockRequest, mockResponse);
+
+    // Then
+    verify(mockResponse, times(1)).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+  }
+
+  /**
+   * Test handleRenameConversation with valid payload.
+   *
+   * @throws Exception if test fails
+   */
+  @Test
+  public void testHandleRenameConversationSuccess() throws Exception {
+    // Given
+    JSONObject requestBody = new JSONObject();
+    requestBody.put(CopilotConstants.PROP_CONVERSATION_ID, TEST_CONVERSATION_ID);
+    requestBody.put(TITLE_KEY, GENERATED_TITLE);
+    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest))
+        .thenReturn(requestBody);
+
+    StringWriter stringWriter = new StringWriter();
+    PrintWriter writer = new PrintWriter(stringWriter);
+    when(mockResponse.getWriter()).thenReturn(writer);
+
+    // When
+    ConversationUtils.handleRenameConversation(mockRequest, mockResponse);
+
+    // Then
+    writer.flush();
+    String response = stringWriter.toString();
+    assertTrue("Response should contain success flag", response.contains("\"success\":true"));
+    assertTrue("Response should contain updated title", response.contains(GENERATED_TITLE));
+    verify(mockConversation, times(1)).setTitle(GENERATED_TITLE);
+    verify(obDal, times(1)).save(mockConversation);
+    verify(obDal, times(1)).flush();
+  }
+
+  /**
+   * Test handleDeleteConversation with valid payload.
+   *
+   * @throws Exception if test fails
+   */
+  @Test
+  public void testHandleDeleteConversationSuccess() throws Exception {
+    // Given
+    JSONObject requestBody = new JSONObject();
+    requestBody.put(CopilotConstants.PROP_CONVERSATION_ID, TEST_CONVERSATION_ID);
+    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest))
+        .thenReturn(requestBody);
+
+    StringWriter stringWriter = new StringWriter();
+    PrintWriter writer = new PrintWriter(stringWriter);
+    when(mockResponse.getWriter()).thenReturn(writer);
+
+    // When
+    ConversationUtils.handleDeleteConversation(mockRequest, mockResponse);
+
+    // Then
+    writer.flush();
+    String response = stringWriter.toString();
+    assertTrue("Response should contain success flag", response.contains("\"success\":true"));
+    verify(mockConversation, times(1)).setActive(false);
+    verify(obDal, times(1)).save(mockConversation);
+    verify(obDal, times(1)).flush();
+  }
+
+  /**
+   * Test handleRestoreConversation with valid payload.
+   *
+   * @throws Exception if test fails
+   */
+  @Test
+  public void testHandleRestoreConversationSuccess() throws Exception {
+    // Given
+    when(obDal.get(Conversation.class, TEST_CONVERSATION_ID)).thenReturn(mockConversation);
+    JSONObject requestBody = new JSONObject();
+    requestBody.put(CopilotConstants.PROP_CONVERSATION_ID, TEST_CONVERSATION_ID);
+    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest))
+        .thenReturn(requestBody);
+
+    StringWriter stringWriter = new StringWriter();
+    PrintWriter writer = new PrintWriter(stringWriter);
+    when(mockResponse.getWriter()).thenReturn(writer);
+
+    // When
+    ConversationUtils.handleRestoreConversation(mockRequest, mockResponse);
+
+    // Then
+    writer.flush();
+    String response = stringWriter.toString();
+    assertTrue("Response should contain success flag", response.contains("\"success\":true"));
+    verify(mockConversation, times(1)).setActive(true);
+    verify(obDal, times(1)).save(mockConversation);
+    verify(obDal, times(1)).flush();
+  }
+
+  /**
+   * Test handlePermanentDeleteConversation with valid payload.
+   *
+   * @throws Exception if test fails
+   */
+  @Test
+  public void testHandlePermanentDeleteConversationSuccess() throws Exception {
+    // Given
+    when(obDal.get(Conversation.class, TEST_CONVERSATION_ID)).thenReturn(mockConversation);
+    JSONObject requestBody = new JSONObject();
+    requestBody.put(CopilotConstants.PROP_CONVERSATION_ID, TEST_CONVERSATION_ID);
+    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest))
+        .thenReturn(requestBody);
+    List<Message> messages = new ArrayList<>();
+    messages.add(mockMessage);
+    when(mockConversation.getETCOPMessageList()).thenReturn(messages);
+
+    StringWriter stringWriter = new StringWriter();
+    PrintWriter writer = new PrintWriter(stringWriter);
+    when(mockResponse.getWriter()).thenReturn(writer);
+
+    // When
+    ConversationUtils.handlePermanentDeleteConversation(mockRequest, mockResponse);
+
+    // Then
+    writer.flush();
+    String response = stringWriter.toString();
+    assertTrue("Response should contain success flag", response.contains("\"success\":true"));
+    verify(obDal, times(1)).remove(mockMessage);
+    verify(obDal, times(1)).remove(mockConversation);
+    verify(obDal, times(1)).flush();
+  }
+
+  /**
    * Test handleConversationMessages with valid conversation ID.
    *
    * @throws Exception if test fails
@@ -405,6 +577,29 @@ public class ConversationUtilsTest {
     // Then
     assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have no conversations (empty external ID skipped)", 0, result.length());
+  }
+
+  /**
+   * Test getArchivedConversations with valid assistant.
+   *
+   * @throws Exception if test fails
+   */
+  @Test
+  public void testGetArchivedConversationsWithValidAssistant() throws Exception {
+    // Given
+    List<Conversation> conversations = new ArrayList<>();
+    conversations.add(mockConversation);
+    when(mockConversationCriteria.list()).thenReturn(conversations);
+
+    // When
+    JSONArray result = ConversationUtils.getArchivedConversations(mockAssistant);
+
+    // Then
+    assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
+    assertEquals("Should have one archived conversation", 1, result.length());
+    JSONObject convJson = result.getJSONObject(0);
+    assertEquals("Should have correct external ID", TEST_EXTERNAL_ID, convJson.getString("id"));
+    assertEquals("Should have correct title", TEST_TITLE, convJson.getString(TITLE_KEY));
   }
 
   /**

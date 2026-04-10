@@ -70,6 +70,8 @@ public class RestService {
         ConversationUtils.handleConversations(request, response);
       } else if (StringUtils.equalsIgnoreCase(path, "/conversationMessages")) {
         ConversationUtils.handleConversationMessages(request, response);
+      } else if (StringUtils.equalsIgnoreCase(path, "/archivedConversations")) {
+        ConversationUtils.handleArchivedConversations(request, response);
       } else if (StringUtils.equalsIgnoreCase(path, AQUESTION)) {
         try {
           handleQuestion(request, response);
@@ -160,6 +162,14 @@ public class RestService {
         checkEtendoHost(response);
       } else if (StringUtils.equalsIgnoreCase(path, "/generateTitleConversation")) {
         ConversationUtils.handleGetTitleConversation(request, response);
+      } else if (StringUtils.equalsIgnoreCase(path, "/renameConversation")) {
+        ConversationUtils.handleRenameConversation(request, response);
+      } else if (StringUtils.equalsIgnoreCase(path, "/deleteConversation")) {
+        ConversationUtils.handleDeleteConversation(request, response);
+      } else if (StringUtils.equalsIgnoreCase(path, "/restoreConversation")) {
+        ConversationUtils.handleRestoreConversation(request, response);
+      } else if (StringUtils.equalsIgnoreCase(path, "/permanentDeleteConversation")) {
+        ConversationUtils.handlePermanentDeleteConversation(request, response);
       } else {
         //if not a valid path, throw an error status
         response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);

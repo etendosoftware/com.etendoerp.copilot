@@ -212,6 +212,182 @@ public class ConversationUtils {
     }
   }
 
+  public static void handleRenameConversation(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    try {
+      OBContext.setAdminMode();
+      JSONObject json = extractRequestBody(request);
+      String conversationId = json.getString(CopilotConstants.PROP_CONVERSATION_ID);
+      String title = json.getString("title");
+
+      if (StringUtils.isEmpty(conversationId)) {
+        throwConversationIDRequired();
+      }
+      if (StringUtils.isEmpty(title)) {
+        throw new OBException("Title is required");
+      }
+
+      Conversation conversation = getConversationByIDorExtRef(conversationId);
+      if (conversation == null) {
+        throw new OBException("Conversation not found");
+      }
+
+      conversation.setTitle(title);
+      OBDal.getInstance().save(conversation);
+      OBDal.getInstance().flush();
+
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(new JSONObject().put("success", true).put("title", title).toString());
+    } catch (Exception e) {
+      log4j.error(e);
+      try {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+      } catch (IOException ioException) {
+        log4j.error(ioException);
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  public static void handleDeleteConversation(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    try {
+      OBContext.setAdminMode();
+      JSONObject json = extractRequestBody(request);
+      String conversationId = json.getString(CopilotConstants.PROP_CONVERSATION_ID);
+
+      if (StringUtils.isEmpty(conversationId)) {
+        throwConversationIDRequired();
+      }
+
+      Conversation conversation = getConversationByIDorExtRef(conversationId);
+      if (conversation == null) {
+        throw new OBException("Conversation not found");
+      }
+
+      conversation.setActive(false);
+      OBDal.getInstance().save(conversation);
+      OBDal.getInstance().flush();
+
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(new JSONObject().put("success", true).toString());
+    } catch (Exception e) {
+      log4j.error(e);
+      try {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+      } catch (IOException ioException) {
+        log4j.error(ioException);
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  public static void handleRestoreConversation(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    try {
+      OBContext.setAdminMode();
+      JSONObject json = extractRequestBody(request);
+      String conversationId = json.getString(CopilotConstants.PROP_CONVERSATION_ID);
+
+      if (StringUtils.isEmpty(conversationId)) {
+        throwConversationIDRequired();
+      }
+
+      Conversation conversation = getConversationByIDorExtRef(conversationId, true);
+      if (conversation == null) {
+        throw new OBException("Conversation not found");
+      }
+
+      conversation.setActive(true);
+      OBDal.getInstance().save(conversation);
+      OBDal.getInstance().flush();
+
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(new JSONObject().put("success", true).toString());
+    } catch (Exception e) {
+      log4j.error(e);
+      try {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+      } catch (IOException ioException) {
+        log4j.error(ioException);
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  public static void handlePermanentDeleteConversation(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    try {
+      OBContext.setAdminMode();
+      JSONObject json = extractRequestBody(request);
+      String conversationId = json.getString(CopilotConstants.PROP_CONVERSATION_ID);
+
+      if (StringUtils.isEmpty(conversationId)) {
+        throwConversationIDRequired();
+      }
+
+      Conversation conversation = getConversationByIDorExtRef(conversationId, true);
+      if (conversation == null) {
+        throw new OBException("Conversation not found");
+      }
+
+      List<Message> messages = conversation.getETCOPMessageList();
+      for (Message msg : messages) {
+        OBDal.getInstance().remove(msg);
+      }
+
+      OBDal.getInstance().remove(conversation);
+      OBDal.getInstance().flush();
+
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(new JSONObject().put("success", true).toString());
+    } catch (Exception e) {
+      log4j.error(e);
+      try {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+      } catch (IOException ioException) {
+        log4j.error(ioException);
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  public static void handleArchivedConversations(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    try {
+      OBContext.setAdminMode();
+      String appId = request.getParameter(CopilotConstants.PROP_APP_ID);
+
+      if (StringUtils.isEmpty(appId)) {
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_AppIDRequired"));
+      }
+
+      CopilotApp assistant = CopilotUtils.getAssistantByIDOrName(appId);
+      JSONArray conversations = getArchivedConversations(assistant);
+
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(conversations.toString());
+    } catch (Exception e) {
+      log4j.error(e);
+      try {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+      } catch (IOException ioException) {
+        log4j.error(ioException);
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
   private static void throwConversationIDRequired() {
     throw new OBException(OBMessageUtils.messageBD("ETCOP_ConversationRequired")
     );
@@ -263,6 +439,37 @@ public class ConversationUtils {
     );
 
     // Return the JSON array of conversations
+    return conversationsJson;
+  }
+
+  public static JSONArray getArchivedConversations(CopilotApp assistant) {
+    OBCriteria<Conversation> convCrit = OBDal.getInstance().createCriteria(Conversation.class);
+    convCrit.setFilterOnActive(false);
+    convCrit.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, assistant));
+    convCrit.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, OBContext.getOBContext().getUser()));
+    convCrit.add(Restrictions.eq(Conversation.PROPERTY_ACTIVE, false));
+    convCrit.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
+
+    List<Conversation> conversations = convCrit.list();
+    JSONArray conversationsJson = new JSONArray();
+
+    conversations.forEach(conv -> {
+      try {
+        JSONObject convJson = new JSONObject();
+        if (StringUtils.isEmpty(conv.getExternalID())) {
+          return;
+        }
+        convJson.put("id", conv.getExternalID());
+        String title = conv.getTitle();
+        if (!StringUtils.isEmpty(title)) {
+          convJson.put("title", title);
+        }
+        conversationsJson.put(convJson);
+      } catch (JSONException e) {
+        log4j.error("Error creating JSON for archived conversation: {}", conv.getId(), e);
+      }
+    });
+
     return conversationsJson;
   }
 
@@ -361,30 +568,23 @@ public class ConversationUtils {
     }
   }
 
-  /**
-   * Retrieves a conversation by its ID or external reference ID.
-   * <p>
-   * This method first attempts to fetch a conversation using the provided ID. If no conversation
-   * is found, it queries the database for a conversation with a matching external reference ID.
-   * The first matching conversation is returned.
-   *
-   * @param conversationId
-   *     the ID or external reference ID of the conversation to retrieve
-   * @return the {@link Conversation} object if found, or null if no matching conversation exists
-   */
   private static Conversation getConversationByIDorExtRef(String conversationId) {
-    // Attempt to retrieve the conversation by its primary ID
+    return getConversationByIDorExtRef(conversationId, false);
+  }
+
+  private static Conversation getConversationByIDorExtRef(String conversationId, boolean includeInactive) {
     Conversation conversation = OBDal.getInstance().get(Conversation.class, conversationId);
 
-    // If not found, query the database for a conversation with the matching external reference ID
     if (conversation == null) {
       OBCriteria<Conversation> conversationcrit = OBDal.getInstance().createCriteria(Conversation.class);
+      if (includeInactive) {
+        conversationcrit.setFilterOnActive(false);
+      }
       conversationcrit.add(Restrictions.eq(Conversation.PROPERTY_EXTERNALID, conversationId));
       conversationcrit.setMaxResults(1);
       conversation = (Conversation) conversationcrit.uniqueResult();
     }
 
-    // Return the retrieved conversation or null if not found
     return conversation;
   }
 
