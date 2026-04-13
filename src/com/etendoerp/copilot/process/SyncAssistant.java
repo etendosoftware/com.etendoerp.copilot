@@ -108,6 +108,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
 
       // update accesses
       for (CopilotApp app : appList) {
+        ensureCurrentRoleHasAppAccess(app);
         checkWebHookAccess(app);
       }
       // Generate attachment for each file
@@ -235,6 +236,30 @@ public class SyncAssistant extends BaseProcessActionHandler {
 
       WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
     }
+  }
+
+  /**
+   * Ensures the current user's role has access to the given application.
+   * If the role is not already registered in CopilotRoleApp, a new record is created.
+   * This allows the webhook access check to include the current user's role.
+   *
+   * @param app
+   *     The CopilotApp object representing the application to grant access to.
+   */
+  private void ensureCurrentRoleHasAppAccess(CopilotApp app) {
+    Role currentRole = OBContext.getOBContext().getRole();
+    OBCriteria<CopilotRoleApp> crit = OBDal.getInstance().createCriteria(CopilotRoleApp.class);
+    crit.add(Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, app));
+    crit.add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, currentRole));
+    crit.setMaxResults(1);
+    if (crit.uniqueResult() != null) {
+      return;
+    }
+    CopilotRoleApp newRoleApp = OBProvider.getInstance().get(CopilotRoleApp.class);
+    newRoleApp.setCopilotApp(app);
+    newRoleApp.setRole(currentRole);
+    OBDal.getInstance().save(newRoleApp);
+    OBDal.getInstance().flush();
   }
 
   /**
