@@ -33,6 +33,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.Session;
+import org.hibernate.query.Query;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,6 +42,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.openbravo.base.weld.test.WeldBaseTest;
+import org.openbravo.model.ad.access.Role;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
@@ -73,6 +76,12 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
   @Mock
   private AppInfo appInfo;
 
+  @Mock
+  private Session session;
+
+  @Mock
+  private Query<Role> roleQuery;
+
   private TestableCopilotSyncStartup startup;
   private MockedStatic<OBDal> mockedOBDal;
   private MockedStatic<CopilotAppInfoUtils> mockedUtils;
@@ -95,6 +104,9 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
 
     // Default behavior for OBDal
     when(obDal.createCriteria(CopilotApp.class)).thenReturn(criteria);
+    when(obDal.getSession()).thenReturn(session);
+    when(session.createQuery(anyString(), eq(Role.class))).thenReturn(roleQuery);
+    when(roleQuery.list()).thenReturn(Collections.emptyList());
   }
 
   @After
@@ -171,9 +183,9 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     // Verify logic inside executeSync
     verify(syncAssistant).doExecute(any(), anyString()); // Check arguments if needed
 
-    verify(obDal).get(CopilotApp.class, APP_ID_1);
+    verify(obDal, times(2)).get(CopilotApp.class, APP_ID_1);
     mockedUtils.verify(() -> CopilotAppInfoUtils.markAsSynchronized(copilotApp));
-    verify(obDal).flush();
+    verify(obDal, times(2)).flush();
     verify(obDal).commitAndClose();
   }
 

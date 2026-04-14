@@ -198,7 +198,8 @@ public class CopilotSyncStartup implements ApplicationInitializer {
     }
 
     CopilotRoleApp newRoleApp = OBProvider.getInstance().get(CopilotRoleApp.class);
-    newRoleApp.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
+    newRoleApp.setOrganization(role.getOrganization());
+    newRoleApp.setClient(role.getClient());
     newRoleApp.setCopilotApp(app);
     newRoleApp.setRole(role);
     OBDal.getInstance().save(newRoleApp);

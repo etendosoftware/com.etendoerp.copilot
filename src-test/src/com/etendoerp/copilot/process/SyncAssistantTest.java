@@ -232,6 +232,22 @@ public class SyncAssistantTest extends WeldBaseTest {
     }
   }
 
+  private JSONObject createSingleRecordContent() throws Exception {
+    JSONObject content = new JSONObject();
+    JSONArray recordIds = new JSONArray();
+    recordIds.put(TEST_APP_ID);
+    content.put(RECORD_IDS, recordIds);
+    return content;
+  }
+
+  private void mockExistingRoleAccess() {
+    OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
+    when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
+    when(roleCriteria.add(any())).thenReturn(roleCriteria);
+    when(roleCriteria.list()).thenReturn(new ArrayList<>());
+    when(roleCriteria.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
+  }
+
   /**
    * Test do execute success.
    *
@@ -242,20 +258,8 @@ public class SyncAssistantTest extends WeldBaseTest {
   public void testDoExecuteSuccess() throws Exception {
     // Given
     Map<String, Object> parameters = new HashMap<>();
-    JSONObject content = new JSONObject();
-    JSONArray recordIds = new JSONArray();
-    recordIds.put(TEST_APP_ID);
-    content.put(RECORD_IDS, recordIds);
-
-    // Mock CopilotRoleApp criteria
-    OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
-    when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
-    when(roleCriteria.add(any())).thenReturn(roleCriteria);
-
-    // Create empty role list
-    List<CopilotRoleApp> roleApps = new ArrayList<>();
-    when(roleCriteria.list()).thenReturn(roleApps);
-    when(roleCriteria.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
+    JSONObject content = createSingleRecordContent();
+    mockExistingRoleAccess();
 
     when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_MULTIMODEL);
     when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
@@ -317,20 +321,8 @@ public class SyncAssistantTest extends WeldBaseTest {
   public void testDoExecuteLangChainSync() throws Exception {
     // Given
     Map<String, Object> parameters = new HashMap<>();
-    JSONObject content = new JSONObject();
-    JSONArray recordIds = new JSONArray();
-    recordIds.put(TEST_APP_ID);
-    content.put(RECORD_IDS, recordIds);
-
-    // Mock CopilotRoleApp criteria
-    OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
-    when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
-    when(roleCriteria.add(any())).thenReturn(roleCriteria);
-
-    // Create empty role list
-    List<CopilotRoleApp> roleApps = new ArrayList<>();
-    when(roleCriteria.list()).thenReturn(roleApps);
-    when(roleCriteria.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
+    JSONObject content = createSingleRecordContent();
+    mockExistingRoleAccess();
 
     when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_LANGCHAIN);
     when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
@@ -360,20 +352,8 @@ public class SyncAssistantTest extends WeldBaseTest {
   public void testDoExecuteNoApiKey() throws Exception {
     // Given
     Map<String, Object> parameters = new HashMap<>();
-    JSONObject content = new JSONObject();
-    JSONArray recordIds = new JSONArray();
-    recordIds.put(TEST_APP_ID);
-    content.put(RECORD_IDS, recordIds);
-
-    // Mock CopilotRoleApp criteria
-    OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
-    when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
-    when(roleCriteria.add(any())).thenReturn(roleCriteria);
-
-    // Create empty role list
-    List<CopilotRoleApp> roleApps = new ArrayList<>();
-    when(roleCriteria.list()).thenReturn(roleApps);
-    when(roleCriteria.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
+    JSONObject content = createSingleRecordContent();
+    mockExistingRoleAccess();
 
     when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_LANGCHAIN);
     when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
@@ -412,20 +392,8 @@ public class SyncAssistantTest extends WeldBaseTest {
   public void testDoExecuteUnsupportedAppType() throws Exception {
     // Given
     Map<String, Object> parameters = new HashMap<>();
-    JSONObject content = new JSONObject();
-    JSONArray recordIds = new JSONArray();
-    recordIds.put(TEST_APP_ID);
-    content.put(RECORD_IDS, recordIds);
-
-    // Mock CopilotRoleApp criteria
-    OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
-    when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
-    when(roleCriteria.add(any())).thenReturn(roleCriteria);
-
-    // Create empty role list
-    List<CopilotRoleApp> roleApps = new ArrayList<>();
-    when(roleCriteria.list()).thenReturn(roleApps);
-    when(roleCriteria.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
+    JSONObject content = createSingleRecordContent();
+    mockExistingRoleAccess();
 
     when(mockApp.getAppType()).thenReturn("UNSUPPORTED_TYPE");
     when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
