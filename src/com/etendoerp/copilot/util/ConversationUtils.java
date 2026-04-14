@@ -48,6 +48,9 @@ import com.etendoerp.copilot.rest.RestServiceUtil;
 public class ConversationUtils {
   public static final Logger log4j = LogManager.getLogger(ConversationUtils.class);
   private static final String TITLE_GENERATOR_ID = "1844CE5E2BCB404DAAC470216B7D6495";
+  private static final String PROP_TITLE = "title";
+  private static final String PROP_SUCCESS = "success";
+  private static final String CONVERSATION_NOT_FOUND = "Conversation not found";
 
 
   private ConversationUtils() {
@@ -93,7 +96,7 @@ public class ConversationUtils {
 
       // Write the title as a JSON response
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-      response.getWriter().write(new JSONObject().put("title", title).toString());
+      response.getWriter().write(new JSONObject().put(PROP_TITLE, title).toString());
     } catch (Exception e) {
       // Log the error and send a BAD_REQUEST response
       log4j.error(e);
@@ -212,13 +215,24 @@ public class ConversationUtils {
     }
   }
 
+  /**
+   * Handles renaming a conversation. Extracts the conversation ID and new title
+   * from the request body, validates both, and updates the conversation title.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} containing the conversation ID and new title
+   * @param response
+   *     the {@link HttpServletResponse} used to return the result
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
   public static void handleRenameConversation(HttpServletRequest request,
       HttpServletResponse response) throws IOException {
     try {
       OBContext.setAdminMode();
       JSONObject json = extractRequestBody(request);
       String conversationId = json.getString(CopilotConstants.PROP_CONVERSATION_ID);
-      String title = json.getString("title");
+      String title = json.getString(PROP_TITLE);
 
       if (StringUtils.isEmpty(conversationId)) {
         throwConversationIDRequired();
@@ -229,7 +243,7 @@ public class ConversationUtils {
 
       Conversation conversation = getConversationByIDorExtRef(conversationId);
       if (conversation == null) {
-        throw new OBException("Conversation not found");
+        throw new OBException(CONVERSATION_NOT_FOUND);
       }
 
       conversation.setTitle(title);
@@ -237,7 +251,7 @@ public class ConversationUtils {
       OBDal.getInstance().flush();
 
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-      response.getWriter().write(new JSONObject().put("success", true).put("title", title).toString());
+      response.getWriter().write(new JSONObject().put(PROP_SUCCESS, true).put(PROP_TITLE, title).toString());
     } catch (Exception e) {
       log4j.error(e);
       try {
@@ -251,6 +265,17 @@ public class ConversationUtils {
     }
   }
 
+  /**
+   * Handles soft-deleting a conversation by setting it as inactive.
+   * Extracts the conversation ID from the request body and deactivates the conversation.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} containing the conversation ID
+   * @param response
+   *     the {@link HttpServletResponse} used to return the result
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
   public static void handleDeleteConversation(HttpServletRequest request,
       HttpServletResponse response) throws IOException {
     try {
@@ -264,7 +289,7 @@ public class ConversationUtils {
 
       Conversation conversation = getConversationByIDorExtRef(conversationId);
       if (conversation == null) {
-        throw new OBException("Conversation not found");
+        throw new OBException(CONVERSATION_NOT_FOUND);
       }
 
       conversation.setActive(false);
@@ -272,7 +297,7 @@ public class ConversationUtils {
       OBDal.getInstance().flush();
 
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-      response.getWriter().write(new JSONObject().put("success", true).toString());
+      response.getWriter().write(new JSONObject().put(PROP_SUCCESS, true).toString());
     } catch (Exception e) {
       log4j.error(e);
       try {
@@ -286,6 +311,17 @@ public class ConversationUtils {
     }
   }
 
+  /**
+   * Handles restoring a previously deleted (inactive) conversation by reactivating it.
+   * Extracts the conversation ID from the request body and sets the conversation as active.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} containing the conversation ID
+   * @param response
+   *     the {@link HttpServletResponse} used to return the result
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
   public static void handleRestoreConversation(HttpServletRequest request,
       HttpServletResponse response) throws IOException {
     try {
@@ -299,7 +335,7 @@ public class ConversationUtils {
 
       Conversation conversation = getConversationByIDorExtRef(conversationId, true);
       if (conversation == null) {
-        throw new OBException("Conversation not found");
+        throw new OBException(CONVERSATION_NOT_FOUND);
       }
 
       conversation.setActive(true);
@@ -307,7 +343,7 @@ public class ConversationUtils {
       OBDal.getInstance().flush();
 
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-      response.getWriter().write(new JSONObject().put("success", true).toString());
+      response.getWriter().write(new JSONObject().put(PROP_SUCCESS, true).toString());
     } catch (Exception e) {
       log4j.error(e);
       try {
@@ -321,6 +357,18 @@ public class ConversationUtils {
     }
   }
 
+  /**
+   * Handles permanently deleting a conversation and all its messages from the database.
+   * Extracts the conversation ID from the request body, removes all associated messages,
+   * and then removes the conversation itself.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} containing the conversation ID
+   * @param response
+   *     the {@link HttpServletResponse} used to return the result
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
   public static void handlePermanentDeleteConversation(HttpServletRequest request,
       HttpServletResponse response) throws IOException {
     try {
@@ -334,7 +382,7 @@ public class ConversationUtils {
 
       Conversation conversation = getConversationByIDorExtRef(conversationId, true);
       if (conversation == null) {
-        throw new OBException("Conversation not found");
+        throw new OBException(CONVERSATION_NOT_FOUND);
       }
 
       List<Message> messages = conversation.getETCOPMessageList();
@@ -346,7 +394,7 @@ public class ConversationUtils {
       OBDal.getInstance().flush();
 
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-      response.getWriter().write(new JSONObject().put("success", true).toString());
+      response.getWriter().write(new JSONObject().put(PROP_SUCCESS, true).toString());
     } catch (Exception e) {
       log4j.error(e);
       try {
@@ -360,6 +408,17 @@ public class ConversationUtils {
     }
   }
 
+  /**
+   * Handles the retrieval of archived (inactive) conversations for a specific assistant
+   * and writes them to the HTTP response as a JSON array.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} containing the assistant app ID parameter
+   * @param response
+   *     the {@link HttpServletResponse} used to return the archived conversations
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
   public static void handleArchivedConversations(HttpServletRequest request,
       HttpServletResponse response) throws IOException {
     try {
@@ -428,7 +487,7 @@ public class ConversationUtils {
             convJson.put("id", conv.getExternalID());
             String title = conv.getTitle();
             if (!StringUtils.isEmpty(title)) {
-              convJson.put("title", title);
+              convJson.put(PROP_TITLE, title);
             }
             conversationsJson.put(convJson);
           } catch (JSONException e) {
@@ -462,7 +521,7 @@ public class ConversationUtils {
         convJson.put("id", conv.getExternalID());
         String title = conv.getTitle();
         if (!StringUtils.isEmpty(title)) {
-          convJson.put("title", title);
+          convJson.put(PROP_TITLE, title);
         }
         conversationsJson.put(convJson);
       } catch (JSONException e) {

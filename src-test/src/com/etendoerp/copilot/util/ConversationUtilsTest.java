@@ -107,6 +107,10 @@ public class ConversationUtilsTest {
   private static final String TITLE_KEY = "title";
   private static final String GENERATED_TITLE = "Generated Title";
   private static final String RESULT_NOT_NULL_MESSAGE = "Result should not be null";
+  private static final String RESPONSE_SHOULD_BE_JSON_ARRAY = "Response should be a JSON array";
+  private static final String RESPONSE_SHOULD_CONTAIN_SUCCESS = "Response should contain success flag";
+  private static final String SUCCESS_TRUE_LITERAL = "\"success\":true";
+  private static final String SHOULD_HAVE_CORRECT_EXTERNAL_ID = "Should have correct external ID";
 
   /**
    * Sets up the test environment before each test.
@@ -299,7 +303,7 @@ public class ConversationUtilsTest {
     // Then
     writer.flush();
     String response = stringWriter.toString();
-    assertTrue("Response should be a JSON array", response.startsWith("["));
+    assertTrue(RESPONSE_SHOULD_BE_JSON_ARRAY, response.startsWith("["));
     verify(mockResponse, times(1)).setContentType(anyString());
   }
 
@@ -346,7 +350,7 @@ public class ConversationUtilsTest {
     // Then
     writer.flush();
     String response = stringWriter.toString();
-    assertTrue("Response should be a JSON array", response.startsWith("["));
+    assertTrue(RESPONSE_SHOULD_BE_JSON_ARRAY, response.startsWith("["));
     verify(mockResponse, times(1)).setContentType(anyString());
   }
 
@@ -391,7 +395,7 @@ public class ConversationUtilsTest {
     // Then
     writer.flush();
     String response = stringWriter.toString();
-    assertTrue("Response should contain success flag", response.contains("\"success\":true"));
+    assertTrue(RESPONSE_SHOULD_CONTAIN_SUCCESS, response.contains(SUCCESS_TRUE_LITERAL));
     assertTrue("Response should contain updated title", response.contains(GENERATED_TITLE));
     verify(mockConversation, times(1)).setTitle(GENERATED_TITLE);
     verify(obDal, times(1)).save(mockConversation);
@@ -421,7 +425,7 @@ public class ConversationUtilsTest {
     // Then
     writer.flush();
     String response = stringWriter.toString();
-    assertTrue("Response should contain success flag", response.contains("\"success\":true"));
+    assertTrue(RESPONSE_SHOULD_CONTAIN_SUCCESS, response.contains(SUCCESS_TRUE_LITERAL));
     verify(mockConversation, times(1)).setActive(false);
     verify(obDal, times(1)).save(mockConversation);
     verify(obDal, times(1)).flush();
@@ -451,7 +455,7 @@ public class ConversationUtilsTest {
     // Then
     writer.flush();
     String response = stringWriter.toString();
-    assertTrue("Response should contain success flag", response.contains("\"success\":true"));
+    assertTrue(RESPONSE_SHOULD_CONTAIN_SUCCESS, response.contains(SUCCESS_TRUE_LITERAL));
     verify(mockConversation, times(1)).setActive(true);
     verify(obDal, times(1)).save(mockConversation);
     verify(obDal, times(1)).flush();
@@ -484,7 +488,7 @@ public class ConversationUtilsTest {
     // Then
     writer.flush();
     String response = stringWriter.toString();
-    assertTrue("Response should contain success flag", response.contains("\"success\":true"));
+    assertTrue(RESPONSE_SHOULD_CONTAIN_SUCCESS, response.contains(SUCCESS_TRUE_LITERAL));
     verify(obDal, times(1)).remove(mockMessage);
     verify(obDal, times(1)).remove(mockConversation);
     verify(obDal, times(1)).flush();
@@ -514,7 +518,7 @@ public class ConversationUtilsTest {
     // Then
     writer.flush();
     String response = stringWriter.toString();
-    assertTrue("Response should be a JSON array", response.startsWith("["));
+    assertTrue(RESPONSE_SHOULD_BE_JSON_ARRAY, response.startsWith("["));
     verify(mockResponse, times(1)).setContentType(anyString());
   }
 
@@ -554,7 +558,7 @@ public class ConversationUtilsTest {
     assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have one conversation", 1, result.length());
     JSONObject convJson = result.getJSONObject(0);
-    assertEquals("Should have correct external ID", TEST_EXTERNAL_ID, convJson.getString("id"));
+    assertEquals(SHOULD_HAVE_CORRECT_EXTERNAL_ID, TEST_EXTERNAL_ID, convJson.getString("id"));
     assertEquals("Should have correct title", TEST_TITLE, convJson.getString(TITLE_KEY));
   }
 
@@ -598,7 +602,7 @@ public class ConversationUtilsTest {
     assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have one archived conversation", 1, result.length());
     JSONObject convJson = result.getJSONObject(0);
-    assertEquals("Should have correct external ID", TEST_EXTERNAL_ID, convJson.getString("id"));
+    assertEquals(SHOULD_HAVE_CORRECT_EXTERNAL_ID, TEST_EXTERNAL_ID, convJson.getString("id"));
     assertEquals("Should have correct title", TEST_TITLE, convJson.getString(TITLE_KEY));
   }
 
@@ -786,7 +790,7 @@ public class ConversationUtilsTest {
     assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Should have one conversation", 1, result.length());
     JSONObject convJson = result.getJSONObject(0);
-    assertEquals("Should have correct external ID", TEST_EXTERNAL_ID, convJson.getString("id"));
+    assertEquals(SHOULD_HAVE_CORRECT_EXTERNAL_ID, TEST_EXTERNAL_ID, convJson.getString("id"));
     // Title should not be present
     assertTrue("Should not have title field", !convJson.has(TITLE_KEY) || convJson.isNull(TITLE_KEY));
   }
