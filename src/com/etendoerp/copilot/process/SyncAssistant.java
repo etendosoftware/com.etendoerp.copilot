@@ -25,6 +25,7 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.service.db.DbUtility;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -256,10 +257,10 @@ public class SyncAssistant extends BaseProcessActionHandler {
       return;
     }
     CopilotRoleApp newRoleApp = OBProvider.getInstance().get(CopilotRoleApp.class);
+    newRoleApp.setOrganization(OBDal.getInstance().get(Organization.class, "0"));
     newRoleApp.setCopilotApp(app);
     newRoleApp.setRole(currentRole);
     OBDal.getInstance().save(newRoleApp);
-    OBDal.getInstance().flush();
   }
 
   /**
