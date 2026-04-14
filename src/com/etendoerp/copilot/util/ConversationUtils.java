@@ -91,7 +91,7 @@ public class ConversationUtils {
    */
   @FunctionalInterface
   private interface AdminAction {
-    void execute() throws Exception;
+    void execute() throws IOException, JSONException;
   }
 
   /**
@@ -103,11 +103,11 @@ public class ConversationUtils {
    * @param includeInactive
    *     whether to include inactive (archived) conversations in the lookup
    * @return the found {@link Conversation}, never null
-   * @throws Exception
-   *     if the conversation ID is missing or the conversation is not found
+   * @throws JSONException
+   *     if the conversation ID cannot be extracted from the JSON
    */
   private static Conversation extractAndValidateConversation(JSONObject json,
-      boolean includeInactive) throws Exception {
+      boolean includeInactive) throws JSONException {
     String conversationId = json.getString(CopilotConstants.PROP_CONVERSATION_ID);
     if (StringUtils.isEmpty(conversationId)) {
       throwConversationIDRequired();
@@ -155,11 +155,13 @@ public class ConversationUtils {
    *     the {@link HttpServletResponse} to write to
    * @param jsonResponse
    *     the JSON object to send as the response body
-   * @throws Exception
-   *     if an I/O or JSON error occurs
+   * @throws IOException
+   *     if an I/O error occurs writing the response
+   * @throws JSONException
+   *     if a JSON serialization error occurs
    */
   private static void writeJsonResponse(HttpServletResponse response,
-      JSONObject jsonResponse) throws Exception {
+      JSONObject jsonResponse) throws IOException, JSONException {
     response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
     response.getWriter().write(jsonResponse.toString());
   }

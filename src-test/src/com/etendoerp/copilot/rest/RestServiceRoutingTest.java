@@ -156,13 +156,8 @@ public class RestServiceRoutingTest extends WeldBaseTest {
    */
   @Test
   public void testDoGetWithConversations() throws Exception {
-    when(mockRequest.getPathInfo()).thenReturn("/conversations");
-    mockedConversationUtils.when(() -> ConversationUtils.handleConversations(mockRequest, mockResponse))
-        .thenAnswer(invocation -> null);
-
-    restService.doGet(mockRequest, mockResponse);
-
-    mockedConversationUtils.verify(() -> ConversationUtils.handleConversations(mockRequest, mockResponse), times(1));
+    verifyGetRoutesToConversationHandler("/conversations",
+        () -> ConversationUtils.handleConversations(mockRequest, mockResponse));
   }
 
   /**
@@ -170,13 +165,8 @@ public class RestServiceRoutingTest extends WeldBaseTest {
    */
   @Test
   public void testDoGetWithConversationMessages() throws Exception {
-    when(mockRequest.getPathInfo()).thenReturn("/conversationMessages");
-    mockedConversationUtils.when(() -> ConversationUtils.handleConversationMessages(mockRequest, mockResponse))
-        .thenAnswer(invocation -> null);
-
-    restService.doGet(mockRequest, mockResponse);
-
-    mockedConversationUtils.verify(() -> ConversationUtils.handleConversationMessages(mockRequest, mockResponse), times(1));
+    verifyGetRoutesToConversationHandler("/conversationMessages",
+        () -> ConversationUtils.handleConversationMessages(mockRequest, mockResponse));
   }
 
   /**
@@ -184,13 +174,18 @@ public class RestServiceRoutingTest extends WeldBaseTest {
    */
   @Test
   public void testDoGetWithArchivedConversations() throws Exception {
-    when(mockRequest.getPathInfo()).thenReturn("/archivedConversations");
-    mockedConversationUtils.when(() -> ConversationUtils.handleArchivedConversations(mockRequest, mockResponse))
-        .thenAnswer(invocation -> null);
+    verifyGetRoutesToConversationHandler("/archivedConversations",
+        () -> ConversationUtils.handleArchivedConversations(mockRequest, mockResponse));
+  }
+
+  private void verifyGetRoutesToConversationHandler(String path,
+      MockedStatic.Verification handler) throws Exception {
+    when(mockRequest.getPathInfo()).thenReturn(path);
+    mockedConversationUtils.when(handler).thenAnswer(invocation -> null);
 
     restService.doGet(mockRequest, mockResponse);
 
-    mockedConversationUtils.verify(() -> ConversationUtils.handleArchivedConversations(mockRequest, mockResponse), times(1));
+    mockedConversationUtils.verify(handler, times(1));
   }
 
   /**
@@ -322,13 +317,8 @@ public class RestServiceRoutingTest extends WeldBaseTest {
    */
   @Test
   public void testDoPostWithGenerateTitleConversation() throws Exception {
-    when(mockRequest.getPathInfo()).thenReturn("/generateTitleConversation");
-    mockedConversationUtils.when(() -> ConversationUtils.handleGetTitleConversation(mockRequest, mockResponse))
-        .thenAnswer(invocation -> null);
-
-    restService.doPost(mockRequest, mockResponse);
-
-    mockedConversationUtils.verify(() -> ConversationUtils.handleGetTitleConversation(mockRequest, mockResponse), times(1));
+    verifyPostRoutesToConversationHandler("/generateTitleConversation",
+        () -> ConversationUtils.handleGetTitleConversation(mockRequest, mockResponse));
   }
 
   /**
@@ -336,13 +326,8 @@ public class RestServiceRoutingTest extends WeldBaseTest {
    */
   @Test
   public void testDoPostWithRenameConversation() throws Exception {
-    when(mockRequest.getPathInfo()).thenReturn("/renameConversation");
-    mockedConversationUtils.when(() -> ConversationUtils.handleRenameConversation(mockRequest, mockResponse))
-        .thenAnswer(invocation -> null);
-
-    restService.doPost(mockRequest, mockResponse);
-
-    mockedConversationUtils.verify(() -> ConversationUtils.handleRenameConversation(mockRequest, mockResponse), times(1));
+    verifyPostRoutesToConversationHandler("/renameConversation",
+        () -> ConversationUtils.handleRenameConversation(mockRequest, mockResponse));
   }
 
   /**
@@ -350,13 +335,8 @@ public class RestServiceRoutingTest extends WeldBaseTest {
    */
   @Test
   public void testDoPostWithDeleteConversation() throws Exception {
-    when(mockRequest.getPathInfo()).thenReturn("/deleteConversation");
-    mockedConversationUtils.when(() -> ConversationUtils.handleDeleteConversation(mockRequest, mockResponse))
-        .thenAnswer(invocation -> null);
-
-    restService.doPost(mockRequest, mockResponse);
-
-    mockedConversationUtils.verify(() -> ConversationUtils.handleDeleteConversation(mockRequest, mockResponse), times(1));
+    verifyPostRoutesToConversationHandler("/deleteConversation",
+        () -> ConversationUtils.handleDeleteConversation(mockRequest, mockResponse));
   }
 
   /**
@@ -364,13 +344,8 @@ public class RestServiceRoutingTest extends WeldBaseTest {
    */
   @Test
   public void testDoPostWithRestoreConversation() throws Exception {
-    when(mockRequest.getPathInfo()).thenReturn("/restoreConversation");
-    mockedConversationUtils.when(() -> ConversationUtils.handleRestoreConversation(mockRequest, mockResponse))
-        .thenAnswer(invocation -> null);
-
-    restService.doPost(mockRequest, mockResponse);
-
-    mockedConversationUtils.verify(() -> ConversationUtils.handleRestoreConversation(mockRequest, mockResponse), times(1));
+    verifyPostRoutesToConversationHandler("/restoreConversation",
+        () -> ConversationUtils.handleRestoreConversation(mockRequest, mockResponse));
   }
 
   /**
@@ -378,13 +353,18 @@ public class RestServiceRoutingTest extends WeldBaseTest {
    */
   @Test
   public void testDoPostWithPermanentDeleteConversation() throws Exception {
-    when(mockRequest.getPathInfo()).thenReturn("/permanentDeleteConversation");
-    mockedConversationUtils.when(() -> ConversationUtils.handlePermanentDeleteConversation(mockRequest, mockResponse))
-        .thenAnswer(invocation -> null);
+    verifyPostRoutesToConversationHandler("/permanentDeleteConversation",
+        () -> ConversationUtils.handlePermanentDeleteConversation(mockRequest, mockResponse));
+  }
+
+  private void verifyPostRoutesToConversationHandler(String path,
+      MockedStatic.Verification handler) throws Exception {
+    when(mockRequest.getPathInfo()).thenReturn(path);
+    mockedConversationUtils.when(handler).thenAnswer(invocation -> null);
 
     restService.doPost(mockRequest, mockResponse);
 
-    mockedConversationUtils.verify(() -> ConversationUtils.handlePermanentDeleteConversation(mockRequest, mockResponse), times(1));
+    mockedConversationUtils.verify(handler, times(1));
   }
 
   /**
