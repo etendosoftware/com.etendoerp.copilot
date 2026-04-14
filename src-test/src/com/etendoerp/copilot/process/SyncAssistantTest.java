@@ -54,6 +54,7 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBError;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.ad.system.Language;
 import org.openbravo.test.base.TestConstants;
 
@@ -98,6 +99,8 @@ public class SyncAssistantTest extends WeldBaseTest {
   @Mock
   private OBContext obContext;
   @Mock
+  private Role mockRole;
+  @Mock
   private Connection mockConnection;
   @Mock
   private Session mockSession;
@@ -135,6 +138,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     // Configure OBContext mock
     mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
     when(obContext.getCurrentClient()).thenReturn(mockClient);
+    when(obContext.getRole()).thenReturn(mockRole);
     when(mockClient.getId()).thenReturn("TEST_CLIENT_ID");
 
     // Configure OBDal mock
@@ -251,10 +255,10 @@ public class SyncAssistantTest extends WeldBaseTest {
     // Create empty role list
     List<CopilotRoleApp> roleApps = new ArrayList<>();
     when(roleCriteria.list()).thenReturn(roleApps);
+    when(roleCriteria.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
 
-    when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_OPENAI);
+    when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_MULTIMODEL);
     when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
-    when(criteria.uniqueResult()).thenReturn(mockApp);
 
     // Mock getApiKey
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(TEST_API_KEY);
@@ -326,10 +330,10 @@ public class SyncAssistantTest extends WeldBaseTest {
     // Create empty role list
     List<CopilotRoleApp> roleApps = new ArrayList<>();
     when(roleCriteria.list()).thenReturn(roleApps);
+    when(roleCriteria.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
 
     when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_LANGCHAIN);
     when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
-    when(criteria.uniqueResult()).thenReturn(mockApp);
 
     // Mock getApiKey
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(TEST_API_KEY);
@@ -369,10 +373,10 @@ public class SyncAssistantTest extends WeldBaseTest {
     // Create empty role list
     List<CopilotRoleApp> roleApps = new ArrayList<>();
     when(roleCriteria.list()).thenReturn(roleApps);
+    when(roleCriteria.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
 
     when(mockApp.getAppType()).thenReturn(CopilotConstants.APP_TYPE_LANGCHAIN);
     when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
-    when(criteria.uniqueResult()).thenReturn(mockApp);
 
     OBError error = new OBError();
     String errorMsg = "No ApiKey Found";
@@ -421,10 +425,10 @@ public class SyncAssistantTest extends WeldBaseTest {
     // Create empty role list
     List<CopilotRoleApp> roleApps = new ArrayList<>();
     when(roleCriteria.list()).thenReturn(roleApps);
+    when(roleCriteria.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
 
     when(mockApp.getAppType()).thenReturn("UNSUPPORTED_TYPE");
     when(obDal.get(CopilotApp.class, TEST_APP_ID)).thenReturn(mockApp);
-    when(criteria.uniqueResult()).thenReturn(null);
 
     // Mock getApiKey
     mockedOpenAIUtils.when(OpenAIUtils::getOpenaiApiKey).thenReturn(TEST_API_KEY);
