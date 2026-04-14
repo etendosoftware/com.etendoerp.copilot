@@ -32,6 +32,7 @@ import static org.mockito.Mockito.when;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
@@ -70,24 +71,16 @@ public class RestServiceRoutingTest extends WeldBaseTest {
   private static final String TEST_QUESTION = "What is the weather?";
   private static final String TEST_APP_ID = "testAppId123";
 
+  private final List<AutoCloseable> closeables = new ArrayList<>();
   private RestService restService;
-
-  @Mock
-  private HttpServletRequest mockRequest;
-  @Mock
-  private HttpServletResponse mockResponse;
-  @Mock
-  private HttpSession mockSession;
-  @Mock
-  private PrintWriter mockWriter;
-
   private MockedStatic<RestServiceUtil> mockedRestServiceUtil;
   private MockedStatic<RequestUtils> mockedRequestUtils;
   private MockedStatic<ConversationUtils> mockedConversationUtils;
   private MockedStatic<CopilotUtils> mockedCopilotUtils;
-  private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
-
-  private AutoCloseable mocks;
+  @Mock private HttpServletRequest mockRequest;
+  @Mock private HttpServletResponse mockResponse;
+  @Mock private HttpSession mockSession;
+  @Mock private PrintWriter mockWriter;
 
   /**
    * Sets up the necessary mocks and spies before each test.
@@ -96,30 +89,28 @@ public class RestServiceRoutingTest extends WeldBaseTest {
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    mocks = MockitoAnnotations.openMocks(this);
-
+    closeables.add(MockitoAnnotations.openMocks(this));
     restService = spy(new RestService());
 
     mockedRestServiceUtil = mockStatic(RestServiceUtil.class);
     mockedRequestUtils = mockStatic(RequestUtils.class);
     mockedConversationUtils = mockStatic(ConversationUtils.class);
     mockedCopilotUtils = mockStatic(CopilotUtils.class);
-    mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
+    MockedStatic<OBMessageUtils> mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
+    closeables.addAll(List.of(mockedRestServiceUtil, mockedRequestUtils,
+        mockedConversationUtils, mockedCopilotUtils, mockedOBMessageUtils));
 
     OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN,
         TestConstants.Clients.FB_GRP, TestConstants.Orgs.ESP_NORTE);
-    VariablesSecureApp vsa = new VariablesSecureApp(
+    RequestContext.get().setVariableSecureApp(new VariablesSecureApp(
         OBContext.getOBContext().getUser().getId(),
         OBContext.getOBContext().getCurrentClient().getId(),
         OBContext.getOBContext().getCurrentOrganization().getId(),
-        OBContext.getOBContext().getRole().getId()
-    );
-    RequestContext.get().setVariableSecureApp(vsa);
+        OBContext.getOBContext().getRole().getId()));
 
     when(mockResponse.getWriter()).thenReturn(mockWriter);
     doNothing().when(mockWriter).write(anyString());
     when(mockRequest.getSession()).thenReturn(mockSession);
-
     mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(anyString()))
         .thenReturn("Error message");
   }
@@ -129,24 +120,10 @@ public class RestServiceRoutingTest extends WeldBaseTest {
    */
   @After
   public void tearDown() throws Exception {
-    if (mocks != null) {
-      mocks.close();
+    for (AutoCloseable c : closeables) {
+      c.close();
     }
-    if (mockedRestServiceUtil != null) {
-      mockedRestServiceUtil.close();
-    }
-    if (mockedRequestUtils != null) {
-      mockedRequestUtils.close();
-    }
-    if (mockedConversationUtils != null) {
-      mockedConversationUtils.close();
-    }
-    if (mockedCopilotUtils != null) {
-      mockedCopilotUtils.close();
-    }
-    if (mockedOBMessageUtils != null) {
-      mockedOBMessageUtils.close();
-    }
+    closeables.clear();
   }
 
   // ============ doGet Routing Tests ============
