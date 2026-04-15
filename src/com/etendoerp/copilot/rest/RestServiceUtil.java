@@ -190,8 +190,13 @@ public class RestServiceUtil {
    *     If an error occurs during file processing or temporary file creation.
    */
   public static JSONObject handleFile(List<FileItem> items, String endpoint) throws Exception {
-    log.debug("items: {}", items.size());
     JSONObject responseJson = new JSONObject();
+    if (items == null) {
+      log.debug("items: 0");
+      return responseJson;
+    }
+
+    log.debug("items: {}", items.size());
     // Create a list of files to delete them later when the process finishes
     for (FileItem item : items) {
       if (item.isFormField()) {
