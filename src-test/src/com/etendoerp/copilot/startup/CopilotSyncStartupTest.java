@@ -29,6 +29,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -41,14 +42,17 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
+import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 
 import com.etendoerp.copilot.data.AppInfo;
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.process.SyncAssistant;
 import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
@@ -82,10 +86,14 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
   @Mock
   private Query<Role> roleQuery;
 
+  @Mock
+  private OBProvider obProvider;
+
   private TestableCopilotSyncStartup startup;
   private MockedStatic<OBDal> mockedOBDal;
   private MockedStatic<CopilotAppInfoUtils> mockedUtils;
   private MockedStatic<OBContext> mockedOBContext;
+  private MockedStatic<OBProvider> mockedOBProvider;
 
   @Before
   public void setUp() throws Exception {
@@ -107,6 +115,9 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     when(obDal.getSession()).thenReturn(session);
     when(session.createQuery(anyString(), eq(Role.class))).thenReturn(roleQuery);
     when(roleQuery.list()).thenReturn(Collections.emptyList());
+
+    mockedOBProvider = mockStatic(OBProvider.class);
+    mockedOBProvider.when(OBProvider::getInstance).thenReturn(obProvider);
   }
 
   @After
@@ -114,6 +125,7 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     if (mockedOBDal != null) mockedOBDal.close();
     if (mockedUtils != null) mockedUtils.close();
     if (mockedOBContext != null) mockedOBContext.close();
+    if (mockedOBProvider != null) mockedOBProvider.close();
   }
 
   @Test
@@ -156,8 +168,7 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     verify(syncAssistant, never()).doExecute(any(), any());
   }
 
-  @Test
-  public void testInitialize_AppPendingSync() throws Exception {
+  private void setupPendingApp() throws Exception {
     List<CopilotApp> apps = new ArrayList<>();
     apps.add(copilotApp);
     when(criteria.list()).thenReturn(apps);
@@ -168,20 +179,20 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     List<AppInfo> infoList = new ArrayList<>();
     infoList.add(appInfo);
     when(copilotApp.getEtcopAppInfoList()).thenReturn(infoList);
-
-    // Case: App is NOT synchronized
     when(appInfo.getSyncStatus()).thenReturn("DRAFT");
 
-    // Setup behavior for executeSync
     when(syncAssistant.doExecute(any(), anyString())).thenReturn(new JSONObject());
-
-    // Need to mock OBDal.get() inside executeSync
     when(obDal.get(CopilotApp.class, APP_ID_1)).thenReturn(copilotApp);
+  }
+
+  @Test
+  public void testInitialize_AppPendingSync() throws Exception {
+    setupPendingApp();
 
     startup.initialize();
 
     // Verify logic inside executeSync
-    verify(syncAssistant).doExecute(any(), anyString()); // Check arguments if needed
+    verify(syncAssistant).doExecute(any(), anyString());
 
     verify(obDal, times(2)).get(CopilotApp.class, APP_ID_1);
     mockedUtils.verify(() -> CopilotAppInfoUtils.markAsSynchronized(copilotApp));
@@ -202,30 +213,91 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
 
   @Test
   public void testInitialize_ExecuteSyncFails() throws Exception {
-    List<CopilotApp> apps = new ArrayList<>();
-    apps.add(copilotApp);
-    when(criteria.list()).thenReturn(apps);
+    setupPendingApp();
 
-    when(copilotApp.getId()).thenReturn(APP_ID_1);
-    when(copilotApp.isSyncStartup()).thenReturn(true);
-
-    List<AppInfo> infoList = new ArrayList<>();
-    infoList.add(appInfo);
-    when(copilotApp.getEtcopAppInfoList()).thenReturn(infoList);
-    when(appInfo.getSyncStatus()).thenReturn("DRAFT");
-
-    // Sync throws exception
+    // Override: Sync throws exception
     when(syncAssistant.doExecute(any(), anyString())).thenThrow(new RuntimeException("Sync Failed"));
 
     startup.initialize();
 
     // Verify rollback called
     verify(obDal).rollbackAndClose();
-    // And finally restore mode (called twice: once inside executeSync finally, once in initialize finally?)
-    // Actually executeSync does not re-throw exception, it catches it.
-    // So initialize logic finishes normally.
-    // OBContext.setAdminMode is called in initialize AND executeSync.
-    // restorePreviousMode called in finally of executeSync AND initialize.
+  }
+
+  @Test
+  public void testInitialize_EnsureRoleAccessCreatesNewRecord() throws Exception {
+    setupPendingApp();
+
+    // Mock: roleQuery returns a role so ensureRoleAccess is triggered
+    Role adminRole = mock(Role.class);
+    Organization roleOrg = mock(Organization.class);
+    org.openbravo.model.ad.system.Client roleClient = mock(org.openbravo.model.ad.system.Client.class);
+    when(adminRole.getOrganization()).thenReturn(roleOrg);
+    when(adminRole.getClient()).thenReturn(roleClient);
+    when(roleQuery.list()).thenReturn(Arrays.asList(adminRole));
+
+    // Mock: CopilotRoleApp criteria — no existing record
+    OBCriteria<CopilotRoleApp> roleAppCrit = mock(OBCriteria.class);
+    when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleAppCrit);
+    when(roleAppCrit.add(any())).thenReturn(roleAppCrit);
+    when(roleAppCrit.uniqueResult()).thenReturn(null);
+
+    CopilotRoleApp newRoleApp = mock(CopilotRoleApp.class);
+    when(obProvider.get(CopilotRoleApp.class)).thenReturn(newRoleApp);
+
+    // Exercise the client-specific HQL branch
+    org.openbravo.model.ad.system.Client appClient = mock(org.openbravo.model.ad.system.Client.class);
+    when(appClient.getId()).thenReturn("TEST_CLIENT");
+    when(copilotApp.getClient()).thenReturn(appClient);
+
+    startup.initialize();
+
+    verify(newRoleApp).setOrganization(roleOrg);
+    verify(newRoleApp).setClient(roleClient);
+    verify(newRoleApp).setCopilotApp(copilotApp);
+    verify(newRoleApp).setRole(adminRole);
+    verify(obDal).save(newRoleApp);
+  }
+
+  @Test
+  public void testInitialize_EnsureRoleAccessSkipsExistingRecord() throws Exception {
+    setupPendingApp();
+
+    Role adminRole = mock(Role.class);
+    when(roleQuery.list()).thenReturn(Arrays.asList(adminRole));
+
+    // Mock: CopilotRoleApp criteria — record already exists
+    OBCriteria<CopilotRoleApp> roleAppCrit = mock(OBCriteria.class);
+    when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleAppCrit);
+    when(roleAppCrit.add(any())).thenReturn(roleAppCrit);
+    when(roleAppCrit.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
+
+    // Exercise the "0" client branch
+    org.openbravo.model.ad.system.Client appClient = mock(org.openbravo.model.ad.system.Client.class);
+    when(appClient.getId()).thenReturn("0");
+    when(copilotApp.getClient()).thenReturn(appClient);
+
+    startup.initialize();
+
+    verify(obProvider, never()).get(CopilotRoleApp.class);
+  }
+
+  @Test
+  public void testInitialize_AppWithEmptyAppInfoList() throws Exception {
+    List<CopilotApp> apps = new ArrayList<>();
+    apps.add(copilotApp);
+    when(criteria.list()).thenReturn(apps);
+
+    when(copilotApp.getId()).thenReturn(APP_ID_1);
+    when(copilotApp.isSyncStartup()).thenReturn(true);
+    when(copilotApp.getEtcopAppInfoList()).thenReturn(Collections.emptyList());
+
+    when(syncAssistant.doExecute(any(), anyString())).thenReturn(new JSONObject());
+    when(obDal.get(CopilotApp.class, APP_ID_1)).thenReturn(copilotApp);
+
+    startup.initialize();
+
+    verify(syncAssistant).doExecute(any(), anyString());
   }
 
   /**
