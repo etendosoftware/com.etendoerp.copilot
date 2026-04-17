@@ -199,6 +199,9 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
             .addProperties(QUESTION, new StringSchema().description("The question to ask"))
             .addProperties(CONVERSATION_ID, new StringSchema().description("Optional conversation ID"))
             .addProperties("file", new StringSchema().description("Optional file attachment"))
+            .addProperties("schema", new StringSchema().description(
+                    "Optional JSON schema string defining the desired response structure. " +
+                    "When provided, overrides any schema configured on the assistant."))
             .required(List.of(APP_ID, QUESTION));
     var requestBody = new RequestBody()
             .description("JSON object containing the question, assistant ID, and optional parameters")

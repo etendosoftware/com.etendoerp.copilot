@@ -1,4 +1,5 @@
 import asyncio
+import json
 from typing import AsyncGenerator, Final, Union
 
 import langchain_core.tools
@@ -368,10 +369,19 @@ class MultimodelAgent(CopilotAgent):
                         "This usually indicates a rate limit, quota exhaustion, or content filtering issue "
                         "with the model provider. Please check the model's API status and try again."
                     )
+
+                # When response_format is set, LangGraph puts the parsed result
+                # in "structured_response" and the last message content may be empty.
+                structured = agent_response.get("structured_response")
+                if structured is not None:
+                    response_text = json.dumps(structured) if not isinstance(structured, str) else structured
+                else:
+                    response_text = normalize_content(new_ai_message.content)
+
                 return AgentResponse(
                     input=full_question,
                     output=AssistantResponse(
-                        response=normalize_content(new_ai_message.content),
+                        response=response_text,
                         conversation_id=question.conversation_id,
                         metadata=build_metadata(usage_data),
                     ),

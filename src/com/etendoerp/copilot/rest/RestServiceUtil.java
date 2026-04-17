@@ -118,7 +118,7 @@ public class RestServiceUtil {
   public static final String PROP_AD_CLIENT_ID = "ad_client_id";
   public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
   public static final String METADATA = "metadata";
-  public static final String PROP_STRUCTURED_OUTPUT_JSON_SCHEMA = "structured_output_json_schema";
+  public static final String PROP_SCHEMA = "schema";
 
   /**
    * Private constructor to prevent instantiation of utility class.
@@ -190,8 +190,13 @@ public class RestServiceUtil {
    *     If an error occurs during file processing or temporary file creation.
    */
   public static JSONObject handleFile(List<FileItem> items, String endpoint) throws Exception {
-    logIfDebug(String.format("items: %d", items.size()));
     JSONObject responseJson = new JSONObject();
+    if (items == null) {
+      log.debug("items: 0");
+      return responseJson;
+    }
+
+    log.debug("items: {}", items.size());
     // Create a list of files to delete them later when the process finishes
     for (FileItem item : items) {
       if (item.isFormField()) {
@@ -230,7 +235,7 @@ public class RestServiceUtil {
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"));
     }
     String jsonResponseStr = response.body();
-    logIfDebug("Response from Copilot: " + jsonResponseStr);
+    log.debug("Response from Copilot: {}", jsonResponseStr);
     return new JSONObject(jsonResponseStr).optString(PROP_ANSWER);
   }
 
@@ -241,12 +246,6 @@ public class RestServiceUtil {
    * @param msg
    *     the message to log
    */
-  private static void logIfDebug(String msg) {
-    if (log.isDebugEnabled()) {
-      log.debug(msg);
-    }
-  }
-
 
   /**
    * Transfer the provided data item to the given {@link TransferQueue}. If the
@@ -314,7 +313,8 @@ public class RestServiceUtil {
       default:
         log.warn("Unsupported app type: {}", copilotApp.getAppType());
     }
-    return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived);
+    return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived,
+        jsonRequest.optString(PROP_SCHEMA, null));
   }
 
 
@@ -425,6 +425,40 @@ public class RestServiceUtil {
    */
   public static JSONObject handleQuestion(boolean asyncRequest, HttpServletResponse queue, CopilotApp copilotApp,
       String conversationId, String question, List<String> questionAttachedFileIds) throws IOException, JSONException {
+    return handleQuestion(asyncRequest, queue, copilotApp, conversationId, question, questionAttachedFileIds, null);
+  }
+
+  /**
+   * Processes a question with an optional structured output JSON schema override.
+   * When {@code schema} is provided it takes precedence over any
+   * schema configured on the {@link CopilotApp} entity, allowing Java processes to
+   * request a specific response format at call time.
+   *
+   * @param asyncRequest
+   *     whether the request should be processed asynchronously (SSE)
+   * @param queue
+   *     the {@link HttpServletResponse} used for streaming SSE events when async
+   * @param copilotApp
+   *     the assistant to use
+   * @param conversationId
+   *     the conversation id (may be null)
+   * @param question
+   *     the user question text
+   * @param questionAttachedFileIds
+   *     optional list of file ids attached to the question
+   * @param schema
+   *     a JSON schema string that defines the desired response structure.
+   *     When non-null/non-empty this overrides the schema configured on the CopilotApp.
+   *     Pass {@code null} to use the default behaviour.
+   * @return a {@link JSONObject} containing the processed response
+   * @throws IOException
+   *     on IO errors
+   * @throws JSONException
+   *     on JSON parsing errors
+   */
+  public static JSONObject handleQuestion(boolean asyncRequest, HttpServletResponse queue, CopilotApp copilotApp,
+      String conversationId, String question, List<String> questionAttachedFileIds,
+      String schema) throws IOException, JSONException {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
@@ -432,6 +466,11 @@ public class RestServiceUtil {
 
     // Build request JSON
     JSONObject jsonRequestForCopilot = buildRequestJson(copilotApp, conversationId, question, questionAttachedFileIds);
+
+    // Override structured output schema if provided at call time
+    if (StringUtils.isNotEmpty(schema)) {
+      jsonRequestForCopilot.put(PROP_SCHEMA, schema);
+    }
 
     if (TelemetryUsageInfo.getInstance().getSessionId() != null) {
       TrackingUtil.sendUsageData(copilotApp);
@@ -544,8 +583,10 @@ public class RestServiceUtil {
     String copilotHost = readPropertyWithLegacyCompatibility(properties,"copilot.host", "localhost");
     String endpoint = determineEndpoint(asyncRequest, copilotApp);
 
-    logIfDebug("Request to Copilot:);");
-    logIfDebug(new JSONObject(jsonRequestForCopilot.toString()).toString(2));
+    if (log.isDebugEnabled()) {
+      log.debug("Request to Copilot:");
+      log.debug(new JSONObject(jsonRequestForCopilot.toString()).toString(2));
+    }
 
     URL url = new URL(String.format("http://%s:%s%s", copilotHost, copilotPort, endpoint));
     try {
@@ -846,7 +887,7 @@ public class RestServiceUtil {
       for (String questionAttachedFileId : questionAttachedFileIds) {
         if (StringUtils.isNotEmpty(questionAttachedFileId)) {
 
-          logIfDebug(String.format("questionAttachedFileId: %s", questionAttachedFileId));
+          log.debug("questionAttachedFileId: {}", questionAttachedFileId);
           filesIds.put(questionAttachedFileId);
         }
       }
@@ -1016,8 +1057,10 @@ public class RestServiceUtil {
       jsonRequestForCopilot.put(PROP_QUESTION, question);
       addExtraContextWithHooks(copilotApp, jsonRequestForCopilot);
       String bodyReq = jsonRequestForCopilot.toString();
-      logIfDebug("Request to Copilot:);");
-      logIfDebug(new JSONObject(bodyReq).toString(2));
+      if (log.isDebugEnabled()) {
+        log.debug("Request to Copilot:");
+        log.debug(new JSONObject(bodyReq).toString(2));
+      }
       HttpRequest copilotRequest = HttpRequest.newBuilder().uri(
           new URI(String.format("http://%s:%s" + GRAPH, copilotHost, copilotPort))).headers("Content-Type",
           APPLICATION_JSON_CHARSET_UTF_8).version(HttpClient.Version.HTTP_1_1).POST(
@@ -1119,7 +1162,7 @@ public class RestServiceUtil {
    */
   private static void sendEventToFront(PrintWriter writerToFront, String x, boolean addData) {
     String line = (addData ? "data: " : "") + x + "\n\n";
-    logIfDebug(line);
+    log.debug("{}", line);
     writerToFront.println(line);
     writerToFront.flush();
   }
