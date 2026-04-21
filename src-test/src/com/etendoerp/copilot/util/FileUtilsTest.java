@@ -16,9 +16,12 @@
  */
 package com.etendoerp.copilot.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,6 +29,8 @@ import java.nio.file.Paths;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
+import org.openbravo.base.exception.OBException;
 
 /**
  * Test class for FileUtils utility methods.
@@ -161,5 +166,110 @@ public class FileUtilsTest {
     // since getParent() returns null
     FileUtils.cleanupTempFile(rootPath, true);
     FileUtils.cleanupTempFile(rootPath, false);
+  }
+
+  /**
+   * Test createSecureTempFile creates a file in the secure temp directory.
+   *
+   * @throws IOException if an I/O error occurs during file operations
+   */
+  @Test
+  public void testCreateSecureTempFile() throws IOException {
+    // Create a secure temp file
+    Path tempFile = FileUtils.createSecureTempFile("test_", ".txt");
+
+    // Verify file was created
+    assertTrue(Files.exists(tempFile));
+    assertTrue(tempFile.toString().contains("tmp_copilot"));
+    assertTrue(tempFile.toString().contains("test_"));
+    assertTrue(tempFile.toString().endsWith(".txt"));
+
+    // Cleanup
+    Files.deleteIfExists(tempFile);
+  }
+
+  /**
+   * Test createSecureTempDirectory creates a directory in the secure temp directory.
+   *
+   * @throws IOException if an I/O error occurs during file operations
+   */
+  @Test
+  public void testCreateSecureTempDirectory() throws IOException {
+    // Create a secure temp directory
+    Path tempDirectory = FileUtils.createSecureTempDirectory("test_dir_");
+
+    // Verify directory was created
+    assertTrue(Files.exists(tempDirectory));
+    assertTrue(Files.isDirectory(tempDirectory));
+    assertTrue(tempDirectory.toString().contains("tmp_copilot"));
+    assertTrue(tempDirectory.toString().contains("test_dir_"));
+
+    // Cleanup
+    Files.deleteIfExists(tempDirectory);
+  }
+
+  @Test
+  void testProcessFileItemInMemoryAndNullName() throws Exception {
+    // Mock DiskFileItem for in-memory write and null name
+    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
+        org.apache.commons.fileupload.disk.DiskFileItem.class);
+    Mockito.when(itemDisk.isFormField()).thenReturn(false);
+    Mockito.when(itemDisk.getName()).thenReturn(null);
+    Mockito.when(itemDisk.getFieldName()).thenReturn("fileNull");
+    Mockito.when(itemDisk.isInMemory()).thenReturn(true);
+    Mockito.doNothing().when(itemDisk).write(org.mockito.ArgumentMatchers.any(File.class));
+
+    java.net.http.HttpResponse<String> mockResponse = Mockito.mock(java.net.http.HttpResponse.class);
+    Mockito.when(mockResponse.body()).thenReturn(
+        new org.codehaus.jettison.json.JSONObject().put("answer", "uploaded").toString());
+
+    try (org.mockito.MockedStatic<com.etendoerp.copilot.util.CopilotUtils> utils = org.mockito.Mockito
+        .mockStatic(com.etendoerp.copilot.util.CopilotUtils.class);
+         org.mockito.MockedStatic<org.openbravo.erpCommon.utility.OBMessageUtils> mockedMsg = org.mockito.Mockito
+             .mockStatic(org.openbravo.erpCommon.utility.OBMessageUtils.class)) {
+      utils.when(
+              () -> com.etendoerp.copilot.util.CopilotUtils.getResponseFromCopilot(org.mockito.ArgumentMatchers.any(),
+                  org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
+                  org.mockito.ArgumentMatchers.any()))
+          .thenReturn(mockResponse);
+      mockedMsg.when(
+              () -> org.openbravo.erpCommon.utility.OBMessageUtils.messageBD(org.mockito.ArgumentMatchers.anyString()))
+          .thenReturn("msg");
+
+      String result = FileUtils.processFileItem(itemDisk, "/endpoint");
+      assertEquals("uploaded", result);
+    }
+  }
+
+  @Test
+  void testProcessFileItemDiskRenameFail() throws Exception {
+    // Mock DiskFileItem for disk store where rename fails
+    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
+        org.apache.commons.fileupload.disk.DiskFileItem.class);
+    Mockito.when(itemDisk.isFormField()).thenReturn(false);
+    Mockito.when(itemDisk.getName()).thenReturn("test.txt");
+    Mockito.when(itemDisk.getFieldName()).thenReturn("file1");
+    Mockito.when(itemDisk.isInMemory()).thenReturn(false);
+
+    // Provide a store location File whose renameTo returns false by overriding renameTo
+    File fakeStore = new File("fakeStore.tmp") {
+      @Override
+      public boolean renameTo(File dest) {
+        return false;
+      }
+    };
+    Mockito.when(itemDisk.getStoreLocation()).thenReturn(fakeStore);
+
+    // When renameTo fails the code falls back to Files.copy; since the fake store
+    // does not exist on disk, the IOException is wrapped in an OBException.
+    try (org.mockito.MockedStatic<org.openbravo.erpCommon.utility.OBMessageUtils> mockedMsg =
+             Mockito.mockStatic(org.openbravo.erpCommon.utility.OBMessageUtils.class)) {
+      mockedMsg.when(
+              () -> org.openbravo.erpCommon.utility.OBMessageUtils.messageBD(org.mockito.ArgumentMatchers.anyString()))
+          .thenReturn("Error saving file: %s");
+
+      assertThrows(OBException.class,
+          () -> FileUtils.processFileItem(itemDisk, "/endpoint"));
+    }
   }
 }

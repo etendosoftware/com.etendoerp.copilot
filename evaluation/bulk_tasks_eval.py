@@ -55,6 +55,8 @@ DEFAULT_TABLE = "m_product"
 # Default SQL query template
 DEFAULT_QUERY = "SELECT COUNT(*) FROM {}"
 
+ETENDO_BASE_URL_VAR = "etendo.base_url"
+
 # Default task configuration
 DEFAULT_CLIENT_ID = "23C59575B9CF467C9620760EB255B389"
 DEFAULT_ORG_ID = "0"
@@ -482,8 +484,7 @@ def load_config(args):
         current_db_config["password"] = read_optional_env_var("bbdd.password", "tad")
         current_db_config["host"] = read_optional_env_var("bbdd.host", "localhost")
         current_db_config["port"] = read_optional_env_var("bbdd.port", "5432")
-        if os.getenv("ETENDO_BASE_URL"):
-            current_etendo_url = os.getenv("ETENDO_BASE_URL")
+        current_etendo_url = read_optional_env_var(ETENDO_BASE_URL_VAR, ETENDO_BASE_URL)
 
     # Command-line arguments override environment file and defaults
     if args.dbname:
@@ -499,8 +500,8 @@ def load_config(args):
 
     if args.etendo_url != ETENDO_BASE_URL:
         current_etendo_url = args.etendo_url
-    elif os.getenv("ETENDO_BASE_URL"):
-        current_etendo_url = os.getenv("ETENDO_BASE_URL")
+    elif read_optional_env_var(ETENDO_BASE_URL_VAR, None):
+        current_etendo_url = read_optional_env_var(ETENDO_BASE_URL_VAR, None)
 
     return current_db_config, current_etendo_url
 
@@ -875,10 +876,10 @@ def get_agent_name(agent_id, conn):
     agent_name = "N/A"
     if agent_id:
         # Get agent name from the database if agent_id is provided
-        sql = "SELECT name FROM etcop_app WHERE etcop_app_id = %s"
+        sql_query = "SELECT name FROM etcop_app WHERE etcop_app_id = %s"
         try:
             cur = conn.cursor()
-            cur.execute(sql, (agent_id,))
+            cur.execute(sql_query, (agent_id,))
             result = cur.fetchone()
             if result:
                 agent_name = result[0]

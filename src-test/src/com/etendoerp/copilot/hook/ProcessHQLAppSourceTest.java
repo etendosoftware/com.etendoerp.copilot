@@ -27,6 +27,7 @@ import java.nio.file.Files;
 
 import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -77,6 +78,7 @@ public class ProcessHQLAppSourceTest extends WeldBaseTest {
   private static final String FILENAMETXT = "resulthql.txt";
   private CopilotAppSource mockCopilotAppSource;
 
+  @Before
   public void setUp() throws Exception {
     super.setUp();
     mocks = MockitoAnnotations.openMocks(this);
@@ -100,6 +102,7 @@ public class ProcessHQLAppSourceTest extends WeldBaseTest {
 
     mockedCopilotUtils = mockStatic(CopilotUtils.class);
     mockedFileUtils = mockStatic(FileUtils.class);
+    mockedFileUtils.when(() -> FileUtils.createSecureTempDirectory(any(String.class))).thenAnswer(invocation -> Files.createTempDirectory(invocation.getArgument(0).toString()));
   }
 
   /**
@@ -141,10 +144,6 @@ public class ProcessHQLAppSourceTest extends WeldBaseTest {
     mockCopilotAppSource = mock(CopilotAppSource.class);
     when(mockCopilotAppSource.getFile()).thenReturn(mockCopilotFile);
 
-    // Mock file operations
-    mockedFileUtils.when(() -> FileUtils.attachFile(any(), any(), any())).thenAnswer(invocation -> null);
-    mockedFileUtils.when(() -> FileUtils.removeAttachment(any(), any())).thenAnswer(invocation -> null);
-
     // When
     File resultFile = processHqlAppSource.generate(mockCopilotAppSource);
 
@@ -166,10 +165,6 @@ public class ProcessHQLAppSourceTest extends WeldBaseTest {
 
     mockCopilotAppSource = mock(CopilotAppSource.class);
     when(mockCopilotAppSource.getFile()).thenReturn(mockCopilotFile);
-
-    // Mock file operations
-    mockedFileUtils.when(() -> FileUtils.attachFile(any(), any(), any())).thenAnswer(invocation -> null);
-    mockedFileUtils.when(() -> FileUtils.removeAttachment(any(), any())).thenAnswer(invocation -> null);
 
     // When
     File resultFile = processHqlAppSource.generate(mockCopilotAppSource);

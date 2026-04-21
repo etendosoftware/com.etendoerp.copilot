@@ -10,6 +10,7 @@ from copilot.baseutils.logging_envvar import (
     print_green,
     print_yellow,
     read_optional_env_var,
+    read_optional_env_var_bool,
 )
 
 from . import tool_installer, utils
@@ -37,12 +38,9 @@ LangChainTools: TypeAlias = List[ToolWrapper]
 NATIVE_TOOL_IMPLEMENTATION: Final[str] = "copilot"  # noqa: F405
 NATIVE_TOOLS_NODE_NAME: Final[str] = "native_tools"  # noqa: F405
 THIRD_PARTY_TOOLS_NODE_NAME: Final[str] = "third_party_tools"  # noqa: F405
-CONFIGURED_TOOLS_FILENAME: Optional[str] = read_optional_env_var(
-    "CONFIGURED_TOOLS_FILENAME", "tools_config.json"
-)
-DEPENDENCIES_TOOLS_FILENAME: Optional[str] = read_optional_env_var(
-    "DEPENDENCIES_TOOLS_FILENAME", "tools_deps.toml"
-)
+CONFIGURED_TOOLS_FILENAME: Final[str] = "tools_config.json"
+
+DEPENDENCIES_TOOLS_FILENAME: Final[str] = "tools_deps.toml"
 
 
 class ToolLoader:
@@ -283,7 +281,7 @@ class ToolLoader:
             if spec.type == "FLOW":
                 try:
                     api_spec = json.loads(spec.spec)
-                    if read_optional_env_var("COPILOT_OLD_OPENAPI_TOOLS", "false").lower() == "true":
+                    if read_optional_env_var_bool("copilot.old.openapi.tools", False):
                         # Use old OpenAPI tool generation logic
                         openapi_tools = generate_tools_from_openapi_old(api_spec)
                     else:
@@ -292,7 +290,7 @@ class ToolLoader:
                 except Exception as e:
                     print_yellow(f"Warning: Could not generate tools from OpenAPI spec: {e}")
 
-    def get_all_tools(
+    async def get_all_tools(
         self,
         agent_configuration: Optional[AssistantSchema] = None,
         enabled_tools: Optional[List[ToolSchema]] = None,
@@ -325,6 +323,17 @@ class ToolLoader:
         if include_openapi_tools:
             self._add_openapi_tools(all_tools, agent_configuration)
 
+        # MCP Integration
+        if agent_configuration and agent_configuration.mcp_servers:
+            from copilot.core.agent.multimodel_agent import (
+                convert_mcp_servers_config,
+                get_mcp_tools,
+            )
+
+            mcp_config = convert_mcp_servers_config(agent_configuration.mcp_servers)
+            mcp_tools = await get_mcp_tools(mcp_config)
+            all_tools.extend(mcp_tools)
+
         # Set agent_id on all tools if provided from agent_configuration
         if agent_configuration and hasattr(agent_configuration, "assistant_id"):
             agent_id = agent_configuration.assistant_id
@@ -335,7 +344,7 @@ class ToolLoader:
 
         return all_tools
 
-    def get_enabled_tool_functions(
+    async def get_enabled_tool_functions(
         self,
         enabled_tools: Optional[List[ToolSchema]] = None,
         agent_configuration: Optional[AssistantSchema] = None,
@@ -355,7 +364,7 @@ class ToolLoader:
         Returns:
             Filtered list of enabled tools plus dynamic tools
         """
-        return self.get_all_tools(
+        return await self.get_all_tools(
             agent_configuration=agent_configuration,
             enabled_tools=enabled_tools,
             include_kb_tool=include_kb_tool,

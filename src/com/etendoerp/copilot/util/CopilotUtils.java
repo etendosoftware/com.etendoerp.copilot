@@ -53,7 +53,6 @@ import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotModel;
 import com.etendoerp.copilot.data.TeamMember;
-import com.etendoerp.copilot.hook.CopilotFileHookManager;
 import com.etendoerp.copilot.hook.OpenAIPromptHookManager;
 import com.etendoerp.copilot.hook.ProcessHQLAppSource;
 import com.etendoerp.copilot.rest.RestServiceUtil;
@@ -70,6 +69,7 @@ public class CopilotUtils {
 
   public static final String MAX_CHUNK_SIZE = "max_chunk_size";
   public static final String CHUNK_OVERLAP = "chunk_overlap";
+  public static final String AD_CLIENT_ID = "ad_client_id";
 
   private CopilotUtils() {
     // Private constructor to prevent instantiation
@@ -78,10 +78,9 @@ public class CopilotUtils {
   private static final Logger log = LogManager.getLogger(CopilotUtils.class);
   private static final String BOUNDARY = UUID.randomUUID().toString();
   public static final String KB_VECTORDB_ID = "kb_vectordb_id";
-  public static final String COPILOT_PORT = "COPILOT_PORT";
-  public static final String COPILOT_HOST = "COPILOT_HOST";
+  public static final String COPILOT_PORT = "copilot.port";
+  public static final String COPILOT_HOST = "copilot.host";
   private static final String DEFAULT_PROMPT_PREFERENCE_KEY = "ETCOP_DefaultContextPrompt";
-  public static final String DEFAULT_MODELS_DATASET_URL = "https://api.github.com/repos/etendosoftware/com.etendoerp.copilot/contents/referencedata/standard/AI_Models_Dataset.xml?ref=<BRANCH>";
 
   /**
    * Uploads a file to the vector database with specified parameters.
@@ -103,13 +102,15 @@ public class CopilotUtils {
    *     The maximum size of each chunk (in bytes), or null if not specified.
    * @param chunkOverlap
    *     The overlap size between chunks (in bytes), or null if not specified.
+   * @param clientId
+   *     The client ID associated with the file upload, or null to use a default value, which is "0" (meaning global).
    * @throws JSONException
    *     If an error occurs while constructing the JSON request.
    * @throws OBException
    *     If the response from the Copilot service indicates a failure.
    */
   public static void toVectorDB(File fileToSend, String dbName, String format, boolean skipSplitting, Long maxChunkSize,
-      Long chunkOverlap) throws JSONException {
+      Long chunkOverlap, String clientId) throws JSONException {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String endpoint = "addToVectorDB";
     HttpResponse<String> responseFromCopilot;
@@ -119,6 +120,7 @@ public class CopilotUtils {
     jsonRequestForCopilot.put("extension", format);
     jsonRequestForCopilot.put("overwrite", false);
     jsonRequestForCopilot.put("skip_splitting", skipSplitting);
+    jsonRequestForCopilot.put(AD_CLIENT_ID, StringUtils.defaultIfEmpty(clientId, "0"));
     if (maxChunkSize != null) {
       jsonRequestForCopilot.put(MAX_CHUNK_SIZE, maxChunkSize);
     }
@@ -158,8 +160,8 @@ public class CopilotUtils {
 
     try {
       HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty(COPILOT_PORT, "5005");
-      String copilotHost = properties.getProperty(COPILOT_HOST, "localhost");
+      String copilotPort = readPropertyWithLegacyCompatibility(properties, COPILOT_PORT, "5005");
+      String copilotHost = readPropertyWithLegacyCompatibility(properties, COPILOT_HOST, "localhost");
 
       HttpRequest.BodyPublisher requestBodyPublisher;
       String contentType;
@@ -185,11 +187,53 @@ public class CopilotUtils {
     }
   }
 
+  /**
+   * Reads a property value from the provided Properties object, supporting legacy compatibility.
+   * <p>
+   * If the property with the given name exists, its value is returned.
+   * If not, the method checks for a legacy property name (uppercase and underscores, e.g., "COPILOT_PORT").
+   * If the legacy property exists, a warning is logged and its value is returned.
+   * If neither property exists, the default value is returned.
+   *
+   * @param properties
+   *     The Properties object containing configuration values.
+   * @param propertyName
+   *     The property name to look up (e.g., "copilot.port").
+   * @param defaultValue
+   *     The default value to return if the property is not found.
+   * @return The property value, legacy property value, or the default value if not found.
+   */
+  public static String readPropertyWithLegacyCompatibility(Properties properties, String propertyName,
+      String defaultValue) {
+    // Assume that received propertyName is in the format "copilot.port" and we want to check if "COPILOT_PORT" exists for legacy compatibility
+    if (properties.containsKey(propertyName)) {
+      return properties.getProperty(propertyName);
+    }
+    var propertyLegacy = propertyName.toUpperCase().replace(".", "_");
+    if (properties.containsKey(propertyLegacy)) {
+      log.warn("Property '{}' is deprecated, please use '{}' instead in gradle.properties", propertyLegacy,
+          propertyName);
+      return properties.getProperty(propertyLegacy);
+    }
+    return defaultValue;
+  }
+
+  /**
+   * Sends an HTTP GET request to the Copilot service and retrieves the response.
+   *
+   * @param properties
+   *     The {@link Properties} object containing configuration values.
+   * @param endpoint
+   *     The endpoint of the Copilot service to which the request will be sent.
+   * @return An {@link HttpResponse} object containing the response from the Copilot service.
+   * @throws OBException
+   *     If an error occurs during the request or response handling.
+   */
   static HttpResponse<String> doGetCopilot(Properties properties, String endpoint) {
     try {
       HttpClient client = HttpClient.newBuilder().build();
-      String copilotPort = properties.getProperty(COPILOT_PORT, "5005");
-      String copilotHost = properties.getProperty(COPILOT_HOST, "localhost");
+      String copilotPort = readPropertyWithLegacyCompatibility(properties, COPILOT_PORT, "5005");
+      String copilotHost = readPropertyWithLegacyCompatibility(properties, COPILOT_HOST, "localhost");
 
       HttpRequest copilotRequest = HttpRequest.newBuilder().uri(
           new URI(String.format("http://%s:%s/%s", copilotHost, copilotPort, endpoint))).GET().build();
@@ -203,6 +247,22 @@ public class CopilotUtils {
     }
   }
 
+  /**
+   * Creates a multipart body publisher for an HTTP request.
+   * <p>
+   * This method constructs a multipart/form-data body containing the JSON parameters
+   * and the file to be sent to the Copilot service.
+   *
+   * @param jsonBody
+   *     The {@link JSONObject} containing the parameters to include in the request.
+   * @param file
+   *     The {@link File} to include in the request.
+   * @return An {@link HttpRequest.BodyPublisher} containing the multipart body.
+   * @throws IOException
+   *     If an I/O error occurs while reading the file.
+   * @throws JSONException
+   *     If an error occurs while processing the JSON data.
+   */
   static HttpRequest.BodyPublisher createMultipartBody(JSONObject jsonBody,
       File file) throws IOException, JSONException {
     var byteArrays = new ByteArrayOutputStream();
@@ -286,6 +346,7 @@ public class CopilotUtils {
     JSONObject jsonRequestForCopilot = new JSONObject();
 
     jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
+    jsonRequestForCopilot.put(AD_CLIENT_ID, OBContext.getOBContext().getCurrentClient().getId());
     String endpoint = "ResetVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
         null);
@@ -332,7 +393,6 @@ public class CopilotUtils {
 
     // Retrieve the file to be synchronized
     CopilotFile fileToSync = appSource.getFile();
-    WeldUtils.getInstanceFromStaticBeanManager(CopilotFileHookManager.class).executeHooks(fileToSync);
     logIfDebug("Uploading file " + fileToSync.getName());
 
     // Extract the file name and determine its extension
@@ -370,7 +430,8 @@ public class CopilotUtils {
     // Check if the file extension is valid
     if (FileUtils.isValidExtension(extension)) {
       // Upload the file to the vector database
-      FileUtils.binaryFileToVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap);
+      FileUtils.binaryFileToVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap,
+          fileToSync.getClient().getId());
     } else {
       // Throw an exception for invalid file formats
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
@@ -501,6 +562,13 @@ public class CopilotUtils {
     }
   }
 
+  /**
+   * Checks if the Copilot service is running inside a Docker container.
+   *
+   * @param properties
+   *     The {@link Properties} object containing configuration values.
+   * @return true if Copilot is running in Docker, false otherwise.
+   */
   static boolean isCopilotRunningInDocker(Properties properties) {
     boolean inDocker = false;
     try {
@@ -515,38 +583,60 @@ public class CopilotUtils {
   /**
    * This method retrieves the host name of Etendo from the system properties.
    * It uses the key "ETENDO_HOST" to fetch the value from the properties.
-   * If the key is not found in the properties, it retu rns "ERROR" as a default
+   * If the key is not found in the properties, it returns "ERROR" as a default
    * value.
    *
    * @return The host name of Etendo if found, otherwise "ERROR".
    */
   public static String getEtendoHost() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return properties.getProperty("ETENDO_HOST", "ETENDO_HOST_NOT_CONFIGURED");
+    return readPropertyWithLegacyCompatibility(properties, "etendo.host", "ETENDO_HOST_NOT_CONFIGURED");
   }
 
+  /**
+   * Retrieves the Etendo host for Docker environments.
+   * <p>
+   * If the "etendo.host.docker" property is not configured, it falls back to the standard Etendo host.
+   *
+   * @return The Etendo host for Docker.
+   */
   public static String getEtendoHostDocker() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String hostDocker = properties.getProperty("ETENDO_HOST_DOCKER", "");
+    String hostDocker = readPropertyWithLegacyCompatibility(properties, "etendo.host.docker", "");
     if (StringUtils.isEmpty(hostDocker)) {
       hostDocker = getEtendoHost();
     }
     return hostDocker;
   }
 
+  /**
+   * Retrieves the context URL for the application.
+   *
+   * @return The context URL.
+   */
   public static String getContextUrl() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return properties.getProperty("context.url", getEtendoHost());
+    return readPropertyWithLegacyCompatibility(properties, "context.url", getEtendoHost());
   }
 
+  /**
+   * Retrieves the Copilot host from the properties.
+   *
+   * @return The Copilot host.
+   */
   public static String getCopilotHost() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return properties.getProperty(COPILOT_HOST, "");
+    return readPropertyWithLegacyCompatibility(properties, COPILOT_HOST, "");
   }
 
+  /**
+   * Retrieves the Copilot port from the properties.
+   *
+   * @return The Copilot port.
+   */
   public static String getCopilotPort() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return properties.getProperty(COPILOT_PORT, "5005");
+    return readPropertyWithLegacyCompatibility(properties, COPILOT_PORT, "5005");
   }
 
   /**
@@ -649,6 +739,7 @@ public class CopilotUtils {
     JSONObject jsonRequestForCopilot = new JSONObject();
 
     jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
+    jsonRequestForCopilot.put(AD_CLIENT_ID, app.getClient().getId());
     String endpoint = "purgeVectorDB";
     HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
         null);
@@ -857,8 +948,9 @@ public class CopilotUtils {
     jsonRequestForCopilot.put(RestServiceUtil.PROP_SYSTEM_PROMPT, copilotApp.getPrompt());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
     jsonRequestForCopilot.put(PROP_NAME, copilotApp.getName());
-    jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
-    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
+    var modelInfo = CopilotModelUtils.getModelProviderResult(copilotApp);
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, modelInfo.modelStr);
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, modelInfo.providerStr);
     jsonRequestForCopilot.put(RestServiceUtil.PROP_STRUCTURED_OUTPUT_JSON_SCHEMA,
         copilotApp.getStructuredOutputJSONSchema());
   }
@@ -899,8 +991,9 @@ public class CopilotUtils {
                 String.format(OBMessageUtils.messageBD("ETCOP_ErrTeamMembNotSync"), teamMember.getName()));
           }
           memberData.put(RestServiceUtil.PROP_ASSISTANT_ID, assistantId);
-        } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_LANGCHAIN)
-            || StringUtils.equalsIgnoreCase(teamMember.getAppType(), CopilotConstants.APP_TYPE_MULTIMODEL)) {
+        } else if (StringUtils.equalsIgnoreCase(teamMember.getAppType(),
+            CopilotConstants.APP_TYPE_LANGCHAIN) || StringUtils.equalsIgnoreCase(teamMember.getAppType(),
+            CopilotConstants.APP_TYPE_MULTIMODEL)) {
           buildLangchainRequestForCopilot(teamMember, null, memberData, teamMember.getAppType());
         }
 
@@ -967,7 +1060,7 @@ public class CopilotUtils {
    * If the provider is "GEMINI", it sets the provider to "gemini" and the model to "gemini-1.5-pro-latest".
    * If the provider is neither "OPENAI" nor "GEMINI", it throws an exception.
    * If the CopilotApp instance has a prompt, it adds the prompt and the content of the app source file with the
-   * behaviour "system" to the request.
+   * behavior "system" to the request.
    *
    * @param copilotApp
    *     The CopilotApp instance for which the request is to be built.
@@ -983,7 +1076,6 @@ public class CopilotUtils {
    * @throws IOException
    *     If an error occurs while reading the content of the app source file.
    */
-
   public static void buildLangchainRequestForCopilot(CopilotApp copilotApp, String conversationId,
       JSONObject jsonRequestForCopilot, String appType) throws JSONException, IOException {
     StringBuilder prompt = new StringBuilder();
@@ -996,8 +1088,9 @@ public class CopilotUtils {
     }
     jsonRequestForCopilot.put(RestServiceUtil.PROP_TEMPERATURE, copilotApp.getTemperature());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_TOOLS, ToolsUtil.getToolSet(copilotApp));
-    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, CopilotModelUtils.getProvider(copilotApp));
-    jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, CopilotModelUtils.getAppModel(copilotApp));
+    CopilotModelUtils.ModelProviderResult modelInfo = CopilotModelUtils.getModelProviderResult(copilotApp);
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_PROVIDER, modelInfo.providerStr);
+    jsonRequestForCopilot.put(RestServiceUtil.PROP_MODEL, modelInfo.modelStr);
     jsonRequestForCopilot.put(RestServiceUtil.PROP_CODE_EXECUTION, copilotApp.isCodeInterpreter());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_KB_VECTORDB_ID, "KB_" + copilotApp.getId());
     jsonRequestForCopilot.put(RestServiceUtil.PROP_STRUCTURED_OUTPUT_JSON_SCHEMA,
@@ -1057,7 +1150,6 @@ public class CopilotUtils {
    * @return A list of CopilotApp instances representing the team members of the given CopilotApp instance.
    */
   private static List<CopilotApp> getTeamMembers(CopilotApp copilotApp) {
-    return copilotApp.getETCOPTeamMemberList().stream().map(TeamMember::getMember).collect(
-        Collectors.toList());
+    return copilotApp.getETCOPTeamMemberList().stream().map(TeamMember::getMember).collect(Collectors.toList());
   }
 }

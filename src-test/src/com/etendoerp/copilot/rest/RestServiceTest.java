@@ -29,6 +29,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -767,8 +768,9 @@ public class RestServiceTest extends WeldBaseTest {
     // When
     restService.doGet(mockRequest, mockResponse);
 
-    // Then
-    verify(mockResponse, times(1)).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+    // Then - error is returned as JSON response (setStatus + getWriter), not sendError
+    verify(mockResponse, times(1)).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+    verify(mockResponse, atLeastOnce()).getWriter();
   }
 
   /**

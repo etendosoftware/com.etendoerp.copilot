@@ -64,7 +64,7 @@ def _get_type_mapping():
         "integer": (int, Field(description="")),
         "number": (float, Field(description="")),
         "boolean": (bool, Field(description="")),
-        "array": (list, Field(description="")),
+        "array": (List[str], Field(description="")),
         "object": (dict, Field(description="")),
     }
 
@@ -256,14 +256,14 @@ def _process_array_schema(sub_schema: Dict, body_model_name: str, index: int, ty
     
     # Array of primitive types
     item_type_str = items_schema.get("type", "string")
-    item_type, _ = type_map.get(item_type_str, (Any, Field(description="")))
+    item_type, _ = type_map.get(item_type_str, (str, Field(description="")))
     return List[item_type]
 
 
 def _process_request_body(method: str, operation: Dict, path: str, type_map: Dict) -> Optional[tuple]:
     """
     Process request body for POST/PUT methods and return body model and field info.
-    
+
     For POST requests: Supports oneOf schemas with objects, arrays, and primitive types.
     For PUT requests: Only processes standard object schemas (no oneOf support).
     """

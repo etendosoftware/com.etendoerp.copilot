@@ -122,7 +122,7 @@ def _initialize_agent(question: QuestionSchema):
     """Initialize and return the copilot agent."""
     agent_type = question.type
     if agent_type is None:
-        agent_type = read_optional_env_var("AGENT_TYPE", AgentEnum.LANGCHAIN.value)
+        agent_type = read_optional_env_var("agent.type", AgentEnum.LANGCHAIN.value)
     copilot_agent = select_copilot_agent(agent_type)
     print_call_info(copilot_agent, question)
 
@@ -137,6 +137,7 @@ def load_thread_context(question):
     ThreadContext.set_data("assistant_id", question.assistant_id)
     ThreadContext.set_data("conversation_id", conversation_id)
     ThreadContext.set_data("ad_user_id", question.ad_user_id)
+    ThreadContext.set_data("ad_client_id", question.ad_client_id if question.ad_client_id else "0")
 
 
 def _execute_agent(copilot_agent, question: QuestionSchema):
@@ -342,6 +343,7 @@ def serve_assistant():
 def reset_vector_db(body: VectorDBInputSchema):
     try:
         kb_vectordb_id = body.kb_vectordb_id
+        ad_client_id = body.ad_client_id
         db_path = get_vector_db_path(kb_vectordb_id)
 
         # Initialize the database client
@@ -359,8 +361,8 @@ def reset_vector_db(body: VectorDBInputSchema):
                 collection = db_client.get_or_create_collection(collection_name)
                 copilot_debug(f"Processing collection: {collection.name}")
 
-                # Retrieve all documents from the collection
-                documents = collection.get()
+                # Retrieve documents from the collection filtering by client
+                documents = collection.get(where=get_where_filter(ad_client_id))
                 document_ids = documents["ids"]
                 metadatas = documents["metadatas"]
 
@@ -397,6 +399,16 @@ def reset_vector_db(body: VectorDBInputSchema):
     return {"answer": f"VectorDB marked for purge successfully. {total_marked} documents marked."}
 
 
+def get_where_filter(ad_client_id: str | None) -> dict[str, dict[str, list[str]]] | dict[str, str]:
+    """Get the where filter for querying documents based on ad_client_id."""
+    where_filter = (
+        {"ad_client_id": {"$in": ["0", ad_client_id]}}
+        if ad_client_id and ad_client_id != "0"
+        else {"ad_client_id": "0"}
+    )
+    return where_filter
+
+
 @core_router.post("/addToVectorDB")
 def process_text_to_vector_db(
     kb_vectordb_id: str = Form(...),
@@ -407,6 +419,7 @@ def process_text_to_vector_db(
     skip_splitting: bool = Form(False),
     max_chunk_size: int = Form(None),
     chunk_overlap: int = Form(None),
+    ad_client_id: str = Form("0"),
 ):
     from copilot.core.vectordb_utils import (
         IMAGE_EXTENSIONS,
@@ -435,7 +448,13 @@ def process_text_to_vector_db(
                 # Use IMAGES collection for image references
                 from copilot.core.vectordb_utils import IMAGES_COLLECTION_NAME
 
-                result = index_image_file(file_path, chroma_client, IMAGES_COLLECTION_NAME, kb_vectordb_id)
+                result = index_image_file(
+                    file_path,
+                    chroma_client,
+                    IMAGES_COLLECTION_NAME,
+                    kb_vectordb_id,
+                    ad_client_id=ad_client_id,
+                )
 
                 if result.get("status") == "error":
                     success = False
@@ -452,9 +471,11 @@ def process_text_to_vector_db(
             # Process text/document files
             if extension == "zip":
                 # Process the ZIP file
-                texts = handle_zip_file(file_path, chroma_client, splitter_config)
+                texts = handle_zip_file(file_path, chroma_client, splitter_config, ad_client_id=ad_client_id)
             else:
-                texts = index_file(extension, file_path, chroma_client, splitter_config)
+                texts = index_file(
+                    extension, file_path, chroma_client, splitter_config, ad_client_id=ad_client_id
+                )
                 # Remove the temporary file after use
 
             copilot_debug(f"Adding {len(texts)} documents to VectorDb.")
@@ -487,6 +508,7 @@ def process_text_to_vector_db(
 def purge_vectordb(body: VectorDBInputSchema):
     try:
         kb_vectordb_id = body.kb_vectordb_id
+        ad_client_id = body.ad_client_id
         db_path = get_vector_db_path(kb_vectordb_id)
 
         db_client = chromadb.Client(settings=get_chroma_settings(db_path))
@@ -498,19 +520,27 @@ def purge_vectordb(body: VectorDBInputSchema):
         collection_names = [LANGCHAIN_DEFAULT_COLLECTION_NAME, IMAGES_COLLECTION_NAME]
         total_purged = 0
 
+        # Define criteria to filter by purge flag and ad_client_id
+        # We only want to delete documents marked for purge that belong to '0' or the current client
+        where_filter = (
+            {"$and": [{"purge": True}, {"ad_client_id": {"$in": ["0", ad_client_id]}}]}
+            if ad_client_id and ad_client_id != "0"
+            else {"$and": [{"purge": True}, {"ad_client_id": "0"}]}
+        )
+
         for collection_name in collection_names:
             try:
                 collection = db_client.get_or_create_collection(collection_name)
                 copilot_debug(f"Processing collection: {collection.name}")
 
                 # Count the number of documents to be purged
-                documents = collection.get(where={"purge": True})
+                documents = collection.get(where=where_filter)
                 num_docs = len(documents["ids"])
                 copilot_debug(f"Collection {collection_name}: {num_docs} documents to be purged")
 
-                # Delete all documents marked for purge
+                # Delete documents marked for purge filtering by client
                 if num_docs > 0:
-                    collection.delete(where={"purge": True})
+                    collection.delete(where=where_filter)
                     copilot_debug(f"Purged {num_docs} documents from collection {collection_name}")
                     total_purged += num_docs
                 else:
@@ -568,7 +598,7 @@ def transcript_file(file: UploadFile = File(...)):
 def check_copilot_host(authorization: str = Header(None)):
     try:
         etendo_host_docker = etendo_utils.get_etendo_host()
-        from .utils.etendo_utils import validate_etendo_token
+        from copilot.core.utils.etendo_utils import validate_etendo_token
 
         if not authorization or not validate_etendo_token(authorization):
             raise HTTPException(status_code=401, detail="Authorization token is missing or invalid")
@@ -588,11 +618,19 @@ def check_copilot_host(authorization: str = Header(None)):
         response = requests.post(url, headers=headers, json={})
 
         if response.status_code == 200:
-            copilot_debug("ETENDO_HOST_DOCKER successfully verified.")
+            copilot_debug("Variable 'etendo.host.docker' (ETENDO_HOST_DOCKER) successfully verified.")
             return "success"
         else:
             copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: code response {response.status_code}")
+            copilot_debug(
+                "Error verifying 'etendo.host.docker' (ETENDO_HOST_DOCKER). "
+                "Please check the ETENDO_HOST_DOCKER variable and ensure it points "
+                "to the correct Etendo server URL."
+            )
             return "failed"
 
     except requests.exceptions.RequestException as e:
-        copilot_debug(f"Error verifying ETENDO_HOST_DOCKER: {str(e)}")
+        copilot_debug(
+            f"Error verifying 'etendo.host.docker' (ETENDO_HOST_DOCKER): {str(e)}."
+            f" Please check the ETENDO_HOST_DOCKER variable and ensure it points to the correct Etendo server URL."
+        )

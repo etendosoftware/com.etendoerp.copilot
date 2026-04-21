@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import json
 import os
 import shutil
 import tempfile
@@ -42,11 +43,23 @@ def get_embedding():
             - disallowed_special: Empty tuple (allows all special characters)
             - show_progress_bar: True (displays progress during embedding generation)
             - base_url: Proxy URL from configuration
+            - api_key: "dummy" if a proxy URL is set and no API key is provided,
+              to avoid validation errors.
 
     Notes:
         The base URL is retrieved using get_proxy_url() to route requests through the configured proxy.
     """
-    return OpenAIEmbeddings(disallowed_special=(), show_progress_bar=True, base_url=get_proxy_url())
+    proxy_url = get_proxy_url()
+    api_key = read_optional_env_var("openai.api.key", None)
+
+    # If we have a proxy URL but no API key, we use a dummy key to bypass the client's validation,
+    # as the proxy usually handles authentication or doesn't require a real OpenAI key.
+    if proxy_url and not api_key:
+        api_key = "dummy"
+
+    return OpenAIEmbeddings(
+        disallowed_special=(), show_progress_bar=True, base_url=proxy_url, api_key=api_key
+    )
 
 
 def get_vector_db_path(vector_db_id):
@@ -104,7 +117,7 @@ def get_chroma_settings(db_path=None):
     return settings
 
 
-def handle_zip_file(zip_file_path, chroma_client, splitter_config: SplitterConfig):
+def handle_zip_file(zip_file_path, chroma_client, splitter_config: SplitterConfig, ad_client_id: str = "0"):
     """
     Extracts and indexes all supported files from a ZIP archive into ChromaDB.
 
@@ -112,6 +125,7 @@ def handle_zip_file(zip_file_path, chroma_client, splitter_config: SplitterConfi
         zip_file_path (str): Path to the ZIP file to process.
         chroma_client: ChromaDB client instance for storing indexed documents.
         splitter_config (SplitterConfig): Configuration for text splitting during indexing.
+        ad_client_id (str): The Etendo Client ID. Defaults to "0".
 
     Returns:
         list[Document]: List of all Document objects created from files in the ZIP archive.
@@ -135,7 +149,9 @@ def handle_zip_file(zip_file_path, chroma_client, splitter_config: SplitterConfi
             if ext in ALLOWED_EXTENSIONS:
                 try:
                     copilot_debug(f"Processing file {file_path}")
-                    acum_texts.extend(index_file(ext, file_path, chroma_client, splitter_config))
+                    acum_texts.extend(
+                        index_file(ext, file_path, chroma_client, splitter_config, ad_client_id=ad_client_id)
+                    )
                 except Exception as e:
                     copilot_debug(f"Error processing file {file_path}: {e}")
     # Remove the entire temporary directory
@@ -184,7 +200,7 @@ def hash_splitter_config(config: SplitterConfig) -> str:
     return hashlib.sha256(json_repr.encode("utf-8")).hexdigest()
 
 
-def index_file(ext, item_path, chroma_client, splitter_config: SplitterConfig):
+def index_file(ext, item_path, chroma_client, splitter_config: SplitterConfig, ad_client_id: str = "0"):
     """
     Indexes a file into ChromaDB collection, handling duplicates and text splitting.
 
@@ -193,6 +209,7 @@ def index_file(ext, item_path, chroma_client, splitter_config: SplitterConfig):
         item_path (str): Full path to the file to index.
         chroma_client: ChromaDB client instance for database operations.
         splitter_config (SplitterConfig): Configuration for text splitting behavior.
+        ad_client_id (str): The Etendo Client ID. Defaults to "0".
 
     Returns:
         list[Document]: List of Document objects ready to be added to the vector store.
@@ -211,6 +228,9 @@ def index_file(ext, item_path, chroma_client, splitter_config: SplitterConfig):
     if splitter_config is not None:
         md5 = md5 + hash_splitter_config(splitter_config)
 
+    # Add ad_client_id to md5 to ensure client isolation in the same database
+    md5 = md5 + ad_client_id
+
     collection = chroma_client.get_or_create_collection(LANGCHAIN_DEFAULT_COLLECTION_NAME)
     copilot_debug(f"Collection id {collection.id}")
     # Search for the document based on the MD5 hash
@@ -219,18 +239,32 @@ def index_file(ext, item_path, chroma_client, splitter_config: SplitterConfig):
     if result and len(result["ids"]) > 0:
         # If the document with the same MD5 exists, unmark it for purge
         copilot_debug(f"The file with md5 {md5} is already indexed. Marking 'purge' as False.")
-        collection.update(ids=result["ids"], metadatas=[{"purge": False} for _ in result["metadatas"]])
+        collection.update(
+            ids=result["ids"],
+            metadatas=[{"purge": False, "ad_client_id": ad_client_id} for _ in result["metadatas"]],
+        )
         return []
     else:
         # If the document with this MD5 doesn't exist, add it as a new document
-        document = Document(page_content=file_content, metadata={"md5": md5, "purge": False})
+        document = Document(
+            page_content=file_content, metadata={"md5": md5, "purge": False, "ad_client_id": ad_client_id}
+        )
         text_splitter = get_text_splitter(ext, splitter_config)
 
         # Split the document and add it to the collection
         copilot_debug(f"File with md5 {md5} added to index with 'purge': False.")
         documents: list[Document] = [document]
         if text_splitter and not splitter_config.skip_splitting:
-            documents = text_splitter.split_documents(documents)
+            if hasattr(text_splitter, "split_documents"):
+                documents = text_splitter.split_documents(documents)
+            elif isinstance(text_splitter, RecursiveJsonSplitter):
+                try:
+                    json_data = json.loads(file_content)
+                    documents = text_splitter.create_documents(
+                        texts=[json_data], metadatas=[document.metadata]
+                    )
+                except Exception as e:
+                    copilot_debug(f"Error splitting JSON file: {e}. Using original document.")
 
     return documents
 
@@ -414,7 +448,7 @@ def calculate_file_md5(file_path, chunk_size=4096):
     return md5_hash.hexdigest()
 
 
-def index_image_file(image_path, chroma_client, collection_name, agent_id=None):
+def index_image_file(image_path, chroma_client, collection_name, agent_id=None, ad_client_id: str = "0"):
     """
     Indexes an image file into ChromaDB using CLIP embeddings.
 
@@ -423,6 +457,7 @@ def index_image_file(image_path, chroma_client, collection_name, agent_id=None):
         chroma_client: ChromaDB client instance.
         collection_name (str): Name of the collection to store the image.
         agent_id (str, optional): Agent ID for metadata tracking.
+        ad_client_id (str): The Etendo Client ID. Defaults to "0".
 
     Returns:
         dict: Result with status information.
@@ -432,6 +467,8 @@ def index_image_file(image_path, chroma_client, collection_name, agent_id=None):
 
         # Calculate MD5 of the file
         file_md5 = calculate_file_md5(image_path)
+        # Add ad_client_id to md5 to ensure client isolation
+        file_md5 = file_md5 + ad_client_id
         filename = os.path.basename(image_path)
 
         # Get or create collection
@@ -446,7 +483,10 @@ def index_image_file(image_path, chroma_client, collection_name, agent_id=None):
                 f"Image {filename} with MD5 {file_md5[:8]}... already indexed. Unmarking from purge."
             )
             collection.update(
-                ids=result["ids"], metadatas=[{"purge": False, "md5": file_md5} for _ in result["ids"]]
+                ids=result["ids"],
+                metadatas=[
+                    {"purge": False, "md5": file_md5, "ad_client_id": ad_client_id} for _ in result["ids"]
+                ],
             )
             return {"status": "exists", "md5": file_md5, "filename": filename}
 
@@ -472,6 +512,7 @@ def index_image_file(image_path, chroma_client, collection_name, agent_id=None):
             "md5": file_md5,
             "filename": filename,
             "purge": False,
+            "ad_client_id": ad_client_id,
         }
         if agent_id:
             metadata["agent_id"] = agent_id
@@ -714,7 +755,8 @@ def get_sim_threshold_with_ignore(similarity_threshold, ignore_env: bool = False
 
     # Get similarity threshold from env var if not provided
     if similarity_threshold is None:
-        threshold_str = read_optional_env_var("COPILOT_REFERENCE_SIMILARITY_THRESHOLD", None)
+        threshold_str = read_optional_env_var("copilot.reference.similarity.threshold", None)
+        # in properties must be copilot.reference.similarity.threshold
         if threshold_str:
             try:
                 similarity_threshold = float(threshold_str)

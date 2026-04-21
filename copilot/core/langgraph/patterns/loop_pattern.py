@@ -1,8 +1,10 @@
-from langgraph.graph import END
-
 from copilot.core.langgraph.patterns.base_pattern import BasePattern
-from copilot.core.langgraph.special_nodes.supervisor_node import SupervisorNode, get_supervisor_system_prompt, \
-    get_supervisor_temperature
+from copilot.core.langgraph.special_nodes.supervisor_node import (
+    SupervisorNode,
+    get_supervisor_system_prompt,
+    get_supervisor_temperature,
+)
+from langgraph.graph import END
 
 
 class LoopPattern(BasePattern):
@@ -36,8 +38,8 @@ class LoopPattern(BasePattern):
         workflow.add_conditional_edges("check_continue", lambda x: x["next"], ["supervisor", END])
         workflow.add_edge("check_continue", "supervisor")
 
-    def construct_nodes(self, members, assistant_graph=None, full_question=None):
-        workflow = super().construct_nodes(members, assistant_graph)
+    async def construct_nodes(self, members, assistant_graph=None, full_question=None):
+        workflow = await super().construct_nodes(members, assistant_graph)
         sv_temperature = get_supervisor_temperature(full_question)
         sv_prompt = get_supervisor_system_prompt(full_question)
         supervisor_chain = SupervisorNode().build(self.get_nodes(assistant_graph), sv_prompt, sv_temperature)
@@ -47,6 +49,8 @@ class LoopPattern(BasePattern):
             "You are a supervisor tasked with the end of a response cycle between user and the {members}. "
             " Always respond with FINISH ."
         )
-        checker_node = SupervisorNode().build(["supervisor"], system_prompt=checker_prompt, temperature=sv_temperature)
+        checker_node = SupervisorNode().build(
+            ["supervisor"], system_prompt=checker_prompt, temperature=sv_temperature
+        )
         workflow.add_node("check_continue", checker_node)
         return workflow

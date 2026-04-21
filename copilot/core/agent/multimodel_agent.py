@@ -1,10 +1,10 @@
 import asyncio
-import os
 from typing import AsyncGenerator, Final, Union
 
 import langchain_core.tools
 from copilot.baseutils.logging_envvar import (
     read_optional_env_var,
+    read_optional_env_var_bool,
 )
 from copilot.core.agent.agent import (
     AgentResponse,
@@ -14,6 +14,7 @@ from copilot.core.agent.agent import (
 from copilot.core.agent.agent_utils import (
     build_metadata,
     get_checkpoint_file,
+    normalize_content,
     process_local_files,
 )
 from copilot.core.agent.codeact import create_default_prompt
@@ -23,7 +24,7 @@ from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
 from copilot.core.threadcontextutils import (
     read_accum_usage_data_from_msg_arr,
 )
-from copilot.core.utils.agent import get_full_question, get_llm, get_structured_output
+from copilot.core.utils.agent import fix_tools_for_provider, get_full_question, get_llm, get_structured_output
 from langchain.agents import create_agent
 from langchain_classic.agents import AgentOutputParser
 from langchain_core.agents import AgentAction, AgentFinish
@@ -31,10 +32,10 @@ from langchain_core.messages import HumanMessage
 from langchain_core.prompts.chat import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import StructuredTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 SYSTEM_PROMPT_PLACEHOLDER = "{system_prompt}"
+DEFS_KEY = "$defs"
 tools_loaded = {}
 
 
@@ -95,6 +96,40 @@ def is_code_act_enabled(agent_configuration: AssistantSchema) -> bool:
     return agent_configuration.code_execution
 
 
+def _fix_type_defaults(schema):
+    """Fix missing defaults for array and object type schemas."""
+    if schema.get("type") == "array" and (
+        "items" not in schema or schema.get("items") == {}
+    ):
+        schema["items"] = {"type": "string"}
+
+    if schema.get("type") == "object" and "properties" not in schema:
+        schema["properties"] = {}
+
+
+def _fix_nested_schemas(schema):
+    """Recursively fix nested sub-schemas within a schema dict."""
+    if "properties" in schema:
+        schema["properties"] = {
+            k: _fix_array_schemas(v) for k, v in schema["properties"].items()
+        }
+
+    if "items" in schema:
+        schema["items"] = _fix_array_schemas(schema["items"])
+
+    if "additionalProperties" in schema and isinstance(schema["additionalProperties"], dict):
+        schema["additionalProperties"] = _fix_array_schemas(schema["additionalProperties"])
+
+    for keyword in ("anyOf", "oneOf", "allOf"):
+        if keyword in schema and isinstance(schema[keyword], list):
+            schema[keyword] = [_fix_array_schemas(item) for item in schema[keyword]]
+
+    if DEFS_KEY in schema:
+        schema[DEFS_KEY] = {
+            k: _fix_array_schemas(v) for k, v in schema[DEFS_KEY].items()
+        }
+
+
 def _fix_array_schemas(schema):
     """
     Recursively fix array schemas by adding missing 'items' property.
@@ -108,29 +143,9 @@ def _fix_array_schemas(schema):
     if not isinstance(schema, dict):
         return schema
 
-    # Create a copy to avoid modifying the original
     fixed_schema = schema.copy()
-
-    # Fix array type missing items
-    if fixed_schema.get("type") == "array" and "items" not in fixed_schema:
-        fixed_schema["items"] = {"type": "string"}  # Default to string items
-
-    # Fix object type missing properties
-    if fixed_schema.get("type") == "object" and "properties" not in fixed_schema:
-        fixed_schema["properties"] = {}
-
-    # Recursively fix nested schemas
-    if "properties" in fixed_schema:
-        fixed_properties = {}
-        for key, value in fixed_schema["properties"].items():
-            fixed_properties[key] = _fix_array_schemas(value)
-        fixed_schema["properties"] = fixed_properties
-
-    if "items" in fixed_schema:
-        fixed_schema["items"] = _fix_array_schemas(fixed_schema["items"])
-
-    if "additionalProperties" in fixed_schema and isinstance(fixed_schema["additionalProperties"], dict):
-        fixed_schema["additionalProperties"] = _fix_array_schemas(fixed_schema["additionalProperties"])
+    _fix_type_defaults(fixed_schema)
+    _fix_nested_schemas(fixed_schema)
 
     return fixed_schema
 
@@ -234,7 +249,7 @@ class MultimodelAgent(CopilotAgent):
             prompt=create_default_prompt(tools=conv_tools, base_prompt=system_prompt),
         )
 
-    def get_agent(
+    async def get_agent(
         self,
         provider: str,
         model: str,
@@ -258,14 +273,13 @@ class MultimodelAgent(CopilotAgent):
         from copilot.core.tool_loader import ToolLoader
 
         tool_loader = ToolLoader()
-        _enabled_tools = tool_loader.get_all_tools(
+        _enabled_tools = await tool_loader.get_all_tools(
             agent_configuration=agent_configuration,
             enabled_tools=tools,
             include_kb_tool=True,
             include_openapi_tools=True,
         )
-        if mcp_tools is not None:
-            _enabled_tools.extend(mcp_tools or [])
+        # mcp_tools are now handled inside get_all_tools via agent_configuration
 
         # Replace the instance configured tools with the complete list
         self._configured_tools = _enabled_tools
@@ -278,6 +292,8 @@ class MultimodelAgent(CopilotAgent):
         ]
 
         ChatPromptTemplate.from_messages(prompt_structure)
+
+        fix_tools_for_provider(_enabled_tools, provider)
 
         if is_code_act_enabled(agent_configuration):
             agent = self._create_code_act_agent(llm, _enabled_tools, system_prompt)
@@ -293,79 +309,86 @@ class MultimodelAgent(CopilotAgent):
             )
         return agent
 
+    async def _prepare_agent_execution(self, question, checkpointer):
+        """
+        Common setup logic for both execute and aexecute methods.
+        Prepares the agent, configuration, and messages array.
+        """
+        full_question = get_full_question(question)
+
+        agent = await self.get_agent(
+            provider=question.provider,
+            model=question.model,
+            agent_configuration=question,
+            tools=question.tools,
+            system_prompt=question.system_prompt,
+            temperature=question.temperature,
+            checkpointer=checkpointer,
+        )
+
+        # Process local files
+        image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+
+        config = build_config(question.conversation_id)
+        # Construct messages array using the unified method
+        has_thread = await acheckpointer_has_thread(checkpointer, config)
+        messages = self.get_messages_array(
+            full_question, image_payloads, other_file_paths, question, has_thread
+        )
+
+        return agent, config, messages, full_question
+
     def execute(self, question: QuestionSchema) -> AgentResponse:
-        with SqliteSaver.from_conn_string(get_checkpoint_file(question.assistant_id)) as checkpointer:
-            full_question = get_full_question(question)
-            agent = self.get_agent(
-                provider=question.provider,
-                model=question.model,
-                agent_configuration=question,
-                tools=question.tools,
-                system_prompt=question.system_prompt,
-                temperature=question.temperature,
-                checkpointer=checkpointer,
-            )
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
-            # Process local files
-            image_payloads, other_file_paths = process_local_files(question.local_file_ids)
+        async def _execute_async():
+            async with AsyncSqliteSaver.from_conn_string(
+                get_checkpoint_file(question.assistant_id)
+            ) as checkpointer:
+                agent, config, messages, full_question = await self._prepare_agent_execution(
+                    question, checkpointer
+                )
 
-            config = build_config(question.conversation_id)
-            # Construct messages array using the unified method
-            has_thread = checkpointer_has_thread(checkpointer, config)
-            messages = self.get_messages_array(
-                full_question, image_payloads, other_file_paths, question, has_thread
-            )
+                agent_response = await agent.ainvoke(
+                    {"system_prompt": question.system_prompt, "messages": messages}, config=config
+                )
+                new_ai_message = agent_response.get("messages")[-1]
+                usage_data = read_accum_usage_data_from_msg_arr(agent_response.get("messages"))
 
-            agent_response = agent.invoke(
-                {"system_prompt": question.system_prompt, "messages": messages}, config=config
-            )
-            new_ai_message = agent_response.get("messages")[-1]
-            usage_data = read_accum_usage_data_from_msg_arr(agent_response.get("messages"))
-            return AgentResponse(
-                input=full_question,
-                output=AssistantResponse(
-                    response=new_ai_message.content,
-                    conversation_id=question.conversation_id,
-                    metadata=build_metadata(usage_data),
-                ),
-            )
+                if not new_ai_message.content and usage_data.get("output_tokens", 0) == 0:
+                    raise RuntimeError(
+                        "The model returned an empty response with 0 output tokens. "
+                        "This usually indicates a rate limit, quota exhaustion, or content filtering issue "
+                        "with the model provider. Please check the model's API status and try again."
+                    )
+                return AgentResponse(
+                    input=full_question,
+                    output=AssistantResponse(
+                        response=normalize_content(new_ai_message.content),
+                        conversation_id=question.conversation_id,
+                        metadata=build_metadata(usage_data),
+                    ),
+                )
+
+        return loop.run_until_complete(_execute_async())
 
     def get_tools(self):
         return self._configured_tools
 
     async def aexecute(self, question: QuestionSchema) -> AsyncGenerator[AgentResponse, None]:
-        copilot_stream_debug = os.getenv("COPILOT_STREAM_DEBUG", "false").lower() == "true"  # Debug mode
+        copilot_stream_debug = read_optional_env_var_bool("copilot.stream.debug", False)  # Debug mode
         async with AsyncSqliteSaver.from_conn_string(
             get_checkpoint_file(question.assistant_id)
         ) as checkpointer:
-            mcp_servers_config = convert_mcp_servers_config(question.mcp_servers or [])
-            # Get MCP tools asynchronously
-            mcp_tools = await get_mcp_tools(mcp_servers_config)
-
-            # Use async agent creation to include MCP tools
-            agent = self.get_agent(
-                provider=question.provider,
-                model=question.model,
-                agent_configuration=question,
-                tools=question.tools,
-                system_prompt=question.system_prompt,
-                temperature=question.temperature,
-                mcp_tools=mcp_tools,
-                checkpointer=checkpointer,
-            )
-
-            full_question = get_full_question(question)
-
-            # Process local files
-            image_payloads, other_file_paths = process_local_files(question.local_file_ids)
-
-            config = build_config(question.conversation_id)
-
-            # Construct messages array. If the checkpointer has the thread history, only
-            # the new question is added to the messages.
-            has_thread = await acheckpointer_has_thread(checkpointer, config)
-            messages = self.get_messages_array(
-                full_question, image_payloads, other_file_paths, question, has_thread
+            agent, config, messages, full_question = await self._prepare_agent_execution(
+                question, checkpointer
             )
 
             _input = {

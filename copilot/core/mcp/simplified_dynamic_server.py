@@ -22,16 +22,12 @@ from copilot.baseutils.logging_envvar import (
 )
 from copilot.core.mcp.auth_provider import CopilotAuthProvider
 from copilot.core.mcp.auth_utils import extract_etendo_token_from_request
-from copilot.core.mcp.tools import (
-    register_agent_tools,
-    register_basic_tools,
-    register_basic_tools_direct,
-)
+from copilot.core.mcp.tools import register_agent_tools
 from copilot.core.threadcontext import ThreadContext
-from copilot.core.utils.etendo_utils import normalize_etendo_token
+from copilot.core.utils.etendo_utils import get_url_copilot_mcp, normalize_etendo_token
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastmcp import FastMCP
 
 logger = logging.getLogger(__name__)
@@ -61,8 +57,11 @@ class DynamicMCPInstance:
         self.server_ref = server_ref  # Reference to main server
         self.agent_config = agent_config
         # Create FastMCP instance with an AuthProvider bound to this identifier
+        agent_name = agent_config.name if agent_config and agent_config.name else identifier
+        agent_description = agent_config.description if agent_config and agent_config.description else ""
         self.mcp = FastMCP(
-            f"Etendo Copilot Dynamic MCP({identifier})",
+            f"MCP Server for {agent_name}",
+            instructions=self._build_instructions(agent_name, agent_description, direct_mode),
             version=identifier,
             auth=CopilotAuthProvider(identifier=identifier),
         )
@@ -72,20 +71,42 @@ class DynamicMCPInstance:
         self.ttl_task: Optional[asyncio.Task] = None  # Task for TTL management
         self._should_stop = False  # Flag to control server stopping
 
-        # Configure and register tools
-        self._setup_tools(identifier, etendo_token, direct_mode)
+        # Configure and register tools logic moved to async setup_tools
 
         copilot_info(
-            f"🔧 Setting up DynamicMCPInstance for identifier: {identifier} (direct_mode: {direct_mode})"
+            f"🔧 Initialized DynamicMCPInstance for identifier: {identifier} (direct_mode: {direct_mode})"
         )
 
-    def _setup_tools(self, identifier: str, etendo_token: str, direct_mode: bool = False):
+    @staticmethod
+    def _build_instructions(agent_name: str, agent_description: str, direct_mode: bool) -> str:
+        """Build the MCP server instructions based on the operating mode."""
+        desc_block = f"Agent description: {agent_description}\n\n" if agent_description else ""
+
+        if direct_mode:
+            return (
+                f"This MCP server exposes the toolset of the Etendo Copilot agent '{agent_name}'.\n\n"
+                f"{desc_block}"
+                "In this mode, each tool registered here corresponds to a tool available to the agent. "
+                "Additionally, a 'get_agent_prompt' tool is provided which returns the agent's system prompt. "
+                "It is recommended to call 'get_agent_prompt' first to understand the agent's purpose, "
+                "capabilities, and how it uses its tools."
+            )
+        else:
+            return (
+                f"This MCP server provides access to the Etendo Copilot agent '{agent_name}'.\n\n"
+                f"{desc_block}"
+                "In this mode, you interact with the agent through the 'ask_agent' tool "
+                "(or 'ask_agent_<AgentName>'). Send your question as a message and the agent "
+                "will process it using its configured tools and knowledge, then return a response. "
+                "You can also pass a 'conversation_id' to maintain context across multiple interactions."
+            )
+
+    async def setup_tools(self, identifier: str, etendo_token: str, direct_mode: bool = False):
         """Configure tools for this MCP instance."""
         if direct_mode:
-            # Direct mode: only basic tools (without ask_agent) and agent tools
-            register_basic_tools_direct(self.mcp)
+            # Direct mode: agent tools exposed directly
             # Pass pre-fetched agent_config to avoid redundant calls to Etendo
-            register_agent_tools(
+            await register_agent_tools(
                 self.mcp,
                 identifier=identifier,
                 etendo_token=etendo_token,
@@ -94,8 +115,7 @@ class DynamicMCPInstance:
             )
             copilot_info(f"✅ Direct mode tools configured for MCP instance '{self.identifier}'")
         else:
-            # Standard mode: basic tools (with ask_agent) only
-            register_basic_tools(self.mcp)
+            # Standard mode: ask_agent tool only
 
             # Additionally, register an agent-specific ask tool named with the agent name
             # so that simple mode exposes ask_agent_<AgentName> with description from payload.
@@ -360,16 +380,22 @@ class SimplifiedDynamicMCPServer:
         app = FastAPI(title="Etendo Copilot Dynamic MCP Server")
 
         # Add CORS middleware
+        # expose_headers is required so browsers can read custom response headers
+        # like mcp-session-id (needed by Streamable HTTP MCP transport).
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
+            expose_headers=["mcp-session-id"],
         )
 
         # Add basic endpoints
         self._add_basic_endpoints(app)
+
+        # Add OAuth endpoints (must be before MCP catch-all routing)
+        self._add_oauth_endpoints(app)
 
         # Add MCP routing
         self._add_mcp_routing(app)
@@ -433,6 +459,42 @@ class SimplifiedDynamicMCPServer:
 
             return {"active_instances": len(self.instances), "instances": instances_info}
 
+    def _add_oauth_endpoints(self, app: FastAPI):
+        """Add OAuth 2.1 endpoints for MCP client authentication.
+
+        Mounts the well-known discovery endpoints, OAuth authorization/token/register
+        routes from the SDK, and custom login routes for the Etendo login UI flow.
+        These must be registered before the catch-all MCP routing to avoid conflicts.
+        """
+        try:
+            from copilot.core.mcp.oauth_login import create_oauth_login_router
+            from copilot.core.mcp.oauth_provider import EtendoOAuthProvider
+
+            base_url = get_url_copilot_mcp(self.port)
+
+            self._oauth_provider = EtendoOAuthProvider(base_url=base_url)
+
+            # Mount SDK-generated OAuth routes (well-known, /authorize, /token, /register, /revoke)
+            oauth_routes = self._oauth_provider.get_routes()
+            for route in oauth_routes:
+                app.routes.insert(0, route)
+
+            # Mount custom login routes (must be before catch-all /{identifier}/mcp)
+            login_router = create_oauth_login_router(self._oauth_provider)
+            app.include_router(login_router)
+
+            # Start cleanup task on first request (event loop must be running)
+            @app.on_event("startup")
+            async def _start_oauth_cleanup():
+                self._oauth_provider.start_cleanup()
+
+            copilot_info(f"OAuth 2.1 endpoints configured (base_url={base_url})")
+
+        except ImportError as e:
+            copilot_warning(f"OAuth endpoints not available (missing dependencies): {e}")
+        except Exception as e:
+            copilot_error(f"Failed to configure OAuth endpoints: {e}")
+
     def _add_mcp_routing(self, app: FastAPI):
         """Add MCP routing endpoints."""
 
@@ -459,11 +521,15 @@ class SimplifiedDynamicMCPServer:
         # Extract and validate Etendo token from request
         etendo_token = extract_etendo_token_from_request(request)
         if not etendo_token:
+            base_url = get_url_copilot_mcp(self.port)
             raise HTTPException(
                 status_code=401,
-                detail="Authentication required. "
-                "Please provide a valid Etendo token in headers: 'etendo-token', "
-                "'Authorization', or 'X-Etendo-Token'.",
+                detail="Authentication required.",
+                headers={
+                    "WWW-Authenticate": (
+                        f'Bearer resource_metadata="{base_url}/.well-known/oauth-protected-resource"'
+                    )
+                },
             )
         etendo_token_wb = normalize_etendo_token(etendo_token)
         ThreadContext.set_data("extra_info", {"auth": {"ETENDO_TOKEN": etendo_token_wb}})
@@ -478,7 +544,25 @@ class SimplifiedDynamicMCPServer:
             return await self._proxy_request(request, instance, path)
         except Exception as e:
             copilot_error(f"Error handling MCP request for '{identifier}': {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            # Return a JSON-RPC error so MCP clients (Inspector, Claude Desktop, etc.)
+            # can display the message instead of receiving a raw HTTP 500.
+            jsonrpc_id = None
+            try:
+                body = await request.json()
+                jsonrpc_id = body.get("id") if isinstance(body, dict) else None
+            except Exception:
+                pass
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "jsonrpc": "2.0",
+                    "id": jsonrpc_id,
+                    "error": {
+                        "code": -32603,
+                        "message": str(e),
+                    },
+                },
+            )
 
     async def _get_or_create_instance(
         self, identifier: str, etendo_token: str, direct_mode: bool = False
@@ -504,6 +588,7 @@ class SimplifiedDynamicMCPServer:
                 direct_mode=direct_mode,
                 agent_config=agent_config,
             )
+            await instance.setup_tools(identifier, etendo_token, direct_mode)
             self.instances[instance_key] = instance
 
             # Start the MCP server for this instance
@@ -525,12 +610,37 @@ class SimplifiedDynamicMCPServer:
 
         return instance
 
+    @staticmethod
+    def _build_proxy_response(response):
+        """Build the appropriate Response from an httpx response."""
+        response_headers = dict(response.headers)
+        content_type = response_headers.get("content-type", "")
+
+        is_streaming = (
+            "text/event-stream" in content_type or response_headers.get("transfer-encoding") == "chunked"
+        )
+        if is_streaming:
+            response_headers.pop("content-length", None)
+
+            def generate():
+                yield response.content
+
+            return StreamingResponse(
+                generate(),
+                status_code=response.status_code,
+                headers=response_headers,
+                media_type=content_type,
+            )
+
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers,
+        )
+
     async def _proxy_request(self, request: Request, instance: DynamicMCPInstance, path: str = ""):
         """Proxy the request to the MCP instance."""
-        # Build the target URL
-        target_url = f"{instance.get_url()}"
-        # Add /mcp
-        target_url += "/mcp"
+        target_url = f"{instance.get_url()}/mcp"
         if path:
             target_url += f"/{path}"
 
@@ -538,95 +648,35 @@ class SimplifiedDynamicMCPServer:
             f"🔀 Proxying {request.method} /{instance.identifier}/mcp{('/' + path) if path else ''} -> {target_url}"
         )
 
-        # Get request data
         method = request.method
         headers = dict(request.headers)
+        headers.pop("host", None)
 
-        # Remove host header to avoid conflicts
-        if "host" in headers:
-            del headers["host"]
+        etendo_token = extract_etendo_token_from_request(request)
+        if etendo_token and "authorization" not in headers and "Authorization" not in headers:
+            headers["authorization"] = etendo_token
 
-        # Get query parameters
         query_params = dict(request.query_params)
+        body = await request.body() if method in ["POST", "PUT", "PATCH"] else None
 
         try:
-            # Get request body if present
-            body = None
-            if method in ["POST", "PUT", "PATCH"]:
-                body = await request.body()
-
-            # Make the proxied request
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.request(
                     method=method, url=target_url, headers=headers, params=query_params, content=body
                 )
-                # Clean headers and check if it's a streaming response
-                response_headers = dict(response.headers)
-                content_type = response_headers.get("content-type", "")
-
-                if (
-                    "text/event-stream" in content_type
-                    or response_headers.get("transfer-encoding") == "chunked"
-                ):
-                    # For streaming responses, remove content-length and use StreamingResponse
-                    response_headers.pop("content-length", None)
-
-                    def generate():
-                        yield response.content
-
-                    return StreamingResponse(
-                        generate(),
-                        status_code=response.status_code,
-                        headers=response_headers,
-                        media_type=content_type,
-                    )
-                else:
-                    # For regular responses, use normal Response
-                    return Response(
-                        content=response.content,
-                        status_code=response.status_code,
-                        headers=response_headers,
-                    )
+                return self._build_proxy_response(response)
 
         except httpx.ConnectError:
-            # If connection fails, try to restart the instance
             logger.warning(f"Failed to connect to MCP instance {instance.identifier}, attempting restart")
             await instance.stop_server()
             await instance.start_server()
 
-            # Try once more
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     response = await client.request(
                         method=method, url=target_url, headers=headers, params=query_params, content=body
                     )
-                    # Clean headers and check if it's a streaming response
-                    response_headers = dict(response.headers)
-                    content_type = response_headers.get("content-type", "")
-
-                    if (
-                        "text/event-stream" in content_type
-                        or response_headers.get("transfer-encoding") == "chunked"
-                    ):
-                        # For streaming responses, remove content-length and use StreamingResponse
-                        response_headers.pop("content-length", None)
-
-                        def generate():
-                            yield response.content
-
-                        return StreamingResponse(
-                            generate(),
-                            status_code=response.status_code,
-                            headers=response_headers,
-                            media_type=content_type,
-                        )
-                    else:
-                        # For regular responses, use normal Response
-                        return Response(
-                            content=response.content,
-                            status_code=response.status_code,
-                            headers=response_headers,
-                        )
+                    return self._build_proxy_response(response)
 
             except Exception as e:
                 logger.error(f"Failed to proxy request to {instance.identifier} after restart: {e}")
@@ -674,6 +724,10 @@ class SimplifiedDynamicMCPServer:
             host = self.host
         if port is None:
             port = self.port
+
+        # Update self.host/self.port so create_app() uses the actual values
+        self.host = host
+        self.port = port
 
         app = self.create_app()
 

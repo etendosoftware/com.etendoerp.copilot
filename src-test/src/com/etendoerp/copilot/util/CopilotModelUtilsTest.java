@@ -1,354 +1,396 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2025 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 
-import org.hibernate.criterion.Criterion;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.MockitoAnnotations;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.provider.OBProvider;
-import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
+import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.ad.access.User;
+import org.openbravo.model.ad.system.Client;
+import org.openbravo.model.common.enterprise.Organization;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotModel;
 
 /**
- * Unit tests for {@link CopilotModelUtils}.
- * Covers getProvider, getAppModel (both overloads), and getDefaultModel.
+ * Test class for CopilotModelUtils.
  */
-@RunWith(MockitoJUnitRunner.class)
 public class CopilotModelUtilsTest {
 
-  @Mock
-  private OBDal mockOBDal;
-  @Mock
-  private OBProvider mockOBProvider;
-  @Mock
-  private OBPropertiesProvider mockPropertiesProvider;
-  @Mock
-  private OBContext mockOBContext;
-  @Mock
-  private CopilotApp mockApp;
-  @Mock
-  private CopilotModel mockModel;
-  @Mock
-  private OBCriteria<CopilotModel> mockCriteria;
+  private static final String DEFAULT_KEY = "default-key";
 
-  private MockedStatic<OBDal> obDalStatic;
-  private MockedStatic<OBProvider> obProviderStatic;
-  private MockedStatic<OBPropertiesProvider> obPropsStatic;
-  private MockedStatic<OBContext> obContextStatic;
-  private MockedStatic<OBMessageUtils> obMessageStatic;
-  private MockedStatic<CopilotUtils> copilotUtilsStatic;
+  private AutoCloseable mocks;
+  private MockedStatic<OBDal> mockedOBDal;
+  private MockedStatic<OBContext> mockedOBContext;
+  private MockedStatic<Preferences> mockedPreferences;
+  private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
 
+  @Mock
+  private OBDal obDal;
+  @Mock
+  private OBContext obContext;
+  @Mock
+  private Client client;
+  @Mock
+  private Organization organization;
+  @Mock
+  private User user;
+  @Mock
+  private Role role;
+  @Mock
+  private OBCriteria<CopilotModel> modelCriteria;
+
+  /**
+   * Sets up the test environment by initializing mocks and static mocked classes.
+   */
   @Before
   public void setUp() {
-    obDalStatic = mockStatic(OBDal.class);
-    obDalStatic.when(OBDal::getInstance).thenReturn(mockOBDal);
+    mocks = MockitoAnnotations.openMocks(this);
+    mockedOBDal = mockStatic(OBDal.class);
+    mockedOBContext = mockStatic(OBContext.class);
+    mockedPreferences = mockStatic(Preferences.class);
+    mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
-    obProviderStatic = mockStatic(OBProvider.class);
-    obProviderStatic.when(OBProvider::getInstance).thenReturn(mockOBProvider);
+    mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
+    when(obDal.createCriteria(CopilotModel.class)).thenReturn(modelCriteria);
 
-    obPropsStatic = mockStatic(OBPropertiesProvider.class);
-    obPropsStatic.when(OBPropertiesProvider::getInstance).thenReturn(mockPropertiesProvider);
+    mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
+    when(obContext.getCurrentClient()).thenReturn(client);
+    when(obContext.getCurrentOrganization()).thenReturn(organization);
+    when(obContext.getUser()).thenReturn(user);
+    when(obContext.getRole()).thenReturn(role);
 
-    obContextStatic = mockStatic(OBContext.class);
-
-    obMessageStatic = mockStatic(OBMessageUtils.class);
-    obMessageStatic.when(() -> OBMessageUtils.messageBD(any(String.class))).thenReturn("No default model found for provider: %s");
-
-    copilotUtilsStatic = mockStatic(CopilotUtils.class);
-
-    lenient().when(mockOBDal.createCriteria(CopilotModel.class)).thenReturn(mockCriteria);
-    lenient().when(mockCriteria.add(any(Criterion.class))).thenReturn(mockCriteria);
+    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(anyString())).thenAnswer(i -> i.getArgument(0));
   }
 
+  /**
+   * Cleans up the test environment by closing all mocked static objects.
+   *
+   * @throws Exception if an error occurs during teardown
+   */
   @After
-  public void tearDown() {
-    if (copilotUtilsStatic != null) copilotUtilsStatic.close();
-    if (obMessageStatic != null) obMessageStatic.close();
-    if (obContextStatic != null) obContextStatic.close();
-    if (obPropsStatic != null) obPropsStatic.close();
-    if (obProviderStatic != null) obProviderStatic.close();
-    if (obDalStatic != null) obDalStatic.close();
+  public void tearDown() throws Exception {
+    if (mockedOBDal != null) mockedOBDal.close();
+    if (mockedOBContext != null) mockedOBContext.close();
+    if (mockedPreferences != null) mockedPreferences.close();
+    if (mockedOBMessageUtils != null) mockedOBMessageUtils.close();
+    if (mocks != null) mocks.close();
   }
 
-  // --- getProvider tests ---
+  // --- Tests for getProvider(CopilotApp) ---
 
+  /**
+   * Tests {@link CopilotModelUtils#getProvider(CopilotApp)} when the application is null.
+   */
   @Test
-  public void testGetProviderReturnsModelProvider() {
-    when(mockApp.getModel()).thenReturn(mockModel);
-    when(mockModel.getProvider()).thenReturn("anthropic");
-
-    String result = CopilotModelUtils.getProvider(mockApp);
-
-    assertEquals("anthropic", result);
+  public void testGetProviderAppNull() {
+    assertEquals(CopilotConstants.PROVIDER_OPENAI, CopilotModelUtils.getProvider(null));
   }
 
+  /**
+   * Tests {@link CopilotModelUtils#getProvider(CopilotApp)} when the model is null.
+   */
   @Test
-  public void testGetProviderReturnsOpenaiWhenAppIsNull() {
-    String result = CopilotModelUtils.getProvider(null);
-
-    assertEquals("openai", result);
+  public void testGetProviderModelNull() {
+    CopilotApp app = mock(CopilotApp.class);
+    when(app.getModel()).thenReturn(null);
+    assertEquals(CopilotConstants.PROVIDER_OPENAI, CopilotModelUtils.getProvider(app));
   }
 
+  /**
+   * Tests {@link CopilotModelUtils#getProvider(CopilotApp)} when the provider is empty.
+   */
   @Test
-  public void testGetProviderReturnsOpenaiWhenModelIsNull() {
-    when(mockApp.getModel()).thenReturn(null);
-
-    String result = CopilotModelUtils.getProvider(mockApp);
-
-    assertEquals("openai", result);
+  public void testGetProviderProviderEmpty() {
+    CopilotApp app = mock(CopilotApp.class);
+    CopilotModel model = mock(CopilotModel.class);
+    when(app.getModel()).thenReturn(model);
+    when(model.getProvider()).thenReturn("");
+    assertEquals(CopilotConstants.PROVIDER_OPENAI, CopilotModelUtils.getProvider(app));
   }
 
+  /**
+   * Tests {@link CopilotModelUtils#getProvider(CopilotApp)} when the provider is set.
+   */
   @Test
-  public void testGetProviderReturnsOpenaiWhenProviderIsEmpty() {
-    when(mockApp.getModel()).thenReturn(mockModel);
-    when(mockModel.getProvider()).thenReturn("");
-
-    String result = CopilotModelUtils.getProvider(mockApp);
-
-    assertEquals("openai", result);
+  public void testGetProviderProviderSet() {
+    CopilotApp app = mock(CopilotApp.class);
+    CopilotModel model = mock(CopilotModel.class);
+    when(app.getModel()).thenReturn(model);
+    when(model.getProvider()).thenReturn("anthropic");
+    assertEquals("anthropic", CopilotModelUtils.getProvider(app));
   }
 
+  /**
+   * Tests {@link CopilotModelUtils#getProvider(CopilotApp)} when an exception occurs.
+   */
   @Test
-  public void testGetProviderReturnsOpenaiWhenProviderIsNull() {
-    when(mockApp.getModel()).thenReturn(mockModel);
-    when(mockModel.getProvider()).thenReturn(null);
-
-    String result = CopilotModelUtils.getProvider(mockApp);
-
-    assertEquals("openai", result);
+  public void testGetProviderException() {
+    CopilotApp app = mock(CopilotApp.class);
+    when(app.getModel()).thenThrow(new RuntimeException("Error"));
+    assertThrows(OBException.class, () -> CopilotModelUtils.getProvider(app));
   }
 
-  // --- getAppModel(CopilotApp) tests ---
+  // --- Tests for getAppModel(CopilotApp) ---
 
+  /**
+   * Tests {@link CopilotModelUtils#getAppModel(CopilotApp)} with the default flow.
+   */
   @Test
-  public void testGetAppModelReturnsSearchkeyWhenModelSet() {
-    when(mockApp.getModel()).thenReturn(mockModel);
-    when(mockModel.getSearchkey()).thenReturn("gpt-4");
+  public void testGetAppModelDefaultFlow() {
+    CopilotApp app = mock(CopilotApp.class);
+    CopilotModel model = mock(CopilotModel.class);
+    when(app.getModel()).thenReturn(model);
+    when(model.getSearchkey()).thenReturn("gpt-3.5");
 
-    String result = CopilotModelUtils.getAppModel(mockApp);
-
-    assertEquals("gpt-4", result);
+    // Should behave like getAppModel(app, provider) but first branch returns early
+    assertEquals("gpt-3.5", CopilotModelUtils.getAppModel(app));
   }
 
+  /**
+   * Tests {@link CopilotModelUtils#getAppModel(CopilotApp)} and checks if it calls the overloaded method with default values.
+   */
   @Test
-  public void testGetAppModelFallsBackToDefaultWhenModelIsNull() {
-    when(mockApp.getModel()).thenReturn(null);
+  public void testGetAppModelCallsOverloadedWithDefault() {
+    CopilotApp app = mock(CopilotApp.class);
+    when(app.getModel()).thenReturn(null);
+    // getProvider will return 'openai'
+    // then getAppModel(app, 'openai') will be called
 
-    // getProvider(null model) returns "openai"
-    // getDefaultModel("openai") needs to return a model
+    // Simulate getDefaultModel finding something
     CopilotModel defaultModel = mock(CopilotModel.class);
-    when(defaultModel.isDefaultOverride()).thenReturn(false);
-    when(defaultModel.isDefault()).thenReturn(true);
-    when(defaultModel.getSearchkey()).thenReturn("gpt-3.5-turbo");
-
-    List<CopilotModel> modelList = new ArrayList<>();
-    modelList.add(defaultModel);
-    when(mockCriteria.list()).thenReturn(modelList);
-
-    String result = CopilotModelUtils.getAppModel(mockApp);
-
-    assertEquals("gpt-3.5-turbo", result);
-  }
-
-  @Test(expected = OBException.class)
-  public void testGetAppModelThrowsWhenNoDefault() {
-    when(mockApp.getModel()).thenReturn(null);
-    when(mockCriteria.list()).thenReturn(Collections.emptyList());
-
-    CopilotModelUtils.getAppModel(mockApp);
-  }
-
-  // --- getAppModel(CopilotApp, String) tests ---
-
-  @Test
-  public void testGetAppModelWithProviderReturnsSearchkey() {
-    when(mockApp.getModel()).thenReturn(mockModel);
-    when(mockModel.getSearchkey()).thenReturn("claude-3");
-
-    String result = CopilotModelUtils.getAppModel(mockApp, "anthropic");
-
-    assertEquals("claude-3", result);
-  }
-
-  @Test
-  public void testGetAppModelWithProviderFallsBackToDefault() {
-    when(mockApp.getModel()).thenReturn(null);
-
-    CopilotModel defaultModel = mock(CopilotModel.class);
-    when(defaultModel.isDefaultOverride()).thenReturn(false);
-    when(defaultModel.isDefault()).thenReturn(true);
-    when(defaultModel.getSearchkey()).thenReturn("gpt-4o");
-
-    List<CopilotModel> modelList = new ArrayList<>();
-    modelList.add(defaultModel);
-    when(mockCriteria.list()).thenReturn(modelList);
-
-    String result = CopilotModelUtils.getAppModel(mockApp, "openai");
-
-    assertEquals("gpt-4o", result);
-  }
-
-  @Test(expected = OBException.class)
-  public void testGetAppModelWithProviderThrowsWhenNoDefault() {
-    when(mockApp.getModel()).thenReturn(null);
-    when(mockCriteria.list()).thenReturn(Collections.emptyList());
-
-    CopilotModelUtils.getAppModel(mockApp, "openai");
-  }
-
-  @Test
-  public void testGetAppModelWithProviderReturnsNullSearchkeyFallback() {
-    // Model exists but searchkey is null -> falls back to default
-    when(mockApp.getModel()).thenReturn(mockModel);
-    when(mockModel.getSearchkey()).thenReturn(null);
-
-    CopilotModel defaultModel = mock(CopilotModel.class);
-    when(defaultModel.isDefaultOverride()).thenReturn(true);
     when(defaultModel.getSearchkey()).thenReturn("default-model");
+    when(defaultModel.isDefault()).thenReturn(true);
 
-    List<CopilotModel> modelList = new ArrayList<>();
-    modelList.add(defaultModel);
-    when(mockCriteria.list()).thenReturn(modelList);
+    when(modelCriteria.list()).thenReturn(List.of(defaultModel));
+    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+    when(modelCriteria.addOrderBy(anyString(), anyBoolean())).thenReturn(modelCriteria);
 
-    String result = CopilotModelUtils.getAppModel(mockApp, "openai");
-
-    assertEquals("default-model", result);
+    assertEquals("default-model", CopilotModelUtils.getAppModel(app));
   }
 
-  // --- getDefaultModel tests ---
+  // --- Tests for getAppModel(CopilotApp, String) ---
 
+  /**
+   * Tests {@link CopilotModelUtils#getAppModel(CopilotApp, String)} when the application has a model.
+   */
   @Test
-  public void testGetDefaultModelReturnsOverrideFirst() {
-    CopilotModel normalDefault = mock(CopilotModel.class);
-    when(normalDefault.isDefaultOverride()).thenReturn(false);
-    lenient().when(normalDefault.isDefault()).thenReturn(true);
+  public void testGetAppModelWithProviderAppHasModel() {
+    CopilotApp app = mock(CopilotApp.class);
+    CopilotModel model = mock(CopilotModel.class);
+    when(app.getModel()).thenReturn(model);
+    when(model.getSearchkey()).thenReturn("app-model");
 
-    CopilotModel overrideDefault = mock(CopilotModel.class);
-    when(overrideDefault.isDefaultOverride()).thenReturn(true);
-    when(overrideDefault.getSearchkey()).thenReturn("override-model");
+    assertEquals("app-model", CopilotModelUtils.getAppModel(app, "any"));
+  }
 
-    List<CopilotModel> modelList = new ArrayList<>();
-    modelList.add(normalDefault);
-    modelList.add(overrideDefault);
-    when(mockCriteria.list()).thenReturn(modelList);
+  /**
+   * Tests {@link CopilotModelUtils#getAppModel(CopilotApp, String)} when it should use the default model.
+   */
+  @Test
+  public void testGetAppModelWithProviderUseDefaultModel() {
+    CopilotApp app = mock(CopilotApp.class);
+    when(app.getModel()).thenReturn(null);
 
-    CopilotModel result = CopilotModelUtils.getDefaultModel("openai");
+    CopilotModel defaultModel = mock(CopilotModel.class);
+    when(defaultModel.getSearchkey()).thenReturn(DEFAULT_KEY);
+    when(defaultModel.isDefault()).thenReturn(true);
 
+    when(modelCriteria.list()).thenReturn(List.of(defaultModel));
+    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+
+    assertEquals(DEFAULT_KEY, CopilotModelUtils.getAppModel(app, "test-provider"));
+  }
+
+  /**
+   * Tests {@link CopilotModelUtils#getAppModel(CopilotApp, String)} when no default model is found.
+   */
+  @Test
+  public void testGetAppModelWithProviderNoDefaultFound() {
+    CopilotApp app = mock(CopilotApp.class);
+    when(app.getModel()).thenReturn(null);
+
+    when(modelCriteria.list()).thenReturn(List.of()); // No models found
+    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+
+    assertThrows(OBException.class, () -> CopilotModelUtils.getAppModel(app, "test-provider"));
+  }
+
+  // --- Tests for getDefaultModel (and readOverrideDefaultModel) ---
+
+  /**
+   * Tests {@link CopilotModelUtils#getDefaultModel(String)} when the override preference exists.
+   *
+   * @throws Exception if an error occurs during the test
+   */
+  @Test
+  public void testGetDefaultModelOverridePreferenceExists() throws Exception {
+    // Setup preference
+    mockedPreferences.when(() -> Preferences.getPreferenceValue(
+        eq("ETCOP_DefaultModelOverride"), anyBoolean(), any(Client.class), any(), any(), any(), any()))
+        .thenReturn("openai/override-model");
+
+    // Setup override model query
+    CopilotModel overrideModel = mock(CopilotModel.class);
+    when(overrideModel.getSearchkey()).thenReturn("override-model");
+    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+    when(modelCriteria.setMaxResults(1)).thenReturn(modelCriteria);
+    when(modelCriteria.uniqueResult()).thenReturn(overrideModel);
+
+    // Call indirectly via getDefaultModel
+    CopilotModel result = CopilotModelUtils.getDefaultModel(null);
     assertNotNull(result);
     assertEquals("override-model", result.getSearchkey());
   }
 
+  /**
+   * Tests {@link CopilotModelUtils#getDefaultModel(String)} when the override preference is malformed.
+   *
+   * @throws Exception if an error occurs during the test
+   */
   @Test
-  public void testGetDefaultModelReturnsNormalDefaultWhenNoOverride() {
-    CopilotModel normalDefault = mock(CopilotModel.class);
-    when(normalDefault.isDefaultOverride()).thenReturn(false);
-    when(normalDefault.isDefault()).thenReturn(true);
-    when(normalDefault.getSearchkey()).thenReturn("normal-default");
+  public void testGetDefaultModelOverridePreferenceMalformed() throws Exception {
+    mockedPreferences.when(() -> Preferences.getPreferenceValue(
+        eq("ETCOP_DefaultModelOverride"), anyBoolean(), any(Client.class), any(), any(), any(), any()))
+        .thenReturn("malformed-preference");
 
-    List<CopilotModel> modelList = new ArrayList<>();
-    modelList.add(normalDefault);
-    when(mockCriteria.list()).thenReturn(modelList);
+    // Should fall back to regular query
+    CopilotModel dbDefault = mock(CopilotModel.class);
+    when(dbDefault.isDefault()).thenReturn(true);
+    when(modelCriteria.list()).thenReturn(List.of(dbDefault));
+    when(modelCriteria.add(any())).thenReturn(modelCriteria);
 
     CopilotModel result = CopilotModelUtils.getDefaultModel("openai");
-
     assertNotNull(result);
-    assertEquals("normal-default", result.getSearchkey());
+    assertEquals(dbDefault, result);
   }
 
+  /**
+   * Tests {@link CopilotModelUtils#getDefaultModel(String)} when no override exists and the model is found in the database.
+   */
   @Test
-  public void testGetDefaultModelReturnsNullWhenEmpty() {
-    when(mockCriteria.list()).thenReturn(Collections.emptyList());
+  public void testGetDefaultModelNoOverrideFoundInDB() {
+    mockedPreferences.when(() -> Preferences.getPreferenceValue(anyString(), anyBoolean(), any(Client.class), any(), any(), any(), any()))
+        .thenReturn(null);
+
+    CopilotModel dbDefault = mock(CopilotModel.class);
+    when(dbDefault.isDefault()).thenReturn(true);
+    when(modelCriteria.list()).thenReturn(List.of(dbDefault));
+    when(modelCriteria.add(any())).thenReturn(modelCriteria);
 
     CopilotModel result = CopilotModelUtils.getDefaultModel("openai");
-
-    assertNull(result);
+    assertEquals(dbDefault, result);
   }
 
+  // --- Tests for getModelProviderResult(CopilotApp) ---
+
+  /**
+   * Tests {@link CopilotModelUtils#getModelProviderResult(CopilotApp)} when the agent is null.
+   */
   @Test
-  public void testGetDefaultModelWithEmptyProvider() {
-    CopilotModel defaultModel = mock(CopilotModel.class);
-    when(defaultModel.isDefaultOverride()).thenReturn(false);
-    when(defaultModel.isDefault()).thenReturn(true);
-    when(defaultModel.getSearchkey()).thenReturn("any-default");
-
-    List<CopilotModel> modelList = new ArrayList<>();
-    modelList.add(defaultModel);
-    when(mockCriteria.list()).thenReturn(modelList);
-
-    CopilotModel result = CopilotModelUtils.getDefaultModel("");
-
-    assertNotNull(result);
-    assertEquals("any-default", result.getSearchkey());
+  public void testGetModelProviderResultAgentNull() {
+    assertThrows(OBException.class, () -> CopilotModelUtils.getModelProviderResult(null));
   }
 
+  /**
+   * Tests {@link CopilotModelUtils#getModelProviderResult(CopilotApp)} when the agent has a model.
+   */
   @Test
-  public void testGetDefaultModelWithNullProvider() {
-    CopilotModel defaultModel = mock(CopilotModel.class);
-    when(defaultModel.isDefaultOverride()).thenReturn(false);
-    when(defaultModel.isDefault()).thenReturn(true);
-    when(defaultModel.getSearchkey()).thenReturn("null-provider-default");
+  public void testGetModelProviderResultAgentHasModel() {
+    CopilotApp app = mock(CopilotApp.class);
+    CopilotModel model = mock(CopilotModel.class);
+    when(app.getModel()).thenReturn(model);
+    when(model.getSearchkey()).thenReturn("agent-model");
+    when(model.getProvider()).thenReturn("agent-provider");
 
-    List<CopilotModel> modelList = new ArrayList<>();
-    modelList.add(defaultModel);
-    when(mockCriteria.list()).thenReturn(modelList);
-
-    CopilotModel result = CopilotModelUtils.getDefaultModel(null);
-
-    assertNotNull(result);
-    assertEquals("null-provider-default", result.getSearchkey());
+    CopilotModelUtils.ModelProviderResult res = CopilotModelUtils.getModelProviderResult(app);
+    assertEquals("agent-model", res.modelStr);
+    assertEquals("agent-provider", res.providerStr);
   }
 
+  /**
+   * Tests {@link CopilotModelUtils#getModelProviderResult(CopilotApp)} when the agent has no model and should use the default.
+   */
   @Test
-  public void testGetDefaultModelNeitherDefaultNorOverride() {
-    // Model in list but neither default nor override
-    CopilotModel nonDefault = mock(CopilotModel.class);
-    when(nonDefault.isDefaultOverride()).thenReturn(false);
-    when(nonDefault.isDefault()).thenReturn(false);
+  public void testGetModelProviderResultAgentNoModelUseDefault() {
+    CopilotApp app = mock(CopilotApp.class);
+    when(app.getModel()).thenReturn(null);
 
-    List<CopilotModel> modelList = new ArrayList<>();
-    modelList.add(nonDefault);
-    when(mockCriteria.list()).thenReturn(modelList);
+    // Default model setup
+    CopilotModel dbDefault = mock(CopilotModel.class);
+    when(dbDefault.isDefault()).thenReturn(true);
+    when(dbDefault.getSearchkey()).thenReturn(DEFAULT_KEY);
+    when(dbDefault.getProvider()).thenReturn("default-provider");
 
-    CopilotModel result = CopilotModelUtils.getDefaultModel("openai");
+    when(modelCriteria.list()).thenReturn(List.of(dbDefault));
+    when(modelCriteria.add(any())).thenReturn(modelCriteria);
 
-    assertNull(result);
+    CopilotModelUtils.ModelProviderResult res = CopilotModelUtils.getModelProviderResult(app);
+    assertEquals(DEFAULT_KEY, res.modelStr);
+    assertEquals("default-provider", res.providerStr);
   }
 
-  // --- syncModels tests ---
+  /**
+   * Tests {@link CopilotModelUtils#getModelProviderResult(CopilotApp)} when no model is found.
+   */
+  @Test
+  public void testGetModelProviderResultNoModelFound() {
+    CopilotApp app = mock(CopilotApp.class);
+    when(app.getModel()).thenReturn(null);
+    when(modelCriteria.list()).thenReturn(List.of()); // No default models
 
-  @Test(expected = OBException.class)
-  public void testSyncModelsThrowsOnMissingProperties() {
-    Properties props = new Properties();
-    // No URL or branch set - will try to connect and fail
-    when(mockPropertiesProvider.getOpenbravoProperties()).thenReturn(props);
-
-    CopilotModelUtils.syncModels();
+    assertThrows(OBException.class, () -> CopilotModelUtils.getModelProviderResult(app));
   }
+
+  // --- Test Private Constructor (Reflection) ---
+  /**
+   * Tests the private constructor of {@link CopilotModelUtils} using reflection.
+   *
+   * @throws Exception if an error occurs during the test
+   */
+  @Test
+  public void testPrivateConstructor() throws Exception {
+    java.lang.reflect.Constructor<CopilotModelUtils> constructor = CopilotModelUtils.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+    CopilotModelUtils instance = constructor.newInstance();
+    assertNotNull(instance);
+  }
+
 }

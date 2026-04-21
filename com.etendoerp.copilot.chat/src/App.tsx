@@ -7,6 +7,7 @@ import { useMaximized } from './hooks/useMaximized';
 import { formatLabel, formatTimeNewDate, getMessageType } from './utils/functions';
 import botIcon from './assets/bot.svg';
 import responseSent from './assets/response-sent.svg';
+import AssistantDropdown from './components/AssistantDropdown';
 import { ILabels } from './interfaces';
 import { IMessage } from './interfaces/IMessage';
 import { References } from './utils/references';
@@ -37,14 +38,19 @@ const AssistantSelector = ({
   selectedOption,
   assistants,
   handleOptionSelected,
-  handleNewConversation
+  handleNewConversation,
+  showOnlyFeatured,
+  hasFeaturedAssistants,
+  onToggleFeaturedFilter,
 }: {
   labels: any;
   selectedOption: any;
   assistants: any[];
   handleOptionSelected: (option: any) => void;
   handleNewConversation: () => void;
-}) => (
+  showOnlyFeatured?: boolean;
+  hasFeaturedAssistants?: boolean;
+  onToggleFeaturedFilter?: () => void;}) => (
   <div
     id={'iframe-selector'}
     style={{
@@ -61,14 +67,16 @@ const AssistantSelector = ({
         {labels.ETCOP_Message_AssistantHeader}
       </div>
     </div>
-    <DropdownInput
-      value={selectedOption?.name}
-      staticData={assistants}
-      displayKey="name"
+    <AssistantDropdown
+      selectedOption={selectedOption}
+      assistants={assistants}
       onSelect={(option: any) => {
         handleOptionSelected(option);
         handleNewConversation(); // This will clear everything including conversation state
       }}
+      showOnlyFeatured={showOnlyFeatured}
+      hasFeaturedAssistants={hasFeaturedAssistants}
+      onToggleFeaturedFilter={onToggleFeaturedFilter}
     />
   </div>
 );
@@ -95,7 +103,7 @@ function App() {
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   // Hooks
-  const { selectedOption, assistants, getAssistants, handleOptionSelected } =
+  const { selectedOption, assistants, filteredAssistants, hasFeaturedAssistants, showOnlyFeatured, toggleFeaturedFilter, getAssistants, handleOptionSelected } =
     useAssistants();
 
   const {
@@ -681,9 +689,12 @@ function App() {
               <AssistantSelector
                 labels={labels}
                 selectedOption={selectedOption}
-                assistants={assistants}
+                assistants={filteredAssistants}
                 handleOptionSelected={handleOptionSelected}
                 handleNewConversation={handleNewConversation}
+                showOnlyFeatured={showOnlyFeatured}
+                hasFeaturedAssistants={hasFeaturedAssistants}
+                onToggleFeaturedFilter={toggleFeaturedFilter}
               />
             )}
 
@@ -703,21 +714,24 @@ function App() {
         )}
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Top Assistants Selector for non-maximized mode */}
           {assistants.length > 0 && !isMaximized && (
             <AssistantSelector
               labels={labels}
               selectedOption={selectedOption}
-              assistants={assistants}
+              assistants={filteredAssistants}
               handleOptionSelected={handleOptionSelected}
               handleNewConversation={handleNewConversation}
+              showOnlyFeatured={showOnlyFeatured}
+              hasFeaturedAssistants={hasFeaturedAssistants}
+              onToggleFeaturedFilter={toggleFeaturedFilter}
             />
           )}
 
           {/* Chat display area */}
           <div
-            className={`flex-1 min-h-0 hide-scrollbar overflow-y-auto px-[12px] pb-[12px] bg-gray-200`}
+            className={`flex-1 min-h-0 min-w-0 hide-scrollbar overflow-y-auto overflow-x-hidden px-[12px] pb-[12px] bg-gray-200`}
           >
             {messages.length === 0 && (
               <div className="inline-flex mt-[12px] mb-[20px] rounded-lg text-blue-900 font-medium">

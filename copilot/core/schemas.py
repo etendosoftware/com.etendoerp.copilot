@@ -50,6 +50,7 @@ class AssistantSchema(BaseModel):
     code_execution: Optional[bool] = False
     mcp_servers: Optional[list[dict]] = None
     ad_user_id: Optional[str] = None
+    ad_client_id: Optional[str] = "0"
     assistants: Optional[list["AssistantSchema"]] = None  # For supervisors - team members
     structured_output_json_schema: Optional[str] = None
 
@@ -78,6 +79,7 @@ class GraphQuestionSchema(BaseModel):
     system_prompt: Optional[str] = None
     assistant_id: Optional[str] = None
     ad_user_id: Optional[str] = None
+    ad_client_id: Optional[str] = "0"
     tools: Optional[list[ToolSchema]] = None
     name: Optional[str] = None
     model: Optional[str] = None
@@ -87,6 +89,7 @@ class GraphQuestionSchema(BaseModel):
 
 class VectorDBInputSchema(BaseModel):
     kb_vectordb_id: str
+    ad_client_id: Optional[str] = "0"
 
 
 class TextToVectorDBSchema(VectorDBInputSchema):

@@ -1,10 +1,10 @@
-import os
 from http import HTTPStatus
 from typing import Dict, Type
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
+from copilot.baseutils.logging_envvar import read_optional_env_var
 from copilot.core import core_router
 from copilot.core.agent.agent import AssistantResponse
 from copilot.core.tool_input import ToolField, ToolInput
@@ -34,7 +34,9 @@ def mocked_agent(mocked_agent_response, monkeypatch):
     )
 
     with monkeypatch.context() as patch_context:
-        patch_context.setenv("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+        patch_context.setenv(
+            "OPENAI_API_KEY", read_optional_env_var("openai.api.key", "fake_api_key_for_testing")
+        )
         patch_context.setenv("AGENT_TYPE", "langchain")
         from copilot.core import routes
 
@@ -278,8 +280,9 @@ def test_purge_vectordb_success(mock_get_path, mock_get_settings, mock_chromadb_
     assert "Total purged: 5" in response.json()["answer"]
 
     # Verify delete was called for both collections
-    mock_collection.delete.assert_called_once_with(where={"purge": True})
-    mock_images_collection.delete.assert_called_once_with(where={"purge": True})
+    expected_filter = {"$and": [{"purge": True}, {"ad_client_id": "0"}]}
+    mock_collection.delete.assert_called_once_with(where=expected_filter)
+    mock_images_collection.delete.assert_called_once_with(where=expected_filter)
 
     # Verify cache was cleared
     mock_db_client_instance.clear_system_cache.assert_called_once()
@@ -357,7 +360,8 @@ def test_purge_vectordb_partial_collection_failure(mock_get_path, mock_get_setti
     assert "Total purged: 2" in response.json()["answer"]
 
     # First collection should be purged
-    mock_collection.delete.assert_called_once_with(where={"purge": True})
+    expected_filter = {"$and": [{"purge": True}, {"ad_client_id": "0"}]}
+    mock_collection.delete.assert_called_once_with(where=expected_filter)
 
 
 @patch("copilot.core.routes.chromadb.Client")

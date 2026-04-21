@@ -18,10 +18,11 @@ def extract_etendo_token_from_request(request: Request) -> Optional[str]:
     """
     Extract Etendo token from any HTTP request (FastAPI, MCP, etc.).
 
-    This function looks for the token in various headers:
-    - etendo-token
-    - Authorization (Bearer format)
-    - X-Etendo-Token
+    This function looks for the token in various headers and query parameters:
+    - etendo-token header
+    - Authorization header (Bearer format)
+    - X-Etendo-Token header
+    - token query parameter (fallback for clients that cannot send custom headers)
 
     Args:
         request: HTTP request object
@@ -44,6 +45,11 @@ def extract_etendo_token_from_request(request: Request) -> Optional[str]:
         x_token = request.headers.get("x-etendo-token") or request.headers.get("X-Etendo-Token")
         if x_token and x_token.strip():
             return normalize_etendo_token(x_token)
+
+        # Fallback: try token query parameter (for MCP clients that cannot send custom headers)
+        query_token = request.query_params.get("token")
+        if query_token and query_token.strip():
+            return normalize_etendo_token(query_token)
 
         return None
 
