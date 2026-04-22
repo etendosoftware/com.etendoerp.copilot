@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.hook;
 
 import static org.junit.Assert.assertEquals;
@@ -28,11 +44,13 @@ public class CopilotFileHookManagerNewTest {
 
   private CopilotFileHookManager manager;
 
+  /** Set up. */
   @Before
   public void setUp() {
     manager = new CopilotFileHookManager();
   }
 
+  /** Test sort hooks by priority empty. */
   @Test
   @SuppressWarnings("unchecked")
   public void testSortHooksByPriorityEmpty() {
@@ -46,12 +64,13 @@ public class CopilotFileHookManagerNewTest {
     assertTrue(result.isEmpty());
   }
 
+  /** Test sort hooks by priority sorts correctly. */
   @Test
   @SuppressWarnings("unchecked")
   public void testSortHooksByPrioritySortsCorrectly() {
     CopilotFileHook hook1 = new CopilotFileHook() {
       @Override
-      public void exec(CopilotFile hookObject) { }
+      public void exec(CopilotFile hookObject) { /* No-op: test stub */ }
       @Override
       public boolean typeCheck(String type) { return true; }
       @Override
@@ -60,7 +79,7 @@ public class CopilotFileHookManagerNewTest {
 
     CopilotFileHook hook2 = new CopilotFileHook() {
       @Override
-      public void exec(CopilotFile hookObject) { }
+      public void exec(CopilotFile hookObject) { /* No-op: test stub */ }
       @Override
       public boolean typeCheck(String type) { return true; }
       @Override
@@ -69,7 +88,7 @@ public class CopilotFileHookManagerNewTest {
 
     CopilotFileHook hook3 = new CopilotFileHook() {
       @Override
-      public void exec(CopilotFile hookObject) { }
+      public void exec(CopilotFile hookObject) { /* No-op: test stub */ }
       @Override
       public boolean typeCheck(String type) { return true; }
       @Override
@@ -88,13 +107,14 @@ public class CopilotFileHookManagerNewTest {
     assertEquals(100, ((CopilotFileHook) sorted.get(2)).getPriority());
   }
 
+  /** Test sort hooks by priority filters non hooks. */
   @Test
   @SuppressWarnings("unchecked")
   public void testSortHooksByPriorityFiltersNonHooks() {
     // Only CopilotFileHook instances should be added
     CopilotFileHook hook1 = new CopilotFileHook() {
       @Override
-      public void exec(CopilotFile hookObject) { }
+      public void exec(CopilotFile hookObject) { /* No-op: test stub */ }
       @Override
       public boolean typeCheck(String type) { return true; }
     };

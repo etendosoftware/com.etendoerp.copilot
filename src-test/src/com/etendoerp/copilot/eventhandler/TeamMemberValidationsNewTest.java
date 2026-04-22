@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.Mockito.lenient;
@@ -27,6 +43,10 @@ import com.etendoerp.copilot.data.TeamMember;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class TeamMemberValidationsNewTest {
+  private static final String ETCOP_TEAMMEMBERDESC = "ETCOP_TeamMemberDesc";
+  private static final String MEMBER_S_HAS_NO_DESCRIPTION = "Member %s has no description";
+  private static final String TESTMEMBER = "TestMember";
+
 
   private TeamMemberValidations handler;
 
@@ -40,6 +60,7 @@ public class TeamMemberValidationsNewTest {
   @Mock private ModelProvider modelProvider;
   @Mock private Entity entity;
 
+  /** Set up. */
   @Before
   public void setUp() {
     mockedModelProvider = mockStatic(ModelProvider.class);
@@ -56,12 +77,14 @@ public class TeamMemberValidationsNewTest {
     };
   }
 
+  /** Tear down. */
   @After
   public void tearDown() {
     mockedModelProvider.close();
     mockedOBMessageUtils.close();
   }
 
+  /** Test on update valid member. */
   @Test
   public void testOnUpdateValidMember() {
     when(updateEvent.getTargetInstance()).thenReturn(teamMember);
@@ -71,6 +94,7 @@ public class TeamMemberValidationsNewTest {
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update null member. */
   @Test(expected = OBException.class)
   public void testOnUpdateNullMember() {
     when(updateEvent.getTargetInstance()).thenReturn(teamMember);
@@ -81,30 +105,33 @@ public class TeamMemberValidationsNewTest {
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update empty description. */
   @Test(expected = OBException.class)
   public void testOnUpdateEmptyDescription() {
     when(updateEvent.getTargetInstance()).thenReturn(teamMember);
     when(teamMember.getMember()).thenReturn(memberApp);
     when(memberApp.getDescription()).thenReturn("");
-    when(memberApp.getName()).thenReturn("TestMember");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_TeamMemberDesc"))
-        .thenReturn("Member %s has no description");
+    when(memberApp.getName()).thenReturn(TESTMEMBER);
+    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(ETCOP_TEAMMEMBERDESC))
+        .thenReturn(MEMBER_S_HAS_NO_DESCRIPTION);
 
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update null description. */
   @Test(expected = OBException.class)
   public void testOnUpdateNullDescription() {
     when(updateEvent.getTargetInstance()).thenReturn(teamMember);
     when(teamMember.getMember()).thenReturn(memberApp);
     when(memberApp.getDescription()).thenReturn(null);
-    when(memberApp.getName()).thenReturn("TestMember");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_TeamMemberDesc"))
-        .thenReturn("Member %s has no description");
+    when(memberApp.getName()).thenReturn(TESTMEMBER);
+    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(ETCOP_TEAMMEMBERDESC))
+        .thenReturn(MEMBER_S_HAS_NO_DESCRIPTION);
 
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on save valid member. */
   @Test
   public void testOnSaveValidMember() {
     when(newEvent.getTargetInstance()).thenReturn(teamMember);
@@ -114,6 +141,7 @@ public class TeamMemberValidationsNewTest {
     handler.onSave(newEvent);
   }
 
+  /** Test on save null member. */
   @Test(expected = OBException.class)
   public void testOnSaveNullMember() {
     when(newEvent.getTargetInstance()).thenReturn(teamMember);
@@ -124,14 +152,15 @@ public class TeamMemberValidationsNewTest {
     handler.onSave(newEvent);
   }
 
+  /** Test on save empty description. */
   @Test(expected = OBException.class)
   public void testOnSaveEmptyDescription() {
     when(newEvent.getTargetInstance()).thenReturn(teamMember);
     when(teamMember.getMember()).thenReturn(memberApp);
     when(memberApp.getDescription()).thenReturn("");
-    when(memberApp.getName()).thenReturn("TestMember");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_TeamMemberDesc"))
-        .thenReturn("Member %s has no description");
+    when(memberApp.getName()).thenReturn(TESTMEMBER);
+    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(ETCOP_TEAMMEMBERDESC))
+        .thenReturn(MEMBER_S_HAS_NO_DESCRIPTION);
 
     handler.onSave(newEvent);
   }

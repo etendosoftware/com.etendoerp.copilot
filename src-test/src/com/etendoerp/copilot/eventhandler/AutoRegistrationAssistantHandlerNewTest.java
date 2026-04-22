@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.junit.Assert.assertNotNull;
@@ -39,6 +55,8 @@ import com.etendoerp.copilot.data.CopilotRoleApp;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class AutoRegistrationAssistantHandlerNewTest {
+  private static final String EXECUTE = "execute";
+
 
   private AutoRegistrationAssistantHandler handler;
 
@@ -55,6 +73,7 @@ public class AutoRegistrationAssistantHandlerNewTest {
   @Mock private CopilotRoleApp newRoleApp;
   @Mock private OBCriteria<CopilotRoleApp> criteria;
 
+  /** Set up. */
   @Before
   public void setUp() {
     mockedOBDal = mockStatic(OBDal.class);
@@ -74,6 +93,7 @@ public class AutoRegistrationAssistantHandlerNewTest {
     handler = new AutoRegistrationAssistantHandler();
   }
 
+  /** Tear down. */
   @After
   public void tearDown() {
     mockedOBDal.close();
@@ -82,6 +102,10 @@ public class AutoRegistrationAssistantHandlerNewTest {
     mockedOBMessageUtils.close();
   }
 
+  /**
+   * Test execute new registration.
+   * @throws Exception if an error occurs
+   */
   @Test
   public void testExecuteNewRegistration() throws Exception {
     String appId = "testAppId";
@@ -90,7 +114,7 @@ public class AutoRegistrationAssistantHandlerNewTest {
     when(obProvider.get(CopilotRoleApp.class)).thenReturn(newRoleApp);
 
     Method executeMethod = AutoRegistrationAssistantHandler.class.getDeclaredMethod(
-        "execute", Map.class, String.class);
+        EXECUTE, Map.class, String.class);
     executeMethod.setAccessible(true);
 
     JSONObject result = (JSONObject) executeMethod.invoke(handler,
@@ -103,6 +127,10 @@ public class AutoRegistrationAssistantHandlerNewTest {
     verify(obDal).flush();
   }
 
+  /**
+   * Test execute already registered.
+   * @throws Exception if an error occurs
+   */
   @Test
   public void testExecuteAlreadyRegistered() throws Exception {
     String appId = "testAppId";
@@ -111,7 +139,7 @@ public class AutoRegistrationAssistantHandlerNewTest {
     when(criteria.uniqueResult()).thenReturn(existingRoleApp);
 
     Method executeMethod = AutoRegistrationAssistantHandler.class.getDeclaredMethod(
-        "execute", Map.class, String.class);
+        EXECUTE, Map.class, String.class);
     executeMethod.setAccessible(true);
 
     JSONObject result = (JSONObject) executeMethod.invoke(handler,
@@ -121,10 +149,14 @@ public class AutoRegistrationAssistantHandlerNewTest {
     verify(obDal, never()).save(any(CopilotRoleApp.class));
   }
 
+  /**
+   * Test execute invalid json.
+   * @throws Exception if an error occurs
+   */
   @Test
   public void testExecuteInvalidJson() throws Exception {
     Method executeMethod = AutoRegistrationAssistantHandler.class.getDeclaredMethod(
-        "execute", Map.class, String.class);
+        EXECUTE, Map.class, String.class);
     executeMethod.setAccessible(true);
 
     JSONObject result = (JSONObject) executeMethod.invoke(handler,

@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -60,16 +76,10 @@ public class KBSyncStatusHandlerNewTest {
   @Mock private Property property;
   @Mock private OBCriteria<CopilotAppSource> criteria;
 
+  /** Set up. */
   @Before
   public void setUp() {
-    mockedOBDal = mockStatic(OBDal.class);
-    mockedModelProvider = mockStatic(ModelProvider.class);
-    mockedAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
-    mockedCopilotUtils = mockStatic(CopilotUtils.class);
-
-    mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
-    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
-    lenient().when(modelProvider.getEntity(CopilotFile.class)).thenReturn(fileEntity);
+    prepareEntityMocks();
 
     handler = new KBSyncStatusHandler() {
       @Override
@@ -84,6 +94,17 @@ public class KBSyncStatusHandlerNewTest {
     lenient().when(appSource.getEtcopApp()).thenReturn(copilotApp);
   }
 
+  private void prepareEntityMocks() {
+    mockedOBDal = mockStatic(OBDal.class);
+    mockedModelProvider = mockStatic(ModelProvider.class);
+    mockedAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
+    mockedCopilotUtils = mockStatic(CopilotUtils.class);
+    mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
+    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
+    lenient().when(modelProvider.getEntity(CopilotFile.class)).thenReturn(fileEntity);
+  }
+
+  /** Tear down. */
   @After
   public void tearDown() {
     mockedOBDal.close();
@@ -92,6 +113,7 @@ public class KBSyncStatusHandlerNewTest {
     mockedCopilotUtils.close();
   }
 
+  /** Test on update with changed property. */
   @Test
   public void testOnUpdateWithChangedProperty() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -106,6 +128,7 @@ public class KBSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
   }
 
+  /** Test on update no changes. */
   @Test
   public void testOnUpdateNoChanges() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -119,6 +142,7 @@ public class KBSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(any(CopilotApp.class)), never());
   }
 
+  /** Test on save does nothing. */
   @Test
   public void testOnSaveDoesNothing() {
     lenient().when(newEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -129,6 +153,7 @@ public class KBSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(any(CopilotApp.class)), never());
   }
 
+  /** Test on delete. */
   @Test
   public void testOnDelete() {
     when(deleteEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -140,6 +165,7 @@ public class KBSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
   }
 
+  /** Test on delete multiple sources. */
   @Test
   public void testOnDeleteMultipleSources() {
     when(deleteEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -156,6 +182,7 @@ public class KBSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(app2));
   }
 
+  /** Test on delete empty list. */
   @Test
   public void testOnDeleteEmptyList() {
     when(deleteEvent.getTargetInstance()).thenReturn(copilotFile);

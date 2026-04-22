@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -53,6 +69,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
   @Mock private Entity appSourceEntity;
   @Mock private Property fileProperty;
 
+  /** Set up. */
   @Before
   public void setUp() {
     mockedModelProvider = mockStatic(ModelProvider.class);
@@ -75,6 +92,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
     lenient().when(appSourceEntity.getProperty(CopilotAppSource.PROPERTY_FILE)).thenReturn(fileProperty);
   }
 
+  /** Tear down. */
   @After
   public void tearDown() {
     mockedModelProvider.close();
@@ -83,6 +101,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
     mockedOBMessageUtils.close();
   }
 
+  /** Test on update file changed. */
   @Test
   public void testOnUpdateFileChanged() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotAppSource);
@@ -96,6 +115,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
   }
 
+  /** Test on update file unchanged. */
   @Test
   public void testOnUpdateFileUnchanged() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotAppSource);
@@ -109,6 +129,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(any(CopilotApp.class)), never());
   }
 
+  /** Test on save. */
   @Test
   public void testOnSave() {
     when(newEvent.getTargetInstance()).thenReturn(copilotAppSource);
@@ -120,6 +141,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
   }
 
+  /** Test on delete. */
   @Test
   public void testOnDelete() {
     when(deleteEvent.getTargetInstance()).thenReturn(copilotAppSource);
@@ -130,6 +152,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
   }
 
+  /** Test validate module export no assistant module. */
   @Test
   public void testValidateModuleExportNoAssistantModule() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotAppSource);
@@ -142,6 +165,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
     // No exception thrown means validation passed (assistantModule == null returns early)
   }
 
+  /** Test validate module export module in rel and file. */
   @Test
   public void testValidateModuleExportModuleInRelAndFile() {
     Module assistantModule = mock(Module.class);
@@ -162,6 +186,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
     // No exception - both module in rel and file have modules
   }
 
+  /** Test validate module export module in rel but not in file. */
   @Test(expected = OBException.class)
   public void testValidateModuleExportModuleInRelButNotInFile() {
     Module assistantModule = mock(Module.class);
@@ -182,6 +207,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
     handler.onUpdate(updateEvent);
   }
 
+  /** Test validate module export no module in rel. */
   @Test
   public void testValidateModuleExportNoModuleInRel() {
     Module assistantModule = mock(Module.class);
@@ -197,6 +223,7 @@ public class AssistantKBSyncStatusHandlerNewTest {
     // No exception - moduleInRel is false so validation passes
   }
 
+  /** Test on save validate module export throws. */
   @Test
   public void testOnSaveValidateModuleExportThrows() {
     Module assistantModule = mock(Module.class);

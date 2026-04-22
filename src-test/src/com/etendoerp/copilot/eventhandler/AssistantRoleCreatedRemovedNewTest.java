@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -48,6 +64,7 @@ public class AssistantRoleCreatedRemovedNewTest {
   @Mock private CopilotRoleApp roleApp1;
   @Mock private CopilotRoleApp roleApp2;
 
+  /** Set up. */
   @Before
   public void setUp() {
     mockedOBDal = mockStatic(OBDal.class);
@@ -68,12 +85,14 @@ public class AssistantRoleCreatedRemovedNewTest {
     lenient().when(criteria.add(any(Criterion.class))).thenReturn(criteria);
   }
 
+  /** Tear down. */
   @After
   public void tearDown() {
     mockedOBDal.close();
     mockedModelProvider.close();
   }
 
+  /** Test on delete removes role apps. */
   @Test
   public void testOnDeleteRemovesRoleApps() {
     when(deleteEvent.getTargetInstance()).thenReturn(copilotApp);
@@ -85,6 +104,7 @@ public class AssistantRoleCreatedRemovedNewTest {
     verify(obDal).remove(roleApp2);
   }
 
+  /** Test on delete empty list. */
   @Test
   public void testOnDeleteEmptyList() {
     when(deleteEvent.getTargetInstance()).thenReturn(copilotApp);

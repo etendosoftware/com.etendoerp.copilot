@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.Mockito.lenient;
@@ -30,12 +46,15 @@ import com.etendoerp.copilot.data.ToolWebhook;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class ToolWebhookAccessNewTest {
+  private static final String NOT_SYS_ADMIN = "Not sys admin";
+  private static final String SMFWHE_ERRORSYSADMINROLE = "smfwhe_errorSysAdminRole";
+  private static final String WEBHOOK_SYS_CLIENT_ID = "0";
 
   private ToolWebhookAccess handler;
 
   private MockedStatic<OBDal> mockedOBDal;
-  private MockedStatic<ModelProvider> mockedModelProvider;
   private MockedStatic<OBContext> mockedOBContext;
+  private MockedStatic<ModelProvider> mockedModelProvider;
   private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
 
   @Mock private EntityUpdateEvent updateEvent;
@@ -48,19 +67,11 @@ public class ToolWebhookAccessNewTest {
   @Mock private Client currentClient;
   @Mock private Client sysClient;
 
+  /** Set up. */
   @Before
   public void setUp() {
-    mockedOBDal = mockStatic(OBDal.class);
-    mockedModelProvider = mockStatic(ModelProvider.class);
-    mockedOBContext = mockStatic(OBContext.class);
-    mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
-
-    mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
-    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
-    mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
-    lenient().when(modelProvider.getEntity(ToolWebhook.class)).thenReturn(entity);
-    lenient().when(obContext.getCurrentClient()).thenReturn(currentClient);
-    lenient().when(obDal.get(Client.class, "0")).thenReturn(sysClient);
+    initWebhookAccessStaticMocks();
+    configureWebhookAccessCoreMocks();
 
     handler = new ToolWebhookAccess() {
       @Override
@@ -70,66 +81,89 @@ public class ToolWebhookAccessNewTest {
     };
   }
 
-  @After
-  public void tearDown() {
-    mockedOBDal.close();
-    mockedModelProvider.close();
-    mockedOBContext.close();
-    mockedOBMessageUtils.close();
+  private void initWebhookAccessStaticMocks() {
+    mockedOBDal = mockStatic(OBDal.class);
+    mockedOBContext = mockStatic(OBContext.class);
+    mockedModelProvider = mockStatic(ModelProvider.class);
+    mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
   }
 
+  private void configureWebhookAccessCoreMocks() {
+    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
+    mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
+    mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
+    lenient().when(modelProvider.getEntity(ToolWebhook.class)).thenReturn(entity);
+    lenient().when(obDal.get(Client.class, WEBHOOK_SYS_CLIENT_ID)).thenReturn(sysClient);
+    lenient().when(obContext.getCurrentClient()).thenReturn(currentClient);
+  }
+
+  /** Tear down. */
+  @After
+  public void tearDown() {
+    mockedOBMessageUtils.close();
+    mockedOBContext.close();
+    mockedOBDal.close();
+    mockedModelProvider.close();
+  }
+
+  /** Test on update sys admin. */
   @Test
   public void testOnUpdateSysAdmin() {
-    when(currentClient.getId()).thenReturn("0");
-    when(sysClient.getId()).thenReturn("0");
+    setupSysAdminClient();
 
     handler.onUpdate(updateEvent);
     // No exception
   }
 
+  /** Test on update non sys admin. */
   @Test(expected = OBException.class)
   public void testOnUpdateNonSysAdmin() {
-    when(currentClient.getId()).thenReturn("100");
-    when(sysClient.getId()).thenReturn("0");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("smfwhe_errorSysAdminRole"))
-        .thenReturn("Not sys admin");
+    setupNonSysAdminClient();
 
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on save sys admin. */
   @Test
   public void testOnSaveSysAdmin() {
-    when(currentClient.getId()).thenReturn("0");
-    when(sysClient.getId()).thenReturn("0");
+    setupSysAdminClient();
 
     handler.onSave(newEvent);
   }
 
+  /** Test on save non sys admin. */
   @Test(expected = OBException.class)
   public void testOnSaveNonSysAdmin() {
-    when(currentClient.getId()).thenReturn("100");
-    when(sysClient.getId()).thenReturn("0");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("smfwhe_errorSysAdminRole"))
-        .thenReturn("Not sys admin");
+    setupNonSysAdminClient();
 
     handler.onSave(newEvent);
   }
 
+  /** Test on delete sys admin. */
   @Test
   public void testOnDeleteSysAdmin() {
-    when(currentClient.getId()).thenReturn("0");
-    when(sysClient.getId()).thenReturn("0");
+    setupSysAdminClient();
 
     handler.onDelete(deleteEvent);
   }
 
+  /** Test on delete non sys admin. */
   @Test(expected = OBException.class)
   public void testOnDeleteNonSysAdmin() {
-    when(currentClient.getId()).thenReturn("100");
-    when(sysClient.getId()).thenReturn("0");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("smfwhe_errorSysAdminRole"))
-        .thenReturn("Not sys admin");
+    setupNonSysAdminClient();
 
     handler.onDelete(deleteEvent);
+  }
+
+  private void setupSysAdminClient() {
+    when(sysClient.getId()).thenReturn(WEBHOOK_SYS_CLIENT_ID);
+    when(currentClient.getId()).thenReturn(WEBHOOK_SYS_CLIENT_ID);
+  }
+
+  private void setupNonSysAdminClient() {
+    when(sysClient.getId()).thenReturn(WEBHOOK_SYS_CLIENT_ID);
+    when(currentClient.getId()).thenReturn("100");
+    mockedOBMessageUtils.when(
+        () -> OBMessageUtils.messageBD(SMFWHE_ERRORSYSADMINROLE)).thenReturn(NOT_SYS_ADMIN);
   }
 }

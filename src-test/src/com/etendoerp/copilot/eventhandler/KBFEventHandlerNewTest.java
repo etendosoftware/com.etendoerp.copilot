@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.Mockito.lenient;
@@ -40,6 +56,7 @@ public class KBFEventHandlerNewTest {
   @Mock private ModelProvider modelProvider;
   @Mock private Entity entity;
 
+  /** Set up. */
   @Before
   public void setUp() {
     mockedModelProvider = mockStatic(ModelProvider.class);
@@ -57,6 +74,7 @@ public class KBFEventHandlerNewTest {
     };
   }
 
+  /** Tear down. */
   @After
   public void tearDown() {
     mockedModelProvider.close();
@@ -64,6 +82,7 @@ public class KBFEventHandlerNewTest {
     mockedOBMessageUtils.close();
   }
 
+  /** Test on update null max chunk size. */
   @Test
   public void testOnUpdateNullMaxChunkSize() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -73,6 +92,7 @@ public class KBFEventHandlerNewTest {
     // No exception - null maxChunkSize returns early
   }
 
+  /** Test on update valid chunk size. */
   @Test
   public void testOnUpdateValidChunkSize() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -83,6 +103,7 @@ public class KBFEventHandlerNewTest {
     // No exception - overlap < maxChunkSize
   }
 
+  /** Test on update overlap exceeds max chunk size. */
   @Test(expected = OBException.class)
   public void testOnUpdateOverlapExceedsMaxChunkSize() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -94,6 +115,7 @@ public class KBFEventHandlerNewTest {
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update null chunk overlap. */
   @Test
   public void testOnUpdateNullChunkOverlap() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -104,6 +126,7 @@ public class KBFEventHandlerNewTest {
     // No exception - null overlap is fine
   }
 
+  /** Test on save null max chunk size. */
   @Test
   public void testOnSaveNullMaxChunkSize() {
     when(newEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -112,6 +135,7 @@ public class KBFEventHandlerNewTest {
     handler.onSave(newEvent);
   }
 
+  /** Test on save valid chunk size. */
   @Test
   public void testOnSaveValidChunkSize() {
     when(newEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -121,6 +145,7 @@ public class KBFEventHandlerNewTest {
     handler.onSave(newEvent);
   }
 
+  /** Test on save overlap exceeds max chunk size. */
   @Test(expected = OBException.class)
   public void testOnSaveOverlapExceedsMaxChunkSize() {
     when(newEvent.getTargetInstance()).thenReturn(copilotFile);
@@ -132,6 +157,7 @@ public class KBFEventHandlerNewTest {
     handler.onSave(newEvent);
   }
 
+  /** Test on update equal chunk size and overlap. */
   @Test
   public void testOnUpdateEqualChunkSizeAndOverlap() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotFile);

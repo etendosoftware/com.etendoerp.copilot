@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.Mockito.lenient;
@@ -15,6 +31,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.ModelProvider;
+import org.openbravo.base.structure.BaseOBObject;
 import org.openbravo.client.kernel.event.EntityDeleteEvent;
 import org.openbravo.client.kernel.event.EntityNewEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEvent;
@@ -33,6 +50,8 @@ import com.etendoerp.copilot.data.TeamMember;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class SkillToolViewHandlerNewTest {
+  private static final String ETCOP_ERRORCLIENT = "ETCOP_errorClient";
+  private static final String SKILL_VIEW_DEFAULT_CLIENT = "100";
 
   private SkillToolViewHandler handler;
 
@@ -54,20 +73,11 @@ public class SkillToolViewHandlerNewTest {
   @Mock private ModelProvider modelProvider;
   @Mock private Entity entity;
 
+  /** Set up. */
   @Before
   public void setUp() {
-    mockedOBDal = mockStatic(OBDal.class);
-    mockedModelProvider = mockStatic(ModelProvider.class);
-    mockedOBContext = mockStatic(OBContext.class);
-    mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
-
-    mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
-    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
-    mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
-
-    lenient().when(modelProvider.getEntity(CopilotAppTool.class)).thenReturn(entity);
-    lenient().when(modelProvider.getEntity(TeamMember.class)).thenReturn(entity);
-    lenient().when(obContext.getCurrentClient()).thenReturn(currentClient);
+    openSkillToolViewStaticMocks();
+    wireSkillToolViewProviders();
 
     handler = new SkillToolViewHandler() {
       @Override
@@ -77,125 +87,134 @@ public class SkillToolViewHandlerNewTest {
     };
   }
 
-  @After
-  public void tearDown() {
-    mockedOBDal.close();
-    mockedModelProvider.close();
-    mockedOBContext.close();
-    mockedOBMessageUtils.close();
+  private void openSkillToolViewStaticMocks() {
+    mockedOBDal = mockStatic(OBDal.class);
+    mockedOBContext = mockStatic(OBContext.class);
+    mockedModelProvider = mockStatic(ModelProvider.class);
+    mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
   }
 
+  private void wireSkillToolViewProviders() {
+    mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
+    mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
+    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
+    lenient().when(obContext.getCurrentClient()).thenReturn(currentClient);
+    lenient().when(modelProvider.getEntity(CopilotAppTool.class)).thenReturn(entity);
+    lenient().when(modelProvider.getEntity(TeamMember.class)).thenReturn(entity);
+  }
+
+  /** Tear down. */
+  @After
+  public void tearDown() {
+    mockedModelProvider.close();
+    mockedOBDal.close();
+    mockedOBMessageUtils.close();
+    mockedOBContext.close();
+  }
+
+  /** Test on update copilot app tool same client. */
   @Test
   public void testOnUpdateCopilotAppToolSameClient() {
-    String clientId = "100";
-    when(updateEvent.getTargetInstance()).thenReturn(copilotAppTool);
-    when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
-    when(copilotApp.getClient()).thenReturn(objClient);
-    when(objClient.getId()).thenReturn(clientId);
-    when(currentClient.getId()).thenReturn(clientId);
-    when(obDal.get(Client.class, clientId)).thenReturn(objClient);
+    setupSameClientEvent(updateEvent, copilotAppTool);
 
     handler.onUpdate(updateEvent);
     // No exception means same client check passed
   }
 
+  /** Test on update team member same client. */
   @Test
   public void testOnUpdateTeamMemberSameClient() {
-    String clientId = "100";
-    when(updateEvent.getTargetInstance()).thenReturn(teamMember);
-    when(teamMember.getCopilotApp()).thenReturn(copilotApp);
-    when(copilotApp.getClient()).thenReturn(objClient);
-    when(objClient.getId()).thenReturn(clientId);
-    when(currentClient.getId()).thenReturn(clientId);
-    when(obDal.get(Client.class, clientId)).thenReturn(objClient);
+    setupSameClientEvent(updateEvent, teamMember);
 
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update different client throws. */
   @Test(expected = OBException.class)
   public void testOnUpdateDifferentClientThrows() {
-    Client diffClient = mock(Client.class);
-    when(updateEvent.getTargetInstance()).thenReturn(copilotAppTool);
-    when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
-    when(copilotApp.getClient()).thenReturn(diffClient);
-    when(diffClient.getId()).thenReturn("200");
-    when(currentClient.getId()).thenReturn("100");
-    when(obDal.get(Client.class, "200")).thenReturn(diffClient);
-    when(diffClient.getName()).thenReturn("Other Client");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_errorClient"))
-        .thenReturn("Error client");
+    setupDifferentClientEvent(updateEvent, copilotAppTool, "Other Client");
 
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update null obj client throws. */
   @Test(expected = OBException.class)
   public void testOnUpdateNullObjClientThrows() {
-    when(updateEvent.getTargetInstance()).thenReturn(copilotAppTool);
+    setupNullClientEvent(updateEvent);
+
+    handler.onUpdate(updateEvent);
+  }
+
+  /** Test on save same client. */
+  @Test
+  public void testOnSaveSameClient() {
+    setupSameClientEvent(newEvent, copilotAppTool);
+
+    handler.onSave(newEvent);
+  }
+
+  /** Test on delete same client. */
+  @Test
+  public void testOnDeleteSameClient() {
+    setupSameClientEvent(deleteEvent, copilotAppTool);
+
+    handler.onDelete(deleteEvent);
+  }
+
+  /** Test on save different client throws. */
+  @Test(expected = OBException.class)
+  public void testOnSaveDifferentClientThrows() {
+    setupDifferentClientEvent(newEvent, teamMember, "Other");
+
+    handler.onSave(newEvent);
+  }
+
+  /** Test on delete different client throws. */
+  @Test(expected = OBException.class)
+  public void testOnDeleteDifferentClientThrows() {
+    setupDifferentClientEvent(deleteEvent, copilotAppTool, "Other");
+
+    handler.onDelete(deleteEvent);
+  }
+
+  private void setupSameClientEvent(EntityPersistenceEvent event, Object targetInstance) {
+    when(event.getTargetInstance()).thenReturn((BaseOBObject) targetInstance);
+    configureCopilotAppFromTarget(targetInstance);
+    when(copilotApp.getClient()).thenReturn(objClient);
+    when(objClient.getId()).thenReturn(SKILL_VIEW_DEFAULT_CLIENT);
+    when(currentClient.getId()).thenReturn(SKILL_VIEW_DEFAULT_CLIENT);
+    when(obDal.get(Client.class, SKILL_VIEW_DEFAULT_CLIENT)).thenReturn(objClient);
+  }
+
+  private void configureCopilotAppFromTarget(Object targetInstance) {
+    if (targetInstance instanceof CopilotAppTool) {
+      when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
+    } else {
+      when(teamMember.getCopilotApp()).thenReturn(copilotApp);
+    }
+  }
+
+  private void setupDifferentClientEvent(EntityPersistenceEvent event, Object targetInstance,
+      String clientName) {
+    when(event.getTargetInstance()).thenReturn((BaseOBObject) targetInstance);
+    configureCopilotAppFromTarget(targetInstance);
+    Client diffClient = mock(Client.class);
+    when(copilotApp.getClient()).thenReturn(diffClient);
+    when(currentClient.getId()).thenReturn(SKILL_VIEW_DEFAULT_CLIENT);
+    when(diffClient.getId()).thenReturn("200");
+    when(obDal.get(Client.class, "200")).thenReturn(diffClient);
+    when(diffClient.getName()).thenReturn(clientName);
+    mockedOBMessageUtils.when(
+        () -> OBMessageUtils.messageBD(ETCOP_ERRORCLIENT)).thenReturn("Error client");
+  }
+
+  private void setupNullClientEvent(EntityPersistenceEvent event) {
+    when(event.getTargetInstance()).thenReturn(copilotAppTool);
     when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
     when(copilotApp.getClient()).thenReturn(objClient);
     when(objClient.getId()).thenReturn("999");
     when(obDal.get(Client.class, "999")).thenReturn(null);
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_errorClient"))
+    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(ETCOP_ERRORCLIENT))
         .thenReturn("Error client");
-
-    handler.onUpdate(updateEvent);
-  }
-
-  @Test
-  public void testOnSaveSameClient() {
-    String clientId = "100";
-    when(newEvent.getTargetInstance()).thenReturn(copilotAppTool);
-    when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
-    when(copilotApp.getClient()).thenReturn(objClient);
-    when(objClient.getId()).thenReturn(clientId);
-    when(currentClient.getId()).thenReturn(clientId);
-    when(obDal.get(Client.class, clientId)).thenReturn(objClient);
-
-    handler.onSave(newEvent);
-  }
-
-  @Test
-  public void testOnDeleteSameClient() {
-    String clientId = "100";
-    when(deleteEvent.getTargetInstance()).thenReturn(copilotAppTool);
-    when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
-    when(copilotApp.getClient()).thenReturn(objClient);
-    when(objClient.getId()).thenReturn(clientId);
-    when(currentClient.getId()).thenReturn(clientId);
-    when(obDal.get(Client.class, clientId)).thenReturn(objClient);
-
-    handler.onDelete(deleteEvent);
-  }
-
-  @Test(expected = OBException.class)
-  public void testOnSaveDifferentClientThrows() {
-    Client diffClient = mock(Client.class);
-    when(newEvent.getTargetInstance()).thenReturn(teamMember);
-    when(teamMember.getCopilotApp()).thenReturn(copilotApp);
-    when(copilotApp.getClient()).thenReturn(diffClient);
-    when(diffClient.getId()).thenReturn("200");
-    when(currentClient.getId()).thenReturn("100");
-    when(obDal.get(Client.class, "200")).thenReturn(diffClient);
-    when(diffClient.getName()).thenReturn("Other");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_errorClient"))
-        .thenReturn("Error");
-
-    handler.onSave(newEvent);
-  }
-
-  @Test(expected = OBException.class)
-  public void testOnDeleteDifferentClientThrows() {
-    Client diffClient = mock(Client.class);
-    when(deleteEvent.getTargetInstance()).thenReturn(copilotAppTool);
-    when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
-    when(copilotApp.getClient()).thenReturn(diffClient);
-    when(diffClient.getId()).thenReturn("200");
-    when(currentClient.getId()).thenReturn("100");
-    when(obDal.get(Client.class, "200")).thenReturn(diffClient);
-    when(diffClient.getName()).thenReturn("Other");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_errorClient"))
-        .thenReturn("Error");
-
-    handler.onDelete(deleteEvent);
   }
 }

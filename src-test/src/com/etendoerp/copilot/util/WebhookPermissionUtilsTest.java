@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.util;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -60,6 +76,7 @@ public class WebhookPermissionUtilsTest {
   private MockedStatic<OBDal> obDalStatic;
   private MockedStatic<OBProvider> obProviderStatic;
 
+  /** Set up. */
   @Before
   public void setUp() {
     obDalStatic = mockStatic(OBDal.class);
@@ -78,12 +95,14 @@ public class WebhookPermissionUtilsTest {
     lenient().when(mockApp.getId()).thenReturn("app-1");
   }
 
+  /** Tear down. */
   @After
   public void tearDown() {
     if (obProviderStatic != null) obProviderStatic.close();
     if (obDalStatic != null) obDalStatic.close();
   }
 
+  /** Test assign missing permissions no missing. */
   @Test
   public void testAssignMissingPermissionsNoMissing() {
     when(mockCriteria.list()).thenReturn(Collections.emptyList());
@@ -95,6 +114,7 @@ public class WebhookPermissionUtilsTest {
     verify(mockOBProvider, never()).get(DefinedwebhookRole.class);
   }
 
+  /** Test assign missing permissions creates one permission. */
   @Test
   public void testAssignMissingPermissionsCreatesOnePermission() {
     RoleWebhookaccessV mockPermInfo = mock(RoleWebhookaccessV.class);
@@ -120,6 +140,7 @@ public class WebhookPermissionUtilsTest {
     verify(mockOBDal).flush();
   }
 
+  /** Test assign missing permissions creates multiple. */
   @Test
   public void testAssignMissingPermissionsCreatesMultiple() {
     RoleWebhookaccessV perm1 = mock(RoleWebhookaccessV.class);
@@ -146,6 +167,7 @@ public class WebhookPermissionUtilsTest {
     verify(mockOBDal).flush();
   }
 
+  /** Test assign missing permissions handles exception. */
   @Test
   public void testAssignMissingPermissionsHandlesException() {
     // Simulate exception during criteria query

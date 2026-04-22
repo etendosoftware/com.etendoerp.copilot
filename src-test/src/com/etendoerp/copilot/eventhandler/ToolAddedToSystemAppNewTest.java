@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.Mockito.lenient;
@@ -31,6 +47,8 @@ import com.etendoerp.copilot.data.CopilotAppTool;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class ToolAddedToSystemAppNewTest {
+  private static final String TOOL_ADDED_SAME_CLIENT = "100";
+  private static final String TOOL_ADDED_DIFF_CLIENT = "200";
 
   private ToolAddedToSystemApp handler;
 
@@ -49,16 +67,12 @@ public class ToolAddedToSystemAppNewTest {
   @Mock private ModelProvider modelProvider;
   @Mock private Entity entity;
 
+  /** Set up. */
   @Before
   public void setUp() {
-    mockedModelProvider = mockStatic(ModelProvider.class);
-    mockedOBContext = mockStatic(OBContext.class);
-    mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
-
-    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
-    mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
-    lenient().when(modelProvider.getEntity(CopilotAppTool.ENTITY_NAME)).thenReturn(entity);
-    lenient().when(obContext.getCurrentClient()).thenReturn(contextClient);
+    bootstrapToolAddedMocks();
+    lenient().when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
+    lenient().when(copilotApp.getClient()).thenReturn(appClient);
 
     handler = new ToolAddedToSystemApp() {
       @Override
@@ -66,63 +80,74 @@ public class ToolAddedToSystemAppNewTest {
         return true;
       }
     };
-
-    lenient().when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
-    lenient().when(copilotApp.getClient()).thenReturn(appClient);
   }
 
+  private void bootstrapToolAddedMocks() {
+    mockedOBContext = mockStatic(OBContext.class);
+    mockedModelProvider = mockStatic(ModelProvider.class);
+    mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
+    mockedOBContext.when(OBContext::getOBContext).thenReturn(obContext);
+    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
+    lenient().when(obContext.getCurrentClient()).thenReturn(contextClient);
+    lenient().when(modelProvider.getEntity(CopilotAppTool.ENTITY_NAME)).thenReturn(entity);
+  }
+
+  /** Tear down. */
   @After
   public void tearDown() {
-    mockedModelProvider.close();
     mockedOBContext.close();
     mockedOBMessageUtils.close();
+    mockedModelProvider.close();
   }
 
+  /** Test on update same client. */
   @Test
   public void testOnUpdateSameClient() {
-    when(updateEvent.getTargetInstance()).thenReturn(copilotAppTool);
-    when(appClient.getId()).thenReturn("100");
-    when(contextClient.getId()).thenReturn("100");
-
+    configureToolAddedSameClient(updateEvent);
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update different client. */
   @Test(expected = OBException.class)
   public void testOnUpdateDifferentClient() {
-    when(updateEvent.getTargetInstance()).thenReturn(copilotAppTool);
-    when(appClient.getId()).thenReturn("100");
-    when(contextClient.getId()).thenReturn("200");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_WrongClientApp"))
-        .thenReturn("Wrong client");
-
+    configureToolAddedDiffClient(updateEvent);
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on save same client. */
   @Test
   public void testOnSaveSameClient() {
-    when(newEvent.getTargetInstance()).thenReturn(copilotAppTool);
-    when(appClient.getId()).thenReturn("100");
-    when(contextClient.getId()).thenReturn("100");
-
+    configureToolAddedSameClient(newEvent);
     handler.onSave(newEvent);
   }
 
+  /** Test on save different client. */
   @Test(expected = OBException.class)
   public void testOnSaveDifferentClient() {
-    when(newEvent.getTargetInstance()).thenReturn(copilotAppTool);
-    when(appClient.getId()).thenReturn("100");
-    when(contextClient.getId()).thenReturn("200");
-    mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_WrongClientApp"))
-        .thenReturn("Wrong client");
-
+    configureToolAddedDiffClient(newEvent);
     handler.onSave(newEvent);
   }
 
+  /** Test on delete does nothing. */
   @Test
   public void testOnDeleteDoesNothing() {
     lenient().when(deleteEvent.getTargetInstance()).thenReturn(copilotAppTool);
 
     handler.onDelete(deleteEvent);
     // No client check on delete
+  }
+
+  private void configureToolAddedSameClient(EntityPersistenceEvent event) {
+    when(event.getTargetInstance()).thenReturn(copilotAppTool);
+    when(appClient.getId()).thenReturn(TOOL_ADDED_SAME_CLIENT);
+    when(contextClient.getId()).thenReturn(TOOL_ADDED_SAME_CLIENT);
+  }
+
+  private void configureToolAddedDiffClient(EntityPersistenceEvent event) {
+    when(event.getTargetInstance()).thenReturn(copilotAppTool);
+    when(appClient.getId()).thenReturn(TOOL_ADDED_SAME_CLIENT);
+    when(contextClient.getId()).thenReturn(TOOL_ADDED_DIFF_CLIENT);
+    mockedOBMessageUtils.when(
+        () -> OBMessageUtils.messageBD("ETCOP_WrongClientApp")).thenReturn("Wrong client");
   }
 }

@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.Mockito.lenient;
@@ -38,6 +54,7 @@ public class MCPValidationHandlerNewTest {
   @Mock private ModelProvider modelProvider;
   @Mock private Entity entity;
 
+  /** Set up. */
   @Before
   public void setUp() {
     mockedModelProvider = mockStatic(ModelProvider.class);
@@ -54,12 +71,14 @@ public class MCPValidationHandlerNewTest {
     };
   }
 
+  /** Tear down. */
   @After
   public void tearDown() {
     mockedModelProvider.close();
     mockedOBMessageUtils.close();
   }
 
+  /** Test on save valid json. */
   @Test
   public void testOnSaveValidJson() {
     when(newEvent.getTargetInstance()).thenReturn(copilotMCP);
@@ -71,6 +90,7 @@ public class MCPValidationHandlerNewTest {
     // No exception
   }
 
+  /** Test on save invalid json. */
   @Test(expected = OBException.class)
   public void testOnSaveInvalidJson() {
     when(newEvent.getTargetInstance()).thenReturn(copilotMCP);
@@ -83,6 +103,7 @@ public class MCPValidationHandlerNewTest {
     handler.onSave(newEvent);
   }
 
+  /** Test on save inactive record. */
   @Test
   public void testOnSaveInactiveRecord() {
     when(newEvent.getTargetInstance()).thenReturn(copilotMCP);
@@ -93,6 +114,7 @@ public class MCPValidationHandlerNewTest {
     // No exception - inactive records skip validation
   }
 
+  /** Test on save active empty json. */
   @Test
   public void testOnSaveActiveEmptyJson() {
     when(newEvent.getTargetInstance()).thenReturn(copilotMCP);
@@ -104,6 +126,7 @@ public class MCPValidationHandlerNewTest {
     // No exception - empty json just logs warning
   }
 
+  /** Test on save active null json. */
   @Test
   public void testOnSaveActiveNullJson() {
     when(newEvent.getTargetInstance()).thenReturn(copilotMCP);
@@ -115,6 +138,7 @@ public class MCPValidationHandlerNewTest {
     // No exception - null json just logs warning
   }
 
+  /** Test on update valid json. */
   @Test
   public void testOnUpdateValidJson() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotMCP);
@@ -126,6 +150,7 @@ public class MCPValidationHandlerNewTest {
     // No exception
   }
 
+  /** Test on update invalid json. */
   @Test(expected = OBException.class)
   public void testOnUpdateInvalidJson() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotMCP);
@@ -138,6 +163,7 @@ public class MCPValidationHandlerNewTest {
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update inactive. */
   @Test
   public void testOnUpdateInactive() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotMCP);

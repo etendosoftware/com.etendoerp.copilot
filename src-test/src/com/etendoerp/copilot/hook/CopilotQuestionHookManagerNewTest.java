@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.hook;
 
 import static org.junit.Assert.assertEquals;
@@ -29,11 +45,13 @@ public class CopilotQuestionHookManagerNewTest {
 
   private CopilotQuestionHookManager manager;
 
+  /** Set up. */
   @Before
   public void setUp() {
     manager = new CopilotQuestionHookManager();
   }
 
+  /** Test sort hooks by priority empty. */
   @Test
   @SuppressWarnings("unchecked")
   public void testSortHooksByPriorityEmpty() {
@@ -47,39 +65,15 @@ public class CopilotQuestionHookManagerNewTest {
     assertTrue(result.isEmpty());
   }
 
+  /** Test sort hooks by priority sorts correctly. */
   @Test
   @SuppressWarnings("unchecked")
   public void testSortHooksByPrioritySortsCorrectly() {
-    CopilotQuestionHook hook1 = new CopilotQuestionHook() {
-      @Override
-      public void exec(CopilotApp app, JSONObject json) { }
-      @Override
-      public boolean typeCheck(CopilotApp app) { return true; }
-      @Override
-      public int getPriority() { return 75; }
-    };
+    CopilotQuestionHook hook1 = createHookWithPriority(75);
+    CopilotQuestionHook hook2 = createHookWithPriority(25);
+    CopilotQuestionHook hook3 = createHookWithPriority(50);
 
-    CopilotQuestionHook hook2 = new CopilotQuestionHook() {
-      @Override
-      public void exec(CopilotApp app, JSONObject json) { }
-      @Override
-      public boolean typeCheck(CopilotApp app) { return true; }
-      @Override
-      public int getPriority() { return 25; }
-    };
-
-    CopilotQuestionHook hook3 = new CopilotQuestionHook() {
-      @Override
-      public void exec(CopilotApp app, JSONObject json) { }
-      @Override
-      public boolean typeCheck(CopilotApp app) { return true; }
-      @Override
-      public int getPriority() { return 50; }
-    };
-
-    Instance<CopilotQuestionHook> instance = mock(Instance.class);
-    Iterator<CopilotQuestionHook> iter = Arrays.asList(hook1, hook2, hook3).iterator();
-    when(instance.iterator()).thenReturn(iter);
+    Instance<CopilotQuestionHook> instance = mockInstanceWith(hook1, hook2, hook3);
 
     List<Object> sorted = manager.sortHooksByPriority(instance);
     assertEquals(3, sorted.size());
@@ -88,12 +82,13 @@ public class CopilotQuestionHookManagerNewTest {
     assertEquals(75, ((CopilotQuestionHook) sorted.get(2)).getPriority());
   }
 
+  /** Test sort hooks by priority filters non hooks. */
   @Test
   @SuppressWarnings("unchecked")
   public void testSortHooksByPriorityFiltersNonHooks() {
     CopilotQuestionHook hook = new CopilotQuestionHook() {
       @Override
-      public void exec(CopilotApp app, JSONObject json) { }
+      public void exec(CopilotApp app, JSONObject json) { /* No-op: test stub */ }
       @Override
       public boolean typeCheck(CopilotApp app) { return true; }
     };
@@ -108,32 +103,47 @@ public class CopilotQuestionHookManagerNewTest {
     assertTrue(result.get(0) instanceof CopilotQuestionHook);
   }
 
+  /** Test sort hooks by priority with equal priorities. */
   @Test
   @SuppressWarnings("unchecked")
   public void testSortHooksByPriorityWithEqualPriorities() {
-    CopilotQuestionHook hook1 = new CopilotQuestionHook() {
-      @Override
-      public void exec(CopilotApp app, JSONObject json) { }
-      @Override
-      public boolean typeCheck(CopilotApp app) { return true; }
-      @Override
-      public int getPriority() { return 100; }
-    };
+    CopilotQuestionHook hook1 = createHookWithPriority(100);
+    CopilotQuestionHook hook2 = createHookWithPriority(100);
 
-    CopilotQuestionHook hook2 = new CopilotQuestionHook() {
-      @Override
-      public void exec(CopilotApp app, JSONObject json) { }
-      @Override
-      public boolean typeCheck(CopilotApp app) { return true; }
-      @Override
-      public int getPriority() { return 100; }
-    };
-
-    Instance<CopilotQuestionHook> instance = mock(Instance.class);
-    Iterator<CopilotQuestionHook> iter = Arrays.asList(hook1, hook2).iterator();
-    when(instance.iterator()).thenReturn(iter);
+    Instance<CopilotQuestionHook> instance = mockInstanceWith(hook1, hook2);
 
     List<Object> sorted = manager.sortHooksByPriority(instance);
     assertEquals(2, sorted.size());
+  }
+
+  /**
+   * Creates a {@link CopilotQuestionHook} stub with the given priority.
+   *
+   * @param priority the priority value the hook should return
+   * @return a new hook stub
+   */
+  private CopilotQuestionHook createHookWithPriority(int priority) {
+    return new CopilotQuestionHook() {
+      @Override
+      public void exec(CopilotApp app, JSONObject json) { /* No-op: test stub */ }
+      @Override
+      public boolean typeCheck(CopilotApp app) { return true; }
+      @Override
+      public int getPriority() { return priority; }
+    };
+  }
+
+  /**
+   * Creates a mock {@link Instance} that iterates over the given hooks.
+   *
+   * @param hooks the hooks to include in the mock instance
+   * @return a mocked Instance wrapping the provided hooks
+   */
+  @SuppressWarnings("unchecked")
+  private Instance<CopilotQuestionHook> mockInstanceWith(CopilotQuestionHook... hooks) {
+    Instance<CopilotQuestionHook> instance = mock(Instance.class);
+    Iterator<CopilotQuestionHook> iter = Arrays.asList(hooks).iterator();
+    when(instance.iterator()).thenReturn(iter);
+    return instance;
   }
 }

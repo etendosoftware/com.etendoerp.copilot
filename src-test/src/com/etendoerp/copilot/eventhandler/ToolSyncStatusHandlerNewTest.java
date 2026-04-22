@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -41,6 +57,8 @@ import com.etendoerp.copilot.util.CopilotUtils;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class ToolSyncStatusHandlerNewTest {
+  private static final String TOOL_SYNC_OLD_VALUE = "oldValue";
+  private static final String TOOL_SYNC_NEW_VALUE = "newValue";
 
   private ToolSyncStatusHandler handler;
 
@@ -49,39 +67,23 @@ public class ToolSyncStatusHandlerNewTest {
   private MockedStatic<CopilotAppInfoUtils> mockedAppInfoUtils;
   private MockedStatic<CopilotUtils> mockedCopilotUtils;
 
-  @Mock
-  private EntityUpdateEvent updateEvent;
-  @Mock
-  private EntityNewEvent newEvent;
-  @Mock
-  private EntityDeleteEvent deleteEvent;
-  @Mock
-  private CopilotTool copilotTool;
-  @Mock
-  private CopilotApp copilotApp;
-  @Mock
-  private CopilotAppTool copilotAppTool;
-  @Mock
-  private OBDal obDal;
-  @Mock
-  private ModelProvider modelProvider;
-  @Mock
-  private Entity entity;
-  @Mock
-  private Property property;
-  @Mock
-  private OBCriteria<CopilotAppTool> criteria;
+  @Mock private EntityUpdateEvent updateEvent;
+  @Mock private EntityNewEvent newEvent;
+  @Mock private EntityDeleteEvent deleteEvent;
+  @Mock private CopilotTool copilotTool;
+  @Mock private CopilotApp copilotApp;
+  @Mock private CopilotAppTool copilotAppTool;
+  @Mock private OBDal obDal;
+  @Mock private ModelProvider modelProvider;
+  @Mock private Entity entity;
+  @Mock private Property property;
+  @Mock private OBCriteria<CopilotAppTool> criteria;
 
+  /** Set up. */
   @Before
   public void setUp() {
-    mockedOBDal = mockStatic(OBDal.class);
-    mockedModelProvider = mockStatic(ModelProvider.class);
-    mockedAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
-    mockedCopilotUtils = mockStatic(CopilotUtils.class);
-
-    mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
-    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
-    lenient().when(modelProvider.getEntity(CopilotTool.class)).thenReturn(entity);
+    prepareToolSyncStaticMocks();
+    configureToolSyncBehavior();
 
     handler = new ToolSyncStatusHandler() {
       @Override
@@ -89,26 +91,37 @@ public class ToolSyncStatusHandlerNewTest {
         return true;
       }
     };
+  }
 
-    lenient().when(entity.getProperty(anyString())).thenReturn(property);
+  private void prepareToolSyncStaticMocks() {
+    mockedOBDal = mockStatic(OBDal.class);
+    mockedAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
+    mockedModelProvider = mockStatic(ModelProvider.class);
+    mockedCopilotUtils = mockStatic(CopilotUtils.class);
+  }
+
+  private void configureToolSyncBehavior() {
+    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
+    mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
+    lenient().when(modelProvider.getEntity(CopilotTool.class)).thenReturn(entity);
     lenient().when(obDal.createCriteria(CopilotAppTool.class)).thenReturn(criteria);
+    lenient().when(entity.getProperty(anyString())).thenReturn(property);
     lenient().when(criteria.add(any(Criterion.class))).thenReturn(criteria);
   }
 
+  /** Tear down. */
   @After
   public void tearDown() {
+    mockedCopilotUtils.close();
+    mockedAppInfoUtils.close();
     mockedOBDal.close();
     mockedModelProvider.close();
-    mockedAppInfoUtils.close();
-    mockedCopilotUtils.close();
   }
 
+  /** Test on update no property changes. */
   @Test
   public void testOnUpdateNoPropertyChanges() {
-    when(updateEvent.getTargetInstance()).thenReturn(copilotTool);
-    when(copilotTool.getEntity()).thenReturn(entity);
-    when(updateEvent.getPreviousState(any(Property.class))).thenReturn("value");
-    when(updateEvent.getCurrentState(any(Property.class))).thenReturn("value");
+    setupUpdateEvent("value", "value");
 
     handler.onUpdate(updateEvent);
 
@@ -116,12 +129,10 @@ public class ToolSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(any(CopilotApp.class)), never());
   }
 
+  /** Test on update property changed. */
   @Test
   public void testOnUpdatePropertyChanged() {
-    when(updateEvent.getTargetInstance()).thenReturn(copilotTool);
-    when(copilotTool.getEntity()).thenReturn(entity);
-    when(updateEvent.getPreviousState(any(Property.class))).thenReturn("oldValue");
-    when(updateEvent.getCurrentState(any(Property.class))).thenReturn("newValue");
+    setupUpdateEvent(TOOL_SYNC_OLD_VALUE, TOOL_SYNC_NEW_VALUE);
     when(criteria.list()).thenReturn(Collections.singletonList(copilotAppTool));
     when(copilotAppTool.getCopilotApp()).thenReturn(copilotApp);
 
@@ -131,12 +142,10 @@ public class ToolSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
   }
 
+  /** Test on update multiple apps. */
   @Test
   public void testOnUpdateMultipleApps() {
-    when(updateEvent.getTargetInstance()).thenReturn(copilotTool);
-    when(copilotTool.getEntity()).thenReturn(entity);
-    when(updateEvent.getPreviousState(any(Property.class))).thenReturn("old");
-    when(updateEvent.getCurrentState(any(Property.class))).thenReturn("new");
+    setupUpdateEvent("old", "new");
 
     CopilotApp copilotApp2 = mock(CopilotApp.class);
     CopilotAppTool appTool2 = mock(CopilotAppTool.class);
@@ -152,6 +161,7 @@ public class ToolSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp2));
   }
 
+  /** Test on save does nothing. */
   @Test
   public void testOnSaveDoesNothing() {
     lenient().when(newEvent.getTargetInstance()).thenReturn(copilotTool);
@@ -162,6 +172,7 @@ public class ToolSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(any(CopilotApp.class)), never());
   }
 
+  /** Test on delete. */
   @Test
   public void testOnDelete() {
     when(deleteEvent.getTargetInstance()).thenReturn(copilotTool);
@@ -174,6 +185,7 @@ public class ToolSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
   }
 
+  /** Test on delete empty list. */
   @Test
   public void testOnDeleteEmptyList() {
     when(deleteEvent.getTargetInstance()).thenReturn(copilotTool);
@@ -183,5 +195,12 @@ public class ToolSyncStatusHandlerNewTest {
 
     mockedAppInfoUtils.verify(
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(any(CopilotApp.class)), never());
+  }
+
+  private void setupUpdateEvent(String previousState, String currentState) {
+    when(updateEvent.getTargetInstance()).thenReturn(copilotTool);
+    when(copilotTool.getEntity()).thenReturn(entity);
+    when(updateEvent.getPreviousState(any(Property.class))).thenReturn(previousState);
+    when(updateEvent.getCurrentState(any(Property.class))).thenReturn(currentState);
   }
 }

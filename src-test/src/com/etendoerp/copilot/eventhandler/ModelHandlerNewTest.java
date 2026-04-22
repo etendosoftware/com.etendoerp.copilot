@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -36,6 +52,8 @@ import com.etendoerp.copilot.data.CopilotModel;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class ModelHandlerNewTest {
+  private static final String MODEL1 = "model1";
+
 
   private ModelHandler handler;
 
@@ -52,6 +70,10 @@ public class ModelHandlerNewTest {
   @Mock private CopilotModel copilotModel;
   @Mock private OBCriteria<CopilotModel> criteria;
 
+  /**
+   * Set up.
+   * @throws Exception if an error occurs
+   */
   @Before
   public void setUp() throws Exception {
     mockedOBDal = mockStatic(OBDal.class);
@@ -80,6 +102,7 @@ public class ModelHandlerNewTest {
     lenient().when(criteria.add(any(Criterion.class))).thenReturn(criteria);
   }
 
+  /** Tear down. */
   @After
   public void tearDown() {
     mockedOBDal.close();
@@ -97,6 +120,7 @@ public class ModelHandlerNewTest {
     lenient().when(updateEvent.getPreviousState(defaultOverrideProp)).thenReturn(previous);
   }
 
+  /** Test on update no default changes. */
   @Test
   public void testOnUpdateNoDefaultChanges() {
     lenient().when(updateEvent.getTargetInstance()).thenReturn(copilotModel);
@@ -108,6 +132,7 @@ public class ModelHandlerNewTest {
     verify(obDal, never()).save(any(CopilotModel.class));
   }
 
+  /** Test on update mark default open a i. */
   @Test
   public void testOnUpdateMarkDefaultOpenAI() {
     lenient().when(updateEvent.getTargetInstance()).thenReturn(copilotModel);
@@ -117,7 +142,7 @@ public class ModelHandlerNewTest {
 
     CopilotModel otherModel = mock(CopilotModel.class);
     lenient().when(criteria.list()).thenReturn(Collections.singletonList(otherModel));
-    lenient().when(copilotModel.getId()).thenReturn("model1");
+    lenient().when(copilotModel.getId()).thenReturn(MODEL1);
 
     handler.onUpdate(updateEvent);
 
@@ -125,6 +150,7 @@ public class ModelHandlerNewTest {
     verify(obDal).save(otherModel);
   }
 
+  /** Test on update mark default non open a i. */
   @Test(expected = OBException.class)
   public void testOnUpdateMarkDefaultNonOpenAI() {
     lenient().when(updateEvent.getTargetInstance()).thenReturn(copilotModel);
@@ -136,12 +162,13 @@ public class ModelHandlerNewTest {
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update mark default override already exists. */
   @Test(expected = OBException.class)
   public void testOnUpdateMarkDefaultOverrideAlreadyExists() {
     lenient().when(updateEvent.getTargetInstance()).thenReturn(copilotModel);
     stubDefaultState(Boolean.FALSE, Boolean.FALSE);
     stubOverrideState(Boolean.TRUE, Boolean.FALSE);
-    lenient().when(copilotModel.getId()).thenReturn("model1");
+    lenient().when(copilotModel.getId()).thenReturn(MODEL1);
 
     CopilotModel otherModel = mock(CopilotModel.class);
     lenient().when(criteria.setMaxResults(1)).thenReturn(criteria);
@@ -153,12 +180,13 @@ public class ModelHandlerNewTest {
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update mark default override no existing. */
   @Test
   public void testOnUpdateMarkDefaultOverrideNoExisting() {
     lenient().when(updateEvent.getTargetInstance()).thenReturn(copilotModel);
     stubDefaultState(Boolean.FALSE, Boolean.FALSE);
     stubOverrideState(Boolean.TRUE, Boolean.FALSE);
-    lenient().when(copilotModel.getId()).thenReturn("model1");
+    lenient().when(copilotModel.getId()).thenReturn(MODEL1);
 
     lenient().when(criteria.setMaxResults(1)).thenReturn(criteria);
     lenient().when(criteria.uniqueResult()).thenReturn(null);
@@ -166,6 +194,7 @@ public class ModelHandlerNewTest {
     handler.onUpdate(updateEvent);
   }
 
+  /** Test on update default already true. */
   @Test
   public void testOnUpdateDefaultAlreadyTrue() {
     lenient().when(updateEvent.getTargetInstance()).thenReturn(copilotModel);

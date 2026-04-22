@@ -1,3 +1,19 @@
+/*
+ *************************************************************************
+ * The contents of this file are subject to the Etendo License
+ * (the "License"), you may not use this file except in compliance with
+ * the License.
+ * You may obtain a copy of the License at
+ * https://github.com/etendosoftware/etendo_core/blob/main/legal/Etendo_license.txt
+ * Software distributed under the License is distributed on an
+ * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ * implied. See the License for the specific language governing rights
+ * and limitations under the License.
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
+ * All Rights Reserved.
+ * Contributor(s): Futit Services S.L.
+ *************************************************************************
+ */
 package com.etendoerp.copilot.eventhandler;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -47,15 +63,10 @@ public class AssistantSyncStatusHandlerNewTest {
   @Mock private Entity appEntity;
   @Mock private Property property;
 
+  /** Set up. */
   @Before
   public void setUp() {
-    mockedModelProvider = mockStatic(ModelProvider.class);
-    mockedAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
-    mockedCopilotUtils = mockStatic(CopilotUtils.class);
-
-    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
-    lenient().when(modelProvider.getEntity(CopilotApp.class)).thenReturn(appEntity);
-    lenient().when(modelProvider.getEntity(CopilotApp.ENTITY_NAME)).thenReturn(appEntity);
+    configureMockModelProvider();
 
     handler = new AssistantSyncStatusHandler() {
       @Override
@@ -67,6 +78,16 @@ public class AssistantSyncStatusHandlerNewTest {
     lenient().when(appEntity.getProperty(anyString())).thenReturn(property);
   }
 
+  private void configureMockModelProvider() {
+    mockedModelProvider = mockStatic(ModelProvider.class);
+    mockedAppInfoUtils = mockStatic(CopilotAppInfoUtils.class);
+    mockedCopilotUtils = mockStatic(CopilotUtils.class);
+    mockedModelProvider.when(ModelProvider::getInstance).thenReturn(modelProvider);
+    lenient().when(modelProvider.getEntity(CopilotApp.class)).thenReturn(appEntity);
+    lenient().when(modelProvider.getEntity(CopilotApp.ENTITY_NAME)).thenReturn(appEntity);
+  }
+
+  /** Tear down. */
   @After
   public void tearDown() {
     mockedModelProvider.close();
@@ -74,6 +95,7 @@ public class AssistantSyncStatusHandlerNewTest {
     mockedCopilotUtils.close();
   }
 
+  /** Test on update property changed. */
   @Test
   public void testOnUpdatePropertyChanged() {
     when(updateEvent.getTargetInstance()).thenReturn(copilotApp);
@@ -86,6 +108,7 @@ public class AssistantSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(copilotApp));
   }
 
+  /** Test on update no property changed. */
   @Test
   public void testOnUpdateNoPropertyChanged() {
     lenient().when(updateEvent.getTargetInstance()).thenReturn(copilotApp);
@@ -98,6 +121,7 @@ public class AssistantSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(any(CopilotApp.class)), never());
   }
 
+  /** Test on save does nothing. */
   @Test
   public void testOnSaveDoesNothing() {
     lenient().when(newEvent.getTargetInstance()).thenReturn(copilotApp);
@@ -108,6 +132,7 @@ public class AssistantSyncStatusHandlerNewTest {
         () -> CopilotAppInfoUtils.markAsPendingSynchronization(any(CopilotApp.class)), never());
   }
 
+  /** Test on delete does nothing. */
   @Test
   public void testOnDeleteDoesNothing() {
     lenient().when(deleteEvent.getTargetInstance()).thenReturn(copilotApp);
