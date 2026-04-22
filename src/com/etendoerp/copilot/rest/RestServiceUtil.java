@@ -948,6 +948,7 @@ public class RestServiceUtil {
         assistantJson.put(APP_ID, app.getId());
         assistantJson.put("name", app.getName());
         assistantJson.put(PROP_DESCRIPTION, app.getDescription());
+
         assistantJson.put("featured", app.isFeatured() ? "Y" : "N");
         assistants.put(assistantJson);
       }
