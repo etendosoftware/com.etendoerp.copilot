@@ -647,6 +647,9 @@ public class RestServiceUtil {
     }
 
     addTimestampToResponse(responseOriginal);
+    if (finalResponseAsync.has("ui_actions")) {
+      responseOriginal.put("ui_actions", finalResponseAsync.get("ui_actions"));
+    }
     TrackingUtil.getInstance().trackQuestion(conversationId, question, copilotApp);
     TrackingUtil.getInstance().trackResponse(conversationId, response, copilotApp, metadata);
 

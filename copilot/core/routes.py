@@ -110,12 +110,15 @@ def _serve_question_sync(question: QuestionSchema):
     """Copilot endpoint for answering questions synchronously."""
     _, copilot_agent = _initialize_agent(question)
     response = None
+    ui_actions = []
     try:
         response = _execute_agent(copilot_agent, question)
         local_history_recorder.record_chat(chat_question=question.question, chat_answer=response)
+        ui_actions = ThreadContext.get_data("ui_actions") or []
+        ThreadContext.set_data("ui_actions", [])
     except Exception as e:
         response = _handle_exception(e)
-    return {"answer": response}
+    return {"answer": response, "ui_actions": ui_actions}
 
 
 def _initialize_agent(question: QuestionSchema):
@@ -182,6 +185,8 @@ def serve_graph(question: GraphQuestionSchema):
         agent_response: AgentResponse = copilot_agent.execute(question)
         response = agent_response.output
         local_history_recorder.record_chat(chat_question=question.question, chat_answer=agent_response.output)
+        ui_actions = ThreadContext.get_data("ui_actions") or []
+        ThreadContext.set_data("ui_actions", [])
     except Exception as e:
         logger.exception(e)
         print_debug_except(e)
@@ -198,8 +203,9 @@ def serve_graph(question: GraphQuestionSchema):
                 "message": error_message,
             }
         }
+        ui_actions = []
 
-    return {"answer": response}
+    return {"answer": response, "ui_actions": ui_actions}
 
 
 def print_call_info(copilot_agent, question):

@@ -19,7 +19,7 @@ from copilot.core.agent.agent_utils import (
     process_local_files,
 )
 from copilot.core.agent.codeact import create_default_prompt
-from copilot.core.agent.langgraph_agent import build_config, handle_events
+from copilot.core.agent.langgraph_agent import _harvest_ui_actions, build_config, handle_events
 from copilot.core.memory.memory_handler import MemoryHandler
 from copilot.core.schemas import AssistantSchema, QuestionSchema, ToolSchema
 from copilot.core.threadcontextutils import (
@@ -361,6 +361,7 @@ class MultimodelAgent(CopilotAgent):
                     {"system_prompt": question.system_prompt, "messages": messages}, config=config
                 )
                 new_ai_message = agent_response.get("messages")[-1]
+                _harvest_ui_actions(agent_response.get("messages"))
                 usage_data = read_accum_usage_data_from_msg_arr(agent_response.get("messages"))
 
                 if not new_ai_message.content and usage_data.get("output_tokens", 0) == 0:

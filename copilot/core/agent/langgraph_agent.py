@@ -20,10 +20,11 @@ from copilot.core.langgraph.patterns.langsupervisor_pattern import LangSuperviso
 from copilot.core.memory.memory_handler import MemoryHandler
 from copilot.core.schema.graph_member import GraphMember
 from copilot.core.schemas import GraphQuestionSchema
+from copilot.core.threadcontext import ThreadContext
 from copilot.core.threadcontextutils import (
     read_accum_usage_data_from_msg_arr,
 )
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 SQLLITE_STORE_NAME = "store.sqlite"
@@ -248,6 +249,42 @@ def build_config(thread_id):
     return config
 
 
+def _harvest_ui_actions(messages):
+    """Scan ToolMessages for ui_action payloads and append them to the
+    ThreadContext `ui_actions` bucket. Robust against ContextVar loss across
+    async/thread boundaries by always rewriting the bucket from the final
+    message list returned by the graph.
+    """
+    import json as _json
+
+    if not messages:
+        return
+    harvested = []
+    for msg in messages:
+        if not isinstance(msg, ToolMessage):
+            continue
+        content = msg.content
+        if isinstance(content, str):
+            try:
+                content = _json.loads(content)
+            except Exception:
+                continue
+        if not isinstance(content, dict):
+            continue
+        data = content.get("data")
+        if not isinstance(data, dict):
+            continue
+        ui_action = data.get("ui_action")
+        if isinstance(ui_action, dict):
+            harvested.append(ui_action)
+    if harvested:
+        try:
+            existing = ThreadContext.get_data("ui_actions") or []
+            ThreadContext.set_data("ui_actions", list(existing) + harvested)
+        except Exception:
+            pass
+
+
 class LanggraphAgent(CopilotAgent):
     _memory: MemoryHandler = None
 
@@ -324,6 +361,7 @@ class LanggraphAgent(CopilotAgent):
                     )
 
                     messages = agent_response.get("messages")
+                    _harvest_ui_actions(messages)
                     usage_data = read_accum_usage_data_from_msg_arr(messages)
                     if agent_response.get("structured_response"):
                         new_ai_message = agent_response.get("structured_response")
