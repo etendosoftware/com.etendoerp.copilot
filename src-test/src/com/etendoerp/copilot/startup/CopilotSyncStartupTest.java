@@ -49,6 +49,7 @@ import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.database.SessionInfo;
 
 import com.etendoerp.copilot.data.AppInfo;
 import com.etendoerp.copilot.data.CopilotApp;
@@ -94,6 +95,7 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
   private MockedStatic<CopilotAppInfoUtils> mockedUtils;
   private MockedStatic<OBContext> mockedOBContext;
   private MockedStatic<OBProvider> mockedOBProvider;
+  private MockedStatic<SessionInfo> mockedSessionInfo;
 
   @Before
   public void setUp() throws Exception {
@@ -118,6 +120,10 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
 
     mockedOBProvider = mockStatic(OBProvider.class);
     mockedOBProvider.when(OBProvider::getInstance).thenReturn(obProvider);
+
+    // Default: SessionInfo is already initialized so waitForSessionInfoInitialized() returns immediately.
+    mockedSessionInfo = mockStatic(SessionInfo.class);
+    mockedSessionInfo.when(SessionInfo::isInitialized).thenReturn(true);
   }
 
   @After
@@ -126,6 +132,7 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     if (mockedUtils != null) mockedUtils.close();
     if (mockedOBContext != null) mockedOBContext.close();
     if (mockedOBProvider != null) mockedOBProvider.close();
+    if (mockedSessionInfo != null) mockedSessionInfo.close();
   }
 
   @Test
@@ -297,6 +304,23 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
 
     startup.initialize();
 
+    verify(syncAssistant).doExecute(any(), anyString());
+  }
+
+  @Test
+  public void testInitialize_WaitsForSessionInfoInitialized() throws Exception {
+    setupPendingApp();
+
+    // SessionInfo starts uninitialized then flips to initialized — sync must wait, then proceed.
+    java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+    mockedSessionInfo.when(SessionInfo::isInitialized).thenAnswer(inv -> calls.incrementAndGet() >= 3);
+
+    startup.initialize();
+
+    // doExecute only runs after isInitialized() returns true; verify both that the wait polled
+    // more than once and that sync still completed.
+    org.junit.Assert.assertTrue("Expected SessionInfo.isInitialized to be polled multiple times",
+        calls.get() >= 3);
     verify(syncAssistant).doExecute(any(), anyString());
   }
 
