@@ -25,6 +25,7 @@ import org.openbravo.client.kernel.ComponentProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.database.SessionInfo;
 import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.common.enterprise.Organization;
 
@@ -48,6 +49,8 @@ public class CopilotSyncStartup implements ApplicationInitializer {
   private static final int MAX_RETRIES = 5;
   private static final long RETRY_DELAY_MS = 30_000L;
   private static final long PROGRESS_INTERVAL_MS = 60_000L;
+  private static final long SESSION_INIT_WAIT_TIMEOUT_MS = 60_000L;
+  private static final long SESSION_INIT_POLL_MS = 100L;
   private static final String RECORD_IDS = "recordIds";
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder().build();
 
@@ -104,6 +107,11 @@ public class CopilotSyncStartup implements ApplicationInitializer {
   private void executeSync(JSONObject content) {
     SyncAssistant assistant = createSyncAssistant();
     try {
+      // Wait until SessionListener has called SessionInfo.setAuditActive(...). Until then,
+      // ConnectionInitializerInterceptor skips creating the per-connection AD_CONTEXT_INFO
+      // temp table; borrowing a connection now and holding it across the sync would later
+      // fail in saveContextInfoIntoDB with "relation ad_context_info does not exist".
+      waitForSessionInfoInitialized();
       OBContext.setAdminMode();
       ensureClientAdminRoleAccess(content);
       waitForCopilotService();
@@ -227,6 +235,22 @@ public class CopilotSyncStartup implements ApplicationInitializer {
     }
     OBDal.getInstance().flush();
     log.info("Copilot startup: marked {} agents as synchronized", ids.length());
+  }
+
+  private void waitForSessionInfoInitialized() throws InterruptedException {
+    if (SessionInfo.isInitialized()) {
+      return;
+    }
+    long deadline = System.currentTimeMillis() + SESSION_INIT_WAIT_TIMEOUT_MS;
+    while (!SessionInfo.isInitialized()) {
+      if (System.currentTimeMillis() > deadline) {
+        log.warn("Timed out waiting for SessionInfo initialization after {} ms; proceeding anyway",
+            SESSION_INIT_WAIT_TIMEOUT_MS);
+        return;
+      }
+      Thread.sleep(SESSION_INIT_POLL_MS);
+    }
+    log.info("SessionInfo initialized; CopilotSyncStartup proceeding");
   }
 
   private void waitForCopilotService() throws InterruptedException {
