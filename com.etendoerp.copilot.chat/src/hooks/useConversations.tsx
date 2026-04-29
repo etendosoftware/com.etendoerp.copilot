@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { IConversation, IMessage } from '../interfaces';
 import { ILabels } from '../interfaces/ILabels';
 import { RestUtils } from '../utils/environment';
@@ -11,6 +11,15 @@ export const useConversations = (selectedAppId: string | null, labels?: ILabels)
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [generatingTitles, setGeneratingTitles] = useState<Set<string>>(new Set());
   const [conversationsWithUnreadMessages, setConversationsWithUnreadMessages] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    const query = searchQuery.toLowerCase();
+    return conversations.filter(conv =>
+      (conv.title || '').toLowerCase().includes(query)
+    );
+  }, [conversations, searchQuery]);
 
   const loadConversations = async () => {
     if (!selectedAppId) return;
@@ -249,6 +258,76 @@ export const useConversations = (selectedAppId: string | null, labels?: ILabels)
     });
   };
 
+  const renameConversation = async (conversationId: string, newTitle: string) => {
+    const previousConversations = [...conversations];
+    setConversations(prev =>
+      prev.map(conv =>
+        conv.id === conversationId ? { ...conv, title: newTitle } : conv
+      )
+    );
+
+    try {
+      const response = await RestUtils.fetch(
+        References.url.RENAME_CONVERSATION,
+        {
+          method: References.method.POST,
+          body: JSON.stringify({ conversation_id: conversationId, title: newTitle }),
+        }
+      );
+
+      if (!response.ok) {
+        console.error('Failed to rename conversation');
+        setConversations(previousConversations);
+      }
+    } catch (error) {
+      console.error('Error renaming conversation:', error);
+      setConversations(previousConversations);
+    }
+  };
+
+  const deleteConversation = async (conversationId: string): Promise<IConversation | null> => {
+    const conversationToDelete = conversations.find(conv => conv.id === conversationId);
+    const previousConversations = [...conversations];
+
+    setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+
+    if (currentConversationId === conversationId) {
+      setCurrentConversationId(null);
+    }
+
+    try {
+      const response = await RestUtils.fetch(
+        References.url.DELETE_CONVERSATION,
+        {
+          method: References.method.POST,
+          body: JSON.stringify({ conversation_id: conversationId }),
+        }
+      );
+
+      if (!response.ok) {
+        console.error('Failed to delete conversation');
+        setConversations(previousConversations);
+        return null;
+      }
+
+      return conversationToDelete || null;
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      setConversations(previousConversations);
+      return null;
+    }
+  };
+
+  const addConversationToList = (conversation: IConversation) => {
+    setConversations(prev => {
+      const exists = prev.find(conv => conv.id === conversation.id);
+      if (!exists) {
+        return [conversation, ...prev];
+      }
+      return prev;
+    });
+  };
+
   // When selecting a conversation, mark it as read
   const selectConversationAndMarkAsRead = (conversationId: string) => {
     selectConversation(conversationId);
@@ -261,6 +340,7 @@ export const useConversations = (selectedAppId: string | null, labels?: ILabels)
 
   return {
     conversations,
+    filteredConversations,
     isLoadingConversations,
     currentConversationId,
     loadConversations,
@@ -274,5 +354,10 @@ export const useConversations = (selectedAppId: string | null, labels?: ILabels)
     markConversationAsUnread,
     markConversationAsRead,
     selectConversationAndMarkAsRead,
+    renameConversation,
+    deleteConversation,
+    addConversationToList,
+    searchQuery,
+    setSearchQuery,
   };
 };

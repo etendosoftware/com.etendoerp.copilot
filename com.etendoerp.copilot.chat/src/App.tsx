@@ -3,6 +3,7 @@ import TextMessage from 'etendo-ui-library/dist-web/components/text-message/Text
 import FileSearchInput from 'etendo-ui-library/dist-web/components/inputBase/file-search-input/FileSearchInput';
 import { useAssistants } from './hooks/useAssistants';
 import { useConversations } from './hooks/useConversations';
+import { useArchivedConversations } from './hooks/useArchivedConversations';
 import { useMaximized } from './hooks/useMaximized';
 import { formatLabel, formatTimeNewDate, getMessageType } from './utils/functions';
 import botIcon from './assets/bot.svg';
@@ -108,6 +109,7 @@ function App() {
 
   const {
     conversations,
+    filteredConversations,
     isLoadingConversations,
     currentConversationId,
     loadConversationMessages,
@@ -119,9 +121,56 @@ function App() {
     conversationsWithUnreadMessages,
     markConversationAsUnread,
     selectConversationAndMarkAsRead,
+    renameConversation,
+    deleteConversation,
+    addConversationToList,
+    searchQuery,
+    setSearchQuery,
   } = useConversations(selectedOption?.app_id || null, labels);
 
   const isMaximized = useMaximized();
+
+  const {
+    archivedConversations,
+    isExpanded: isArchiveExpanded,
+    isLoading: isArchiveLoading,
+    toggleExpanded: toggleArchiveExpanded,
+    restoreConversation,
+    permanentDeleteConversation,
+    addToArchive,
+  } = useArchivedConversations(selectedOption?.app_id || null);
+
+  const clearConversationState = () => {
+    setMessages([]);
+    setConversationId(null);
+    clearCurrentConversation();
+    currentConversationIdRef.current = null;
+    setContextTitle(null);
+    setContextValue(null);
+    setFiles(null);
+    setFileId(null);
+  };
+
+  const handleDeleteConversation = async (targetConversationId: string) => {
+    const deleted = await deleteConversation(targetConversationId);
+    if (deleted) {
+      if (
+        targetConversationId === currentConversationId ||
+        targetConversationId === currentConversationIdRef.current ||
+        targetConversationId === conversationId
+      ) {
+        clearConversationState();
+      }
+      addToArchive(deleted);
+    }
+  };
+
+  const handleRestoreConversation = async (conversationId: string) => {
+    const restored = await restoreConversation(conversationId);
+    if (restored) {
+      addConversationToList(restored);
+    }
+  };
 
   // Effect to handle the assistant_id parameter
   useEffect(() => {
@@ -206,13 +255,7 @@ function App() {
       handleTitleGeneration(currentConversationId, 'Generating title for current conversation before creating new one');
     }
 
-    setMessages([]);
-    setConversationId(null);
-    clearCurrentConversation();
-    setContextTitle(null);
-    setContextValue(null);
-    setFiles(null);
-    setFileId(null);
+    clearConversationState();
   };
 
   const handleNewMessage = async (role: string, message: IMessage) => {
@@ -643,8 +686,7 @@ function App() {
 
   // Reset the conversation when a new attendee is selected
   useEffect(() => {
-    setMessages([]);
-    setConversationId(null);
+    clearConversationState();
   }, [selectedOption]);
 
   // Scroll bottom when loading a new file
@@ -700,15 +742,25 @@ function App() {
 
             {/* Conversations Sidebar */}
             <ConversationsSidebar
-              conversations={conversations}
+              conversations={filteredConversations}
               isLoading={isLoadingConversations}
               currentConversationId={currentConversationId}
               onConversationSelect={handleConversationSelect}
               onNewConversation={handleNewConversation}
-              isVisible={true} // Always visible when in this layout
+              isVisible={true}
               labels={labels}
               generatingTitles={generatingTitles}
               conversationsWithUnreadMessages={conversationsWithUnreadMessages}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onRename={renameConversation}
+              onDelete={handleDeleteConversation}
+              archivedConversations={archivedConversations}
+              isArchiveExpanded={isArchiveExpanded}
+              isArchiveLoading={isArchiveLoading}
+              onToggleArchive={() => toggleArchiveExpanded(selectedOption?.app_id || '')}
+              onRestore={handleRestoreConversation}
+              onPermanentDelete={permanentDeleteConversation}
             />
           </div>
         )}
