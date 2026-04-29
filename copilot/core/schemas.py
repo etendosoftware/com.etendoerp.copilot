@@ -52,7 +52,7 @@ class AssistantSchema(BaseModel):
     ad_user_id: Optional[str] = None
     ad_client_id: Optional[str] = "0"
     assistants: Optional[list["AssistantSchema"]] = None  # For supervisors - team members
-    schema: Optional[str] = None
+    output_schema: Optional[str] = None
 
 
 class QuestionSchema(AssistantSchema):
