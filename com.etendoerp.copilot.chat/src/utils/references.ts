@@ -17,5 +17,10 @@ export const References = {
         GET_CONVERSATIONS: 'conversations',
         GET_CONVERSATION_MESSAGES: 'conversationMessages',
         GENERATE_TITLE: 'generateTitleConversation',
+        RENAME_CONVERSATION: 'renameConversation',
+        DELETE_CONVERSATION: 'deleteConversation',
+        RESTORE_CONVERSATION: 'restoreConversation',
+        PERMANENT_DELETE_CONVERSATION: 'permanentDeleteConversation',
+        GET_ARCHIVED_CONVERSATIONS: 'archivedConversations',
     }
 };

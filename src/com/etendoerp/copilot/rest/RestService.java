@@ -64,45 +64,68 @@ public class RestService {
     try {
       OBContext.setAdminMode();
       saveSessionInfo(request, path, "GET");
-      if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
-        handleAssistants(response);
-      } else if (StringUtils.equalsIgnoreCase(path, "/conversations")) {
-        ConversationUtils.handleConversations(request, response);
-      } else if (StringUtils.equalsIgnoreCase(path, "/conversationMessages")) {
-        ConversationUtils.handleConversationMessages(request, response);
-      } else if (StringUtils.equalsIgnoreCase(path, AQUESTION)) {
-        try {
-          handleQuestion(request, response);
-        } catch (OBException e) {
-          throw new OBException("Error handling question: " + e.getMessage());
-        }
-      } else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
-        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-        response.getWriter().write(RestServiceUtil.getJSONLabels().toString());
-      } else if (StringUtils.equalsIgnoreCase(path, "/structure")) {
-        JSONObject params = RequestUtils.extractRequestBody(request);
-        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-        JSONObject structure = handleStructure(params);
-        response.getWriter().write(structure.toString());
-      } else {
-        response.sendError(HttpServletResponse.SC_NOT_FOUND);
-      }
+      routeGetRequest(path, request, response);
     } catch (Exception e) {
       log4j.error(e);
-      try {
-        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-        JSONObject errorJson = new JSONObject();
-        errorJson.put("error", "An error occurred processing the request.");
-        response.getWriter().write(errorJson.toString());
-      } catch (Exception ioException) {
-        log4j.error(ioException);
-        if (!response.isCommitted()) {
-          response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
-        }
-      }
+      sendGetErrorResponse(response);
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  private void routeGetRequest(String path, HttpServletRequest request,
+      HttpServletResponse response) throws Exception {
+    if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
+      handleAssistants(response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/conversations")) {
+      ConversationUtils.handleConversations(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/conversationMessages")) {
+      ConversationUtils.handleConversationMessages(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/archivedConversations")) {
+      ConversationUtils.handleArchivedConversations(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, AQUESTION)) {
+      try {
+        handleQuestion(request, response);
+      } catch (OBException e) {
+        throw new OBException("Error handling question: " + e.getMessage());
+      }
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/labels")) {
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(RestServiceUtil.getJSONLabels().toString());
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/structure")) {
+      JSONObject params = RequestUtils.extractRequestBody(request);
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      JSONObject structure = handleStructure(params);
+      response.getWriter().write(structure.toString());
+      return;
+    }
+    response.sendError(HttpServletResponse.SC_NOT_FOUND);
+  }
+
+  private void sendGetErrorResponse(HttpServletResponse response) throws IOException {
+    try {
+      response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      JSONObject errorJson = new JSONObject();
+      errorJson.put("error", "An error occurred processing the request.");
+      response.getWriter().write(errorJson.toString());
+    } catch (Exception ioException) {
+      log4j.error(ioException);
+      if (!response.isCommitted()) {
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
+      }
     }
   }
 
@@ -144,26 +167,7 @@ public class RestService {
     try {
       OBContext.setAdminMode();
       saveSessionInfo(request, path, "POST");
-      if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
-        try {
-          handleQuestion(request, response);
-        } catch (OBException e) {
-          throw new OBException("Error handling question: " + e.getMessage());
-        }
-      } else if (StringUtils.equalsIgnoreCase(path, FILE)) {
-        handleFile(request, response, "attachFile");
-      } else if (StringUtils.equalsIgnoreCase(path, "/transcription")) {
-        handleFile(request, response, "transcription");
-      } else if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
-        handleCacheQuestion(request, response);
-      } else if (StringUtils.equalsIgnoreCase(path, "/configCheck")) {
-        checkEtendoHost(response);
-      } else if (StringUtils.equalsIgnoreCase(path, "/generateTitleConversation")) {
-        ConversationUtils.handleGetTitleConversation(request, response);
-      } else {
-        //if not a valid path, throw an error status
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-      }
+      routePostRequest(path, request, response);
     } catch (Exception e) {
       log4j.error(e);
       try {
@@ -175,6 +179,56 @@ public class RestService {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private void routePostRequest(String path, HttpServletRequest request,
+      HttpServletResponse response) throws Exception {
+    if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
+      try {
+        handleQuestion(request, response);
+      } catch (OBException e) {
+        throw new OBException("Error handling question: " + e.getMessage());
+      }
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, FILE)) {
+      handleFile(request, response, "attachFile");
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/transcription")) {
+      handleFile(request, response, "transcription");
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
+      handleCacheQuestion(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/configCheck")) {
+      checkEtendoHost(response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/generateTitleConversation")) {
+      ConversationUtils.handleGetTitleConversation(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/renameConversation")) {
+      ConversationUtils.handleRenameConversation(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/deleteConversation")) {
+      ConversationUtils.handleDeleteConversation(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/restoreConversation")) {
+      ConversationUtils.handleRestoreConversation(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/permanentDeleteConversation")) {
+      ConversationUtils.handlePermanentDeleteConversation(request, response);
+      return;
+    }
+    //if not a valid path, throw an error status
+    response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
   }
 
   /**
