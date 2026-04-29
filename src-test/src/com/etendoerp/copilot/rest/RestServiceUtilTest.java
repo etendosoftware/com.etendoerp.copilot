@@ -176,10 +176,12 @@ class RestServiceUtilTest {
     JSONObject jsonRequest = new JSONObject();
     jsonRequest.put(RestServiceUtil.APP_ID, DUMMY_APP_ID);
     jsonRequest.put(RestServiceUtil.PROP_QUESTION, LIT_WHAT_IS_ETENDO);
+    // OBContext is not initialized in this unit-test environment; handleQuestion
+    // will NPE deep inside DAL access. The call is here for coverage only.
     try {
       RestServiceUtil.handleQuestion(false, null, jsonRequest);
     } catch (Exception e) {
-      // Acceptable for coverage if dependencies are not mocked
+      // Expected: dependencies (OBContext/OBDal) are not mocked here.
     }
   }
 
@@ -189,11 +191,13 @@ class RestServiceUtilTest {
     JSONObject jsonRequest = new JSONObject();
     jsonRequest.put(RestServiceUtil.APP_ID, DUMMY_APP_ID);
     jsonRequest.put(RestServiceUtil.PROP_QUESTION, LIT_WHAT_IS_ETENDO);
-    jsonRequest.put(RestServiceUtil.PROP_SCHEMA, schema);
+    jsonRequest.put(RestServiceUtil.PROP_OUTPUT_SCHEMA, schema);
+    // Coverage-only: OBContext is not initialized, so DAL access will NPE before
+    // the schema is consumed. The test verifies the JSON construction does not throw.
     try {
       RestServiceUtil.handleQuestion(false, null, jsonRequest);
     } catch (Exception e) {
-      // Acceptable — verifies the schema is extracted without NPE
+      // Expected: dependencies (OBContext/OBDal) are not mocked here.
     }
   }
 
@@ -203,7 +207,7 @@ class RestServiceUtilTest {
     jsonRequest.put(RestServiceUtil.APP_ID, DUMMY_APP_ID);
     jsonRequest.put(RestServiceUtil.PROP_QUESTION, LIT_WHAT_IS_ETENDO);
     // No schema key — optString should return null
-    String extracted = jsonRequest.optString(RestServiceUtil.PROP_SCHEMA, null);
+    String extracted = jsonRequest.optString(RestServiceUtil.PROP_OUTPUT_SCHEMA, null);
     Assertions.assertNull(extracted);
   }
 
@@ -216,11 +220,11 @@ class RestServiceUtilTest {
     try (org.mockito.MockedStatic<OBMessageUtils> mockMsg = org.mockito.Mockito.mockStatic(OBMessageUtils.class)) {
       mockMsg.when(() -> OBMessageUtils.messageBD(org.mockito.ArgumentMatchers.anyString())).thenReturn("App not found");
       // The 6-param overload delegates to the 7-param overload with null schema.
-      // We verify that calling the 6-param version does not throw NPE from the schema parameter.
+      // OBContext is not initialized here, so the call NPEs deep in DAL — coverage only.
       try {
         RestServiceUtil.handleQuestion(false, null, app, null, "q", List.of());
       } catch (Exception e) {
-        // Acceptable for coverage if further dependencies are not mocked
+        // Expected: dependencies (OBContext/OBDal) are not mocked here.
       }
     }
   }
@@ -269,8 +273,8 @@ class RestServiceUtilTest {
       Assertions.assertEquals(LIT_USER_123, json.getString(RestServiceUtil.PROP_AD_USER_ID));
       Assertions.assertEquals("q", json.getString(RestServiceUtil.PROP_QUESTION));
       // Verify caller-supplied schema override is applied correctly
-      json.put(RestServiceUtil.PROP_SCHEMA, schema);
-      Assertions.assertEquals(schema, json.getString(RestServiceUtil.PROP_SCHEMA));
+      json.put(RestServiceUtil.PROP_OUTPUT_SCHEMA, schema);
+      Assertions.assertEquals(schema, json.getString(RestServiceUtil.PROP_OUTPUT_SCHEMA));
     }
   }
 

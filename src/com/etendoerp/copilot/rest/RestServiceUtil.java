@@ -118,7 +118,7 @@ public class RestServiceUtil {
   public static final String PROP_AD_CLIENT_ID = "ad_client_id";
   public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
   public static final String METADATA = "metadata";
-  public static final String PROP_SCHEMA = "schema";
+  public static final String PROP_OUTPUT_SCHEMA = "output_schema";
 
   /**
    * Private constructor to prevent instantiation of utility class.
@@ -314,7 +314,7 @@ public class RestServiceUtil {
         log.warn("Unsupported app type: {}", copilotApp.getAppType());
     }
     return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived,
-        jsonRequest.optString(PROP_SCHEMA, null));
+        jsonRequest.optString(PROP_OUTPUT_SCHEMA, null));
   }
 
 
@@ -469,7 +469,7 @@ public class RestServiceUtil {
 
     // Override structured output schema if provided at call time
     if (StringUtils.isNotEmpty(schema)) {
-      jsonRequestForCopilot.put(PROP_SCHEMA, schema);
+      jsonRequestForCopilot.put(PROP_OUTPUT_SCHEMA, schema);
     }
 
     if (TelemetryUsageInfo.getInstance().getSessionId() != null) {
