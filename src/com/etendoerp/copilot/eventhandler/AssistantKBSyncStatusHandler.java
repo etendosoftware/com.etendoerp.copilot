@@ -1,6 +1,6 @@
 package com.etendoerp.copilot.eventhandler;
 
-import javax.enterprise.event.Observes;
+import jakarta.enterprise.event.Observes;
 
 import org.apache.log4j.Logger;
 import org.openbravo.base.exception.OBException;

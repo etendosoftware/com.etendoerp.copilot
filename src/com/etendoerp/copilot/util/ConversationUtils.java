@@ -11,8 +11,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -20,8 +20,7 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Order;
-import org.hibernate.criterion.Restrictions;
+import org.openbravo.dal.service.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
@@ -235,7 +234,7 @@ public class ConversationUtils {
     OBCriteria<Conversation> convCrit = OBDal.getReadOnlyInstance().createCriteria(Conversation.class);
     convCrit.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, assistant));
     convCrit.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, OBContext.getOBContext().getUser()));
-    convCrit.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
+    convCrit.addOrderBy(Conversation.PROPERTY_LASTMSG, false);
 
     // Execute the query and retrieve the list of conversations
     List<Conversation> conversations = convCrit.list();

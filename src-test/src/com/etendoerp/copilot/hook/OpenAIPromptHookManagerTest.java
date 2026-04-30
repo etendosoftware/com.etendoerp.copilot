@@ -19,7 +19,7 @@ package com.etendoerp.copilot.hook;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.enterprise.inject.Instance;
+import jakarta.enterprise.inject.Instance;
 
 import org.apache.commons.lang3.StringUtils;
 import org.junit.After;

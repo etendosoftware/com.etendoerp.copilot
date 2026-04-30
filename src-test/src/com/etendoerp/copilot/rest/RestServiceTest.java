@@ -40,11 +40,11 @@ import java.io.PrintWriter;
 import java.io.StringReader;
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
-import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload2.core.DiskFileItem;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -300,7 +300,7 @@ public class RestServiceTest extends WeldBaseTest {
 
     JSONObject fileResponse = new JSONObject().put("file", "uploaded");
 
-    mockedRestServiceUtil.when(() -> RestServiceUtil.handleFile((List<FileItem>) any(), eq("attachFile")))
+    mockedRestServiceUtil.when(() -> RestServiceUtil.handleFile((List<DiskFileItem>) any(), eq("attachFile")))
         .thenReturn(fileResponse);
 
     // When - Mock multipart request

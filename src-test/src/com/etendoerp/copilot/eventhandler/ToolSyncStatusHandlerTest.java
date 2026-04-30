@@ -20,7 +20,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -108,7 +108,7 @@ public class ToolSyncStatusHandlerTest extends WeldBaseTest {
         when(modelProvider.getEntity(CopilotTool.class)).thenReturn(entity);
         when(entity.getProperty(anyString())).thenReturn(property);
         when(obDal.createCriteria(CopilotAppTool.class)).thenReturn(criteria);
-        when(criteria.add(any(Criterion.class))).thenReturn(criteria);
+        when(criteria.add(any(Restriction.class))).thenReturn(criteria);
     }
 
     /**

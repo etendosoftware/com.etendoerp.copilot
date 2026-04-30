@@ -52,6 +52,7 @@ import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBError;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -153,7 +154,7 @@ public class SyncAssistantTest extends WeldBaseTest {
     mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
     when(obDal.createCriteria(DefinedwebhookRole.class)).thenReturn(criteria);
     when(obDal.createCriteria(CopilotModel.class)).thenReturn(modelCriteria);
-    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+    when(modelCriteria.add(any(Restriction.class))).thenReturn(modelCriteria);
     when(modelCriteria.list()).thenReturn(new ArrayList<>());
 
     // Set up basic mocks
@@ -254,7 +255,7 @@ public class SyncAssistantTest extends WeldBaseTest {
   private void mockRoleAccess(boolean exists) {
     OBCriteria<CopilotRoleApp> roleCriteria = mock(OBCriteria.class);
     when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleCriteria);
-    when(roleCriteria.add(any())).thenReturn(roleCriteria);
+    when(roleCriteria.add(any(Restriction.class))).thenReturn(roleCriteria);
     when(roleCriteria.list()).thenReturn(new ArrayList<>());
     when(roleCriteria.uniqueResult()).thenReturn(exists ? mock(CopilotRoleApp.class) : null);
   }

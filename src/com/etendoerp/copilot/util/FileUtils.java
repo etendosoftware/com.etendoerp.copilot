@@ -16,14 +16,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import org.apache.commons.fileupload.disk.DiskFileItem;
+import org.apache.commons.fileupload2.core.DiskFileItem;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Restrictions;
+import org.openbravo.dal.service.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.session.OBPropertiesProvider;
@@ -517,20 +517,11 @@ public class FileUtils {
    * @throws Exception If an error occurs during writing or renaming.
    */
   private static void writeDiskItemToFile(DiskFileItem itemDisk, File f) throws Exception {
-    if (itemDisk.isInMemory()) {
-      itemDisk.write(f);
-    } else {
-      boolean successRename = itemDisk.getStoreLocation().renameTo(f);
-      if (!successRename) {
-        // fall back to copying the file contents
-        try {
-          Files.copy(itemDisk.getStoreLocation().toPath(), f.toPath(),
-              java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-          throw new OBException(
-              String.format(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"), f.getName()), e);
-        }
-      }
+    try {
+      itemDisk.write(f.toPath());
+    } catch (IOException e) {
+      throw new OBException(
+          String.format(OBMessageUtils.messageBD("ETCOP_ErrorSavingFile"), f.getName()), e);
     }
   }
 

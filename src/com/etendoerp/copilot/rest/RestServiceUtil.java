@@ -34,18 +34,17 @@ import com.etendoerp.copilot.util.FileUtils;
 import java.util.concurrent.TransferQueue;
 import java.util.stream.Collectors;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.disk.DiskFileItem;
+import org.apache.commons.fileupload2.core.DiskFileItem;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Restrictions;
+import org.openbravo.dal.service.Restrictions;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
@@ -189,16 +188,15 @@ public class RestServiceUtil {
    * @throws Exception
    *     If an error occurs during file processing or temporary file creation.
    */
-  public static JSONObject handleFile(List<FileItem> items, String endpoint) throws Exception {
+  public static JSONObject handleFile(List<DiskFileItem> items, String endpoint) throws Exception {
     logIfDebug(String.format("items: %d", items.size()));
     JSONObject responseJson = new JSONObject();
     // Create a list of files to delete them later when the process finishes
-    for (FileItem item : items) {
+    for (DiskFileItem item : items) {
       if (item.isFormField()) {
         continue;
       }
-      DiskFileItem itemDisk = (DiskFileItem) item;
-      String answer = FileUtils.processFileItem(itemDisk, endpoint);
+      String answer = FileUtils.processFileItem(item, endpoint);
       responseJson.put(item.getFieldName(), answer);
     }
 

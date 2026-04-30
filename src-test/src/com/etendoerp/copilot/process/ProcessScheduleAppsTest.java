@@ -33,7 +33,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -136,8 +136,8 @@ public class ProcessScheduleAppsTest extends WeldBaseTest {
         // Setup Criteria
         when(obDal.createCriteria(ETCOPSchedule.class)).thenReturn(scheduleCriteria);
         when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleAppCriteria);
-        when(scheduleCriteria.add(any(Criterion.class))).thenReturn(scheduleCriteria);
-        when(roleAppCriteria.add(any(Criterion.class))).thenReturn(roleAppCriteria);
+        when(scheduleCriteria.add(any(Restriction.class))).thenReturn(scheduleCriteria);
+        when(roleAppCriteria.add(any(Restriction.class))).thenReturn(roleAppCriteria);
         
         // Setup ProcessRequest
         when(obDal.get(ProcessRequest.class, "testProcessRequestId")).thenReturn(processRequest);

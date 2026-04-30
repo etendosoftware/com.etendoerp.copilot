@@ -41,6 +41,7 @@ import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.openbravo.dal.core.SessionHandler;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.scheduling.ProcessBundle;
 import org.openbravo.scheduling.ProcessLogger;
@@ -125,7 +126,7 @@ public class BulkTaskExecTest {
     doNothing().when(mockLogger).log(anyString());
 
     // Configure OBCriteria mock
-    when(mockCriteria.add(any())).thenReturn(mockCriteria);
+    when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
     when(mockCriteria.setMaxResults(EXPECTED_BATCH_SIZE)).thenReturn(mockCriteria);
 
     // Mock AddBulkTasks static methods
@@ -277,7 +278,7 @@ public class BulkTaskExecTest {
     bulkTaskExec.doExecute(processBundle);
 
     // Then - Verify criteria was configured with correct filters
-    verify(mockCriteria, times(2)).add(any());
+    verify(mockCriteria, times(2)).add(any(Restriction.class));
     mockedAddBulkTasks.verify(() -> AddBulkTasks.getStatus(BulkTaskExec.TASK_STATUS_PENDING),
         times(1));
     mockedAddBulkTasks.verify(() -> AddBulkTasks.getCopilotTaskType(), times(1));

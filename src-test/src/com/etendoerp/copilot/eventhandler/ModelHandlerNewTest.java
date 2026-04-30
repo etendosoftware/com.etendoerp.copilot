@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 import java.lang.reflect.Field;
 import java.util.Collections;
 
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -99,7 +99,7 @@ public class ModelHandlerNewTest {
     entitiesField.set(null, new Entity[] { modelEntity });
 
     lenient().when(obDal.createCriteria(CopilotModel.class)).thenReturn(criteria);
-    lenient().when(criteria.add(any(Criterion.class))).thenReturn(criteria);
+    lenient().when(criteria.add(any(Restriction.class))).thenReturn(criteria);
   }
 
   /** Tear down. */

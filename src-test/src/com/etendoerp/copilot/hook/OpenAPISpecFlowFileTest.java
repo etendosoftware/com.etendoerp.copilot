@@ -45,6 +45,7 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.datamodel.Table;
@@ -345,7 +346,7 @@ public class OpenAPISpecFlowFileTest {
     mockedOBDal.when(OBDal::getInstance).thenReturn(mockOBDal);
     when(mockOBDal.createCriteria(Attachment.class)).thenReturn(mockCriteria);
     when(mockOBDal.get(Table.class, OpenAPISpecFlowFile.COPILOT_FILE_AD_TABLE_ID)).thenReturn(mockTable);
-    when(mockCriteria.add(any())).thenReturn(mockCriteria);
+    when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
     when(mockCriteria.setMaxResults(1)).thenReturn(mockCriteria);
     when(mockCriteria.uniqueResult()).thenReturn(mockAttachment);
 
@@ -369,7 +370,7 @@ public class OpenAPISpecFlowFileTest {
     mockedOBDal.when(OBDal::getInstance).thenReturn(mockOBDal);
     when(mockOBDal.createCriteria(Attachment.class)).thenReturn(mockCriteria);
     when(mockOBDal.get(Table.class, OpenAPISpecFlowFile.COPILOT_FILE_AD_TABLE_ID)).thenReturn(mockTable);
-    when(mockCriteria.add(any())).thenReturn(mockCriteria);
+    when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
     when(mockCriteria.setMaxResults(1)).thenReturn(mockCriteria);
     when(mockCriteria.uniqueResult()).thenReturn(null);
 
@@ -421,7 +422,7 @@ public class OpenAPISpecFlowFileTest {
     mockedOBDal.when(OBDal::getInstance).thenReturn(mockOBDal);
     when(mockOBDal.createCriteria(Attachment.class)).thenReturn(mockCriteria);
     when(mockOBDal.get(Table.class, OpenAPISpecFlowFile.COPILOT_FILE_AD_TABLE_ID)).thenReturn(mockTable);
-    when(mockCriteria.add(any())).thenReturn(mockCriteria);
+    when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
     when(mockCriteria.setMaxResults(1)).thenReturn(mockCriteria);
     when(mockCriteria.uniqueResult()).thenReturn(null);
 

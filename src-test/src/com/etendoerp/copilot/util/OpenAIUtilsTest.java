@@ -61,6 +61,7 @@ import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.utility.Attachment;
@@ -467,7 +468,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
 
     OBCriteria<Attachment> mockCriteria = mock(OBCriteria.class);
     when(mockDal.createCriteria(Attachment.class)).thenReturn(mockCriteria);
-    when(mockCriteria.add(any())).thenReturn(mockCriteria);
+    when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
     when(mockCriteria.setMaxResults(1)).thenReturn(mockCriteria);
     when(mockCriteria.uniqueResult()).thenReturn(null);
 
@@ -525,7 +526,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
 
     OBCriteria<Attachment> mockCriteria = mock(OBCriteria.class);
     when(mockDal.createCriteria(Attachment.class)).thenReturn(mockCriteria);
-    when(mockCriteria.add(any())).thenReturn(mockCriteria);
+    when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
     when(mockCriteria.setMaxResults(1)).thenReturn(mockCriteria);
     when(mockCriteria.uniqueResult()).thenReturn(mockAttachment);
 
@@ -553,7 +554,7 @@ public class OpenAIUtilsTest extends WeldBaseTest {
 
     OBCriteria<Attachment> mockCriteria = mock(OBCriteria.class);
     when(mockDal.createCriteria(Attachment.class)).thenReturn(mockCriteria);
-    when(mockCriteria.add(any())).thenReturn(mockCriteria);
+    when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
     when(mockCriteria.setMaxResults(1)).thenReturn(mockCriteria);
     when(mockCriteria.uniqueResult()).thenReturn(null);
 

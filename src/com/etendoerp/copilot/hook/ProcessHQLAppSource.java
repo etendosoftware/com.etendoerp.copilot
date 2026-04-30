@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -153,8 +154,9 @@ public class ProcessHQLAppSource {
     parameters.forEach(qry::setParameter);
     List<String> results = new ArrayList<>();
     var resultList = qry.getResultList();
-    var headersArray = qry.getReturnAliases();
-    if (isCsv && headersArray != null) {
+    String[] headersArray = new String[0];
+    if (isCsv && !resultList.isEmpty() && resultList.get(0) instanceof Map<?, ?> firstRow) {
+      headersArray = firstRow.keySet().stream().map(String::valueOf).toArray(String[]::new);
       results.add(String.join(", ", headersArray));
     }
     for (Object resultObject : resultList) {
@@ -188,7 +190,7 @@ public class ProcessHQLAppSource {
    */
   private static void addAliasesForColumns(List<String> listColumnValues, String[] headersArray) {
     for (int i = 0; i < listColumnValues.size(); i++) {
-      listColumnValues.set(i, (headersArray.length > i && StringUtils.isNotEmpty(
+      listColumnValues.set(i, (headersArray != null && headersArray.length > i && StringUtils.isNotEmpty(
           headersArray[i]) ? headersArray[i] : "?") + ": " + listColumnValues.get(i));
     }
   }

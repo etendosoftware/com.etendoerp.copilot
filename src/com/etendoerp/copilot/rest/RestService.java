@@ -17,14 +17,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TransferQueue;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.FileItemFactory;
-import org.apache.commons.fileupload.disk.DiskFileItemFactory;
-import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.fileupload2.core.DiskFileItem;
+import org.apache.commons.fileupload2.jakarta.JakartaServletDiskFileUpload;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -348,12 +346,11 @@ public class RestService {
     logIfDebug("handleFile");
     // in the request we will receive a form-data with the field file with the file
 
-    boolean isMultipart = ServletFileUpload.isMultipartContent(request);
+    boolean isMultipart = JakartaServletDiskFileUpload.isMultipartContent(request);
     logIfDebug(String.format("isMultipart: %s", isMultipart));
-    FileItemFactory factory = new DiskFileItemFactory();
 
-    ServletFileUpload upload = new ServletFileUpload(factory);
-    List<FileItem> items = upload.parseRequest(request);
+    JakartaServletDiskFileUpload upload = new JakartaServletDiskFileUpload();
+    List<DiskFileItem> items = upload.parseRequest(request);
     var responseJson = RestServiceUtil.handleFile(items, endpoint);
     response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
     response.getWriter().write(responseJson.toString());

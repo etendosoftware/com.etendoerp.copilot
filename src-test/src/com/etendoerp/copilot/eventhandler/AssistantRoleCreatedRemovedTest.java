@@ -32,6 +32,7 @@ import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.client.kernel.event.EntityDeleteEvent;
 import org.openbravo.client.kernel.event.EntityPersistenceEvent;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -100,7 +101,7 @@ public class AssistantRoleCreatedRemovedTest extends WeldBaseTest {
     public void testOnDeleteRoleAppExistsRemoved() {
         // Given
         when(mockDeleteEvent.getTargetInstance()).thenReturn(mockCopilotApp);
-        when(mockCriteria.add(any())).thenReturn(mockCriteria);
+        when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
         
         // Simulate finding associated CopilotRoleApps
         List<CopilotRoleApp> roleAppList = Collections.singletonList(mockCopilotRoleApp);
@@ -120,7 +121,7 @@ public class AssistantRoleCreatedRemovedTest extends WeldBaseTest {
     public void testOnDeleteNoRoleAppNoRemoval() {
         // Given
         when(mockDeleteEvent.getTargetInstance()).thenReturn(mockCopilotApp);
-        when(mockCriteria.add(any())).thenReturn(mockCriteria);
+        when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
         
         // Simulate no associated CopilotRoleApps
         when(mockCriteria.list()).thenReturn(Collections.emptyList());

@@ -38,6 +38,7 @@ import org.mockito.MockitoAnnotations;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.businessUtility.Preferences;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
@@ -200,7 +201,7 @@ public class CopilotModelUtilsTest {
     when(defaultModel.isDefault()).thenReturn(true);
 
     when(modelCriteria.list()).thenReturn(List.of(defaultModel));
-    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+    when(modelCriteria.add(any(Restriction.class))).thenReturn(modelCriteria);
     when(modelCriteria.addOrderBy(anyString(), anyBoolean())).thenReturn(modelCriteria);
 
     assertEquals("default-model", CopilotModelUtils.getAppModel(app));
@@ -234,7 +235,7 @@ public class CopilotModelUtilsTest {
     when(defaultModel.isDefault()).thenReturn(true);
 
     when(modelCriteria.list()).thenReturn(List.of(defaultModel));
-    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+    when(modelCriteria.add(any(Restriction.class))).thenReturn(modelCriteria);
 
     assertEquals(DEFAULT_KEY, CopilotModelUtils.getAppModel(app, "test-provider"));
   }
@@ -248,7 +249,7 @@ public class CopilotModelUtilsTest {
     when(app.getModel()).thenReturn(null);
 
     when(modelCriteria.list()).thenReturn(List.of()); // No models found
-    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+    when(modelCriteria.add(any(Restriction.class))).thenReturn(modelCriteria);
 
     assertThrows(OBException.class, () -> CopilotModelUtils.getAppModel(app, "test-provider"));
   }
@@ -270,7 +271,7 @@ public class CopilotModelUtilsTest {
     // Setup override model query
     CopilotModel overrideModel = mock(CopilotModel.class);
     when(overrideModel.getSearchkey()).thenReturn("override-model");
-    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+    when(modelCriteria.add(any(Restriction.class))).thenReturn(modelCriteria);
     when(modelCriteria.setMaxResults(1)).thenReturn(modelCriteria);
     when(modelCriteria.uniqueResult()).thenReturn(overrideModel);
 
@@ -295,7 +296,7 @@ public class CopilotModelUtilsTest {
     CopilotModel dbDefault = mock(CopilotModel.class);
     when(dbDefault.isDefault()).thenReturn(true);
     when(modelCriteria.list()).thenReturn(List.of(dbDefault));
-    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+    when(modelCriteria.add(any(Restriction.class))).thenReturn(modelCriteria);
 
     CopilotModel result = CopilotModelUtils.getDefaultModel("openai");
     assertNotNull(result);
@@ -313,7 +314,7 @@ public class CopilotModelUtilsTest {
     CopilotModel dbDefault = mock(CopilotModel.class);
     when(dbDefault.isDefault()).thenReturn(true);
     when(modelCriteria.list()).thenReturn(List.of(dbDefault));
-    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+    when(modelCriteria.add(any(Restriction.class))).thenReturn(modelCriteria);
 
     CopilotModel result = CopilotModelUtils.getDefaultModel("openai");
     assertEquals(dbDefault, result);
@@ -360,7 +361,7 @@ public class CopilotModelUtilsTest {
     when(dbDefault.getProvider()).thenReturn("default-provider");
 
     when(modelCriteria.list()).thenReturn(List.of(dbDefault));
-    when(modelCriteria.add(any())).thenReturn(modelCriteria);
+    when(modelCriteria.add(any(Restriction.class))).thenReturn(modelCriteria);
 
     CopilotModelUtils.ModelProviderResult res = CopilotModelUtils.getModelProviderResult(app);
     assertEquals(DEFAULT_KEY, res.modelStr);

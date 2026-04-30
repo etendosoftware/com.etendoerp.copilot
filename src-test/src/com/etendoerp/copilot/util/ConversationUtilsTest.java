@@ -37,12 +37,11 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Order;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -51,6 +50,7 @@ import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.User;
@@ -140,8 +140,8 @@ public class ConversationUtilsTest {
     when(mockUser.getId()).thenReturn(TEST_USER_ID);
 
     // Configure OBCriteria mock
-    when(mockConversationCriteria.add(any())).thenReturn(mockConversationCriteria);
-    when(mockConversationCriteria.addOrder(any(Order.class))).thenReturn(mockConversationCriteria);
+    when(mockConversationCriteria.add(any(Restriction.class))).thenReturn(mockConversationCriteria);
+    when(mockConversationCriteria.addOrderBy(anyString(), anyBoolean())).thenReturn(mockConversationCriteria);
     when(mockConversationCriteria.setMaxResults(1)).thenReturn(mockConversationCriteria);
 
     // Configure Conversation mock
