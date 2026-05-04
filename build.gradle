@@ -45,6 +45,10 @@ repositories {
     maven {
         url "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
     }
+
+    maven {
+        url "https://repo.futit.cloud/repository/maven-snapshots/"
+    }
 }
 
 /**
