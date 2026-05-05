@@ -1,1 +1,4 @@
-git@github.com:etendosoftware/com.etendoerp.openapi.git,git@github.com:etendosoftware/com.etendoerp.webhookevents.git,git@github.com:etendosoftware/com.etendoerp.task.git,git@github.com:etendosoftware/com.etendoerp.docker.git
+git@github.com:etendosoftware/com.etendoerp.openapi.git|feature/ETP-3674-Y27>{CORE_BRANCH}
+git@github.com:etendosoftware/com.etendoerp.webhookevents.git|feature/ETP-3674-Y27>{CORE_BRANCH}
+git@github.com:etendosoftware/com.etendoerp.task.git|feature/ETP-3674-Y27>{CORE_BRANCH}
+git@github.com:etendosoftware/com.etendoerp.docker.git|feature/ETP-3674-Y27>{CORE_BRANCH}
