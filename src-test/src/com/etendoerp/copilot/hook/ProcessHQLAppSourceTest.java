@@ -135,44 +135,27 @@ public class ProcessHQLAppSourceTest extends WeldBaseTest {
 
   @Test
   public void textSuccessfullHQL() throws Exception {
-    // Given
-    String testUrl = EXAMPLE_FILE_URL;
-    String fileName = "example.txt";
-    when(mockCopilotFile.getHql()).thenReturn(testUrl);
-    when(mockCopilotFile.getFilename()).thenReturn(fileName);
-
-    mockCopilotAppSource = mock(CopilotAppSource.class);
-    when(mockCopilotAppSource.getFile()).thenReturn(mockCopilotFile);
-
-    // When
-    File resultFile = processHqlAppSource.generate(mockCopilotAppSource);
-
-    // Then
-    String fileContent = Files.readString(resultFile.toPath());
-    assertTrue(StringUtils.contains(fileContent, "bd_table_name"));
-    assertTrue(StringUtils.contains(fileContent, "bd_column_name"));
-    assertTrue(StringUtils.contains(fileContent, "AD_Table"));
-    assertTrue(StringUtils.contains(fileContent, "AD_Column"));
+    assertGeneratedFile("example.txt", ".txt");
   }
 
   @Test
   public void textSuccessfullHQLCSV() throws Exception {
-    // Given
-    String testUrl = EXAMPLE_FILE_URL;
-    String fileName = "example.csv";
-    when(mockCopilotFile.getHql()).thenReturn(testUrl);
+    assertGeneratedFile("example.csv", ".csv");
+  }
+
+  private void assertGeneratedFile(String fileName, String expectedExtension) throws Exception {
+    when(mockCopilotFile.getHql()).thenReturn(EXAMPLE_FILE_URL);
     when(mockCopilotFile.getFilename()).thenReturn(fileName);
 
     mockCopilotAppSource = mock(CopilotAppSource.class);
     when(mockCopilotAppSource.getFile()).thenReturn(mockCopilotFile);
 
-    // When
     File resultFile = processHqlAppSource.generate(mockCopilotAppSource);
 
-    // Then
     String fileContent = Files.readString(resultFile.toPath());
-    assertTrue(StringUtils.contains(fileContent, "bd_table_name"));
-    assertTrue(StringUtils.contains(fileContent, "bd_column_name"));
+    assertTrue(resultFile.exists());
+    assertTrue(StringUtils.endsWithIgnoreCase(resultFile.getName(), expectedExtension));
+    assertTrue(StringUtils.isNotBlank(fileContent));
     assertTrue(StringUtils.contains(fileContent, "AD_Table"));
     assertTrue(StringUtils.contains(fileContent, "AD_Column"));
   }

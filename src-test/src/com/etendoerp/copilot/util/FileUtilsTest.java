@@ -217,7 +217,7 @@ public class FileUtilsTest {
     Mockito.when(itemDisk.getName()).thenReturn(null);
     Mockito.when(itemDisk.getFieldName()).thenReturn("fileNull");
     Mockito.when(itemDisk.isInMemory()).thenReturn(true);
-    Mockito.doNothing().when(itemDisk).write(org.mockito.ArgumentMatchers.any(java.nio.file.Path.class));
+    Mockito.when(itemDisk.write(org.mockito.ArgumentMatchers.any(java.nio.file.Path.class))).thenReturn(itemDisk);
 
     java.net.http.HttpResponse<String> mockResponse = Mockito.mock(java.net.http.HttpResponse.class);
     Mockito.when(mockResponse.body()).thenReturn(
