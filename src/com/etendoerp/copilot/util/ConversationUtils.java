@@ -48,11 +48,123 @@ import com.etendoerp.copilot.rest.RestServiceUtil;
 public class ConversationUtils {
   public static final Logger log4j = LogManager.getLogger(ConversationUtils.class);
   private static final String TITLE_GENERATOR_ID = "1844CE5E2BCB404DAAC470216B7D6495";
+  private static final String PROP_TITLE = "title";
+  private static final String PROP_SUCCESS = "success";
+  private static final String CONVERSATION_NOT_FOUND = "Conversation not found";
 
 
   private ConversationUtils() {
   }
 
+  /**
+   * Executes the given action within an admin mode context, writing error responses
+   * if an exception occurs. This eliminates the repeated try/catch/finally pattern
+   * across all handler methods.
+   *
+   * @param response
+   *     the {@link HttpServletResponse} used to send error responses on failure
+   * @param action
+   *     the action to execute in admin mode
+   * @throws IOException
+   *     if an I/O error occurs while sending error responses
+   */
+  private static void executeInAdminMode(HttpServletResponse response,
+      AdminAction action) throws IOException {
+    try {
+      OBContext.setAdminMode();
+      action.execute();
+    } catch (Exception e) {
+      log4j.error(e);
+      try {
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+      } catch (IOException ioException) {
+        log4j.error(ioException);
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Functional interface for actions executed within an admin mode context.
+   */
+  @FunctionalInterface
+  private interface AdminAction {
+    void execute() throws IOException, JSONException;
+  }
+
+  /**
+   * Extracts the conversation ID from the request body JSON, validates it,
+   * and retrieves the corresponding conversation.
+   *
+   * @param json
+   *     the parsed request body
+   * @param includeInactive
+   *     whether to include inactive (archived) conversations in the lookup
+   * @return the found {@link Conversation}, never null
+   * @throws JSONException
+   *     if the conversation ID cannot be extracted from the JSON
+   */
+  private static Conversation extractAndValidateConversation(JSONObject json,
+      boolean includeInactive) throws JSONException {
+    String conversationId = json.getString(CopilotConstants.PROP_CONVERSATION_ID);
+    if (StringUtils.isEmpty(conversationId)) {
+      throwConversationIDRequired();
+    }
+    Conversation conversation = getConversationByIDorExtRef(conversationId, includeInactive);
+    if (conversation == null) {
+      throw new OBException(CONVERSATION_NOT_FOUND);
+    }
+    return conversation;
+  }
+
+  /**
+   * Converts a list of conversations to a JSON array, including each conversation's
+   * external ID and title (if present). Conversations without an external ID are skipped.
+   *
+   * @param conversations
+   *     the list of conversations to convert
+   * @return a {@link JSONArray} with the conversation data
+   */
+  private static JSONArray conversationsToJson(List<Conversation> conversations) {
+    JSONArray conversationsJson = new JSONArray();
+    conversations.forEach(conv -> {
+      try {
+        if (StringUtils.isEmpty(conv.getExternalID())) {
+          return;
+        }
+        JSONObject convJson = new JSONObject();
+        convJson.put("id", conv.getExternalID());
+        String title = conv.getTitle();
+        if (!StringUtils.isEmpty(title)) {
+          convJson.put(PROP_TITLE, title);
+        }
+        conversationsJson.put(convJson);
+      } catch (JSONException e) {
+        log4j.error("Error creating JSON for conversation: {}", conv.getId(), e);
+      }
+    });
+    return conversationsJson;
+  }
+
+  /**
+   * Writes a JSON success response to the HTTP response.
+   *
+   * @param response
+   *     the {@link HttpServletResponse} to write to
+   * @param jsonResponse
+   *     the JSON object to send as the response body
+   * @throws IOException
+   *     if an I/O error occurs writing the response
+   * @throws JSONException
+   *     if a JSON serialization error occurs
+   */
+  private static void writeJsonResponse(HttpServletResponse response,
+      JSONObject jsonResponse) throws IOException, JSONException {
+    response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+    response.getWriter().write(jsonResponse.toString());
+  }
 
   /**
    * Handles the retrieval of a conversation title based on the provided conversation ID.
@@ -70,44 +182,21 @@ public class ConversationUtils {
    */
   public static void handleGetTitleConversation(HttpServletRequest request,
       HttpServletResponse response) throws IOException {
-    try {
-      // Set the admin mode for the current context
-      OBContext.setAdminMode();
-
-      // Retrieve the conversation ID from the request parameters
+    executeInAdminMode(response, () -> {
       String conversationId = request.getParameter(CopilotConstants.PROP_CONVERSATION_ID);
 
-      // Extract additional parameters from the JSON body if available
       JSONObject json = extractRequestBody(request);
       if (json.has(CopilotConstants.PROP_CONVERSATION_ID)) {
         conversationId = json.getString(CopilotConstants.PROP_CONVERSATION_ID);
       }
 
-      // Validate that the conversation ID is not empty
       if (StringUtils.isEmpty(conversationId)) {
         throwConversationIDRequired();
       }
 
-      // Retrieve the title of the conversation
       String title = ConversationUtils.getTitleConversation(conversationId);
-
-      // Write the title as a JSON response
-      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-      response.getWriter().write(new JSONObject().put("title", title).toString());
-    } catch (Exception e) {
-      // Log the error and send a BAD_REQUEST response
-      log4j.error(e);
-      try {
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-      } catch (IOException ioException) {
-        // Log the IOException and send an INTERNAL_SERVER_ERROR response
-        log4j.error(ioException);
-        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
-      }
-    } finally {
-      // Restore the previous context mode
-      OBContext.restorePreviousMode();
-    }
+      writeJsonResponse(response, new JSONObject().put(PROP_TITLE, title));
+    });
   }
 
   /**
@@ -125,41 +214,18 @@ public class ConversationUtils {
    *     if an input or output error occurs during the handling of the request
    */
   public static void handleConversations(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    try {
-      // Set the admin mode for the current context
-      OBContext.setAdminMode();
-
-      // Retrieve the assistant ID from the request parameters
+    executeInAdminMode(response, () -> {
       String appId = request.getParameter(CopilotConstants.PROP_APP_ID);
-
-      // Validate that the assistant ID is not empty
       if (StringUtils.isEmpty(appId)) {
         throw new OBException(OBMessageUtils.messageBD("ETCOP_AppIDRequired"));
       }
 
-      // Fetch the assistant object using the provided ID
       CopilotApp assistant = CopilotUtils.getAssistantByIDOrName(appId);
-
-      // Retrieve the conversations associated with the assistant
       JSONArray conversations = ConversationUtils.getConversations(assistant);
 
-      // Write the conversations as a JSON response
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
       response.getWriter().write(conversations.toString());
-    } catch (Exception e) {
-      // Log the error and send a BAD_REQUEST response
-      log4j.error(e);
-      try {
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-      } catch (IOException ioException) {
-        // Log the IOException and send an INTERNAL_SERVER_ERROR response
-        log4j.error(ioException);
-        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
-      }
-    } finally {
-      // Restore the previous context mode
-      OBContext.restorePreviousMode();
-    }
+    });
   }
 
   /**
@@ -178,45 +244,158 @@ public class ConversationUtils {
    */
   public static void handleConversationMessages(HttpServletRequest request,
       HttpServletResponse response) throws IOException {
-    try {
-      // Set the admin mode for the current context
-      OBContext.setAdminMode();
-
-      // Retrieve the conversation ID from the request parameters
+    executeInAdminMode(response, () -> {
       String conversationId = request.getParameter("conversation_id");
-
-      // Validate that the conversation ID is not empty
       if (StringUtils.isEmpty(conversationId)) {
         throwConversationIDRequired();
       }
 
-      // Retrieve the messages associated with the conversation
       JSONArray messages = ConversationUtils.getConversationMessages(conversationId);
 
-      // Write the messages as a JSON response
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
       response.getWriter().write(messages.toString());
-    } catch (Exception e) {
-      // Log the error and send a BAD_REQUEST response
-      log4j.error(e);
-      try {
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-      } catch (IOException ioException) {
-        // Log the IOException and send an INTERNAL_SERVER_ERROR response
-        log4j.error(ioException);
-        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ioException.getMessage());
+    });
+  }
+
+  /**
+   * Handles renaming a conversation. Extracts the conversation ID and new title
+   * from the request body, validates both, and updates the conversation title.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} containing the conversation ID and new title
+   * @param response
+   *     the {@link HttpServletResponse} used to return the result
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
+  public static void handleRenameConversation(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    executeInAdminMode(response, () -> {
+      JSONObject json = extractRequestBody(request);
+      String title = json.getString(PROP_TITLE);
+
+      if (StringUtils.isEmpty(title)) {
+        throw new OBException("Title is required");
       }
-    } finally {
-      // Restore the previous context mode
-      OBContext.restorePreviousMode();
-    }
+
+      Conversation conversation = extractAndValidateConversation(json, false);
+      conversation.setTitle(title);
+      OBDal.getInstance().save(conversation);
+      OBDal.getInstance().flush();
+
+      writeJsonResponse(response, new JSONObject().put(PROP_SUCCESS, true).put(PROP_TITLE, title));
+    });
+  }
+
+  /**
+   * Handles soft-deleting a conversation by setting it as inactive.
+   * Extracts the conversation ID from the request body and deactivates the conversation.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} containing the conversation ID
+   * @param response
+   *     the {@link HttpServletResponse} used to return the result
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
+  public static void handleDeleteConversation(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    executeInAdminMode(response, () -> {
+      JSONObject json = extractRequestBody(request);
+      Conversation conversation = extractAndValidateConversation(json, false);
+
+      conversation.setActive(false);
+      OBDal.getInstance().save(conversation);
+      OBDal.getInstance().flush();
+
+      writeJsonResponse(response, new JSONObject().put(PROP_SUCCESS, true));
+    });
+  }
+
+  /**
+   * Handles restoring a previously deleted (inactive) conversation by reactivating it.
+   * Extracts the conversation ID from the request body and sets the conversation as active.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} containing the conversation ID
+   * @param response
+   *     the {@link HttpServletResponse} used to return the result
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
+  public static void handleRestoreConversation(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    executeInAdminMode(response, () -> {
+      JSONObject json = extractRequestBody(request);
+      Conversation conversation = extractAndValidateConversation(json, true);
+
+      conversation.setActive(true);
+      OBDal.getInstance().save(conversation);
+      OBDal.getInstance().flush();
+
+      writeJsonResponse(response, new JSONObject().put(PROP_SUCCESS, true));
+    });
+  }
+
+  /**
+   * Handles permanently deleting a conversation and all its messages from the database.
+   * Extracts the conversation ID from the request body, removes all associated messages,
+   * and then removes the conversation itself.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} containing the conversation ID
+   * @param response
+   *     the {@link HttpServletResponse} used to return the result
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
+  public static void handlePermanentDeleteConversation(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    executeInAdminMode(response, () -> {
+      JSONObject json = extractRequestBody(request);
+      Conversation conversation = extractAndValidateConversation(json, true);
+
+      List<Message> messages = conversation.getETCOPMessageList();
+      for (Message msg : messages) {
+        OBDal.getInstance().remove(msg);
+      }
+      OBDal.getInstance().remove(conversation);
+      OBDal.getInstance().flush();
+
+      writeJsonResponse(response, new JSONObject().put(PROP_SUCCESS, true));
+    });
+  }
+
+  /**
+   * Handles the retrieval of archived (inactive) conversations for a specific assistant
+   * and writes them to the HTTP response as a JSON array.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} containing the assistant app ID parameter
+   * @param response
+   *     the {@link HttpServletResponse} used to return the archived conversations
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
+  public static void handleArchivedConversations(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    executeInAdminMode(response, () -> {
+      String appId = request.getParameter(CopilotConstants.PROP_APP_ID);
+      if (StringUtils.isEmpty(appId)) {
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_AppIDRequired"));
+      }
+
+      CopilotApp assistant = CopilotUtils.getAssistantByIDOrName(appId);
+      JSONArray conversations = getArchivedConversations(assistant);
+
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(conversations.toString());
+    });
   }
 
   private static void throwConversationIDRequired() {
-    throw new OBException(OBMessageUtils.messageBD("ETCOP_ConversationRequired")
-    );
+    throw new OBException(OBMessageUtils.messageBD("ETCOP_ConversationRequired"));
   }
-
 
   /**
    * Retrieves a list of conversations associated with a specific assistant and formats them as a JSON array.
@@ -231,39 +410,31 @@ public class ConversationUtils {
    * @return a {@link JSONArray} containing the conversations as JSON objects with their external ID and title
    */
   public static JSONArray getConversations(CopilotApp assistant) {
-    // Create a criteria query to fetch conversations for the given assistant and current user
     OBCriteria<Conversation> convCrit = OBDal.getReadOnlyInstance().createCriteria(Conversation.class);
     convCrit.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, assistant));
     convCrit.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, OBContext.getOBContext().getUser()));
     convCrit.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
 
-    // Execute the query and retrieve the list of conversations
-    List<Conversation> conversations = convCrit.list();
-    JSONArray conversationsJson = new JSONArray();
+    return conversationsToJson(convCrit.list());
+  }
 
-    // Iterate through the conversations and convert each to a JSON object
-    conversations.forEach(
-        conv -> {
-          try {
-            JSONObject convJson = new JSONObject();
-            if (StringUtils.isEmpty(conv.getExternalID())) {
-              return;
-            }
-            convJson.put("id", conv.getExternalID());
-            String title = conv.getTitle();
-            if (!StringUtils.isEmpty(title)) {
-              convJson.put("title", title);
-            }
-            conversationsJson.put(convJson);
-          } catch (JSONException e) {
-            // Log any errors encountered while creating the JSON object
-            log4j.error("Error creating JSON for conversation: {}", conv.getId(), e);
-          }
-        }
-    );
+  /**
+   * Retrieves archived (inactive) conversations for a specific assistant and formats them as a JSON array.
+   * Similar to {@link #getConversations(CopilotApp)} but only returns conversations marked as inactive.
+   *
+   * @param assistant
+   *     the {@link CopilotApp} instance representing the assistant whose archived conversations are to be retrieved
+   * @return a {@link JSONArray} containing the archived conversations as JSON objects with their external ID and title
+   */
+  public static JSONArray getArchivedConversations(CopilotApp assistant) {
+    OBCriteria<Conversation> convCrit = OBDal.getInstance().createCriteria(Conversation.class);
+    convCrit.setFilterOnActive(false);
+    convCrit.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, assistant));
+    convCrit.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, OBContext.getOBContext().getUser()));
+    convCrit.add(Restrictions.eq(Conversation.PROPERTY_ACTIVE, false));
+    convCrit.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
 
-    // Return the JSON array of conversations
-    return conversationsJson;
+    return conversationsToJson(convCrit.list());
   }
 
   /**
@@ -361,30 +532,23 @@ public class ConversationUtils {
     }
   }
 
-  /**
-   * Retrieves a conversation by its ID or external reference ID.
-   * <p>
-   * This method first attempts to fetch a conversation using the provided ID. If no conversation
-   * is found, it queries the database for a conversation with a matching external reference ID.
-   * The first matching conversation is returned.
-   *
-   * @param conversationId
-   *     the ID or external reference ID of the conversation to retrieve
-   * @return the {@link Conversation} object if found, or null if no matching conversation exists
-   */
   private static Conversation getConversationByIDorExtRef(String conversationId) {
-    // Attempt to retrieve the conversation by its primary ID
+    return getConversationByIDorExtRef(conversationId, false);
+  }
+
+  private static Conversation getConversationByIDorExtRef(String conversationId, boolean includeInactive) {
     Conversation conversation = OBDal.getInstance().get(Conversation.class, conversationId);
 
-    // If not found, query the database for a conversation with the matching external reference ID
     if (conversation == null) {
       OBCriteria<Conversation> conversationcrit = OBDal.getInstance().createCriteria(Conversation.class);
+      if (includeInactive) {
+        conversationcrit.setFilterOnActive(false);
+      }
       conversationcrit.add(Restrictions.eq(Conversation.PROPERTY_EXTERNALID, conversationId));
       conversationcrit.setMaxResults(1);
       conversation = (Conversation) conversationcrit.uniqueResult();
     }
 
-    // Return the retrieved conversation or null if not found
     return conversation;
   }
 
