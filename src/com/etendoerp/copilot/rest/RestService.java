@@ -315,13 +315,7 @@ public class RestService {
   private void handleExecuteTool(HttpServletRequest request, HttpServletResponse response)
       throws IOException, JSONException {
     try {
-      BufferedReader reader = request.getReader();
-      StringBuilder sb = new StringBuilder();
-      String line;
-      while ((line = reader.readLine()) != null) {
-        sb.append(line);
-      }
-      JSONObject jsonBody = new JSONObject(sb.toString());
+      JSONObject jsonBody = RequestUtils.extractRequestBody(request);
       java.net.http.HttpResponse<String> copilotResponse = CopilotUtils.getResponseFromCopilot(
           OBPropertiesProvider.getInstance().getOpenbravoProperties(),
           "executeTool",
@@ -341,7 +335,8 @@ public class RestService {
           "Invalid JSON body: " + e.getMessage());
     } catch (Exception e) {
       log4j.error(e);
-      sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+      sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Error executing tool");
     }
   }
 

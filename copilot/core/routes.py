@@ -589,7 +589,7 @@ def execute_tool(body: ExecuteToolSchema):
         return {"answer": result}
     except Exception as e:
         copilot_error(f"executeTool '{body.tool_name}' failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error executing tool")
 
 
 @core_router.post("/attachFile")

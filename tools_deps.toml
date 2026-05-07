@@ -1,2 +1,5 @@
 [HelloWorldTool]
 pyfiglet = "*"
+
+[SimpleOcrTool]
+filetype = "*"
