@@ -431,7 +431,7 @@ public class ConversationUtils {
     convCrit.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, assistant));
     convCrit.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, OBContext.getOBContext().getUser()));
     convCrit.add(Restrictions.eq(Conversation.PROPERTY_ACTIVE, false));
-    convCrit.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
+    convCrit.addOrderBy(Conversation.PROPERTY_LASTMSG, false);
 
     return conversationsToJson(convCrit.list());
   }

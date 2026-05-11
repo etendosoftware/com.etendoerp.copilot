@@ -17,9 +17,11 @@
 package com.etendoerp.copilot.rest;
 
 import com.etendoerp.copilot.util.OpenAIUtils;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.openbravo.base.exception.OBException;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.test.base.TestConstants;
@@ -30,7 +32,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doNothing;
 
@@ -40,28 +41,35 @@ import static org.mockito.Mockito.doNothing;
 public class CopilotJwtServletTest extends WeldBaseTest {
 
     private CopilotJwtServlet servlet;
-    private HttpServletRequest mockRequest;
-    private HttpServletResponse mockResponse;
-    private RestService mockRestService;
+    @Mock private HttpServletRequest mockRequest;
+    @Mock private HttpServletResponse mockResponse;
+    @Mock private RestService mockRestService;
 
     /**
      * Sets up the necessary mocks before each test.
      */
+    private AutoCloseable mocks;
+
     @Override
     @Before
     public void setUp() throws Exception {
         super.setUp();
+        mocks = MockitoAnnotations.openMocks(this);
         servlet = spy(new CopilotJwtServlet());
-        mockRequest = mock(HttpServletRequest.class);
-        mockResponse = mock(HttpServletResponse.class);
-        mockRestService = mock(RestService.class);
 
         // Inject the mock RestService instance into CopilotJwtServlet
         setPrivateField(CopilotJwtServlet.class, "instance", servlet, mockRestService);
 
         // Set OBContext
-        OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN,
-                TestConstants.Clients.FB_GRP, TestConstants.Orgs.ESP_NORTE);
+        OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.SYS_ADMIN,
+                TestConstants.Clients.SYSTEM, TestConstants.Orgs.MAIN);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        if (mocks != null) {
+            mocks.close();
+        }
     }
 
     /**
