@@ -25,20 +25,14 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.StringReader;
-import java.util.List;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -62,13 +56,11 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.test.base.TestConstants;
 
-import com.etendoerp.copilot.data.CopilotApp;
-import com.etendoerp.copilot.util.ConversationUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
-import com.etendoerp.copilot.util.CopilotUtils;
 
 /**
- * Comprehensive unit tests for the {@link RestService} class.
+ * Unit tests for {@link RestService} handler methods, validation, and utilities.
+ * Routing tests are in {@link RestServiceRoutingTest}.
  */
 public class RestServiceTest extends WeldBaseTest {
 
@@ -90,8 +82,6 @@ public class RestServiceTest extends WeldBaseTest {
 
   private MockedStatic<RestServiceUtil> mockedRestServiceUtil;
   private MockedStatic<RequestUtils> mockedRequestUtils;
-  private MockedStatic<ConversationUtils> mockedConversationUtils;
-  private MockedStatic<CopilotUtils> mockedCopilotUtils;
   private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
 
   private AutoCloseable mocks;
@@ -113,8 +103,6 @@ public class RestServiceTest extends WeldBaseTest {
     // Set up static mocks
     mockedRestServiceUtil = mockStatic(RestServiceUtil.class);
     mockedRequestUtils = mockStatic(RequestUtils.class);
-    mockedConversationUtils = mockStatic(ConversationUtils.class);
-    mockedCopilotUtils = mockStatic(CopilotUtils.class);
     mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
     // Configure OBContext
@@ -151,12 +139,6 @@ public class RestServiceTest extends WeldBaseTest {
     }
     if (mockedRequestUtils != null) {
       mockedRequestUtils.close();
-    }
-    if (mockedConversationUtils != null) {
-      mockedConversationUtils.close();
-    }
-    if (mockedCopilotUtils != null) {
-      mockedCopilotUtils.close();
     }
     if (mockedOBMessageUtils != null) {
       mockedOBMessageUtils.close();
@@ -736,41 +718,6 @@ public class RestServiceTest extends WeldBaseTest {
     restService.validateRequiredParams(json);
 
     // Then - Exception is expected
-  }
-
-  /**
-   * Test cacheQuestion with valid question.
-   */
-  @Test
-  public void testCacheQuestionSuccess() throws Exception {
-    // Given
-    when(mockRequest.getMethod()).thenReturn("POST");
-    String questionJson = String.format("{\"question\":\"%s\"}", TEST_QUESTION);
-    when(mockRequest.getReader()).thenReturn(new BufferedReader(new StringReader(questionJson)));
-    doNothing().when(mockSession).setAttribute(CACHED_QUESTION, TEST_QUESTION);
-
-    // When
-    restService.doPost(mockRequest, mockResponse);
-
-    // Then - Will be tested through integration
-  }
-
-  /**
-   * Test handleStructure with missing appId.
-   */
-  @Test
-  public void testHandleStructureWithMissingAppId() throws Exception {
-    // Given
-    when(mockRequest.getPathInfo()).thenReturn("/structure");
-    JSONObject params = new JSONObject();
-    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest)).thenReturn(params);
-
-    // When
-    restService.doGet(mockRequest, mockResponse);
-
-    // Then - error is returned as JSON response (setStatus + getWriter), not sendError
-    verify(mockResponse, times(1)).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    verify(mockResponse, atLeastOnce()).getWriter();
   }
 
   /**
