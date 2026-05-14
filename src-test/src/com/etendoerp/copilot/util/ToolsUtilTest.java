@@ -39,6 +39,7 @@ import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.openbravo.base.weld.test.WeldBaseTest;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 
 import com.etendoerp.copilot.data.CopilotApp;
@@ -96,7 +97,7 @@ public class ToolsUtilTest {
     when(mockApp.getId()).thenReturn(TEST_APP_ID);
 
     // Configure OBCriteria mock
-    when(mockCriteria.add(any())).thenReturn(mockCriteria);
+    when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
 
     // Configure CopilotAppTool mock
     when(mockAppTool.getCopilotTool()).thenReturn(mockTool);
@@ -137,7 +138,7 @@ public class ToolsUtilTest {
     // Then
     assertNotNull(RESULT_NOT_NULL_MESSAGE, result);
     assertEquals("Result should be empty", 0, result.length());
-    verify(mockCriteria, times(1)).add(any());
+    verify(mockCriteria, times(1)).add(any(Restriction.class));
     verify(mockCriteria, times(1)).list();
   }
 
@@ -344,7 +345,7 @@ public class ToolsUtilTest {
 
     // Then
     verify(obDal, times(1)).createCriteria(CopilotAppTool.class);
-    verify(mockCriteria, times(1)).add(any());
+    verify(mockCriteria, times(1)).add(any(Restriction.class));
     verify(mockCriteria, times(1)).list();
   }
 

@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.Collections;
 
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -90,7 +90,7 @@ public class KBSyncStatusHandlerNewTest {
 
     lenient().when(fileEntity.getProperty(anyString())).thenReturn(property);
     lenient().when(obDal.createCriteria(CopilotAppSource.class)).thenReturn(criteria);
-    lenient().when(criteria.add(any(Criterion.class))).thenReturn(criteria);
+    lenient().when(criteria.add(any(Restriction.class))).thenReturn(criteria);
     lenient().when(appSource.getEtcopApp()).thenReturn(copilotApp);
   }
 

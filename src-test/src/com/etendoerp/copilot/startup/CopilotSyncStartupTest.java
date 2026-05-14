@@ -48,6 +48,7 @@ import org.openbravo.model.ad.access.Role;
 import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.database.SessionInfo;
 
@@ -246,7 +247,7 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     // Mock: CopilotRoleApp criteria — no existing record
     OBCriteria<CopilotRoleApp> roleAppCrit = mock(OBCriteria.class);
     when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleAppCrit);
-    when(roleAppCrit.add(any())).thenReturn(roleAppCrit);
+    when(roleAppCrit.add(any(Restriction.class))).thenReturn(roleAppCrit);
     when(roleAppCrit.uniqueResult()).thenReturn(null);
 
     CopilotRoleApp newRoleApp = mock(CopilotRoleApp.class);
@@ -276,7 +277,7 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     // Mock: CopilotRoleApp criteria — record already exists
     OBCriteria<CopilotRoleApp> roleAppCrit = mock(OBCriteria.class);
     when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(roleAppCrit);
-    when(roleAppCrit.add(any())).thenReturn(roleAppCrit);
+    when(roleAppCrit.add(any(Restriction.class))).thenReturn(roleAppCrit);
     when(roleAppCrit.uniqueResult()).thenReturn(mock(CopilotRoleApp.class));
 
     // Exercise the "0" client branch

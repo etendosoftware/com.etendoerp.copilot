@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Properties;
 
 import org.dom4j.Element;
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -134,7 +134,7 @@ public class CopilotModelUtilsTest2 extends WeldBaseTest {
         // Setup OBDal mock
         mockedOBDal.when(OBDal::getInstance).thenReturn(mockOBDalInstance);
         when(mockOBDalInstance.createCriteria(CopilotModel.class)).thenReturn(mockModelCriteria);
-        when(mockModelCriteria.add(any(Criterion.class))).thenReturn(mockModelCriteria);
+        when(mockModelCriteria.add(any(Restriction.class))).thenReturn(mockModelCriteria);
         when(mockModelCriteria.addOrderBy(anyString(), any(Boolean.class))).thenReturn(mockModelCriteria);
 
         // Setup OBProvider mock
@@ -228,7 +228,7 @@ public class CopilotModelUtilsTest2 extends WeldBaseTest {
         // Then
         assertNotNull("Result should not be null", result);
         assertEquals("Should return the mock model", mockCopilotModel, result);
-        verify(mockModelCriteria, times(2)).add(any(Criterion.class));
+        verify(mockModelCriteria, times(2)).add(any(Restriction.class));
     }
 
     /**

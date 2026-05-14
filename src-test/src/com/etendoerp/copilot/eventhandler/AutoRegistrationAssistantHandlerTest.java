@@ -39,6 +39,7 @@ import org.mockito.MockitoAnnotations;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.access.Role;
@@ -127,7 +128,7 @@ public class AutoRegistrationAssistantHandlerTest {
     when(mockRole.getId()).thenReturn(TEST_ROLE_ID);
 
     // Configure OBCriteria mock
-    when(mockCriteria.add(any())).thenReturn(mockCriteria);
+    when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
     when(mockCriteria.setMaxResults(1)).thenReturn(mockCriteria);
 
     // Configure new CopilotRoleApp mock
@@ -182,7 +183,7 @@ public class AutoRegistrationAssistantHandlerTest {
     // Then
     assertNotNull(result, RESULT_NOT_NULL_MESSAGE);
     verify(obDal, times(1)).get(CopilotApp.class, TEST_APP_ID);
-    verify(mockCriteria, times(2)).add(any());
+    verify(mockCriteria, times(2)).add(any(Restriction.class));
     verify(mockCriteria, times(1)).setMaxResults(1);
     verify(mockCriteria, times(1)).uniqueResult();
 
@@ -277,7 +278,7 @@ public class AutoRegistrationAssistantHandlerTest {
 
     // Then
     // Verify criteria was configured with correct restrictions
-    verify(mockCriteria, times(2)).add(any());
+    verify(mockCriteria, times(2)).add(any(Restriction.class));
     verify(mockCriteria, times(1)).setMaxResults(1);
     verify(obDal, times(1)).createCriteria(CopilotRoleApp.class);
   }

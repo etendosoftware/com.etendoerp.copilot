@@ -19,6 +19,7 @@ package com.etendoerp.copilot.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -35,7 +36,6 @@ import java.util.List;
 
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Order;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,6 +45,7 @@ import org.mockito.MockitoAnnotations;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.dal.service.OBQuery;
 import org.openbravo.model.ad.access.User;
@@ -189,11 +190,11 @@ public class TrackingUtilTest {
     });
 
     // Configure Criteria mocks
-    when(mockConversationCriteria.add(any())).thenReturn(mockConversationCriteria);
-    when(mockConversationCriteria.addOrder(any(Order.class))).thenReturn(mockConversationCriteria);
+    when(mockConversationCriteria.add(any(Restriction.class))).thenReturn(mockConversationCriteria);
+    when(mockConversationCriteria.addOrderBy(anyString(), anyBoolean())).thenReturn(mockConversationCriteria);
     when(mockConversationCriteria.setMaxResults(1)).thenReturn(mockConversationCriteria);
-    when(mockMessageCriteria.add(any())).thenReturn(mockMessageCriteria);
-    when(mockMessageCriteria.setProjection(any())).thenReturn(mockMessageCriteria);
+    when(mockMessageCriteria.add(any(Restriction.class))).thenReturn(mockMessageCriteria);
+    doNothing().when(mockMessageCriteria).setProjection(any());
 
     // Configure CopilotModelUtils mock
     mockedCopilotModelUtils.when(() -> CopilotModelUtils.getAppModel(mockApp)).thenReturn(TEST_MODEL_NAME);

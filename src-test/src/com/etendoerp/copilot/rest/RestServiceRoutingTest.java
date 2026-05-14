@@ -20,6 +20,7 @@ import static com.etendoerp.copilot.rest.RestService.CACHED_QUESTION;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -35,11 +36,11 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
-import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload2.core.DiskFileItem;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.After;
 import org.junit.Before;
@@ -100,8 +101,8 @@ public class RestServiceRoutingTest extends WeldBaseTest {
     closeables.addAll(List.of(mockedRestServiceUtil, mockedRequestUtils,
         mockedConversationUtils, mockedCopilotUtils, mockedOBMessageUtils));
 
-    OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN,
-        TestConstants.Clients.FB_GRP, TestConstants.Orgs.ESP_NORTE);
+    OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.SYS_ADMIN,
+        TestConstants.Clients.SYSTEM, TestConstants.Orgs.MAIN);
     RequestContext.get().setVariableSecureApp(new VariablesSecureApp(
         OBContext.getOBContext().getUser().getId(),
         OBContext.getOBContext().getCurrentClient().getId(),
@@ -254,7 +255,7 @@ public class RestServiceRoutingTest extends WeldBaseTest {
 
     JSONObject fileResponse = new JSONObject().put("file", "uploaded");
 
-    mockedRestServiceUtil.when(() -> RestServiceUtil.handleFile((List<FileItem>) any(), eq("attachFile")))
+    mockedRestServiceUtil.when(() -> RestServiceUtil.handleFile((List<DiskFileItem>) any(), eq("attachFile")))
         .thenReturn(fileResponse);
 
     when(mockRequest.getContentType()).thenReturn("multipart/form-data");
@@ -381,6 +382,6 @@ public class RestServiceRoutingTest extends WeldBaseTest {
     restService.doGet(mockRequest, mockResponse);
 
     verify(mockResponse, times(1)).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    verify(mockResponse, org.mockito.Mockito.atLeastOnce()).getWriter();
+    verify(mockResponse, atLeastOnce()).getWriter();
   }
 }

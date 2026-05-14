@@ -9,9 +9,8 @@ import java.util.List;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Order;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
+import org.openbravo.dal.service.Projections;
+import org.openbravo.dal.service.Restrictions;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
@@ -195,7 +194,7 @@ public class TrackingUtil {
     OBCriteria<Message> messCrit = OBDal.getInstance().createCriteria(Message.class);
     messCrit.add(Restrictions.eq(Message.PROPERTY_CONVERSATION, conversation));
     messCrit.setProjection(Projections.max(Message.PROPERTY_LINENO));
-    Long maxLineNo = (Long) messCrit.uniqueResult();
+    Long maxLineNo = messCrit.uniqueResult(Long.class);
     if (maxLineNo == null) {
       maxLineNo = 0L;
     }
@@ -316,7 +315,7 @@ public class TrackingUtil {
     OBCriteria<Conversation> convCriteria = OBDal.getInstance().createCriteria(Conversation.class);
     convCriteria.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, copilotApp));
     convCriteria.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, user));
-    convCriteria.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
+    convCriteria.addOrderBy(Conversation.PROPERTY_LASTMSG, false);
     convCriteria.setMaxResults(1);
     Conversation conversation = (Conversation) convCriteria.uniqueResult();
     if (conversation == null) {

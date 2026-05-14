@@ -19,7 +19,6 @@ package com.etendoerp.copilot.rest;
 import static com.etendoerp.copilot.rest.RestService.CACHED_QUESTION;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -33,10 +32,12 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
@@ -58,8 +59,9 @@ import org.openbravo.test.base.TestConstants;
 import com.etendoerp.copilot.util.CopilotConstants;
 
 /**
- * Unit tests for {@link RestService} handler methods, validation, and utilities.
- * Routing tests are in {@link RestServiceRoutingTest}.
+ * Unit tests for {@link RestService} handler methods, validation and utilities.
+ *
+ * Routing scenarios are covered in {@link RestServiceRoutingTest} to avoid duplicated tests.
  */
 public class RestServiceTest extends WeldBaseTest {
 
@@ -67,26 +69,18 @@ public class RestServiceTest extends WeldBaseTest {
   private static final String QUESTION_PATH = "/question";
   private static final String ASYNC_QUESTION_PATH = "/aquestion";
   private static final String JSON_CONTENT_TYPE = "application/json;charset=UTF-8";
-
-  private RestService restService;
-
-  @Mock
-  private HttpServletRequest mockRequest;
-  @Mock
-  private HttpServletResponse mockResponse;
-  @Mock
-  private HttpSession mockSession;
-  @Mock
-  private PrintWriter mockWriter;
-
-  private MockedStatic<RestServiceUtil> mockedRestServiceUtil;
-  private MockedStatic<RequestUtils> mockedRequestUtils;
-  private MockedStatic<OBMessageUtils> mockedOBMessageUtils;
-
-  private AutoCloseable mocks;
-
   private static final String TEST_QUESTION = "What is the weather?";
   private static final String TEST_APP_ID = "testAppId123";
+
+  private final List<AutoCloseable> closeables = new ArrayList<>();
+  private RestService restService;
+  private MockedStatic<RestServiceUtil> mockedRestServiceUtil;
+  private MockedStatic<RequestUtils> mockedRequestUtils;
+
+  @Mock private HttpServletRequest mockRequest;
+  @Mock private HttpServletResponse mockResponse;
+  @Mock private HttpSession mockSession;
+  @Mock private PrintWriter mockWriter;
 
   /**
    * Sets up the necessary mocks and spies before each test.
@@ -95,32 +89,25 @@ public class RestServiceTest extends WeldBaseTest {
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    mocks = MockitoAnnotations.openMocks(this);
+    closeables.add(MockitoAnnotations.openMocks(this));
 
     restService = spy(new RestService());
-
-    // Set up static mocks
     mockedRestServiceUtil = mockStatic(RestServiceUtil.class);
     mockedRequestUtils = mockStatic(RequestUtils.class);
-    mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
+    MockedStatic<OBMessageUtils> mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
+    closeables.addAll(List.of(mockedRestServiceUtil, mockedRequestUtils, mockedOBMessageUtils));
 
-    // Configure OBContext
-    OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.FB_GRP_ADMIN,
-        TestConstants.Clients.FB_GRP, TestConstants.Orgs.ESP_NORTE);
-    VariablesSecureApp vsa = new VariablesSecureApp(
+    OBContext.setOBContext(TestConstants.Users.ADMIN, TestConstants.Roles.SYS_ADMIN,
+        TestConstants.Clients.SYSTEM, TestConstants.Orgs.MAIN);
+    RequestContext.get().setVariableSecureApp(new VariablesSecureApp(
         OBContext.getOBContext().getUser().getId(),
         OBContext.getOBContext().getCurrentClient().getId(),
         OBContext.getOBContext().getCurrentOrganization().getId(),
-        OBContext.getOBContext().getRole().getId()
-    );
-    RequestContext.get().setVariableSecureApp(vsa);
+        OBContext.getOBContext().getRole().getId()));
 
-    // Configure common mocks
     when(mockResponse.getWriter()).thenReturn(mockWriter);
     doNothing().when(mockWriter).write(anyString());
     when(mockRequest.getSession()).thenReturn(mockSession);
-
-    // Configure OBMessageUtils mock
     mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(anyString()))
         .thenReturn("Error message");
   }
@@ -130,370 +117,221 @@ public class RestServiceTest extends WeldBaseTest {
    */
   @After
   public void tearDown() throws Exception {
-    if (mocks != null) {
-      mocks.close();
+    for (AutoCloseable closeable : closeables) {
+      closeable.close();
     }
-    if (mockedRestServiceUtil != null) {
-      mockedRestServiceUtil.close();
-    }
-    if (mockedRequestUtils != null) {
-      mockedRequestUtils.close();
-    }
-    if (mockedOBMessageUtils != null) {
-      mockedOBMessageUtils.close();
-    }
+    closeables.clear();
   }
 
-  // ============ handleQuestion Tests ============
-
-  /**
-   * Test handleQuestion with synchronous request and valid parameters.
-   */
   @Test
-  public void testHandleQuestionWithSyncRequest() throws IOException, JSONException {
-    // Given
-    when(mockRequest.getPathInfo()).thenReturn(QUESTION_PATH);
-    JSONObject json = new JSONObject();
-    json.put(CopilotConstants.PROP_QUESTION, TEST_QUESTION);
-    json.put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
+  public void testHandleQuestionWithSyncRequest() throws Exception {
+    JSONObject json = createQuestionRequestJson();
+    mockQuestionRequest(json, false, null);
+    doNothing().when(restService).processSyncRequest(mockResponse, json);
 
-    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest)).thenReturn(json);
-    when(mockSession.getAttribute(CACHED_QUESTION)).thenReturn(null);
-    doReturn(false).when(restService).isAsyncRequest(mockRequest);
-    doNothing().when(restService).processSyncRequest(any(HttpServletResponse.class), any(JSONObject.class));
-
-    // When
     restService.handleQuestion(mockRequest, mockResponse);
 
-    // Then
     verify(restService, times(1)).processSyncRequest(mockResponse, json);
   }
 
-  /**
-   * Test handleQuestion with asynchronous request.
-   */
   @Test
-  public void testHandleQuestionWithAsyncRequest() throws IOException, JSONException {
-    // Given
-    when(mockRequest.getPathInfo()).thenReturn(ASYNC_QUESTION_PATH);
-    JSONObject json = new JSONObject();
-    json.put(CopilotConstants.PROP_QUESTION, TEST_QUESTION);
-    json.put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
-
-    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest)).thenReturn(json);
-    when(mockSession.getAttribute(CACHED_QUESTION)).thenReturn(null);
-    doReturn(true).when(restService).isAsyncRequest(mockRequest);
+  public void testHandleQuestionWithAsyncRequest() throws Exception {
+    JSONObject json = createQuestionRequestJson();
+    mockQuestionRequest(json, true, null);
 
     JSONObject responseJson = new JSONObject().put("response", "data");
     mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(eq(true), eq(mockResponse), any(JSONObject.class)))
         .thenReturn(responseJson);
 
-    // When
     restService.handleQuestion(mockRequest, mockResponse);
 
-    // Then
-    mockedRestServiceUtil.verify(() -> RestServiceUtil.handleQuestion(eq(true), eq(mockResponse), any(JSONObject.class)), times(1));
+    mockedRestServiceUtil.verify(
+        () -> RestServiceUtil.handleQuestion(eq(true), eq(mockResponse), any(JSONObject.class)), times(1));
   }
 
-  /**
-   * Test handleQuestion throws exception when question is missing.
-   */
-  @Test(expected = OBException.class)
-  public void testHandleQuestionWithMissingQuestion() throws IOException, JSONException {
-    // Given
-    JSONObject json = new JSONObject();
-    json.put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
-
-    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest)).thenReturn(json);
-    when(mockSession.getAttribute(CACHED_QUESTION)).thenReturn(null);
-
-    // When
-    restService.handleQuestion(mockRequest, mockResponse);
-
-    // Then - Exception is expected
-  }
-
-  /**
-   * Test handleQuestion throws exception when appId is missing.
-   */
-  @Test(expected = OBException.class)
-  public void testHandleQuestionWithMissingAppId() throws IOException, JSONException {
-    // Given
-    JSONObject json = new JSONObject();
-    json.put(CopilotConstants.PROP_QUESTION, TEST_QUESTION);
-
-    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest)).thenReturn(json);
-    when(mockSession.getAttribute(CACHED_QUESTION)).thenReturn(null);
-
-    // When
-    restService.handleQuestion(mockRequest, mockResponse);
-
-    // Then - Exception is expected
-  }
-
-  /**
-   * Test handleQuestion with cached question.
-   */
   @Test
-  public void testHandleQuestionWithCachedQuestion() throws IOException, JSONException {
-    // Given
-    when(mockRequest.getPathInfo()).thenReturn(QUESTION_PATH);
-    JSONObject json = new JSONObject();
-    json.put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
+  public void testHandleQuestionWithMissingQuestion() throws Exception {
+    mockQuestionRequest(createAppIdOnlyJson(), false, null);
 
-    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest)).thenReturn(json);
-    when(mockSession.getAttribute(CACHED_QUESTION)).thenReturn(TEST_QUESTION);
-    doReturn(false).when(restService).isAsyncRequest(mockRequest);
-    doNothing().when(restService).processSyncRequest(any(HttpServletResponse.class), any(JSONObject.class));
+    org.junit.Assert.assertThrows(OBException.class,
+        () -> restService.handleQuestion(mockRequest, mockResponse));
+  }
 
-    // When
+  @Test
+  public void testHandleQuestionWithMissingAppId() throws Exception {
+    mockQuestionRequest(createQuestionOnlyJson(), false, null);
+
+    org.junit.Assert.assertThrows(OBException.class,
+        () -> restService.handleQuestion(mockRequest, mockResponse));
+  }
+
+  @Test
+  public void testHandleQuestionWithCachedQuestion() throws Exception {
+    JSONObject json = createAppIdOnlyJson();
+    mockQuestionRequest(json, false, TEST_QUESTION);
+    doNothing().when(restService).processSyncRequest(eq(mockResponse), any(JSONObject.class));
+
     restService.handleQuestion(mockRequest, mockResponse);
 
-    // Then
     verify(mockSession, times(1)).removeAttribute(CACHED_QUESTION);
     verify(restService, times(1)).processSyncRequest(eq(mockResponse), any(JSONObject.class));
+    assertEquals(TEST_QUESTION, json.getString(CopilotConstants.PROP_QUESTION));
   }
 
-  /**
-   * Test processSyncRequest with successful response.
-   */
   @Test
-  public void testProcessSyncRequestSuccess() throws IOException, JSONException {
-    // Given
-    JSONObject requestJson = new JSONObject();
-    requestJson.put(CopilotConstants.PROP_QUESTION, TEST_QUESTION);
-    requestJson.put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
-
+  public void testProcessSyncRequestSuccess() throws Exception {
+    JSONObject requestJson = createQuestionRequestJson();
     JSONObject responseJson = new JSONObject().put("answer", "test answer");
     mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(eq(false), eq(mockResponse), any(JSONObject.class)))
         .thenReturn(responseJson);
 
-    // When
     restService.processSyncRequest(mockResponse, requestJson);
 
-    // Then
     verify(mockResponse, times(1)).setContentType(JSON_CONTENT_TYPE);
     verify(mockWriter, times(1)).write(responseJson.toString());
   }
 
-  /**
-   * Test processSyncRequest with CopilotRestServiceException.
-   */
   @Test
-  public void testProcessSyncRequestWithCopilotRestServiceException() throws IOException, JSONException {
-    // Given
-    JSONObject requestJson = new JSONObject();
-    requestJson.put(CopilotConstants.PROP_QUESTION, TEST_QUESTION);
-
+  public void testProcessSyncRequestWithCopilotRestServiceException() throws Exception {
+    JSONObject requestJson = createQuestionOnlyJson();
     CopilotRestServiceException exception = new CopilotRestServiceException(TEST_ERROR_MESSAGE, 400);
     mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(eq(false), eq(mockResponse), any(JSONObject.class)))
         .thenThrow(exception);
 
-    // When
     restService.processSyncRequest(mockResponse, requestJson);
 
-    // Then
     verify(mockResponse, times(1)).setStatus(400);
     verify(mockWriter, times(1)).write(anyString());
   }
 
-  /**
-   * Test processSyncRequest with CopilotRestServiceException without error code.
-   */
   @Test
-  public void testProcessSyncRequestWithCopilotRestServiceExceptionNoCode() throws IOException, JSONException {
-    // Given
+  public void testProcessSyncRequestWithCopilotRestServiceExceptionNoCode() throws Exception {
     JSONObject requestJson = new JSONObject();
-
     CopilotRestServiceException exception = new CopilotRestServiceException(TEST_ERROR_MESSAGE, -1);
     mockedRestServiceUtil.when(() -> RestServiceUtil.handleQuestion(eq(false), eq(mockResponse), any(JSONObject.class)))
         .thenThrow(exception);
 
-    // When
     restService.processSyncRequest(mockResponse, requestJson);
 
-    // Then
     verify(mockResponse, times(1)).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
   }
 
-  /**
-   * Test isAsyncRequest returns true for /aquestion path.
-   */
   @Test
-  public void testIsAsyncRequestWithAquestion() {
-    // Given
-    when(mockRequest.getPathInfo()).thenReturn(ASYNC_QUESTION_PATH);
-
-    // When
-    boolean result = restService.isAsyncRequest(mockRequest);
-
-    // Then
-    assertTrue("Should return true for /aquestion", result);
+  public void testIsAsyncRequestWithAquestion() throws Exception {
+    assertAsyncRequest(ASYNC_QUESTION_PATH, true);
   }
 
-  /**
-   * Test isAsyncRequest returns true for /agraph path.
-   */
   @Test
-  public void testIsAsyncRequestWithAgraph() {
-    // Given
-    when(mockRequest.getPathInfo()).thenReturn("/agraph");
-
-    // When
-    boolean result = restService.isAsyncRequest(mockRequest);
-
-    // Then
-    assertTrue("Should return true for /agraph", result);
+  public void testIsAsyncRequestWithAgraph() throws Exception {
+    assertAsyncRequest("/agraph", true);
   }
 
-  /**
-   * Test isAsyncRequest returns false for other paths.
-   */
   @Test
-  public void testIsAsyncRequestWithOtherPath() {
-    // Given
-    when(mockRequest.getPathInfo()).thenReturn(QUESTION_PATH);
-
-    // When
-    boolean result = restService.isAsyncRequest(mockRequest);
-
-    // Then
-    assertFalse("Should return false for /question", result);
+  public void testIsAsyncRequestWithOtherPath() throws Exception {
+    assertAsyncRequest(QUESTION_PATH, false);
   }
 
-
-  /**
-   * Test handleAssistants with successful response.
-   */
   @Test
   public void testHandleAssistantsSuccess() throws Exception {
-    // Given
     JSONArray assistants = new JSONArray();
     assistants.put(new JSONObject().put("assistants", "data"));
     mockedRestServiceUtil.when(RestServiceUtil::handleAssistants).thenReturn(assistants);
 
-    // When
     restService.handleAssistants(mockResponse);
 
-    // Then
     verify(mockWriter, times(1)).write(assistants.toString());
   }
 
-  /**
-   * Test handleAssistants with exception.
-   */
   @Test
-  public void testHandleAssistantsWithException() {
-    // Given
-    mockedRestServiceUtil.when(RestServiceUtil::handleAssistants).thenThrow(new RuntimeException(TEST_ERROR_MESSAGE));
+  public void testHandleAssistantsWithException() throws Exception {
+    mockedRestServiceUtil.when(RestServiceUtil::handleAssistants)
+        .thenThrow(new RuntimeException(TEST_ERROR_MESSAGE));
 
-    // When
     restService.handleAssistants(mockResponse);
 
-    // Then
     verify(mockResponse, times(1)).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
   }
 
-  /**
-   * Test addCachedQuestionIfPresent adds cached question when JSON has no question.
-   */
   @Test
-  public void testAddCachedQuestionIfPresentAddsQuestion() throws JSONException {
-    // Given
+  public void testAddCachedQuestionIfPresentAddsQuestion() throws Exception {
     JSONObject json = new JSONObject();
     when(mockSession.getAttribute(CACHED_QUESTION)).thenReturn(TEST_QUESTION);
 
-    // When
     restService.addCachedQuestionIfPresent(mockRequest, json);
 
-    // Then
-    assertEquals("Should add cached question", TEST_QUESTION, json.getString(CopilotConstants.PROP_QUESTION));
+    assertEquals(TEST_QUESTION, json.getString(CopilotConstants.PROP_QUESTION));
   }
 
-  /**
-   * Test addCachedQuestionIfPresent does not override existing question.
-   */
   @Test
-  public void testAddCachedQuestionIfPresentDoesNotOverride() throws JSONException {
-    // Given
+  public void testAddCachedQuestionIfPresentDoesNotOverride() throws Exception {
     String existingQuestion = "Existing question";
-    JSONObject json = new JSONObject();
-    json.put(CopilotConstants.PROP_QUESTION, existingQuestion);
+    JSONObject json = createQuestionOnlyJson(existingQuestion);
     when(mockSession.getAttribute(CACHED_QUESTION)).thenReturn(TEST_QUESTION);
 
-    // When
     restService.addCachedQuestionIfPresent(mockRequest, json);
 
-    // Then
-    assertEquals("Should not override existing question", existingQuestion, json.getString(CopilotConstants.PROP_QUESTION));
+    assertEquals(existingQuestion, json.getString(CopilotConstants.PROP_QUESTION));
   }
 
-  /**
-   * Test addCachedQuestionIfPresent with null request.
-   */
   @Test
-  public void testAddCachedQuestionIfPresentWithNullRequest() throws JSONException {
-    // Given
+  public void testAddCachedQuestionIfPresentWithNullRequest() throws Exception {
     JSONObject json = new JSONObject();
 
-    // When
     restService.addCachedQuestionIfPresent(null, json);
 
-    // Then
-    assertFalse("Should not add question with null request", json.has(CopilotConstants.PROP_QUESTION));
+    assertFalse(json.has(CopilotConstants.PROP_QUESTION));
   }
 
-  /**
-   * Test validateRequiredParams with valid parameters.
-   */
   @Test
-  public void testValidateRequiredParamsSuccess() throws JSONException {
-    // Given
-    JSONObject json = new JSONObject();
-    json.put(CopilotConstants.PROP_QUESTION, TEST_QUESTION);
-    json.put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
-
-    // When
-    restService.validateRequiredParams(json);
-
-    // Then - No exception should be thrown
+  public void testValidateRequiredParamsSuccess() throws Exception {
+    restService.validateRequiredParams(createQuestionRequestJson());
   }
 
-  /**
-   * Test validateRequiredParams throws exception when question is missing.
-   */
-  @Test(expected = OBException.class)
-  public void testValidateRequiredParamsMissingQuestion() throws JSONException {
-    // Given
-    JSONObject json = new JSONObject();
-    json.put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
-
-    // When
-    restService.validateRequiredParams(json);
-
-    // Then - Exception is expected
-  }
-
-  /**
-   * Test validateRequiredParams throws exception when appId is missing.
-   */
-  @Test(expected = OBException.class)
-  public void testValidateRequiredParamsMissingAppId() throws JSONException {
-    // Given
-    JSONObject json = new JSONObject();
-    json.put(CopilotConstants.PROP_QUESTION, TEST_QUESTION);
-
-    // When
-    restService.validateRequiredParams(json);
-
-    // Then - Exception is expected
-  }
-
-  /**
-   * Test CACHED_QUESTION constant.
-   */
   @Test
-  public void testCachedQuestionConstant() {
-    assertEquals("CACHED_QUESTION constant should match", "cachedQuestion", CACHED_QUESTION);
+  public void testValidateRequiredParamsMissingQuestion() throws Exception {
+    org.junit.Assert.assertThrows(OBException.class,
+        () -> restService.validateRequiredParams(createAppIdOnlyJson()));
+  }
+
+  @Test
+  public void testValidateRequiredParamsMissingAppId() throws Exception {
+    org.junit.Assert.assertThrows(OBException.class,
+        () -> restService.validateRequiredParams(createQuestionOnlyJson()));
+  }
+
+  @Test
+  public void testCachedQuestionConstant() throws Exception {
+    assertEquals("cachedQuestion", CACHED_QUESTION);
+  }
+
+  private void mockQuestionRequest(JSONObject json, boolean asyncRequest, String cachedQuestion)
+      throws IOException, JSONException {
+    when(mockRequest.getPathInfo()).thenReturn(asyncRequest ? ASYNC_QUESTION_PATH : QUESTION_PATH);
+    mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(mockRequest)).thenReturn(json);
+    when(mockSession.getAttribute(CACHED_QUESTION)).thenReturn(cachedQuestion);
+    doReturn(asyncRequest).when(restService).isAsyncRequest(mockRequest);
+  }
+
+  private void assertAsyncRequest(String path, boolean expected) {
+    when(mockRequest.getPathInfo()).thenReturn(path);
+    assertEquals(expected, restService.isAsyncRequest(mockRequest));
+  }
+
+  private JSONObject createQuestionRequestJson() throws JSONException {
+    return new JSONObject()
+        .put(CopilotConstants.PROP_QUESTION, TEST_QUESTION)
+        .put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
+  }
+
+  private JSONObject createQuestionOnlyJson() throws JSONException {
+    return createQuestionOnlyJson(TEST_QUESTION);
+  }
+
+  private JSONObject createQuestionOnlyJson(String question) throws JSONException {
+    return new JSONObject().put(CopilotConstants.PROP_QUESTION, question);
+  }
+
+  private JSONObject createAppIdOnlyJson() throws JSONException {
+    return new JSONObject().put(CopilotConstants.PROP_APP_ID, TEST_APP_ID);
   }
 }

@@ -30,7 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -87,7 +87,7 @@ public class AutoRegistrationAssistantHandlerNewTest {
 
     lenient().when(obContext.getRole()).thenReturn(role);
     lenient().when(obDal.createCriteria(CopilotRoleApp.class)).thenReturn(criteria);
-    lenient().when(criteria.add(any(Criterion.class))).thenReturn(criteria);
+    lenient().when(criteria.add(any(Restriction.class))).thenReturn(criteria);
     lenient().when(criteria.setMaxResults(1)).thenReturn(criteria);
 
     handler = new AutoRegistrationAssistantHandler();

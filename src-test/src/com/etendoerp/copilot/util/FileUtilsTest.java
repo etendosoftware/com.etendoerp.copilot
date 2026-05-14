@@ -211,13 +211,13 @@ public class FileUtilsTest {
   @Test
   void testProcessFileItemInMemoryAndNullName() throws Exception {
     // Mock DiskFileItem for in-memory write and null name
-    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
-        org.apache.commons.fileupload.disk.DiskFileItem.class);
+    org.apache.commons.fileupload2.core.DiskFileItem itemDisk = Mockito.mock(
+        org.apache.commons.fileupload2.core.DiskFileItem.class);
     Mockito.when(itemDisk.isFormField()).thenReturn(false);
     Mockito.when(itemDisk.getName()).thenReturn(null);
     Mockito.when(itemDisk.getFieldName()).thenReturn("fileNull");
     Mockito.when(itemDisk.isInMemory()).thenReturn(true);
-    Mockito.doNothing().when(itemDisk).write(org.mockito.ArgumentMatchers.any(File.class));
+    Mockito.when(itemDisk.write(org.mockito.ArgumentMatchers.any(java.nio.file.Path.class))).thenReturn(itemDisk);
 
     java.net.http.HttpResponse<String> mockResponse = Mockito.mock(java.net.http.HttpResponse.class);
     Mockito.when(mockResponse.body()).thenReturn(
@@ -242,26 +242,15 @@ public class FileUtilsTest {
   }
 
   @Test
-  void testProcessFileItemDiskRenameFail() throws Exception {
-    // Mock DiskFileItem for disk store where rename fails
-    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
-        org.apache.commons.fileupload.disk.DiskFileItem.class);
+  void testProcessFileItemWriteFailure() throws Exception {
+    org.apache.commons.fileupload2.core.DiskFileItem itemDisk = Mockito.mock(
+        org.apache.commons.fileupload2.core.DiskFileItem.class);
     Mockito.when(itemDisk.isFormField()).thenReturn(false);
     Mockito.when(itemDisk.getName()).thenReturn("test.txt");
     Mockito.when(itemDisk.getFieldName()).thenReturn("file1");
-    Mockito.when(itemDisk.isInMemory()).thenReturn(false);
+    Mockito.doThrow(new IOException("write failure")).when(itemDisk)
+        .write(org.mockito.ArgumentMatchers.any(java.nio.file.Path.class));
 
-    // Provide a store location File whose renameTo returns false by overriding renameTo
-    File fakeStore = new File("fakeStore.tmp") {
-      @Override
-      public boolean renameTo(File dest) {
-        return false;
-      }
-    };
-    Mockito.when(itemDisk.getStoreLocation()).thenReturn(fakeStore);
-
-    // When renameTo fails the code falls back to Files.copy; since the fake store
-    // does not exist on disk, the IOException is wrapped in an OBException.
     try (org.mockito.MockedStatic<org.openbravo.erpCommon.utility.OBMessageUtils> mockedMsg =
              Mockito.mockStatic(org.openbravo.erpCommon.utility.OBMessageUtils.class)) {
       mockedMsg.when(

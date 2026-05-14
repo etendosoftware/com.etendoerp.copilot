@@ -7,7 +7,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.hibernate.query.Query;
 import org.openbravo.base.exception.OBException;

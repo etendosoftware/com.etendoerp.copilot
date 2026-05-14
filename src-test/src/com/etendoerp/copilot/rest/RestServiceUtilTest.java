@@ -29,9 +29,9 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.TransferQueue;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 
-import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload2.core.DiskFileItem;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -85,7 +85,7 @@ class RestServiceUtilTest {
 
   @Test
   void testHandleFileWithEmptyList() throws Exception {
-    List<FileItem> items = List.of();
+    List<DiskFileItem> items = List.of();
     JSONObject result = RestServiceUtil.handleFile(items, ENDPOINT);
     Assertions.assertEquals(0, result.length());
   }
@@ -98,52 +98,12 @@ class RestServiceUtilTest {
 
   @Test
   void testHandleFileWithFile() throws Exception {
-    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
-        org.apache.commons.fileupload.disk.DiskFileItem.class);
-    Mockito.when(itemDisk.isFormField()).thenReturn(false);
-    Mockito.when(itemDisk.getName()).thenReturn(TEST_FILE_NAME);
-    Mockito.when(itemDisk.getFieldName()).thenReturn("file1");
-    Mockito.when(itemDisk.isInMemory()).thenReturn(true);
-    Mockito.doNothing().when(itemDisk).write(org.mockito.ArgumentMatchers.any(File.class));
-    List<FileItem> items = List.of(itemDisk);
-    java.net.http.HttpResponse<String> mockResponse = Mockito.mock(java.net.http.HttpResponse.class);
-    Mockito.when(mockResponse.body()).thenReturn(
-        new org.codehaus.jettison.json.JSONObject().put(RestServiceUtil.PROP_ANSWER, LIT_UPLOADED).toString());
-    try (org.mockito.MockedStatic<com.etendoerp.copilot.util.CopilotUtils> utils = org.mockito.Mockito
-        .mockStatic(com.etendoerp.copilot.util.CopilotUtils.class)) {
-      utils.when(
-              () -> com.etendoerp.copilot.util.CopilotUtils.getResponseFromCopilot(org.mockito.ArgumentMatchers.any(),
-                  org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
-                  org.mockito.ArgumentMatchers.any()))
-          .thenReturn(mockResponse);
-      JSONObject result = RestServiceUtil.handleFile(items, ENDPOINT);
-      Assertions.assertNotNull(result);
-    }
+    assertHandleFile(TEST_FILE_NAME, "file1");
   }
 
   @Test
   void testHandleFileWithNullName() throws Exception {
-    org.apache.commons.fileupload.disk.DiskFileItem itemDisk = Mockito.mock(
-        org.apache.commons.fileupload.disk.DiskFileItem.class);
-    Mockito.when(itemDisk.isFormField()).thenReturn(false);
-    Mockito.when(itemDisk.getName()).thenReturn(null);
-    Mockito.when(itemDisk.getFieldName()).thenReturn("fileNull");
-    Mockito.when(itemDisk.isInMemory()).thenReturn(true);
-    Mockito.doNothing().when(itemDisk).write(org.mockito.ArgumentMatchers.any(File.class));
-    List<FileItem> items = List.of(itemDisk);
-    java.net.http.HttpResponse<String> mockResponse = Mockito.mock(java.net.http.HttpResponse.class);
-    Mockito.when(mockResponse.body()).thenReturn(
-        new org.codehaus.jettison.json.JSONObject().put(RestServiceUtil.PROP_ANSWER, LIT_UPLOADED).toString());
-    try (org.mockito.MockedStatic<com.etendoerp.copilot.util.CopilotUtils> utils = org.mockito.Mockito
-        .mockStatic(com.etendoerp.copilot.util.CopilotUtils.class)) {
-      utils.when(
-              () -> com.etendoerp.copilot.util.CopilotUtils.getResponseFromCopilot(org.mockito.ArgumentMatchers.any(),
-                  org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
-                  org.mockito.ArgumentMatchers.any()))
-          .thenReturn(mockResponse);
-      JSONObject result = RestServiceUtil.handleFile(items, ENDPOINT);
-      Assertions.assertNotNull(result);
-    }
+    assertHandleFile(null, "fileNull");
   }
 
   @Test
@@ -157,6 +117,32 @@ class RestServiceUtilTest {
       RestServiceUtil.handleFile(tempFile, ENDPOINT);
     } catch (Exception e) {
       // Acceptable if CopilotUtils is not mocked
+    }
+  }
+
+  private void assertHandleFile(String fileName, String fieldName) throws Exception {
+    org.apache.commons.fileupload2.core.DiskFileItem itemDisk = Mockito.mock(
+        org.apache.commons.fileupload2.core.DiskFileItem.class);
+    Mockito.when(itemDisk.isFormField()).thenReturn(false);
+    Mockito.when(itemDisk.getName()).thenReturn(fileName);
+    Mockito.when(itemDisk.getFieldName()).thenReturn(fieldName);
+    Mockito.when(itemDisk.isInMemory()).thenReturn(true);
+    Mockito.when(itemDisk.write(org.mockito.ArgumentMatchers.any(java.nio.file.Path.class))).thenReturn(itemDisk);
+
+    List<DiskFileItem> items = List.of(itemDisk);
+    java.net.http.HttpResponse<String> mockResponse = Mockito.mock(java.net.http.HttpResponse.class);
+    Mockito.when(mockResponse.body()).thenReturn(
+        new org.codehaus.jettison.json.JSONObject().put(RestServiceUtil.PROP_ANSWER, LIT_UPLOADED).toString());
+
+    try (org.mockito.MockedStatic<com.etendoerp.copilot.util.CopilotUtils> utils = org.mockito.Mockito
+        .mockStatic(com.etendoerp.copilot.util.CopilotUtils.class)) {
+      utils.when(
+              () -> com.etendoerp.copilot.util.CopilotUtils.getResponseFromCopilot(org.mockito.ArgumentMatchers.any(),
+                  org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
+                  org.mockito.ArgumentMatchers.any()))
+          .thenReturn(mockResponse);
+      JSONObject result = RestServiceUtil.handleFile(items, ENDPOINT);
+      Assertions.assertNotNull(result);
     }
   }
 
@@ -721,7 +707,9 @@ class RestServiceUtilTest {
     Mockito.when(crit.list()).thenReturn(List.of(roleApp));
 
     try (org.mockito.MockedStatic<OBContext> mockOB = org.mockito.Mockito.mockStatic(OBContext.class);
-         org.mockito.MockedStatic<OBDal> mockDal = org.mockito.Mockito.mockStatic(OBDal.class)) {
+         org.mockito.MockedStatic<OBDal> mockDal = org.mockito.Mockito.mockStatic(OBDal.class);
+         org.mockito.MockedStatic<com.etendoerp.copilot.util.WebhookPermissionUtils> webhookUtils =
+             org.mockito.Mockito.mockStatic(com.etendoerp.copilot.util.WebhookPermissionUtils.class)) {
       mockOB.when(OBContext::getOBContext).thenReturn(mockCtx);
       mockDal.when(OBDal::getInstance).thenReturn(dal);
 
@@ -731,6 +719,7 @@ class RestServiceUtilTest {
       JSONObject assistant = assistants.getJSONObject(0);
       Assertions.assertEquals(LIT_APP1, assistant.getString(RestServiceUtil.APP_ID));
       Assertions.assertEquals("App One", assistant.getString("name"));
+      webhookUtils.verify(() -> com.etendoerp.copilot.util.WebhookPermissionUtils.assignMissingPermissions(mockRole, app));
     }
   }
 

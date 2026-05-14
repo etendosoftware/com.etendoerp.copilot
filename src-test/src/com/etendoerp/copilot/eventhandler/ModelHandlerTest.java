@@ -39,6 +39,7 @@ import org.openbravo.base.model.Property;
 import org.openbravo.client.kernel.event.EntityPersistenceEvent;
 import org.openbravo.client.kernel.event.EntityUpdateEvent;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.dal.service.Restriction;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotModel;
@@ -164,7 +165,7 @@ public class ModelHandlerTest {
     CopilotModel other = org.mockito.Mockito.mock(CopilotModel.class);
     org.openbravo.dal.service.OBCriteria<CopilotModel> crit = org.mockito.Mockito.mock(org.openbravo.dal.service.OBCriteria.class);
     when(obDal.createCriteria(CopilotModel.class)).thenReturn(crit);
-    when(crit.add(any())).thenReturn(crit);
+    when(crit.add(any(Restriction.class))).thenReturn(crit);
     when(crit.list()).thenReturn(Arrays.asList(other));
 
     // When
@@ -188,7 +189,7 @@ public class ModelHandlerTest {
     // Mock criteria uniqueResult returns another model
     org.openbravo.dal.service.OBCriteria<CopilotModel> crit = org.mockito.Mockito.mock(org.openbravo.dal.service.OBCriteria.class);
     when(obDal.createCriteria(CopilotModel.class)).thenReturn(crit);
-    when(crit.add(any())).thenReturn(crit);
+    when(crit.add(any(Restriction.class))).thenReturn(crit);
     when(crit.setMaxResults(1)).thenReturn(crit);
     when(crit.uniqueResult()).thenReturn(org.mockito.Mockito.mock(CopilotModel.class));
 
@@ -209,7 +210,7 @@ public class ModelHandlerTest {
     // Mock criteria uniqueResult returns null
     org.openbravo.dal.service.OBCriteria<CopilotModel> crit = org.mockito.Mockito.mock(org.openbravo.dal.service.OBCriteria.class);
     when(obDal.createCriteria(CopilotModel.class)).thenReturn(crit);
-    when(crit.add(any())).thenReturn(crit);
+    when(crit.add(any(Restriction.class))).thenReturn(crit);
     when(crit.setMaxResults(1)).thenReturn(crit);
     when(crit.uniqueResult()).thenReturn(null);
 

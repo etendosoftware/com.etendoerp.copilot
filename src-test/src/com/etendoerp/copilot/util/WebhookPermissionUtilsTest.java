@@ -30,7 +30,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.hibernate.Session;
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -87,7 +87,7 @@ public class WebhookPermissionUtilsTest {
 
     when(mockOBDal.getSession()).thenReturn(mockSession);
     when(mockOBDal.createCriteria(RoleWebhookaccessV.class)).thenReturn(mockCriteria);
-    when(mockCriteria.add(any(Criterion.class))).thenReturn(mockCriteria);
+    when(mockCriteria.add(any(Restriction.class))).thenReturn(mockCriteria);
 
     lenient().when(mockRole.getId()).thenReturn("role-1");
     lenient().when(mockRole.getClient()).thenReturn(mockClient);

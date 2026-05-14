@@ -36,7 +36,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.codehaus.jettison.json.JSONObject;
-import org.hibernate.criterion.Criterion;
+import org.openbravo.dal.service.Restriction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -130,9 +130,9 @@ public class AddBulkTasksTest {
     mockedOBDal.when(OBDal::getInstance).thenReturn(obDal);
     when(obDal.createCriteria(Status.class)).thenReturn(mockStatusCriteria);
     when(obDal.createCriteria(TaskType.class)).thenReturn(mockTaskTypeCriteria);
-    when(mockStatusCriteria.add(any(Criterion.class))).thenReturn(mockStatusCriteria);
+    when(mockStatusCriteria.add(any(Restriction.class))).thenReturn(mockStatusCriteria);
     when(mockStatusCriteria.setMaxResults(1)).thenReturn(mockStatusCriteria);
-    when(mockTaskTypeCriteria.add(any(Criterion.class))).thenReturn(mockTaskTypeCriteria);
+    when(mockTaskTypeCriteria.add(any(Restriction.class))).thenReturn(mockTaskTypeCriteria);
     when(mockTaskTypeCriteria.setMaxResults(1)).thenReturn(mockTaskTypeCriteria);
 
     // Configure OBContext mock

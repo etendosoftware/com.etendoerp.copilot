@@ -6,7 +6,7 @@ import static com.etendoerp.copilot.process.ExecTask.processTask;
 
 import java.util.List;
 
-import org.hibernate.criterion.Restrictions;
+import org.openbravo.dal.service.Restrictions;
 import org.openbravo.dal.core.SessionHandler;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
