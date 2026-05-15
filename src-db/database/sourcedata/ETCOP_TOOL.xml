@@ -111,6 +111,18 @@
           "default": null,
           "description": "Schema name for structured output (e.g., 'Invoice'). Schemas are loaded from tools\/schemas\/. Leave None for unstructured JSON extraction.",
           "title": "Structured Output"
+        },
+        "structured_output_schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {"type": "null"}
+          ],
+          "default": null,
+          "description": "Literal JSON Schema dict to use as the structured output format. When provided, takes precedence over `structured_output`. Lets callers define the extraction shape inline instead of shipping a Pydantic class in tools\/schemas\/.",
+          "title": "Structured Output Schema"
         }
       }
     }

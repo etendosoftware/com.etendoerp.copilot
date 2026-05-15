@@ -162,6 +162,11 @@ class TestStructuredSchemaDict(unittest.TestCase):
         broken.model_json_schema.side_effect = RuntimeError("boom")
         self.assertIsNone(_structured_schema_dict(broken))
 
+    def test_dict_passthrough(self):
+        """Raw JSON Schema dicts are returned as-is without conversion."""
+        schema = {"type": "object", "properties": {"x": {"type": "string"}}}
+        self.assertIs(_structured_schema_dict(schema), schema)
+
 
 class TestGetModelConfig(unittest.TestCase):
     @patch("tools.SimpleOcrTool.get_extra_info")
@@ -381,6 +386,49 @@ class TestSimpleOcrTool(unittest.TestCase):
             mock_openai.assert_called_once_with(
                 "gpt-5-mini", "openai", SYSTEM_PROMPT, "q",
                 b"x", "application/pdf", _FakeSchema,
+            )
+        finally:
+            os.unlink(tmp_path)
+
+    @patch("tools.SimpleOcrTool.load_schema")
+    @patch("tools.SimpleOcrTool._call_openai")
+    @patch("tools.SimpleOcrTool._get_model_config")
+    @patch("tools.SimpleOcrTool._validate_mime")
+    @patch("tools.SimpleOcrTool._read_mime")
+    @patch("tools.SimpleOcrTool._resolve_file_path")
+    def test_run_with_inline_structured_output_schema(
+        self, mock_resolve, mock_mime, mock_validate, mock_cfg,
+        mock_openai, mock_load_schema,
+    ):
+        """Inline JSON Schema dict takes precedence and skips load_schema."""
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"x")
+            tmp_path = tmp.name
+        try:
+            mock_resolve.return_value = tmp_path
+            mock_mime.return_value = "application/pdf"
+            mock_cfg.return_value = ("gpt-5-mini", "openai")
+            mock_openai.return_value = "structured"
+
+            inline_schema = {
+                "type": "object",
+                "properties": {"document_no": {"type": "string"}},
+                "additionalProperties": False,
+            }
+
+            tool = SimpleOcrTool()
+            out = tool.run({
+                "path": "/x.pdf",
+                "question": "q",
+                "structured_output": "Invoice",       # ignored when inline is set
+                "structured_output_schema": inline_schema,
+            })
+
+            self.assertEqual(out, "structured")
+            mock_load_schema.assert_not_called()
+            mock_openai.assert_called_once_with(
+                "gpt-5-mini", "openai", SYSTEM_PROMPT, "q",
+                b"x", "application/pdf", inline_schema,
             )
         finally:
             os.unlink(tmp_path)

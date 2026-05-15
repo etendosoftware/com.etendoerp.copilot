@@ -8,7 +8,7 @@ import base64
 import os
 import time
 from pathlib import Path
-from typing import Optional, Type
+from typing import Any, Dict, Optional, Type
 
 from copilot.baseutils.logging_envvar import copilot_debug
 from copilot.core.tool_input import ToolField, ToolInput
@@ -56,6 +56,15 @@ class SimpleOcrToolInput(ToolInput):
             "Schema name for structured output (e.g., 'Invoice'). "
             "Schemas are loaded from tools/schemas/. "
             "Leave None for unstructured JSON extraction."
+        ),
+    )
+    structured_output_schema: Optional[Dict[str, Any]] = ToolField(
+        default=None,
+        description=(
+            "Literal JSON Schema dict to use as the structured output format. "
+            "When provided, takes precedence over `structured_output`. Lets "
+            "callers define the extraction shape inline instead of shipping a "
+            "Pydantic class in tools/schemas/."
         ),
     )
 
@@ -133,9 +142,11 @@ def _model_id(provider, model_name, proxy_url):
 
 
 def _structured_schema_dict(structured_schema):
-    """Extract JSON schema dict from a Pydantic model class, or None."""
+    """Return a JSON Schema dict from a Pydantic class, a literal dict, or None."""
     if not structured_schema:
         return None
+    if isinstance(structured_schema, dict):
+        return structured_schema
     try:
         return structured_schema.model_json_schema()
     except Exception as e:
@@ -266,11 +277,16 @@ class SimpleOcrTool(ToolWrapper):
 
             question = input_params.get("question")
             structured_schema = None
-            schema_name = input_params.get("structured_output")
-            if schema_name:
-                structured_schema = load_schema(schema_name)
-                if structured_schema:
-                    copilot_debug(f"Using structured schema: {schema_name}")
+            inline_schema = input_params.get("structured_output_schema")
+            if isinstance(inline_schema, dict) and inline_schema:
+                structured_schema = inline_schema
+                copilot_debug("Using inline structured schema from input params")
+            else:
+                schema_name = input_params.get("structured_output")
+                if schema_name:
+                    structured_schema = load_schema(schema_name)
+                    if structured_schema:
+                        copilot_debug(f"Using structured schema: {schema_name}")
 
             call = _call_gemini if _is_gemini(provider) else _call_openai
             result = call(
