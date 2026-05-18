@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel
 
@@ -52,7 +52,7 @@ class AssistantSchema(BaseModel):
     ad_user_id: Optional[str] = None
     ad_client_id: Optional[str] = "0"
     assistants: Optional[list["AssistantSchema"]] = None  # For supervisors - team members
-    schema: Optional[str] = None
+    output_schema: Optional[str] = None
 
 
 class QuestionSchema(AssistantSchema):
@@ -85,6 +85,19 @@ class GraphQuestionSchema(BaseModel):
     model: Optional[str] = None
     provider: Optional[str] = None
     schema: Optional[str] = None
+
+
+class ExecuteToolSchema(BaseModel):
+    """Direct tool invocation payload (no agent involved).
+
+    Used by `/executeTool` when the caller knows exactly which tool to run
+    and wants to skip the agent reasoning + response-formatting roundtrip.
+    """
+
+    tool_name: str
+    params: Dict[str, Any] = {}
+    agent_id: Optional[str] = None  # passed to ToolWrapper instance for tool_config lookup
+    extra_info: Optional[Dict[str, Any]] = None
 
 
 class VectorDBInputSchema(BaseModel):

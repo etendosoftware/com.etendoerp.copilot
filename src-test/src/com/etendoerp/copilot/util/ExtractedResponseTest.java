@@ -9,7 +9,7 @@
  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing rights
  * and limitations under the License.
- * All portions are Copyright © 2021–2025 FUTIT SERVICES, S.L
+ * All portions are Copyright © 2021–2026 FUTIT SERVICES, S.L
  * All Rights Reserved.
  * Contributor(s): Futit Services S.L.
  *************************************************************************
@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link ExtractedResponse#getResponseAsJSON()}.
+ * Unit tests for {@link ExtractedResponse}.
  */
 class ExtractedResponseTest {
 
@@ -63,5 +63,54 @@ class ExtractedResponseTest {
     JSONObject result = resp.getResponseAsJSON();
     Assertions.assertNotNull(result);
     Assertions.assertEquals(2, result.getJSONArray("items").length());
+  }
+
+  @Test
+  void testConstructorWithAllFields() throws JSONException {
+    JSONObject meta = new JSONObject();
+    meta.put("key", "value");
+
+    ExtractedResponse resp = new ExtractedResponse("hello", "conv-123", meta);
+
+    Assertions.assertEquals("hello", resp.getResponse());
+    Assertions.assertEquals("conv-123", resp.getConversationId());
+    Assertions.assertEquals(meta, resp.getMetadata());
+  }
+
+  @Test
+  void testConstructorWithNullMetadataCreatesEmptyJsonObject() {
+    ExtractedResponse resp = new ExtractedResponse("response", "conv-1", null);
+
+    Assertions.assertNotNull(resp.getMetadata());
+    Assertions.assertEquals(0, resp.getMetadata().length());
+  }
+
+  @Test
+  void testConstructorWithNullResponseAndConversationId() {
+    ExtractedResponse resp = new ExtractedResponse(null, null, null);
+
+    Assertions.assertNull(resp.getResponse());
+    Assertions.assertNull(resp.getConversationId());
+    Assertions.assertNotNull(resp.getMetadata());
+  }
+
+  @Test
+  void testGetResponseReturnsExactValue() {
+    ExtractedResponse resp = new ExtractedResponse("test response", "id", new JSONObject());
+    Assertions.assertEquals("test response", resp.getResponse());
+  }
+
+  @Test
+  void testGetConversationIdReturnsExactValue() {
+    ExtractedResponse resp = new ExtractedResponse("r", "my-conversation", new JSONObject());
+    Assertions.assertEquals("my-conversation", resp.getConversationId());
+  }
+
+  @Test
+  void testGetMetadataReturnsProvidedObject() throws JSONException {
+    JSONObject meta = new JSONObject();
+    meta.put("foo", "bar");
+    ExtractedResponse resp = new ExtractedResponse("r", "c", meta);
+    Assertions.assertEquals("bar", resp.getMetadata().getString("foo"));
   }
 }

@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.etendoerp.openapi.model.OpenAPIEndpoint;
 
 import io.swagger.v3.oas.models.OpenAPI;
@@ -199,7 +200,7 @@ public class OpenAPIDoc implements OpenAPIEndpoint {
             .addProperties(QUESTION, new StringSchema().description("The question to ask"))
             .addProperties(CONVERSATION_ID, new StringSchema().description("Optional conversation ID"))
             .addProperties("file", new StringSchema().description("Optional file attachment"))
-            .addProperties("schema", new StringSchema().description(
+            .addProperties(RestServiceUtil.PROP_OUTPUT_SCHEMA, new StringSchema().description(
                     "Optional JSON schema string defining the desired response structure. " +
                     "When provided, overrides any schema configured on the assistant."))
             .required(List.of(APP_ID, QUESTION));

@@ -26,16 +26,16 @@ public class CopilotSetup extends ModuleScript {
 
       // Update the etcop_file table to set skip_splitting to 'N' where it is null
       PreparedStatement ps = cp.getPreparedStatement(
-          "update etcop_file set skip_splitting = 'N' where skip_splitting is null;");
+          "update etcop_file set skip_splitting = 'N' where skip_splitting is null");
       ps.executeUpdate();
 
       //Remove custom preferences for old model/provider configuration:
       PreparedStatement ps3 = cp.getPreparedStatement(
           "DELETE FROM ad_preference WHERE ad_client_id <>'0' AND property IN ('ETCOP_DefaultProvider', " +
-              "'ETCOP_DefaultModelOpenAI', 'ETCOP_DefaultModelGoogle');");
+              "'ETCOP_DefaultModelOpenAI', 'ETCOP_DefaultModelGoogle')");
       ps3.executeUpdate();
       PreparedStatement ps4 = cp.getPreparedStatement(
-          "UPDATE etcop_app SET search_k = 4 WHERE search_k IS NULL;");
+          "UPDATE etcop_app SET search_k = 4 WHERE search_k IS NULL");
       ps4.executeUpdate();
     } catch (Exception e) {
       handleError(e);

@@ -99,18 +99,20 @@ def split_file_paths(local_file_ids):
     return file_paths
 
 
-def get_checkpoint_file(agent_id: str):
+def get_checkpoint_file(agent_id: str, conversation_id: str = None):
     """
-    Returns the file path for the checkpoint SQLite file associated with a given agent ID.
+    Returns the file path for the checkpoint SQLite file.
 
-    The function determines the base directory for checkpoints based on whether the code is running inside a Docker container.
-    It ensures the checkpoint directory exists, then constructs and returns the full path to the agent's checkpoint file.
+    When a conversation_id is provided, the checkpoint file is scoped to that
+    conversation. This prevents SQLite "database is locked" errors when multiple
+    conversations for the same agent run concurrently.
 
     Args:
         agent_id (str): The unique identifier for the agent.
+        conversation_id (str, optional): The conversation identifier for per-conversation isolation.
 
     Returns:
-        str: The full file path to the agent's checkpoint SQLite file.
+        str: The full file path to the checkpoint SQLite file.
     """
     if not agent_id:
         agent_id = "default_"
@@ -119,6 +121,8 @@ def get_checkpoint_file(agent_id: str):
     else:
         base = "./checkpoints/"
     Path(base).mkdir(parents=True, exist_ok=True)
+    if conversation_id:
+        return base + agent_id + "_" + conversation_id + "_checkpoints.sqlite"
     return base + agent_id + "_checkpoints.sqlite"
 
 

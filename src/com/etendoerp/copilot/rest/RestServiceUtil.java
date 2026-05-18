@@ -118,7 +118,7 @@ public class RestServiceUtil {
   public static final String PROP_AD_CLIENT_ID = "ad_client_id";
   public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
   public static final String METADATA = "metadata";
-  public static final String PROP_SCHEMA = "schema";
+  public static final String PROP_OUTPUT_SCHEMA = "output_schema";
 
   /**
    * Private constructor to prevent instantiation of utility class.
@@ -190,8 +190,13 @@ public class RestServiceUtil {
    *     If an error occurs during file processing or temporary file creation.
    */
   public static JSONObject handleFile(List<FileItem> items, String endpoint) throws Exception {
-    log.debug("items: {}", items.size());
     JSONObject responseJson = new JSONObject();
+    if (items == null) {
+      log.debug("items: 0");
+      return responseJson;
+    }
+
+    log.debug("items: {}", items.size());
     // Create a list of files to delete them later when the process finishes
     for (FileItem item : items) {
       if (item.isFormField()) {
@@ -309,7 +314,7 @@ public class RestServiceUtil {
         log.warn("Unsupported app type: {}", copilotApp.getAppType());
     }
     return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived,
-        jsonRequest.optString(PROP_SCHEMA, null));
+        jsonRequest.optString(PROP_OUTPUT_SCHEMA, null));
   }
 
 
@@ -464,7 +469,7 @@ public class RestServiceUtil {
 
     // Override structured output schema if provided at call time
     if (StringUtils.isNotEmpty(schema)) {
-      jsonRequestForCopilot.put(PROP_SCHEMA, schema);
+      jsonRequestForCopilot.put(PROP_OUTPUT_SCHEMA, schema);
     }
 
     if (TelemetryUsageInfo.getInstance().getSessionId() != null) {
@@ -584,8 +589,9 @@ public class RestServiceUtil {
     }
 
     URL url = new URL(String.format("http://%s:%s%s", copilotHost, copilotPort, endpoint));
+    HttpURLConnection connection = null;
     try {
-      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+      connection = (HttpURLConnection) url.openConnection();
       connection.setRequestMethod("POST");
       connection.setRequestProperty("Content-Type", "application/json");
       connection.setDoOutput(true);
@@ -600,9 +606,12 @@ public class RestServiceUtil {
         return new JSONObject(responseFromCopilot);
       }
     } catch (Exception e) {
-      log.error(e);
-      Thread.currentThread().interrupt();
+      log.error("Error sending request to Copilot: " + e.getMessage(), e);
       throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
+    } finally {
+      if (connection != null) {
+        connection.disconnect();
+      }
     }
   }
 
@@ -987,6 +996,7 @@ public class RestServiceUtil {
         assistantJson.put(APP_ID, app.getId());
         assistantJson.put("name", app.getName());
         assistantJson.put(PROP_DESCRIPTION, app.getDescription());
+
         assistantJson.put("featured", app.isFeatured() ? "Y" : "N");
         assistants.put(assistantJson);
       }

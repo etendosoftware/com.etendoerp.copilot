@@ -21,9 +21,68 @@ STRICT RULES:
 <!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <RETRIEVAL><![CDATA[N]]></RETRIEVAL>
 <!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
 <!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <SYNC_ASSISTANT><![CDATA[Y]]></SYNC_ASSISTANT>
-<!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <TEMPERATURE><![CDATA[1]]></TEMPERATURE>
+<!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <TEMPERATURE><![CDATA[0]]></TEMPERATURE>
 <!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <CHECK_HOSTS><![CDATA[N]]></CHECK_HOSTS>
 <!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <SEARCH_K><![CDATA[4]]></SEARCH_K>
+<!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <STRUCTURED_OUTPUT><![CDATA[{
+  "title": "InvoiceExtraction",
+  "type": "object",
+  "properties": {
+    "document_no": {
+      "type": "string"
+    },
+    "invoice_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "vendor_name": {
+      "type": "string"
+    },
+    "vendor_tax_id": {
+      "type": "string"
+    },
+    "total_amount": {
+      "type": "number"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "line_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unit_price": {
+            "type": "number"
+          },
+          "amount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit_price",
+          "amount"
+        ]
+      }
+    }
+  },
+  "required": [
+    "document_no",
+    "invoice_date",
+    "vendor_name",
+    "total_amount",
+    "currency",
+    "line_items"
+  ]
+}]]></STRUCTURED_OUTPUT>
 <!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <SYNC_STARTUP><![CDATA[N]]></SYNC_STARTUP>
 <!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <AGENT_SCOPE><![CDATA[CS]]></AGENT_SCOPE>
 <!--028A08DFF7D24CF0A84F4B3FC27ABF54-->  <FEATURED><![CDATA[N]]></FEATURED>

@@ -13,6 +13,7 @@ import shutil
 import threading
 import uuid
 from pathlib import Path
+from typing import Optional
 
 import chromadb
 import requests
@@ -28,6 +29,7 @@ from copilot.core.agent.langgraph_agent import LanggraphAgent
 from copilot.core.exceptions import CopilotException, UnsupportedAgent
 from copilot.core.local_history import ChatHistory, local_history_recorder
 from copilot.core.schemas import (
+    ExecuteToolSchema,
     GraphQuestionSchema,
     QuestionSchema,
     SplitterConfig,
@@ -565,6 +567,35 @@ def purge_vectordb(body: VectorDBInputSchema):
 @core_router.get("/runningCheck")
 def running_check():
     return {"answer": "docker" if is_docker() else "pycharm"}
+
+
+@core_router.post("/executeTool")
+def execute_tool(body: ExecuteToolSchema):
+    """Invoke a registered tool directly, bypassing the agent layer.
+
+    Use this when the caller knows exactly which tool to run and wants to
+    skip the agent reasoning + response-formatting roundtrip (faster).
+
+    Files are uploaded via the existing `/attachFile` endpoint; the returned
+    path is then passed as one of the values inside `params` (e.g. `path`
+    for SimpleOcrTool).
+    """
+    params = dict(body.params or {})
+
+    tools = ToolLoader().load_configured_tools()
+    tool = next((t for t in tools if getattr(t, "name", None) == body.tool_name), None)
+    if tool is None:
+        raise HTTPException(status_code=404, detail=f"Tool not found: {body.tool_name}")
+
+    if body.agent_id:
+        tool.agent_id = body.agent_id
+
+    try:
+        result = tool.run(params)
+        return {"answer": result}
+    except Exception as e:
+        copilot_error(f"executeTool '{body.tool_name}' failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error executing tool")
 
 
 @core_router.post("/attachFile")

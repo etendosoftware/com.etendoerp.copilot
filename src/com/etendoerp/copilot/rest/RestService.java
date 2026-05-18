@@ -32,6 +32,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
@@ -64,45 +65,68 @@ public class RestService {
     try {
       OBContext.setAdminMode();
       saveSessionInfo(request, path, "GET");
-      if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
-        handleAssistants(response);
-      } else if (StringUtils.equalsIgnoreCase(path, "/conversations")) {
-        ConversationUtils.handleConversations(request, response);
-      } else if (StringUtils.equalsIgnoreCase(path, "/conversationMessages")) {
-        ConversationUtils.handleConversationMessages(request, response);
-      } else if (StringUtils.equalsIgnoreCase(path, AQUESTION)) {
-        try {
-          handleQuestion(request, response);
-        } catch (OBException e) {
-          throw new OBException("Error handling question: " + e.getMessage());
-        }
-      } else if (StringUtils.equalsIgnoreCase(path, "/labels")) {
-        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-        response.getWriter().write(RestServiceUtil.getJSONLabels().toString());
-      } else if (StringUtils.equalsIgnoreCase(path, "/structure")) {
-        JSONObject params = RequestUtils.extractRequestBody(request);
-        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-        JSONObject structure = handleStructure(params);
-        response.getWriter().write(structure.toString());
-      } else {
-        response.sendError(HttpServletResponse.SC_NOT_FOUND);
-      }
+      routeGetRequest(path, request, response);
     } catch (Exception e) {
       log4j.error(e);
-      try {
-        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-        JSONObject errorJson = new JSONObject();
-        errorJson.put("error", "An error occurred processing the request.");
-        response.getWriter().write(errorJson.toString());
-      } catch (Exception ioException) {
-        log4j.error(ioException);
-        if (!response.isCommitted()) {
-          response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
-        }
-      }
+      sendGetErrorResponse(response);
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  private void routeGetRequest(String path, HttpServletRequest request,
+      HttpServletResponse response) throws Exception {
+    if (StringUtils.equalsIgnoreCase(path, GET_ASSISTANTS)) {
+      handleAssistants(response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/conversations")) {
+      ConversationUtils.handleConversations(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/conversationMessages")) {
+      ConversationUtils.handleConversationMessages(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/archivedConversations")) {
+      ConversationUtils.handleArchivedConversations(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, AQUESTION)) {
+      try {
+        handleQuestion(request, response);
+      } catch (OBException e) {
+        throw new OBException("Error handling question: " + e.getMessage());
+      }
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/labels")) {
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(RestServiceUtil.getJSONLabels().toString());
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/structure")) {
+      JSONObject params = RequestUtils.extractRequestBody(request);
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      JSONObject structure = handleStructure(params);
+      response.getWriter().write(structure.toString());
+      return;
+    }
+    response.sendError(HttpServletResponse.SC_NOT_FOUND);
+  }
+
+  private void sendGetErrorResponse(HttpServletResponse response) throws IOException {
+    try {
+      response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      JSONObject errorJson = new JSONObject();
+      errorJson.put("error", "An error occurred processing the request.");
+      response.getWriter().write(errorJson.toString());
+    } catch (Exception ioException) {
+      log4j.error(ioException);
+      if (!response.isCommitted()) {
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
+      }
     }
   }
 
@@ -144,26 +168,7 @@ public class RestService {
     try {
       OBContext.setAdminMode();
       saveSessionInfo(request, path, "POST");
-      if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
-        try {
-          handleQuestion(request, response);
-        } catch (OBException e) {
-          throw new OBException("Error handling question: " + e.getMessage());
-        }
-      } else if (StringUtils.equalsIgnoreCase(path, FILE)) {
-        handleFile(request, response, "attachFile");
-      } else if (StringUtils.equalsIgnoreCase(path, "/transcription")) {
-        handleFile(request, response, "transcription");
-      } else if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
-        handleCacheQuestion(request, response);
-      } else if (StringUtils.equalsIgnoreCase(path, "/configCheck")) {
-        checkEtendoHost(response);
-      } else if (StringUtils.equalsIgnoreCase(path, "/generateTitleConversation")) {
-        ConversationUtils.handleGetTitleConversation(request, response);
-      } else {
-        //if not a valid path, throw an error status
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-      }
+      routePostRequest(path, request, response);
     } catch (Exception e) {
       log4j.error(e);
       try {
@@ -175,6 +180,60 @@ public class RestService {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private void routePostRequest(String path, HttpServletRequest request,
+      HttpServletResponse response) throws Exception {
+    if (StringUtils.equalsIgnoreCase(path, QUESTION)) {
+      try {
+        handleQuestion(request, response);
+      } catch (OBException e) {
+        throw new OBException("Error handling question: " + e.getMessage());
+      }
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, FILE)) {
+      handleFile(request, response, "attachFile");
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/transcription")) {
+      handleFile(request, response, "transcription");
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/cacheQuestion")) {
+      handleCacheQuestion(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/configCheck")) {
+      checkEtendoHost(response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/generateTitleConversation")) {
+      ConversationUtils.handleGetTitleConversation(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/renameConversation")) {
+      ConversationUtils.handleRenameConversation(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/deleteConversation")) {
+      ConversationUtils.handleDeleteConversation(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/restoreConversation")) {
+      ConversationUtils.handleRestoreConversation(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/permanentDeleteConversation")) {
+      ConversationUtils.handlePermanentDeleteConversation(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/executeTool")) {
+      handleExecuteTool(request, response);
+      return;
+    }
+    //if not a valid path, throw an error status
+    response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
   }
 
   /**
@@ -246,6 +305,41 @@ public class RestService {
    * @param response
    *     the HttpServletResponse object that contains the response the servlet returns to the client
    */
+  /**
+   * Forward a direct tool invocation to the Copilot Python service.
+   * The request body is a JSON payload matching ExecuteToolSchema
+   * ({@code tool_name}, {@code params}, optional {@code agent_id}).
+   * Bypasses the agent layer for faster tool execution when the caller
+   * already knows which tool to run.
+   */
+  private void handleExecuteTool(HttpServletRequest request, HttpServletResponse response)
+      throws IOException, JSONException {
+    try {
+      JSONObject jsonBody = RequestUtils.extractRequestBody(request);
+      java.net.http.HttpResponse<String> copilotResponse = CopilotUtils.getResponseFromCopilot(
+          OBPropertiesProvider.getInstance().getOpenbravoProperties(),
+          "executeTool",
+          jsonBody,
+          null);
+      if (copilotResponse == null) {
+        sendErrorResponse(response, HttpServletResponse.SC_BAD_GATEWAY,
+            "No response from Copilot");
+        return;
+      }
+      response.setStatus(copilotResponse.statusCode());
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(copilotResponse.body());
+    } catch (JSONException e) {
+      log4j.error(e);
+      sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+          "Invalid JSON body: " + e.getMessage());
+    } catch (Exception e) {
+      log4j.error(e);
+      sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Error executing tool");
+    }
+  }
+
   private void handleCacheQuestion(HttpServletRequest request, HttpServletResponse response) {
     try {
       // Attempt to save the cached question

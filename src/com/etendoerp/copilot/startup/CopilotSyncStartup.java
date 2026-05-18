@@ -17,14 +17,21 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Restrictions;
+import org.hibernate.query.Query;
+import org.openbravo.base.provider.OBProvider;
 import org.openbravo.client.kernel.ApplicationInitializer;
 import org.openbravo.client.kernel.ComponentProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.database.SessionInfo;
+import org.openbravo.model.ad.access.Role;
+import org.openbravo.model.common.enterprise.Organization;
 
 import com.etendoerp.copilot.data.AppInfo;
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.process.SyncAssistant;
 import com.etendoerp.copilot.util.CopilotAppInfoUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
@@ -42,6 +49,8 @@ public class CopilotSyncStartup implements ApplicationInitializer {
   private static final int MAX_RETRIES = 5;
   private static final long RETRY_DELAY_MS = 30_000L;
   private static final long PROGRESS_INTERVAL_MS = 60_000L;
+  private static final long SESSION_INIT_WAIT_TIMEOUT_MS = 60_000L;
+  private static final long SESSION_INIT_POLL_MS = 100L;
   private static final String RECORD_IDS = "recordIds";
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder().build();
 
@@ -98,7 +107,13 @@ public class CopilotSyncStartup implements ApplicationInitializer {
   private void executeSync(JSONObject content) {
     SyncAssistant assistant = createSyncAssistant();
     try {
+      // Wait until SessionListener has called SessionInfo.setAuditActive(...). Until then,
+      // ConnectionInitializerInterceptor skips creating the per-connection AD_CONTEXT_INFO
+      // temp table; borrowing a connection now and holding it across the sync would later
+      // fail in saveContextInfoIntoDB with "relation ad_context_info does not exist".
+      waitForSessionInfoInitialized();
       OBContext.setAdminMode();
+      ensureClientAdminRoleAccess(content);
       waitForCopilotService();
       JSONObject res = executeSyncWithProgress(assistant, content);
       handleSyncResult(res, content);
@@ -136,6 +151,68 @@ public class CopilotSyncStartup implements ApplicationInitializer {
     }
   }
 
+  private void ensureClientAdminRoleAccess(JSONObject content) {
+    JSONArray ids = content.optJSONArray(RECORD_IDS);
+    if (ids == null) {
+      return;
+    }
+
+    for (int i = 0; i < ids.length(); i++) {
+      String appId = ids.optString(i);
+      if (StringUtils.isBlank(appId)) {
+        continue;
+      }
+
+      CopilotApp app = OBDal.getInstance().get(CopilotApp.class, appId);
+      if (app != null) {
+        ensureClientAdminRoleAccess(app);
+      }
+    }
+
+    OBDal.getInstance().flush();
+  }
+
+  private void ensureClientAdminRoleAccess(CopilotApp app) {
+    String appClientId = app.getClient() != null ? app.getClient().getId() : null;
+    StringBuilder hql = new StringBuilder();
+    hql.append("select r ");
+    hql.append("from ADRole r ");
+    hql.append("where r.clientAdmin = true ");
+    hql.append("and r.active = true ");
+
+    if (StringUtils.isNotBlank(appClientId) && !"0".equals(appClientId)) {
+      hql.append("and r.client.id = :clientId");
+    } else {
+      hql.append("and r.client.id <> '0'");
+    }
+
+    Query<Role> roleQuery = OBDal.getInstance().getSession().createQuery(hql.toString(), Role.class);
+    if (StringUtils.isNotBlank(appClientId) && !"0".equals(appClientId)) {
+      roleQuery.setParameter("clientId", appClientId);
+    }
+
+    for (Role role : roleQuery.list()) {
+      ensureRoleAccess(app, role);
+    }
+  }
+
+  private void ensureRoleAccess(CopilotApp app, Role role) {
+    OBCriteria<CopilotRoleApp> roleAppCriteria = OBDal.getInstance().createCriteria(CopilotRoleApp.class);
+    roleAppCriteria.add(Restrictions.eq(CopilotRoleApp.PROPERTY_COPILOTAPP, app));
+    roleAppCriteria.add(Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, role));
+    roleAppCriteria.setMaxResults(1);
+    if (roleAppCriteria.uniqueResult() != null) {
+      return;
+    }
+
+    CopilotRoleApp newRoleApp = OBProvider.getInstance().get(CopilotRoleApp.class);
+    newRoleApp.setOrganization(role.getOrganization());
+    newRoleApp.setClient(role.getClient());
+    newRoleApp.setCopilotApp(app);
+    newRoleApp.setRole(role);
+    OBDal.getInstance().save(newRoleApp);
+  }
+
   private void handleSyncResult(JSONObject res, JSONObject content) {
     log.info("Copilot startup sync result: {}", res);
     if (isSyncError(res)) {
@@ -158,6 +235,22 @@ public class CopilotSyncStartup implements ApplicationInitializer {
     }
     OBDal.getInstance().flush();
     log.info("Copilot startup: marked {} agents as synchronized", ids.length());
+  }
+
+  private void waitForSessionInfoInitialized() throws InterruptedException {
+    if (SessionInfo.isInitialized()) {
+      return;
+    }
+    long deadline = System.currentTimeMillis() + SESSION_INIT_WAIT_TIMEOUT_MS;
+    while (!SessionInfo.isInitialized()) {
+      if (System.currentTimeMillis() > deadline) {
+        log.warn("Timed out waiting for SessionInfo initialization after {} ms; proceeding anyway",
+            SESSION_INIT_WAIT_TIMEOUT_MS);
+        return;
+      }
+      Thread.sleep(SESSION_INIT_POLL_MS);
+    }
+    log.info("SessionInfo initialized; CopilotSyncStartup proceeding");
   }
 
   private void waitForCopilotService() throws InterruptedException {

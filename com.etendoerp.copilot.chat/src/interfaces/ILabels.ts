@@ -21,4 +21,10 @@ export interface ILabels {
     ETCOP_Processing?: string;
     ETCOP_LoadingConversations?: string;
     ETCOP_NoConversations?: string;
+    ETCOP_SearchConversations?: string;
+    ETCOP_Archived?: string;
+    ETCOP_Rename?: string;
+    ETCOP_Delete?: string;
+    ETCOP_Restore?: string;
+    ETCOP_PermanentDelete?: string;
 }

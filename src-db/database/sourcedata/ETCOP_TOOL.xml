@@ -76,4 +76,60 @@
 <!--3B2514B3123E4C24AA8D4ADB42E62785-->  <USE_MODEL><![CDATA[N]]></USE_MODEL>
 <!--3B2514B3123E4C24AA8D4ADB42E62785--></ETCOP_TOOL>
 
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF--><ETCOP_TOOL>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <ETCOP_TOOL_ID><![CDATA[BD5CBAAA442F42E289F5C7438E3C2EDF]]></ETCOP_TOOL_ID>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <VALUE><![CDATA[SimpleOcrTool]]></VALUE>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <NAME><![CDATA[Simple Ocr Tool]]></NAME>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <DESCRIPTION><![CDATA[Extracts structured data from images and PDF documents using direct vision AI APIs. Sends files natively without image conversion. Best for: invoices, receipts, forms, contracts, and any structured document. Supports structured output schemas from tools/schemas/ directory. Supports: JPEG, PNG, WebP, GIF, and PDF files.]]></DESCRIPTION>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <AD_MODULE_ID><![CDATA[0B8480670F614D4CA99921D68BB0DD87]]></AD_MODULE_ID>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <JSON_STRUCTURE><![CDATA[{
+  "type": "function",
+  "function": {
+    "name": "SimpleOcrTool",
+    "description": "Extracts structured data from images and PDF documents using direct vision AI APIs. Sends files natively without image conversion. Best for: invoices, receipts, forms, contracts, and any structured document. Supports structured output schemas from tools\/schemas\/ directory. Supports: JPEG, PNG, WebP, GIF, and PDF files.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "Absolute or relative path to the image or PDF file to be processed. The file must exist in the local file system.",
+          "title": "Path",
+          "type": "string"
+        },
+        "question": {
+          "description": "Specific instructions describing what information to extract from the document. Be precise about the data fields needed.",
+          "title": "Question",
+          "type": "string"
+        },
+        "structured_output": {
+          "anyOf": [
+            {"type": "string"},
+            {"type": "null"}
+          ],
+          "default": null,
+          "description": "Schema name for structured output (e.g., 'Invoice'). Schemas are loaded from tools\/schemas\/. Leave None for unstructured JSON extraction.",
+          "title": "Structured Output"
+        },
+        "structured_output_schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {"type": "null"}
+          ],
+          "default": null,
+          "description": "Literal JSON Schema dict to use as the structured output format. When provided, takes precedence over `structured_output`. Lets callers define the extraction shape inline instead of shipping a Pydantic class in tools\/schemas\/.",
+          "title": "Structured Output Schema"
+        }
+      }
+    }
+  }
+}]]></JSON_STRUCTURE>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <SYNC_STRUCTURE><![CDATA[N]]></SYNC_STRUCTURE>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF-->  <USE_MODEL><![CDATA[Y]]></USE_MODEL>
+<!--BD5CBAAA442F42E289F5C7438E3C2EDF--></ETCOP_TOOL>
+
 </data>
