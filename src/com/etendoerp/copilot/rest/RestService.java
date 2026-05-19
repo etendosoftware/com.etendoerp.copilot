@@ -32,6 +32,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
@@ -227,6 +228,10 @@ public class RestService {
       ConversationUtils.handlePermanentDeleteConversation(request, response);
       return;
     }
+    if (StringUtils.equalsIgnoreCase(path, "/executeTool")) {
+      handleExecuteTool(request, response);
+      return;
+    }
     //if not a valid path, throw an error status
     response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
   }
@@ -300,6 +305,41 @@ public class RestService {
    * @param response
    *     the HttpServletResponse object that contains the response the servlet returns to the client
    */
+  /**
+   * Forward a direct tool invocation to the Copilot Python service.
+   * The request body is a JSON payload matching ExecuteToolSchema
+   * ({@code tool_name}, {@code params}, optional {@code agent_id}).
+   * Bypasses the agent layer for faster tool execution when the caller
+   * already knows which tool to run.
+   */
+  private void handleExecuteTool(HttpServletRequest request, HttpServletResponse response)
+      throws IOException, JSONException {
+    try {
+      JSONObject jsonBody = RequestUtils.extractRequestBody(request);
+      java.net.http.HttpResponse<String> copilotResponse = CopilotUtils.getResponseFromCopilot(
+          OBPropertiesProvider.getInstance().getOpenbravoProperties(),
+          "executeTool",
+          jsonBody,
+          null);
+      if (copilotResponse == null) {
+        sendErrorResponse(response, HttpServletResponse.SC_BAD_GATEWAY,
+            "No response from Copilot");
+        return;
+      }
+      response.setStatus(copilotResponse.statusCode());
+      response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
+      response.getWriter().write(copilotResponse.body());
+    } catch (JSONException e) {
+      log4j.error(e);
+      sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+          "Invalid JSON body: " + e.getMessage());
+    } catch (Exception e) {
+      log4j.error(e);
+      sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Error executing tool");
+    }
+  }
+
   private void handleCacheQuestion(HttpServletRequest request, HttpServletResponse response) {
     try {
       // Attempt to save the cached question
