@@ -175,6 +175,28 @@ export const useConversations = (selectedAppId: string | null, labels?: ILabels)
     }
   };
 
+  // Persisted user messages can be wrapped as
+  // "<Context>{json}</Context>\n<Question>text</Question>".
+  // On history reload, surface the question as the bubble text and the JSON's
+  // contextTitle (if any) as the context card — matching the live-send rendering.
+  const parseUserMessageWithContext = (raw: string): { text: string; context?: string } => {
+    if (typeof raw !== 'string') return { text: raw };
+    const match = raw.match(/^\s*<Context>([\s\S]*?)<\/Context>\s*<Question>([\s\S]*?)<\/Question>\s*$/);
+    if (!match) return { text: raw };
+
+    const [, contextJson, question] = match;
+    let contextTitle: string | undefined;
+    try {
+      const parsed = JSON.parse(contextJson);
+      if (parsed && typeof parsed.contextTitle === 'string' && parsed.contextTitle.trim() !== '') {
+        contextTitle = parsed.contextTitle;
+      }
+    } catch {
+      // Malformed context JSON — still strip the wrapping so the raw blob isn't shown.
+    }
+    return { text: question, context: contextTitle };
+  };
+
   const loadConversationMessages = async (conversationId: string): Promise<IMessage[]> => {
     try {
       const response = await RestUtils.fetch(
@@ -185,11 +207,18 @@ export const useConversations = (selectedAppId: string | null, labels?: ILabels)
       if (response.ok) {
         const messagesData = await response.json();
         // Transform the messages from backend format to frontend format
-        return messagesData.map((msg: any) => ({
-          text: msg.content,
-          sender: msg.role?.toLowerCase() === 'user' ? ROLE_USER : ROLE_BOT,
-          timestamp: msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString(),
-        }));
+        return messagesData.map((msg: any) => {
+          const isUser = msg.role?.toLowerCase() === 'user';
+          const { text, context } = isUser
+            ? parseUserMessageWithContext(msg.content)
+            : { text: msg.content, context: undefined };
+          return {
+            text,
+            sender: isUser ? ROLE_USER : ROLE_BOT,
+            timestamp: msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString(),
+            context,
+          };
+        });
       } else {
         console.error('Failed to load conversation messages');
         return [];
