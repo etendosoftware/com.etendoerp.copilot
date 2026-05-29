@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
@@ -152,6 +153,65 @@ public class MCPUtilsTest extends WeldBaseTest {
       // Assert
       assertNotNull(result);
       assertEquals(0, result.length());
+    }
+  }
+
+  /**
+   * Verifies the fix for ETP-4134: getMCPConfigurations must wrap the DAL access in
+   * setAdminMode()/restorePreviousMode() so the read works from background flows
+   * (e.g. ProcessScheduleApps) where admin mode is not set globally. ETCOP_MCP is a
+   * System-level entity, so without admin mode the read of jsonStructure fails.
+   */
+  @Test
+  public void testGetMCPConfigurations_WrapsCallInAdminMode() throws JSONException {
+    // Arrange
+    CopilotApp copilotApp = mock(CopilotApp.class);
+    List<CopilotAppMCP> emptyList = Collections.emptyList();
+
+    OBDal obDal = mock(OBDal.class);
+    OBCriteria<CopilotAppMCP> criteria = mock(OBCriteria.class);
+    when(criteria.list()).thenReturn(emptyList);
+    when(obDal.createCriteria(CopilotAppMCP.class)).thenReturn(criteria);
+
+    try (MockedStatic<OBDal> obDalStatic = mockStatic(OBDal.class);
+         MockedStatic<OBContext> obContextStatic = mockStatic(OBContext.class)) {
+      obDalStatic.when(OBDal::getInstance).thenReturn(obDal);
+
+      // Act
+      MCPUtils.getMCPConfigurations(copilotApp);
+
+      // Assert: admin mode set and previous mode restored exactly once
+      obContextStatic.verify(OBContext::setAdminMode, times(1));
+      obContextStatic.verify(OBContext::restorePreviousMode, times(1));
+    }
+  }
+
+  /**
+   * Verifies that restorePreviousMode() is invoked even when the DAL access throws,
+   * ensuring the security context never leaks admin mode to subsequent operations.
+   */
+  @Test
+  public void testGetMCPConfigurations_RestoresModeOnException() {
+    // Arrange
+    CopilotApp copilotApp = mock(CopilotApp.class);
+
+    OBDal obDal = mock(OBDal.class);
+    when(obDal.createCriteria(CopilotAppMCP.class)).thenThrow(new RuntimeException("DAL failure"));
+
+    try (MockedStatic<OBDal> obDalStatic = mockStatic(OBDal.class);
+         MockedStatic<OBContext> obContextStatic = mockStatic(OBContext.class)) {
+      obDalStatic.when(OBDal::getInstance).thenReturn(obDal);
+
+      // Act
+      try {
+        MCPUtils.getMCPConfigurations(copilotApp);
+      } catch (RuntimeException | JSONException expected) {
+        // Expected — propagation of underlying failure
+      }
+
+      // Assert: previous mode restored even though the body threw
+      obContextStatic.verify(OBContext::setAdminMode, times(1));
+      obContextStatic.verify(OBContext::restorePreviousMode, times(1));
     }
   }
 
