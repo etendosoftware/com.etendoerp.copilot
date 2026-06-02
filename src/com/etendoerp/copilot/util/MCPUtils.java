@@ -10,6 +10,7 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
+import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 
@@ -40,32 +41,39 @@ public class MCPUtils {
     public static JSONArray getMCPConfigurations(CopilotApp copilotApp) throws JSONException {
         JSONArray mcpConfigurations = new JSONArray();
 
-        // Get all CopilotAppMCP relationships for this assistant
-        OBCriteria<CopilotAppMCP> appMcpCriteria = OBDal.getInstance().createCriteria(CopilotAppMCP.class);
-        appMcpCriteria.add(Restrictions.eq(CopilotAppMCP.PROPERTY_ASSISTANT, copilotApp));
-        appMcpCriteria.add(Restrictions.eq(CopilotAppMCP.PROPERTY_ACTIVE, true));
+        // ETCOP_MCP is System-level: reading jsonStructure requires admin mode.
+        try {
+            OBContext.setAdminMode();
 
-        List<CopilotAppMCP> appMcpList = appMcpCriteria.list();
+            // Get all CopilotAppMCP relationships for this assistant
+            OBCriteria<CopilotAppMCP> appMcpCriteria = OBDal.getInstance().createCriteria(CopilotAppMCP.class);
+            appMcpCriteria.add(Restrictions.eq(CopilotAppMCP.PROPERTY_ASSISTANT, copilotApp));
+            appMcpCriteria.add(Restrictions.eq(CopilotAppMCP.PROPERTY_ACTIVE, true));
 
-        for (CopilotAppMCP appMcp : appMcpList) {
-            CopilotMCP mcpConfig = appMcp.getMCPServer();
-            if (mcpConfig != null && mcpConfig.isActive() && StringUtils.isNotEmpty(mcpConfig.getJsonStructure())) {
-                try {
-                    String mcpJson = replaceVariables(mcpConfig);
-                    JSONObject raw = new JSONObject(mcpJson);
-                    JSONArray normalized = MCPConfigNormalizer.normalizeToArray(raw, mcpConfig.getName());
-                    for (int i = 0; i < normalized.length(); i++) {
-                        JSONObject item = normalized.getJSONObject(i);
-                        if (!item.has("name") || StringUtils.isBlank(item.optString("name"))) {
-                            item.put("name", mcpConfig.getName());
+            List<CopilotAppMCP> appMcpList = appMcpCriteria.list();
+
+            for (CopilotAppMCP appMcp : appMcpList) {
+                CopilotMCP mcpConfig = appMcp.getMCPServer();
+                if (mcpConfig != null && mcpConfig.isActive() && StringUtils.isNotEmpty(mcpConfig.getJsonStructure())) {
+                    try {
+                        String mcpJson = replaceVariables(mcpConfig);
+                        JSONObject raw = new JSONObject(mcpJson);
+                        JSONArray normalized = MCPConfigNormalizer.normalizeToArray(raw, mcpConfig.getName());
+                        for (int i = 0; i < normalized.length(); i++) {
+                            JSONObject item = normalized.getJSONObject(i);
+                            if (!item.has("name") || StringUtils.isBlank(item.optString("name"))) {
+                                item.put("name", mcpConfig.getName());
+                            }
+                            mcpConfigurations.put(item);
                         }
-                        mcpConfigurations.put(item);
+                    } catch (JSONException e) {
+                        String errorMsg = "Invalid JSON structure in MCP configuration: " + mcpConfig.getName();
+                        log.error(errorMsg, e);
                     }
-                } catch (JSONException e) {
-                    String errorMsg = "Invalid JSON structure in MCP configuration: " + mcpConfig.getName();
-                    log.error(errorMsg, e);
                 }
             }
+        } finally {
+            OBContext.restorePreviousMode();
         }
         return mcpConfigurations;
     }
