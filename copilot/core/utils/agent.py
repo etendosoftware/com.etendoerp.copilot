@@ -62,7 +62,11 @@ def get_llm(model, provider, temperature):
                 model=model_to_use,
                 temperature=temperature,
                 base_url=get_proxy_url(),
-                api_key=get_api_key("openai"),
+                # Proxy mode routes every provider through the OpenAI-compatible
+                # client, which refuses to build without a key. When openai.api.key
+                # is unset (e.g. Gemini-only setups) fall back to a placeholder so
+                # the proxy can resolve the real credentials. Mirrors vectordb_utils.
+                api_key=get_api_key("openai") or "dummy",
                 model_kwargs={"stream_options": {"include_usage": True}},
                 streaming=True,
             )
