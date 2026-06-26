@@ -98,10 +98,13 @@ class TestMultimodelAgent:
             streaming=True,
         )
 
+    @patch("copilot.core.utils.agent.get_api_key", return_value="test-api-key")
     @patch("copilot.core.utils.agent.init_chat_model")
     @patch("copilot.core.utils.agent.get_model_config")
     @patch("copilot.core.utils.agent.get_proxy_url", return_value="https://llm.etendo.software")
-    def test_get_llm_openai_with_proxy(self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model):
+    def test_get_llm_openai_with_proxy(
+        self, mock_get_proxy_url, mock_get_model_config, mock_init_chat_model, mock_get_api_key
+    ):
         """Test LLM initialization for OpenAI provider when a proxy is configured."""
         mock_model = MagicMock()
         mock_init_chat_model.return_value = mock_model
@@ -115,6 +118,7 @@ class TestMultimodelAgent:
             model="openai/gpt-4.1",
             temperature=0.7,
             base_url="https://llm.etendo.software",
+            api_key="test-api-key",
             model_kwargs={"stream_options": {"include_usage": True}},
             streaming=True,
         )

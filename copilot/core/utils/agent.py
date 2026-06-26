@@ -4,7 +4,7 @@ import os
 from copilot.baseutils.logging_envvar import copilot_error
 from copilot.core.schemas import QuestionSchema
 from copilot.core.utils import etendo_utils
-from copilot.core.utils.models import get_proxy_url
+from copilot.core.utils.models import get_api_key, get_proxy_url
 from langchain.chat_models import init_chat_model
 
 _PROVIDER_ALIAS_MAP = {
@@ -62,6 +62,11 @@ def get_llm(model, provider, temperature):
                 model=model_to_use,
                 temperature=temperature,
                 base_url=get_proxy_url(),
+                # Proxy mode routes every provider through the OpenAI-compatible
+                # client, which refuses to build without a key. When openai.api.key
+                # is unset (e.g. Gemini-only setups) fall back to a placeholder so
+                # the proxy can resolve the real credentials. Mirrors vectordb_utils.
+                api_key=get_api_key("openai") or "dummy",
                 model_kwargs={"stream_options": {"include_usage": True}},
                 streaming=True,
             )
