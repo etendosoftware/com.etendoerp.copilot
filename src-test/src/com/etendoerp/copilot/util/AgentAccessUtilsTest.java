@@ -66,6 +66,7 @@ public class AgentAccessUtilsTest {
     when(mockClient.getId()).thenReturn("ABC123");
   }
 
+  /** A non client-admin role is skipped: nothing is created and OBDal is never touched. */
   @Test
   public void skipsNonClientAdminRole() {
     when(mockRole.isClientAdmin()).thenReturn(Boolean.FALSE);
@@ -78,6 +79,7 @@ public class AgentAccessUtilsTest {
     }
   }
 
+  /** A client-admin role of the System client (id "0") is skipped and OBDal is never touched. */
   @Test
   public void skipsSystemClientRole() {
     when(mockRole.isClientAdmin()).thenReturn(Boolean.TRUE);
@@ -93,6 +95,7 @@ public class AgentAccessUtilsTest {
     }
   }
 
+  /** Only the shared agents not yet granted are created; already-granted ones are left untouched. */
   @SuppressWarnings("unchecked")
   @Test
   public void grantsOnlyTheMissingSharedAgents() {
@@ -141,6 +144,7 @@ public class AgentAccessUtilsTest {
     }
   }
 
+  /** When every shared agent is already granted, nothing is created, saved or flushed. */
   @SuppressWarnings("unchecked")
   @Test
   public void noOpAndNoFlushWhenAllSharedAgentsAlreadyGranted() {

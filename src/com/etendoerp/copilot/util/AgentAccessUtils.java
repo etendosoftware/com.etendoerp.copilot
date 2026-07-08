@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.dal.service.OBCriteria;
@@ -29,6 +31,8 @@ import com.etendoerp.copilot.data.CopilotRoleApp;
  * operation is idempotent and short-circuited so the steady-state cost is a single query.</p>
  */
 public final class AgentAccessUtils {
+
+  private static final Logger log = LogManager.getLogger(AgentAccessUtils.class);
 
   /** Agent scope value "Client" — visible to client-level roles. */
   public static final String SCOPE_CLIENT = "C";
@@ -69,6 +73,26 @@ public final class AgentAccessUtils {
       OBDal.getInstance().flush();
     }
     return created;
+  }
+
+  /**
+   * Grants the shared Copilot agents to {@code role} without ever aborting the caller. Any failure
+   * is logged and swallowed so a grant problem cannot break the assistants listing; the grants are
+   * simply retried on the next load.
+   *
+   * @param role the role requesting its assistants
+   */
+  public static void ensureSharedAgentsGrantedSafely(Role role) {
+    try {
+      int created = ensureSharedAgentsGranted(role);
+      if (created > 0) {
+        log.info("Granted {} shared Copilot agent(s) to client-admin role '{}'", created,
+            role.getId());
+      }
+    } catch (Exception e) {
+      log.error("Error granting shared Copilot agents to role '{}': {}",
+          role != null ? role.getId() : null, e.getMessage(), e);
+    }
   }
 
   /**

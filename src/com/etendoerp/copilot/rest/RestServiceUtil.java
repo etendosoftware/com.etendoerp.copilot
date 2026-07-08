@@ -985,7 +985,7 @@ public class RestServiceUtil {
       // Ensure this client-admin role has access to the shared agents, granting any that are
       // missing on the first assistants load. Idempotent and short-circuited (a single query
       // once complete); wrapped so it never breaks the listing.
-      grantSharedAgentsSafely(role);
+      AgentAccessUtils.ensureSharedAgentsGrantedSafely(role);
 
       List<CopilotApp> appList = new HashSet<>(OBDal.getInstance().createCriteria(CopilotRoleApp.class).add(
           Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, role)).list()).stream().map(
@@ -1033,28 +1033,6 @@ public class RestServiceUtil {
       }
     }
   }
-
-  /**
-   * Grants the shared Copilot agents to {@code role} without ever aborting the assistants
-   * listing. Any failure is logged and swallowed so a grant problem cannot break the endpoint;
-   * the grants are simply retried on the next load.
-   *
-   * @param role
-   *     the role requesting its assistants
-   */
-  private static void grantSharedAgentsSafely(Role role) {
-    try {
-      int created = AgentAccessUtils.ensureSharedAgentsGranted(role);
-      if (created > 0) {
-        log.info("Granted {} shared Copilot agent(s) to client-admin role '{}'", created,
-            role.getId());
-      }
-    } catch (Exception e) {
-      log.error("Error granting shared Copilot agents to role '{}': {}",
-          role != null ? role.getId() : null, e.getMessage(), e);
-    }
-  }
-
 
   /**
    * This method is used to save a file in the temp folder of the server. The file is saved with a
