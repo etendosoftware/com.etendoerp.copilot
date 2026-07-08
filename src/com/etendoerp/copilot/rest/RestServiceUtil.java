@@ -64,6 +64,7 @@ import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
+import com.etendoerp.copilot.util.AgentAccessUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
@@ -981,6 +982,11 @@ public class RestServiceUtil {
       OBContext context = OBContext.getOBContext();
       Role role = context.getRole();
 
+      // Ensure this client-admin role has access to the shared agents, granting any that are
+      // missing on the first assistants load. Idempotent and short-circuited (a single query
+      // once complete); wrapped so it never breaks the listing.
+      AgentAccessUtils.ensureSharedAgentsGrantedSafely(role);
+
       List<CopilotApp> appList = new HashSet<>(OBDal.getInstance().createCriteria(CopilotRoleApp.class).add(
           Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, role)).list()).stream().map(
           CopilotRoleApp::getCopilotApp).distinct().collect(Collectors.toList());
@@ -1027,7 +1033,6 @@ public class RestServiceUtil {
       }
     }
   }
-
 
   /**
    * This method is used to save a file in the temp folder of the server. The file is saved with a
