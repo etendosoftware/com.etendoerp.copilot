@@ -64,6 +64,7 @@ import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
 import com.etendoerp.copilot.hook.CopilotQuestionHookManager;
+import com.etendoerp.copilot.util.AgentAccessUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotModelUtils;
 import com.etendoerp.copilot.util.CopilotUtils;
@@ -981,6 +982,11 @@ public class RestServiceUtil {
       OBContext context = OBContext.getOBContext();
       Role role = context.getRole();
 
+      // Ensure this client-admin role has access to the shared agents, granting any that are
+      // missing on the first assistants load. Idempotent and short-circuited (a single query
+      // once complete); wrapped so it never breaks the listing.
+      grantSharedAgentsSafely(role);
+
       List<CopilotApp> appList = new HashSet<>(OBDal.getInstance().createCriteria(CopilotRoleApp.class).add(
           Restrictions.eq(CopilotRoleApp.PROPERTY_ROLE, role)).list()).stream().map(
           CopilotRoleApp::getCopilotApp).distinct().collect(Collectors.toList());
@@ -1025,6 +1031,27 @@ public class RestServiceUtil {
       } catch (Exception e) {
         log.error("Error assigning webhook permissions for app '{}': {}", app.getName(), e.getMessage(), e);
       }
+    }
+  }
+
+  /**
+   * Grants the shared Copilot agents to {@code role} without ever aborting the assistants
+   * listing. Any failure is logged and swallowed so a grant problem cannot break the endpoint;
+   * the grants are simply retried on the next load.
+   *
+   * @param role
+   *     the role requesting its assistants
+   */
+  private static void grantSharedAgentsSafely(Role role) {
+    try {
+      int created = AgentAccessUtils.ensureSharedAgentsGranted(role);
+      if (created > 0) {
+        log.info("Granted {} shared Copilot agent(s) to client-admin role '{}'", created,
+            role.getId());
+      }
+    } catch (Exception e) {
+      log.error("Error granting shared Copilot agents to role '{}': {}",
+          role != null ? role.getId() : null, e.getMessage(), e);
     }
   }
 
