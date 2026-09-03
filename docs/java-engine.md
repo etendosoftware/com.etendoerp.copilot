@@ -226,6 +226,21 @@ An answer carrying `tool_calls` short-circuits `processResponseAndTrack`, so `ET
 stores tool internals: one user turn produces one stored question and one stored answer, whatever
 happens in between.
 
+### Confirmation and refusal
+
+Tools that mutate data ask the user to confirm before running, in the tool itself on the Classic
+side (`OB.WebMCP.requireConfirmation`, on by default). Two consequences shape this side:
+
+- **A tool call can take as long as a human takes to decide.** That costs nothing here: the tool
+  runs *between* two requests, so no server request is held open while the dialog is up, and there
+  is no per-round timeout to blow. The model call timeout
+  (`copilot.engine.java.timeout.seconds`) only bounds the call to the provider.
+- **A refusal is reported through `isError`, like a crash — and must not read like one.** A crash
+  invites a retry; retrying a refusal would pop the dialog the user just dismissed. `webmcp.ts`
+  therefore reports a refusal as an outcome with an explicit "do not retry", and only a real
+  failure as a failure. It recognises a refusal by the `declined` flag when the tool sets it, and
+  falls back to the dialog's wording.
+
 ### Security
 
 The tool runs in the browser under the user's own session, so it inherits the user's permissions
