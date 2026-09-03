@@ -12,10 +12,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -60,6 +58,8 @@ import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.engine.ClientToolSupport;
+import com.etendoerp.copilot.engine.CopilotEngineSelector;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
 import com.etendoerp.copilot.data.CopilotRoleApp;
@@ -314,7 +314,8 @@ public class RestServiceUtil {
       default:
         log.warn("Unsupported app type: {}", copilotApp.getAppType());
     }
-    return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived);
+    return handleQuestion(isAsyncRequest, queue, copilotApp, conversationId, question, filesReceived,
+        jsonRequest);
   }
 
 
@@ -425,6 +426,36 @@ public class RestServiceUtil {
    */
   public static JSONObject handleQuestion(boolean asyncRequest, HttpServletResponse queue, CopilotApp copilotApp,
       String conversationId, String question, List<String> questionAttachedFileIds) throws IOException, JSONException {
+    return handleQuestion(asyncRequest, queue, copilotApp, conversationId, question, questionAttachedFileIds, null);
+  }
+
+  /**
+   * Same as {@link #handleQuestion(boolean, HttpServletResponse, CopilotApp, String, String, List)}, plus the raw
+   * body received from the chat client, whose client-executed tool fields are forwarded to the engine.
+   *
+   * @param asyncRequest
+   *     whether the request should be processed asynchronously (SSE)
+   * @param queue
+   *     the {@link HttpServletResponse} used for streaming SSE events when async
+   * @param copilotApp
+   *     the assistant serving the request
+   * @param conversationId
+   *     the conversation id to associate to the request (may be null)
+   * @param question
+   *     the user question text
+   * @param questionAttachedFileIds
+   *     optional list of file ids attached to the question
+   * @param clientRequest
+   *     the JSON body sent by the chat client, or {@code null} when there is none
+   * @return the processed response, or the tool-call envelope when the client must execute a tool
+   * @throws IOException
+   *     on network / IO errors
+   * @throws JSONException
+   *     when building or parsing the payload fails
+   */
+  public static JSONObject handleQuestion(boolean asyncRequest, HttpServletResponse queue, CopilotApp copilotApp,
+      String conversationId, String question, List<String> questionAttachedFileIds,
+      JSONObject clientRequest) throws IOException, JSONException {
     if (copilotApp == null) {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
@@ -432,6 +463,7 @@ public class RestServiceUtil {
 
     // Build request JSON
     JSONObject jsonRequestForCopilot = buildRequestJson(copilotApp, conversationId, question, questionAttachedFileIds);
+    ClientToolSupport.copyClientToolFields(clientRequest, jsonRequestForCopilot);
 
     if (TelemetryUsageInfo.getInstance().getSessionId() != null) {
       TrackingUtil.sendUsageData(copilotApp);
@@ -446,6 +478,12 @@ public class RestServiceUtil {
     }
     // Get response from Copilot
     JSONObject finalResponseAsync = sendRequestToCopilot(asyncRequest, queue, jsonRequestForCopilot, copilotApp);
+
+    if (ClientToolSupport.isToolCallAnswer(finalResponseAsync)) {
+      // A tool round trip is not a conversation turn: the client will come back with the result and
+      // only the final answer is tracked, so ETCOP_MESSAGE never stores tool internals.
+      return finalResponseAsync;
+    }
 
     // Process and return response
     return processResponseAndTrack(finalResponseAsync, conversationId, question, copilotApp);
@@ -539,35 +577,8 @@ public class RestServiceUtil {
    */
   public static JSONObject sendRequestToCopilot(boolean asyncRequest, HttpServletResponse queue,
       JSONObject jsonRequestForCopilot, CopilotApp copilotApp) throws IOException, JSONException {
-    var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String copilotPort = readPropertyWithLegacyCompatibility(properties,"copilot.port", "5005");
-    String copilotHost = readPropertyWithLegacyCompatibility(properties,"copilot.host", "localhost");
-    String endpoint = determineEndpoint(asyncRequest, copilotApp);
-
-    logIfDebug("Request to Copilot:);");
-    logIfDebug(new JSONObject(jsonRequestForCopilot.toString()).toString(2));
-
-    URL url = new URL(String.format("http://%s:%s%s", copilotHost, copilotPort, endpoint));
-    try {
-      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-      connection.setRequestMethod("POST");
-      connection.setRequestProperty("Content-Type", "application/json");
-      connection.setDoOutput(true);
-      connection.setDoInput(true);
-      connection.getOutputStream().write(jsonRequestForCopilot.toString().getBytes());
-
-      if (asyncRequest) {
-        return serverSideEvents(asyncRequest, queue, connection.getInputStream());
-      } else {
-        String responseFromCopilot = new BufferedReader(
-            new InputStreamReader(connection.getInputStream())).lines().collect(Collectors.joining("\n"));
-        return new JSONObject(responseFromCopilot);
-      }
-    } catch (Exception e) {
-      log.error(e);
-      Thread.currentThread().interrupt();
-      throw new OBException(OBMessageUtils.messageBD("ETCOP_ConnError"));
-    }
+    return CopilotEngineSelector.get(jsonRequestForCopilot, copilotApp)
+        .execute(asyncRequest, queue, jsonRequestForCopilot, copilotApp);
   }
 
   /**
@@ -1098,7 +1109,7 @@ public class RestServiceUtil {
    * @param response
    *     The HttpServletResponse object to be configured for SSE.
    */
-  static void setEventStreamMode(HttpServletResponse response) {
+  public static void setEventStreamMode(HttpServletResponse response) {
     response.setContentType("text/event-stream");
     response.setCharacterEncoding("UTF-8");
     response.setHeader("Cache-Control", "no-cache");

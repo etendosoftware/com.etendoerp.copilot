@@ -21,6 +21,8 @@ import { RestUtils, isDevelopment } from './utils/environment';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { ROLE_BOT, ROLE_ERROR, ROLE_NODE, ROLE_TOOL, ROLE_USER, ROLE_WAIT } from './utils/constants';
 import { getMessageContainerClasses } from './utils/styles';
+import { discoverClientTools } from './utils/webmcp';
+import { askWithClientTools } from './utils/toolLoop';
 
 // StatusIcon component to avoid duplication
 const StatusIcon = ({ statusIcon, responseSent }: { statusIcon: string, responseSent: string }) => (
@@ -447,6 +449,40 @@ function App() {
     }
   };
 
+  /**
+   * Send a question over the synchronous endpoint, letting the model call tools that this tab
+   * executes. Falls back to nothing special when the assistant never asks for one: the loop simply
+   * returns the answer of the first round.
+   */
+  const sendWithClientTools = async (finalQuestion: string, clientTools: any[]) => {
+    const requestBody: any = {
+      question: finalQuestion,
+      app_id: selectedOption?.app_id,
+    };
+    if (conversationId) requestBody.conversation_id = conversationId;
+    if (fileId) requestBody.file = fileId;
+
+    try {
+      const answer = await askWithClientTools(requestBody, clientTools, ({ calls, text }) => {
+        // Replaces the waiting bubble, so the user sees which tool is running.
+        handleNewMessage(ROLE_TOOL, {
+          text: text || calls.map(call => call.name).join(', '),
+        } as IMessage);
+      });
+
+      handleNewConversationCreation(answer);
+      if (answer?.response) {
+        await routeMessageToConversation(answer);
+      }
+    } catch (error: any) {
+      console.error('Error running the client tool loop: ', error);
+      showErrorMessage(error?.message);
+    } finally {
+      setIsBotLoading(false);
+      scrollToBottomWithDelay();
+    }
+  };
+
   // Function to handle sending a message
   const handleSendMessage = async () => {
     setIsBotLoading(true);
@@ -472,6 +508,15 @@ function App() {
       scrollToBottomWithDelay();
 
       try {
+        // Tools registered in the page (WebMCP) run on this tab, not on the server, and they need
+        // the synchronous POST endpoint: the streaming GET whitelists its parameters, so neither
+        // the descriptors nor the results would survive it.
+        const clientTools = await discoverClientTools();
+        if (clientTools.length > 0) {
+          await sendWithClientTools(finalQuestion, clientTools);
+          return;
+        }
+
         const requestBody = await buildRequestBody(finalQuestion);
         const params = Object.keys(requestBody)
           .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(requestBody[key])}`)
