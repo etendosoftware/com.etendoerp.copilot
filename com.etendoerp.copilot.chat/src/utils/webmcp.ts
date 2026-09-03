@@ -156,6 +156,15 @@ async function executeOne(context: any, call: ToolCall): Promise<string> {
 /**
  * Unwrap the MCP result envelope, which arrives as a JSON string.
  *
+ * A tool that mutates data asks the user to confirm before it runs, and reports a refusal the
+ * same way it reports a crash: `isError`. Those two must not read alike to the model. A crash
+ * invites a retry; a refusal is a decision, and retrying it would pop the very dialog the user
+ * just dismissed. So a refusal is reported as an outcome with an explicit instruction not to
+ * retry, and only a real failure is labelled as one.
+ *
+ * A refusal is recognised by the `declined` flag when the tool sets it, falling back to the
+ * wording of the confirmation dialog. The flag is the contract; the wording is a safety net.
+ *
  * @param raw whatever executeTool returned
  * @returns the text to hand to the model
  */
@@ -172,6 +181,13 @@ function readToolOutput(raw: unknown): string {
   if (typeof text !== 'string') {
     return typeof payload === 'string' ? payload : JSON.stringify(payload);
   }
-  // The model has to know the call failed, or it will treat the message as data.
-  return payload?.isError ? `ERROR: ${text}` : text;
+  if (!payload?.isError) {
+    return text;
+  }
+  if (payload?.declined === true || /\bdeclin(e|ed|es)\b/i.test(text)) {
+    return `The user declined this action, so it was not performed. Do not retry it. `
+      + `Ask what they would like to do instead. Reported reason: ${text}`;
+  }
+  // A genuine failure: the model has to know, or it will treat the message as data.
+  return `The tool failed: ${text}`;
 }
