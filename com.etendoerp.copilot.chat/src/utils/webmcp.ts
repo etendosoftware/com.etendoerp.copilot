@@ -186,8 +186,31 @@ function readToolOutput(raw: unknown): string {
   }
   if (payload?.declined === true || /\bdeclin(e|ed|es)\b/i.test(text)) {
     return `The user declined this action, so it was not performed. Do not retry it. `
-      + `Ask what they would like to do instead. Reported reason: ${text}`;
+      + `Ask what they would like to do instead. Reported reason: ${reason(text)}`;
   }
   // A genuine failure: the model has to know, or it will treat the message as data.
-  return `The tool failed: ${text}`;
+  return `The tool failed: ${reason(text)}`;
+}
+
+/**
+ * Reduce a failure text to the sentence worth showing the model.
+ *
+ * A tool may report the failure as a JSON envelope of its own rather than as prose. Handing that
+ * envelope over raw would nest JSON inside the sentence the model reads at the exact point where
+ * it decides whether to retry. Only unwrapped for failures: an ordinary result is often JSON on
+ * purpose and must reach the model untouched.
+ *
+ * @param text the reported text
+ * @returns the message to show
+ */
+function reason(text: string): string {
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.message === 'string') {
+      return parsed.message;
+    }
+  } catch {
+    // Not JSON: it is already the sentence we want.
+  }
+  return text;
 }
