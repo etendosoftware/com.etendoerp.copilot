@@ -62,6 +62,9 @@ copilot.openai.base.url=http://localhost:4000
 
 # Model call timeout, seconds. Default 120.
 copilot.engine.java.timeout.seconds=120
+
+# Rounds of client-executed tools allowed per question. Default 25.
+copilot.engine.java.max.tool.rounds=25
 ```
 
 The provider and model come from `ETCOP_MODEL`, resolved by `CopilotModelUtils`, and the
@@ -171,8 +174,13 @@ requests, which is why this fits the existing design — the conversation memory
 `ETCOP_MESSAGE`, not in the runtime. Echoing the calls back adds no trust boundary: the client
 controls the tool results by construction anyway.
 
-`ClientToolSupport.MAX_TOOL_ROUNDS` (5) caps the rounds per question. The loop is client-driven,
-so this is a backstop against a model that never stops calling tools, not a flow-control knob.
+`ClientToolSupport.DEFAULT_MAX_TOOL_ROUNDS` (25) caps the rounds per question, overridable with
+`copilot.engine.java.max.tool.rounds`. It is a backstop against a model that never stops calling
+tools, not a flow-control knob, so it sits well above what real work needs: creating a single
+record already spends most of a dozen rounds — read the screen, find the window, open it, start the
+record, list the fields, write them, save, read the screen back to confirm — and more when a
+validation error sends it round again. The first version capped it at 5, which was fine for four
+read-only tools and cut real work short as soon as the tool set grew.
 
 ### Wire fields
 

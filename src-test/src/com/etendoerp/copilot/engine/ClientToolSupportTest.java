@@ -208,8 +208,9 @@ public class ClientToolSupportTest {
    */
   @Test
   public void tooManyRoundsIsRejected() throws JSONException {
+    int limit = ClientToolSupport.DEFAULT_MAX_TOOL_ROUNDS;
     JSONArray exchange = new JSONArray();
-    for (int i = 0; i <= ClientToolSupport.MAX_TOOL_ROUNDS; i++) {
+    for (int i = 0; i <= limit; i++) {
       exchange.put(round("call_" + i, "{}", "call_" + i, "ok"));
     }
     JSONObject request = new JSONObject().put(ClientToolSupport.PROP_TOOL_EXCHANGE, exchange);
@@ -218,7 +219,7 @@ public class ClientToolSupportTest {
       ClientToolSupport.appendExchange(new ArrayList<>(), request);
       fail("Expected the round limit to be enforced");
     } catch (OBException e) {
-      assertTrue(e.getMessage().contains(String.valueOf(ClientToolSupport.MAX_TOOL_ROUNDS)));
+      assertTrue(e.getMessage().contains(String.valueOf(limit)));
     }
   }
 

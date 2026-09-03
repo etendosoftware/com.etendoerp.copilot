@@ -1,5 +1,7 @@
 package com.etendoerp.copilot.engine;
 
+import static com.etendoerp.copilot.util.CopilotUtils.readPropertyWithLegacyCompatibility;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,6 +12,7 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.session.OBPropertiesProvider;
 
 import com.etendoerp.copilot.rest.RestServiceUtil;
 
@@ -69,11 +72,19 @@ public class ClientToolSupport {
   public static final String PROP_INPUT_SCHEMA = "inputSchema";
   public static final String PROP_DESCRIPTION = "description";
 
+  /** Property overriding {@link #DEFAULT_MAX_TOOL_ROUNDS}. */
+  public static final String PROPERTY_MAX_TOOL_ROUNDS = "copilot.engine.java.max.tool.rounds";
+
   /**
-   * Upper bound on the rounds accepted for a single question. The loop is driven by the client, so
-   * this is a backstop against a model that keeps calling tools forever, not a flow-control knob.
+   * Rounds accepted for a single question before the exchange is cut short.
+   * <p>
+   * This is a backstop against a model that never stops calling tools, not a flow-control knob, so
+   * it has to sit well above what real work needs. A single "create a record" request already
+   * spends most of a dozen rounds: read the screen, find the window, open it, start a new record,
+   * list the fields, write them, save, read the screen back to check the save actually took — and
+   * more if a validation error sends it round again.
    */
-  public static final int MAX_TOOL_ROUNDS = 5;
+  public static final int DEFAULT_MAX_TOOL_ROUNDS = 25;
 
   private ClientToolSupport() {
   }
@@ -230,17 +241,19 @@ public class ClientToolSupport {
    * @param request
    *     the agent request payload
    * @throws OBException
-   *     when the client sent more rounds than {@link #MAX_TOOL_ROUNDS}
+   *     when the client sent more rounds than the configured maximum
    */
   public static void appendExchange(List<ChatMessage> messages, JSONObject request) {
     JSONArray exchange = request.optJSONArray(PROP_TOOL_EXCHANGE);
     if (exchange == null || exchange.length() == 0) {
       return;
     }
-    if (exchange.length() > MAX_TOOL_ROUNDS) {
+    int maxRounds = maxToolRounds();
+    if (exchange.length() > maxRounds) {
       throw new OBException(String.format(
-          "Copilot (Java engine): the client sent %d tool rounds for a single question, the limit is %d.",
-          exchange.length(), MAX_TOOL_ROUNDS));
+          "Copilot (Java engine): the client sent %d tool rounds for a single question, the limit is %d. "
+              + "Raise it with %s in Openbravo.properties.",
+          exchange.length(), maxRounds, PROPERTY_MAX_TOOL_ROUNDS));
     }
     for (int round = 0; round < exchange.length(); round++) {
       JSONObject step = exchange.optJSONObject(round);
@@ -253,6 +266,31 @@ public class ClientToolSupport {
       }
       messages.add(AiMessage.from(calls));
       appendResults(messages, step.optJSONArray(PROP_RESULTS), calls);
+    }
+  }
+
+  /**
+   * @return the configured round limit, or {@link #DEFAULT_MAX_TOOL_ROUNDS} when unset or invalid
+   */
+  public static int maxToolRounds() {
+    String configured;
+    try {
+      configured = readPropertyWithLegacyCompatibility(
+          OBPropertiesProvider.getInstance().getOpenbravoProperties(), PROPERTY_MAX_TOOL_ROUNDS, null);
+    } catch (RuntimeException e) {
+      // No Openbravo properties around (a plain unit test, for one). The default is the answer.
+      return DEFAULT_MAX_TOOL_ROUNDS;
+    }
+    if (StringUtils.isBlank(configured)) {
+      return DEFAULT_MAX_TOOL_ROUNDS;
+    }
+    try {
+      int value = Integer.parseInt(configured.trim());
+      return value > 0 ? value : DEFAULT_MAX_TOOL_ROUNDS;
+    } catch (NumberFormatException e) {
+      log.warn("Invalid value '{}' for {}, using {}", configured, PROPERTY_MAX_TOOL_ROUNDS,
+          DEFAULT_MAX_TOOL_ROUNDS);
+      return DEFAULT_MAX_TOOL_ROUNDS;
     }
   }
 

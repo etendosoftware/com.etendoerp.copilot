@@ -19,10 +19,16 @@ import { RestUtils } from './environment';
 import { ClientToolDescriptor, ToolCall, ToolRound, executeClientTools } from './webmcp';
 
 /**
- * Rounds allowed for a single question. Mirrors ClientToolSupport.MAX_TOOL_ROUNDS on the backend,
- * which enforces the same cap; this one only avoids a pointless final request.
+ * Rounds allowed for a single question. Mirrors ClientToolSupport.DEFAULT_MAX_TOOL_ROUNDS on the
+ * backend, which enforces the same cap; this one only avoids a pointless final request.
+ *
+ * It is a backstop against a model that never stops calling tools, so it sits well above what real
+ * work needs: creating a single record already spends most of a dozen rounds — read the screen,
+ * find the window, open it, start the record, list the fields, write them, save, read the screen
+ * back — and more when a validation error sends it round again. If the backend is configured with
+ * a different limit (copilot.engine.java.max.tool.rounds), the backend wins.
  */
-export const MAX_TOOL_ROUNDS = 5;
+export const MAX_TOOL_ROUNDS = 25;
 
 /** Reported while the tools of a round are running, so the user is not left staring at nothing. */
 export interface ToolProgress {
@@ -62,7 +68,10 @@ export async function askWithClientTools(
     exchange.push({ calls, results: await executeClientTools(calls) });
   }
 
-  throw new Error(`The assistant kept requesting tools for more than ${MAX_TOOL_ROUNDS} rounds.`);
+  throw new Error(
+    `The assistant used ${MAX_TOOL_ROUNDS} rounds of tools without reaching an answer, so it was `
+    + `stopped. Anything it already did was applied. Try asking for one step at a time.`,
+  );
 }
 
 /**
