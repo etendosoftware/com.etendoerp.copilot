@@ -57,8 +57,8 @@ class TestSimpleOcrToolInput(unittest.TestCase):
 
 class TestModuleConstants(unittest.TestCase):
     def test_constants(self):
-        self.assertEqual(DEFAULT_MODEL, "gpt-5-mini")
-        self.assertEqual(DEFAULT_PROVIDER, "openai")
+        self.assertEqual(DEFAULT_MODEL, "gemini-3.8-flash")
+        self.assertEqual(DEFAULT_PROVIDER, "gemini")
         self.assertEqual(DEFAULT_OCR_TEMPERATURE, 0.2)
         self.assertEqual(SIMPLE_OCR_TOOL_ID, "BD5CBAAA442F42E289F5C7438E3C2EDF")
         self.assertIn("application/pdf", SUPPORTED_MIME_TYPES)

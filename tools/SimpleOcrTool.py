@@ -17,8 +17,8 @@ from copilot.core.utils.etendo_utils import get_extra_info
 
 from tools.schemas import load_schema
 
-DEFAULT_MODEL = "gpt-5-mini"
-DEFAULT_PROVIDER = "openai"
+DEFAULT_MODEL = "gemini-3.8-flash"
+DEFAULT_PROVIDER = "gemini"
 DEFAULT_OCR_TEMPERATURE = 0.2
 SIMPLE_OCR_TOOL_ID = "BD5CBAAA442F42E289F5C7438E3C2EDF"
 
