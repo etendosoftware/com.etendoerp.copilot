@@ -48,9 +48,10 @@ import com.etendoerp.copilot.rest.RestServiceUtil;
 public class ConversationUtils {
   public static final Logger log4j = LogManager.getLogger(ConversationUtils.class);
   private static final String TITLE_GENERATOR_ID = "1844CE5E2BCB404DAAC470216B7D6495";
-  private static final String PROP_TITLE = "title";
-  private static final String PROP_SUCCESS = "success";
-  private static final String CONVERSATION_NOT_FOUND = "Conversation not found";
+  static final String PROP_TITLE = "title";
+  static final String PROP_SUCCESS = "success";
+  /** Message of the error raised for a missing conversation and, deliberately, for one owned by someone else. */
+  public static final String CONVERSATION_NOT_FOUND = "Conversation not found";
 
 
   private ConversationUtils() {
@@ -216,11 +217,8 @@ public class ConversationUtils {
   public static void handleConversations(HttpServletRequest request, HttpServletResponse response) throws IOException {
     executeInAdminMode(response, () -> {
       String appId = request.getParameter(CopilotConstants.PROP_APP_ID);
-      if (StringUtils.isEmpty(appId)) {
-        throw new OBException(OBMessageUtils.messageBD("ETCOP_AppIDRequired"));
-      }
-
-      CopilotApp assistant = CopilotUtils.getAssistantByIDOrName(appId);
+      // Without app_id: the current user's app-less conversations (created by the write API).
+      CopilotApp assistant = StringUtils.isBlank(appId) ? null : CopilotUtils.getAssistantByIDOrName(appId);
       JSONArray conversations = ConversationUtils.getConversations(assistant);
 
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
@@ -355,12 +353,7 @@ public class ConversationUtils {
       JSONObject json = extractRequestBody(request);
       Conversation conversation = extractAndValidateConversation(json, true);
 
-      List<Message> messages = conversation.getETCOPMessageList();
-      for (Message msg : messages) {
-        OBDal.getInstance().remove(msg);
-      }
-      OBDal.getInstance().remove(conversation);
-      OBDal.getInstance().flush();
+      removeConversationWithMessages(conversation);
 
       writeJsonResponse(response, new JSONObject().put(PROP_SUCCESS, true));
     });
@@ -381,11 +374,7 @@ public class ConversationUtils {
       HttpServletResponse response) throws IOException {
     executeInAdminMode(response, () -> {
       String appId = request.getParameter(CopilotConstants.PROP_APP_ID);
-      if (StringUtils.isEmpty(appId)) {
-        throw new OBException(OBMessageUtils.messageBD("ETCOP_AppIDRequired"));
-      }
-
-      CopilotApp assistant = CopilotUtils.getAssistantByIDOrName(appId);
+      CopilotApp assistant = StringUtils.isBlank(appId) ? null : CopilotUtils.getAssistantByIDOrName(appId);
       JSONArray conversations = getArchivedConversations(assistant);
 
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
@@ -393,7 +382,66 @@ public class ConversationUtils {
     });
   }
 
-  private static void throwConversationIDRequired() {
+  /**
+   * Handles creating an empty conversation for the current user, without running any agent.
+   * <p>
+   * Body: {@code {"title"?: string, "app_id"?: string, "external_id"?: string}}. Replies
+   * {@code {"success": true, "conversation_id": "<external id>", "created": true|false}}.
+   * Creating with an {@code external_id} that already belongs to the caller is idempotent
+   * ({@code created: false}); one that belongs to somebody else is rejected.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} with the JSON body
+   * @param response
+   *     the {@link HttpServletResponse} used to return the result
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
+  public static void handleCreateConversation(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    executeInAdminMode(response, () -> writeJsonResponse(response,
+        ConversationWriteUtils.createConversation(extractRequestBody(request))));
+  }
+
+  /**
+   * Handles appending messages to a conversation owned by the current user, without running any
+   * agent.
+   * <p>
+   * Body: {@code {"conversation_id": string, "messages": [{"role": "user"|"assistant",
+   * "text": string, "metadata"?: object, "external_id"?: string}]}}. Messages are stored in array
+   * order after the existing ones. A message whose {@code external_id} is already stored in the
+   * conversation is skipped, so a retried call does not duplicate it.
+   *
+   * @param request
+   *     the {@link HttpServletRequest} with the JSON body
+   * @param response
+   *     the {@link HttpServletResponse} used to return the result
+   * @throws IOException
+   *     if an I/O error occurs during request or response handling
+   */
+  public static void handleAppendMessages(HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    executeInAdminMode(response, () -> writeJsonResponse(response,
+        ConversationWriteUtils.appendMessages(extractRequestBody(request))));
+  }
+
+  static void removeConversationWithMessages(Conversation conversation) {
+    List<Message> messages = conversation.getETCOPMessageList();
+    for (Message msg : messages) {
+      OBDal.getInstance().remove(msg);
+    }
+    OBDal.getInstance().remove(conversation);
+    OBDal.getInstance().flush();
+  }
+
+  /** Filter on the given app, or on "no app" when {@code assistant} is null. */
+  private static org.hibernate.criterion.Criterion appRestriction(CopilotApp assistant) {
+    return assistant == null
+        ? Restrictions.isNull(Conversation.PROPERTY_COPILOTAPP)
+        : Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, assistant);
+  }
+
+  static void throwConversationIDRequired() {
     throw new OBException(OBMessageUtils.messageBD("ETCOP_ConversationRequired"));
   }
 
@@ -406,12 +454,12 @@ public class ConversationUtils {
    * JSON array.
    *
    * @param assistant
-   *     the {@link CopilotApp} instance representing the assistant whose conversations are to be retrieved
+   *     the {@link CopilotApp} instance representing the assistant whose conversations are to be retrieved, or {@code null} for the user's conversations with no app
    * @return a {@link JSONArray} containing the conversations as JSON objects with their external ID and title
    */
   public static JSONArray getConversations(CopilotApp assistant) {
     OBCriteria<Conversation> convCrit = OBDal.getReadOnlyInstance().createCriteria(Conversation.class);
-    convCrit.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, assistant));
+    convCrit.add(appRestriction(assistant));
     convCrit.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, OBContext.getOBContext().getUser()));
     convCrit.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
 
@@ -429,7 +477,7 @@ public class ConversationUtils {
   public static JSONArray getArchivedConversations(CopilotApp assistant) {
     OBCriteria<Conversation> convCrit = OBDal.getInstance().createCriteria(Conversation.class);
     convCrit.setFilterOnActive(false);
-    convCrit.add(Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, assistant));
+    convCrit.add(appRestriction(assistant));
     convCrit.add(Restrictions.eq(Conversation.PROPERTY_USERCONTACT, OBContext.getOBContext().getUser()));
     convCrit.add(Restrictions.eq(Conversation.PROPERTY_ACTIVE, false));
     convCrit.addOrder(Order.desc(Conversation.PROPERTY_LASTMSG));
@@ -536,7 +584,7 @@ public class ConversationUtils {
     return getConversationByIDorExtRef(conversationId, false);
   }
 
-  private static Conversation getConversationByIDorExtRef(String conversationId, boolean includeInactive) {
+  static Conversation getConversationByIDorExtRef(String conversationId, boolean includeInactive) {
     Conversation conversation = OBDal.getInstance().get(Conversation.class, conversationId);
 
     if (conversation == null) {

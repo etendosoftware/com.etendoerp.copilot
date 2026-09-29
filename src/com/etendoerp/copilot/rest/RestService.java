@@ -212,6 +212,14 @@ public class RestService {
       ConversationUtils.handleGetTitleConversation(request, response);
       return;
     }
+    if (StringUtils.equalsIgnoreCase(path, "/createConversation")) {
+      ConversationUtils.handleCreateConversation(request, response);
+      return;
+    }
+    if (StringUtils.equalsIgnoreCase(path, "/appendConversationMessages")) {
+      ConversationUtils.handleAppendMessages(request, response);
+      return;
+    }
     if (StringUtils.equalsIgnoreCase(path, "/renameConversation")) {
       ConversationUtils.handleRenameConversation(request, response);
       return;

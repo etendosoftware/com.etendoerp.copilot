@@ -168,17 +168,51 @@ public class TrackingUtil {
         .setMaxResult(1)
         .uniqueResult();
     if (conversation == null) {
-      conversation = OBProvider.getInstance().get(Conversation.class);
-      OBContext context = OBContext.getOBContext();
-      conversation.setClient(context.getCurrentClient());
-      conversation.setOrganization(context.getCurrentOrganization());
-      conversation.setNewOBObject(true);
-      conversation.setExternalID(conversationId);
-      conversation.setCopilotApp(app);
-      conversation.setUserContact(context.getUser());
-      OBDal.getInstance().save(conversation);
+      conversation = newConversation(conversationId, app);
     }
     return conversation;
+  }
+
+  /**
+   * Creates and saves a new conversation owned by the current user, in the current client and
+   * organization. Shared by the question flow and the conversation-creation endpoint so both
+   * produce identical rows.
+   *
+   * @param externalId
+   *     the external id (the id the UI uses for the conversation)
+   * @param app
+   *     the assistant the conversation belongs to; may be null
+   * @return the saved conversation
+   */
+  static Conversation newConversation(String externalId, CopilotApp app) {
+    Conversation conversation = OBProvider.getInstance().get(Conversation.class);
+    OBContext context = OBContext.getOBContext();
+    conversation.setClient(context.getCurrentClient());
+    conversation.setOrganization(context.getCurrentOrganization());
+    conversation.setNewOBObject(true);
+    conversation.setExternalID(externalId);
+    conversation.setCopilotApp(app);
+    conversation.setUserContact(context.getUser());
+    OBDal.getInstance().save(conversation);
+    return conversation;
+  }
+
+  /**
+   * Returns the line number the next message of the conversation must take (current max + 10).
+   *
+   * @param conversation
+   *     the conversation
+   * @return the next line number
+   */
+  static long nextLineNo(Conversation conversation) {
+    OBCriteria<Message> messCrit = OBDal.getInstance().createCriteria(Message.class);
+    messCrit.add(Restrictions.eq(Message.PROPERTY_CONVERSATION, conversation));
+    messCrit.setProjection(Projections.max(Message.PROPERTY_LINENO));
+    Long maxLineNo = (Long) messCrit.uniqueResult();
+    if (maxLineNo == null) {
+      maxLineNo = 0L;
+    }
+    return maxLineNo + 10;
   }
 
 
@@ -192,15 +226,7 @@ public class TrackingUtil {
     message.setRole(messageRole);
     message.setMetadata(metadata != null ? metadata.toString() : null);
 
-    OBCriteria<Message> messCrit = OBDal.getInstance().createCriteria(Message.class);
-    messCrit.add(Restrictions.eq(Message.PROPERTY_CONVERSATION, conversation));
-    messCrit.setProjection(Projections.max(Message.PROPERTY_LINENO));
-    Long maxLineNo = (Long) messCrit.uniqueResult();
-    if (maxLineNo == null) {
-      maxLineNo = 0L;
-    }
-
-    message.setLineno(maxLineNo + 10);
+    message.setLineno(nextLineNo(conversation));
 
     OBDal.getInstance().save(conversation);
     OBDal.getInstance().save(message);

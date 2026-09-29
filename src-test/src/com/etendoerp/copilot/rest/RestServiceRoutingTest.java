@@ -299,6 +299,24 @@ public class RestServiceRoutingTest extends WeldBaseTest {
   }
 
   /**
+   * Test doPost with /createConversation path.
+   */
+  @Test
+  public void testDoPostWithCreateConversation() throws Exception {
+    verifyPostRoutesToConversationHandler("/createConversation",
+        () -> ConversationUtils.handleCreateConversation(mockRequest, mockResponse));
+  }
+
+  /**
+   * Test doPost with /appendConversationMessages path.
+   */
+  @Test
+  public void testDoPostWithAppendConversationMessages() throws Exception {
+    verifyPostRoutesToConversationHandler("/appendConversationMessages",
+        () -> ConversationUtils.handleAppendMessages(mockRequest, mockResponse));
+  }
+
+  /**
    * Test doPost with /renameConversation path.
    */
   @Test
