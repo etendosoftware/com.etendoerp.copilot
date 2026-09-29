@@ -30,6 +30,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -241,10 +242,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * Without an external id one is generated; the title, the app and the current user are stored.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void createGeneratesExternalIdAndStoresTitleAndApp() throws Exception {
+  public void createGeneratesExternalIdAndStoresTitleAndApp() throws JSONException {
     CopilotApp app = mock(CopilotApp.class);
     mockedCopilotUtils.when(() -> CopilotUtils.getAssistantByIDOrName("appX")).thenReturn(app);
 
@@ -264,10 +265,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * A client supplied external id is trimmed and honoured, and a conversation needs no app.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void createHonoursClientSuppliedExternalIdAndAllowsNoApp() throws Exception {
+  public void createHonoursClientSuppliedExternalIdAndAllowsNoApp() throws JSONException {
     JSONObject result = ConversationWriteUtils.createConversation(new JSONObject().put(EXTERNAL_ID, "  my-id "));
 
     assertEquals("my-id", result.getString(CONVERSATION_ID));
@@ -279,10 +280,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * Creating with an external id that already belongs to the caller is idempotent.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void createIsIdempotentForTheOwner() throws Exception {
+  public void createIsIdempotentForTheOwner() throws JSONException {
     storedConversationFoundByExternalId();
 
     JSONObject result = ConversationWriteUtils.createConversation(new JSONObject().put(EXTERNAL_ID, CONV_EXT_ID));
@@ -295,10 +296,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * An external id owned by another user is rejected and nothing is created.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void createRejectsExternalIdOwnedBySomeoneElse() throws Exception {
+  public void createRejectsExternalIdOwnedBySomeoneElse() throws JSONException {
     when(storedConversation.getUserContact()).thenReturn(otherUser);
     storedConversationFoundByExternalId();
 
@@ -310,10 +311,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * Titles and external ids over 255 characters are rejected.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void createRejectsTooLongTitleAndExternalId() throws Exception {
+  public void createRejectsTooLongTitleAndExternalId() throws JSONException {
     assertRejected(() -> ConversationWriteUtils.createConversation(new JSONObject().put("title", TOO_LONG_TEXT)),
         "Title is too long");
     assertRejected(() -> ConversationWriteUtils.createConversation(new JSONObject().put(EXTERNAL_ID, TOO_LONG_TEXT)),
@@ -326,10 +327,10 @@ public class ConversationWriteEndpointsTest {
    * Messages are stored in order, ten line numbers apart after the last one, and the conversation
    * last-message date is refreshed.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendStoresMessagesInOrderWithLineNumbersAndUpdatesLastMsg() throws Exception {
+  public void appendStoresMessagesInOrderWithLineNumbersAndUpdatesLastMsg() throws JSONException {
     storedConversationFoundByExternalId();
     stubMessageCriteria(false);
     currentMaxLineNo = 20L;
@@ -354,10 +355,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * On an empty conversation the first message gets line 10, and metadata is stored as JSON.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendStartsAtTenOnAnEmptyConversationAndStoresMetadata() throws Exception {
+  public void appendStartsAtTenOnAnEmptyConversationAndStoresMetadata() throws JSONException {
     storedConversationFoundByExternalId();
     stubMessageCriteria(false);
     currentMaxLineNo = null;
@@ -373,10 +374,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * Messages whose external id is already stored are skipped and reported as duplicates.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendIsIdempotentOnMessageExternalId() throws Exception {
+  public void appendIsIdempotentOnMessageExternalId() throws JSONException {
     storedConversationFoundByExternalId();
     stubMessageCriteria(true);
 
@@ -393,10 +394,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * A repeated external id inside the same batch is stored once.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendSkipsDuplicateExternalIdsInsideTheSameBatch() throws Exception {
+  public void appendSkipsDuplicateExternalIdsInsideTheSameBatch() throws JSONException {
     storedConversationFoundByExternalId();
     stubMessageCriteria(false);
 
@@ -410,10 +411,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * Somebody else's conversation is reported exactly like a missing one and nothing is stored.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendRejectsConversationOwnedBySomeoneElseAsNotFound() throws Exception {
+  public void appendRejectsConversationOwnedBySomeoneElseAsNotFound() throws JSONException {
     when(storedConversation.getUserContact()).thenReturn(otherUser);
     storedConversationFoundByExternalId();
 
@@ -424,10 +425,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * A conversation that does not exist is rejected as not found.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendRejectsMissingConversation() throws Exception {
+  public void appendRejectsMissingConversation() throws JSONException {
     when(convCrit.uniqueResult()).thenReturn(null);
 
     assertAppendRejected(appendBody(message(ROLE_USER, TEXT_HI, null)), ERR_NOT_FOUND);
@@ -436,10 +437,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * One invalid role rejects the whole batch before anything is saved.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendRejectsInvalidRoleWithoutSavingAnything() throws Exception {
+  public void appendRejectsInvalidRoleWithoutSavingAnything() throws JSONException {
     storedConversationFoundByExternalId();
 
     assertAppendRejected(appendBody(message(ROLE_USER, "ok", null), message("system", "no", null)), "Invalid role");
@@ -449,10 +450,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * A blank message text is rejected.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendRejectsBlankText() throws Exception {
+  public void appendRejectsBlankText() throws JSONException {
     storedConversationFoundByExternalId();
 
     assertAppendRejected(appendBody(message(ROLE_USER, "   ", null)), ".text is required");
@@ -461,10 +462,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * An empty messages array is rejected.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendRejectsEmptyBatch() throws Exception {
+  public void appendRejectsEmptyBatch() throws JSONException {
     storedConversationFoundByExternalId();
 
     assertAppendRejected(appendBody(), "messages is required");
@@ -473,10 +474,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * More than 100 messages in one call are rejected.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendRejectsOversizeBatch() throws Exception {
+  public void appendRejectsOversizeBatch() throws JSONException {
     storedConversationFoundByExternalId();
     JSONObject[] many = new JSONObject[101];
     for (int i = 0; i < many.length; i++) {
@@ -489,10 +490,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * Messages cannot be appended to an archived conversation.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendRejectsArchivedConversation() throws Exception {
+  public void appendRejectsArchivedConversation() throws JSONException {
     storedConversationFoundByExternalId();
     when(storedConversation.isActive()).thenReturn(false);
 
@@ -502,20 +503,20 @@ public class ConversationWriteEndpointsTest {
   /**
    * The conversation id is mandatory.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendRequiresConversationId() throws Exception {
+  public void appendRequiresConversationId() throws JSONException {
     assertAppendRejected(new JSONObject().put(MESSAGES, new JSONArray()), ERR_CONVERSATION_REQUIRED);
   }
 
   /**
    * Message metadata must be a JSON object.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void appendRequiresObjectMetadata() throws Exception {
+  public void appendRequiresObjectMetadata() throws JSONException {
     storedConversationFoundByExternalId();
     JSONObject badMeta = message(ROLE_USER, TEXT_HI, null).put(METADATA, "not-an-object");
 
@@ -527,10 +528,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * Rename, archive, restore and delete act on the owner's conversation.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void ownedOperationsActOnTheOwnersConversation() throws Exception {
+  public void ownedOperationsActOnTheOwnersConversation() throws JSONException {
     storedConversationFoundByExternalId();
 
     ConversationWriteUtils.renameOwnedConversation(CONV_EXT_ID, "New title");
@@ -551,10 +552,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * Somebody else's conversation is treated as missing by every owned operation and nothing changes.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void ownedOperationsTreatSomeoneElsesConversationAsMissingAndChangeNothing() throws Exception {
+  public void ownedOperationsTreatSomeoneElsesConversationAsMissingAndChangeNothing() throws JSONException {
     when(storedConversation.getUserContact()).thenReturn(otherUser);
     storedConversationFoundByExternalId();
 
@@ -571,10 +572,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * A missing conversation, a blank id and invalid titles are rejected.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void ownedOperationsRejectMissingConversationBlankIdAndBadTitles() throws Exception {
+  public void ownedOperationsRejectMissingConversationBlankIdAndBadTitles() throws JSONException {
     when(convCrit.uniqueResult()).thenReturn(null);
 
     assertRejected(() -> ConversationWriteUtils.deleteOwnedConversation("nope"), ERR_NOT_FOUND);
@@ -586,10 +587,10 @@ public class ConversationWriteEndpointsTest {
   /**
    * Once ownership is proven the messages are read by primary key.
    *
-   * @throws Exception if the test fails
+   * @throws JSONException if the test fails
    */
   @Test
-  public void ownedMessagesAreReadByPrimaryKeyOnceOwnershipIsProven() throws Exception {
+  public void ownedMessagesAreReadByPrimaryKeyOnceOwnershipIsProven() throws JSONException {
     storedConversationFoundByExternalId();
     when(storedConversation.getId()).thenReturn(CONV_ID);
     when(obDal.get(Conversation.class, CONV_ID)).thenReturn(storedConversation);
@@ -605,10 +606,11 @@ public class ConversationWriteEndpointsTest {
   /**
    * The HTTP handlers write the JSON result on success and send a 400 with the message on rejection.
    *
-   * @throws Exception if the test fails
+   * @throws IOException if a handler fails to write the response
+   * @throws JSONException if the test fails
    */
   @Test
-  public void handlersWriteJsonOnSuccessAndSendErrorOnRejection() throws Exception {
+  public void handlersWriteJsonOnSuccessAndSendErrorOnRejection() throws IOException, JSONException {
     HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
     StringWriter out = new StringWriter();
