@@ -8,7 +8,7 @@ two endpoints do that. Reads, rename, archive, restore and delete keep using the
 `/deleteConversation`, `/restoreConversation`, `/permanentDeleteConversation` and
 `/generateTitleConversation` endpoints.
 
-Both are routed in `RestService.routePostRequest` to `ConversationUtils`, run in admin mode like their
+Both are routed in `RestService.routePostRequest` to `ConversationUtils` (delegating to `ConversationWriteUtils`), run in admin mode like their
 siblings, and report errors the same way (`400` with the message as the error text).
 
 ## `POST /sws/copilot/createConversation`
@@ -90,13 +90,13 @@ Response:
 `/sws/copilot/*` only accepts a bearer JWT, so the Etendo Go SPA (cookie session) cannot call the
 endpoints above. `com.etendoerp.go` serves the same operations at `/sws/agent-chat/*`
 (`AgentChatConversationsServlet`, see its `docs/agent-chat-api.md`), calling the public,
-owner-checked methods of `ConversationUtils`: `createConversation`, `appendMessages`,
+owner-checked methods of `ConversationWriteUtils`: `createConversation`, `appendMessages`,
 `getOwnedConversationMessages`, `renameOwnedConversation`, `setOwnedConversationActive`,
 `deleteOwnedConversation`. Unlike the legacy by-id handlers, those enforce that the conversation
 belongs to the current user and report a foreign conversation as `Conversation not found`.
 
 ## Tests
 
-`ConversationWriteEndpointsTest` (plain Mockito, no database) covers the two write handlers;
+`ConversationWriteEndpointsTest` (plain Mockito, no database) covers the two write handlers and the `ConversationWriteUtils` operations;
 `ConversationUtilsTest` covers the list endpoints with and without `app_id`; `RestServiceRoutingTest`
 covers the routes.

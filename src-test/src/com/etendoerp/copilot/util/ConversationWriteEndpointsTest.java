@@ -62,7 +62,8 @@ import com.etendoerp.copilot.rest.RequestUtils;
 
 /**
  * Tests for the endpoints that write conversations and messages without running an agent:
- * {@link ConversationUtils#handleCreateConversation} and {@link ConversationUtils#handleAppendMessages}.
+ * {@link ConversationUtils#handleCreateConversation} and {@link ConversationUtils#handleAppendMessages},
+ * plus the owner-checked operations in {@link ConversationWriteUtils} they delegate to.
  */
 public class ConversationWriteEndpointsTest {
 
@@ -71,6 +72,19 @@ public class ConversationWriteEndpointsTest {
   private static final String CONV_EXT_ID = "conv-ext-1";
   private static final String CONV_ID = "convPk1";
   private static final String MESSAGES = "messages";
+  private static final String SAVED = "saved";
+  private static final String SKIPPED = "skipped";
+  private static final String EXTERNAL_ID = "external_id";
+  private static final String CONVERSATION_ID = "conversation_id";
+  private static final String ERR_CONVERSATION_REQUIRED = "Conversation ID is required";
+  private static final String ERR_NOT_FOUND = "Conversation not found";
+  private static final String ROLE_USER = "user";
+  private static final String ROLE_ASSISTANT = "assistant";
+  private static final String TEXT_HI = "hi";
+  private static final String MSG_ID_1 = "m1";
+  private static final String MSG_ID_2 = "m2";
+  private static final String METADATA = "metadata";
+  private static final String TOO_LONG_TEXT = "x".repeat(256);
 
   private MockedStatic<OBDal> mockedOBDal;
   private MockedStatic<OBContext> mockedOBContext;
@@ -86,12 +100,14 @@ public class ConversationWriteEndpointsTest {
   private Conversation newConversation;
   private Conversation storedConversation;
   private OBCriteria<Conversation> convCrit;
-  private OBCriteria<Message> msgCrit;
   private boolean projectionApplied;
   private final List<Message> savedMessages = new ArrayList<>();
-  private boolean messageAlreadyStored;
   private Long currentMaxLineNo;
 
+  /**
+   * Installs the static mocks (DAL, context, provider, message utils) and the default stored
+   * conversation owned by the current user.
+   */
   @SuppressWarnings("unchecked")
   @Before
   public void setUp() {
@@ -116,7 +132,7 @@ public class ConversationWriteEndpointsTest {
     mockedOBProvider.when(OBProvider::getInstance).thenReturn(obProvider);
     mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
     mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_ConversationRequired"))
-        .thenReturn("Conversation ID is required");
+        .thenReturn(ERR_CONVERSATION_REQUIRED);
     mockedRequestUtils = mockStatic(RequestUtils.class);
     mockedCopilotUtils = mockStatic(CopilotUtils.class);
 
@@ -134,8 +150,35 @@ public class ConversationWriteEndpointsTest {
     when(convCrit.add(any())).thenReturn(convCrit);
     when(convCrit.setMaxResults(1)).thenReturn(convCrit);
 
-    // Message lookups: duplicate check (uniqueResult) and next line number (projection).
-    msgCrit = mock(OBCriteria.class);
+    storedConversation = mock(Conversation.class);
+    when(storedConversation.getUserContact()).thenReturn(currentUser);
+    when(storedConversation.getExternalID()).thenReturn(CONV_EXT_ID);
+    when(storedConversation.isActive()).thenReturn(true);
+  }
+
+  /**
+   * Releases every static mock opened in {@link #setUp()}.
+   */
+  @After
+  public void tearDown() {
+    mockedOBDal.close();
+    mockedOBContext.close();
+    mockedOBProvider.close();
+    mockedOBMessageUtils.close();
+    mockedRequestUtils.close();
+    mockedCopilotUtils.close();
+  }
+
+  /**
+   * Stubs the message lookups: the duplicate check (uniqueResult) and the next line number
+   * (projection).
+   *
+   * @param alreadyStored
+   *     whether the duplicate check finds an already stored message
+   */
+  @SuppressWarnings("unchecked")
+  private void stubMessageCriteria(boolean alreadyStored) {
+    OBCriteria<Message> msgCrit = mock(OBCriteria.class);
     when(obDal.createCriteria(Message.class)).thenReturn(msgCrit);
     when(msgCrit.add(any())).thenReturn(msgCrit);
     when(msgCrit.setMaxResults(1)).thenReturn(msgCrit);
@@ -149,23 +192,8 @@ public class ConversationWriteEndpointsTest {
         projectionApplied = false;
         return currentMaxLineNo;
       }
-      return messageAlreadyStored ? mock(Message.class) : null;
+      return alreadyStored ? mock(Message.class) : null;
     });
-
-    storedConversation = mock(Conversation.class);
-    when(storedConversation.getUserContact()).thenReturn(currentUser);
-    when(storedConversation.getExternalID()).thenReturn(CONV_EXT_ID);
-    when(storedConversation.isActive()).thenReturn(true);
-  }
-
-  @After
-  public void tearDown() {
-    mockedOBDal.close();
-    mockedOBContext.close();
-    mockedOBProvider.close();
-    mockedOBMessageUtils.close();
-    mockedRequestUtils.close();
-    mockedCopilotUtils.close();
   }
 
   private void storedConversationFoundByExternalId() {
@@ -175,7 +203,7 @@ public class ConversationWriteEndpointsTest {
   private JSONObject message(String role, String text, String externalId) throws Exception {
     JSONObject m = new JSONObject().put("role", role).put("text", text);
     if (externalId != null) {
-      m.put("external_id", externalId);
+      m.put(EXTERNAL_ID, externalId);
     }
     return m;
   }
@@ -185,10 +213,16 @@ public class ConversationWriteEndpointsTest {
     for (JSONObject m : msgs) {
       arr.put(m);
     }
-    return new JSONObject().put("conversation_id", CONV_EXT_ID).put(MESSAGES, arr);
+    return new JSONObject().put(CONVERSATION_ID, CONV_EXT_ID).put(MESSAGES, arr);
   }
 
-  private void assertRejected(Runnable call, String expectedFragment) {
+  /** A call under test that may throw the checked exceptions of the JSON API. */
+  @FunctionalInterface
+  private interface Call {
+    void run() throws Exception;
+  }
+
+  private void assertRejected(Call call, String expectedFragment) throws Exception {
     try {
       call.run();
       fail("Expected OBException containing: " + expectedFragment);
@@ -197,98 +231,118 @@ public class ConversationWriteEndpointsTest {
     }
   }
 
+  private void assertAppendRejected(JSONObject body, String expectedFragment) throws Exception {
+    assertRejected(() -> ConversationWriteUtils.appendMessages(body), expectedFragment);
+  }
+
   // ---- create ----
 
+  /**
+   * Without an external id one is generated; the title, the app and the current user are stored.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void createGeneratesExternalIdAndStoresTitleAndApp() throws Exception {
     CopilotApp app = mock(CopilotApp.class);
     mockedCopilotUtils.when(() -> CopilotUtils.getAssistantByIDOrName("appX")).thenReturn(app);
 
-    JSONObject result = ConversationUtils.createConversation(
+    JSONObject result = ConversationWriteUtils.createConversation(
         new JSONObject().put("title", "Hello").put("app_id", "appX"));
 
     assertTrue(result.getBoolean("success"));
     assertTrue(result.getBoolean("created"));
-    assertFalse(result.getString("conversation_id").isEmpty());
-    verify(newConversation).setExternalID(result.getString("conversation_id"));
+    assertFalse(result.getString(CONVERSATION_ID).isEmpty());
+    verify(newConversation).setExternalID(result.getString(CONVERSATION_ID));
     verify(newConversation).setCopilotApp(app);
     verify(newConversation).setUserContact(currentUser);
     verify(newConversation).setTitle("Hello");
     verify(newConversation).setLastMsg(any());
   }
 
+  /**
+   * A client supplied external id is trimmed and honoured, and a conversation needs no app.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void createHonoursClientSuppliedExternalIdAndAllowsNoApp() throws Exception {
-    JSONObject result = ConversationUtils.createConversation(new JSONObject().put("external_id", "  my-id "));
+    JSONObject result = ConversationWriteUtils.createConversation(new JSONObject().put(EXTERNAL_ID, "  my-id "));
 
-    assertEquals("my-id", result.getString("conversation_id"));
+    assertEquals("my-id", result.getString(CONVERSATION_ID));
     verify(newConversation).setExternalID("my-id");
     verify(newConversation).setCopilotApp(null);
     verify(newConversation, never()).setTitle(anyString());
   }
 
+  /**
+   * Creating with an external id that already belongs to the caller is idempotent.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void createIsIdempotentForTheOwner() throws Exception {
     storedConversationFoundByExternalId();
 
-    JSONObject result = ConversationUtils.createConversation(new JSONObject().put("external_id", CONV_EXT_ID));
+    JSONObject result = ConversationWriteUtils.createConversation(new JSONObject().put(EXTERNAL_ID, CONV_EXT_ID));
 
     assertFalse(result.getBoolean("created"));
-    assertEquals(CONV_EXT_ID, result.getString("conversation_id"));
+    assertEquals(CONV_EXT_ID, result.getString(CONVERSATION_ID));
     verify(obProvider, never()).get(Conversation.class);
   }
 
+  /**
+   * An external id owned by another user is rejected and nothing is created.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
-  public void createRejectsExternalIdOwnedBySomeoneElse() {
+  public void createRejectsExternalIdOwnedBySomeoneElse() throws Exception {
     when(storedConversation.getUserContact()).thenReturn(otherUser);
     storedConversationFoundByExternalId();
 
-    assertRejected(() -> {
-      try {
-        ConversationUtils.createConversation(new JSONObject().put("external_id", CONV_EXT_ID));
-      } catch (org.codehaus.jettison.json.JSONException e) {
-        throw new IllegalStateException(e);
-      }
-    }, "not available");
+    assertRejected(() -> ConversationWriteUtils.createConversation(new JSONObject().put(EXTERNAL_ID, CONV_EXT_ID)),
+        "not available");
     verify(obProvider, never()).get(Conversation.class);
   }
 
+  /**
+   * Titles and external ids over 255 characters are rejected.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
-  public void createRejectsTooLongTitleAndExternalId() {
-    String tooLong = "x".repeat(256);
-    assertRejected(() -> {
-      try {
-        ConversationUtils.createConversation(new JSONObject().put("title", tooLong));
-      } catch (org.codehaus.jettison.json.JSONException e) {
-        throw new IllegalStateException(e);
-      }
-    }, "Title is too long");
-    assertRejected(() -> {
-      try {
-        ConversationUtils.createConversation(new JSONObject().put("external_id", tooLong));
-      } catch (org.codehaus.jettison.json.JSONException e) {
-        throw new IllegalStateException(e);
-      }
-    }, "external_id is too long");
+  public void createRejectsTooLongTitleAndExternalId() throws Exception {
+    assertRejected(() -> ConversationWriteUtils.createConversation(new JSONObject().put("title", TOO_LONG_TEXT)),
+        "Title is too long");
+    assertRejected(() -> ConversationWriteUtils.createConversation(new JSONObject().put(EXTERNAL_ID, TOO_LONG_TEXT)),
+        "external_id is too long");
   }
 
   // ---- append ----
 
+  /**
+   * Messages are stored in order, ten line numbers apart after the last one, and the conversation
+   * last-message date is refreshed.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void appendStoresMessagesInOrderWithLineNumbersAndUpdatesLastMsg() throws Exception {
     storedConversationFoundByExternalId();
+    stubMessageCriteria(false);
     currentMaxLineNo = 20L;
 
-    JSONObject result = ConversationUtils.appendMessages(appendBody(
-        message("user", "hi", "m1"), message("ASSISTANT", "hello", "m2")));
+    JSONObject result = ConversationWriteUtils.appendMessages(appendBody(
+        message(ROLE_USER, TEXT_HI, MSG_ID_1), message("ASSISTANT", "hello", MSG_ID_2)));
 
-    assertEquals(2, result.getInt("saved"));
-    assertEquals(0, result.getInt("skipped"));
-    assertEquals(CONV_EXT_ID, result.getString("conversation_id"));
+    assertEquals(2, result.getInt(SAVED));
+    assertEquals(0, result.getInt(SKIPPED));
+    assertEquals(CONV_EXT_ID, result.getString(CONVERSATION_ID));
     assertEquals(2, savedMessages.size());
     verify(savedMessages.get(0)).setRole("USER");
     verify(savedMessages.get(0)).setLineno(30L);
-    verify(savedMessages.get(0)).setExternalID("m1");
+    verify(savedMessages.get(0)).setExternalID(MSG_ID_1);
     verify(savedMessages.get(1)).setRole("ASSISTANT");
     verify(savedMessages.get(1)).setLineno(40L);
     verify(savedMessages.get(1)).setConversation(storedConversation);
@@ -296,196 +350,243 @@ public class ConversationWriteEndpointsTest {
     verify(obDal).flush();
   }
 
+  /**
+   * On an empty conversation the first message gets line 10, and metadata is stored as JSON.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void appendStartsAtTenOnAnEmptyConversationAndStoresMetadata() throws Exception {
     storedConversationFoundByExternalId();
+    stubMessageCriteria(false);
     currentMaxLineNo = null;
-    JSONObject withMeta = message("assistant", "answer", null).put("metadata", new JSONObject().put("k", "v"));
+    JSONObject withMeta = message(ROLE_ASSISTANT, "answer", null).put(METADATA, new JSONObject().put("k", "v"));
 
-    ConversationUtils.appendMessages(appendBody(withMeta));
+    ConversationWriteUtils.appendMessages(appendBody(withMeta));
 
     verify(savedMessages.get(0)).setLineno(10L);
     verify(savedMessages.get(0)).setMetadata("{\"k\":\"v\"}");
     verify(savedMessages.get(0)).setExternalID(null);
   }
 
+  /**
+   * Messages whose external id is already stored are skipped and reported as duplicates.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void appendIsIdempotentOnMessageExternalId() throws Exception {
     storedConversationFoundByExternalId();
-    messageAlreadyStored = true;
+    stubMessageCriteria(true);
 
-    JSONObject result = ConversationUtils.appendMessages(appendBody(
-        message("user", "hi", "m1"), message("assistant", "hello", "m2")));
+    JSONObject result = ConversationWriteUtils.appendMessages(appendBody(
+        message(ROLE_USER, TEXT_HI, MSG_ID_1), message(ROLE_ASSISTANT, "hello", MSG_ID_2)));
 
-    assertEquals(0, result.getInt("saved"));
-    assertEquals(2, result.getInt("skipped"));
+    assertEquals(0, result.getInt(SAVED));
+    assertEquals(2, result.getInt(SKIPPED));
     assertTrue(result.getJSONArray(MESSAGES).getJSONObject(0).getBoolean("duplicate"));
     assertTrue(savedMessages.isEmpty());
     verify(storedConversation, never()).setLastMsg(any());
   }
 
+  /**
+   * A repeated external id inside the same batch is stored once.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void appendSkipsDuplicateExternalIdsInsideTheSameBatch() throws Exception {
     storedConversationFoundByExternalId();
+    stubMessageCriteria(false);
 
-    JSONObject result = ConversationUtils.appendMessages(appendBody(
-        message("user", "hi", "same"), message("user", "hi again", "same")));
+    JSONObject result = ConversationWriteUtils.appendMessages(appendBody(
+        message(ROLE_USER, TEXT_HI, "same"), message(ROLE_USER, "hi again", "same")));
 
-    assertEquals(1, result.getInt("saved"));
-    assertEquals(1, result.getInt("skipped"));
+    assertEquals(1, result.getInt(SAVED));
+    assertEquals(1, result.getInt(SKIPPED));
   }
 
+  /**
+   * Somebody else's conversation is reported exactly like a missing one and nothing is stored.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void appendRejectsConversationOwnedBySomeoneElseAsNotFound() throws Exception {
     when(storedConversation.getUserContact()).thenReturn(otherUser);
     storedConversationFoundByExternalId();
 
-    assertRejected(() -> {
-      try {
-        ConversationUtils.appendMessages(appendBody(message("user", "hi", null)));
-      } catch (Exception e) {
-        throw e instanceof OBException ? (OBException) e : new IllegalStateException(e);
-      }
-    }, "Conversation not found");
+    assertAppendRejected(appendBody(message(ROLE_USER, TEXT_HI, null)), ERR_NOT_FOUND);
     assertTrue(savedMessages.isEmpty());
   }
 
+  /**
+   * A conversation that does not exist is rejected as not found.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
-  public void appendRejectsMissingConversation() {
+  public void appendRejectsMissingConversation() throws Exception {
     when(convCrit.uniqueResult()).thenReturn(null);
 
-    assertRejected(() -> {
-      try {
-        ConversationUtils.appendMessages(appendBody(message("user", "hi", null)));
-      } catch (Exception e) {
-        throw e instanceof OBException ? (OBException) e : new IllegalStateException(e);
-      }
-    }, "Conversation not found");
+    assertAppendRejected(appendBody(message(ROLE_USER, TEXT_HI, null)), ERR_NOT_FOUND);
   }
 
+  /**
+   * One invalid role rejects the whole batch before anything is saved.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void appendRejectsInvalidRoleWithoutSavingAnything() throws Exception {
     storedConversationFoundByExternalId();
 
-    assertRejected(() -> {
-      try {
-        ConversationUtils.appendMessages(appendBody(message("user", "ok", null), message("system", "no", null)));
-      } catch (Exception e) {
-        throw e instanceof OBException ? (OBException) e : new IllegalStateException(e);
-      }
-    }, "Invalid role");
+    assertAppendRejected(appendBody(message(ROLE_USER, "ok", null), message("system", "no", null)), "Invalid role");
     assertTrue("a bad message must not leave a half-saved turn", savedMessages.isEmpty());
   }
 
+  /**
+   * A blank message text is rejected.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
-  public void appendRejectsBlankTextEmptyBatchOversizeBatchAndArchivedConversation() throws Exception {
+  public void appendRejectsBlankText() throws Exception {
     storedConversationFoundByExternalId();
-    assertRejected(() -> {
-      try {
-        ConversationUtils.appendMessages(appendBody(message("user", "   ", null)));
-      } catch (Exception e) {
-        throw e instanceof OBException ? (OBException) e : new IllegalStateException(e);
-      }
-    }, ".text is required");
-    assertRejected(() -> {
-      try {
-        ConversationUtils.appendMessages(appendBody());
-      } catch (Exception e) {
-        throw e instanceof OBException ? (OBException) e : new IllegalStateException(e);
-      }
-    }, "messages is required");
-    JSONObject[] many = new JSONObject[101];
-    for (int i = 0; i < many.length; i++) {
-      many[i] = message("user", "m" + i, null);
-    }
-    assertRejected(() -> {
-      try {
-        ConversationUtils.appendMessages(appendBody(many));
-      } catch (Exception e) {
-        throw e instanceof OBException ? (OBException) e : new IllegalStateException(e);
-      }
-    }, "Too many messages");
-    when(storedConversation.isActive()).thenReturn(false);
-    assertRejected(() -> {
-      try {
-        ConversationUtils.appendMessages(appendBody(message("user", "hi", null)));
-      } catch (Exception e) {
-        throw e instanceof OBException ? (OBException) e : new IllegalStateException(e);
-      }
-    }, "archived");
+
+    assertAppendRejected(appendBody(message(ROLE_USER, "   ", null)), ".text is required");
   }
 
+  /**
+   * An empty messages array is rejected.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
-  public void appendRequiresConversationIdAndValidObjectMetadata() throws Exception {
-    assertRejected(() -> {
-      try {
-        ConversationUtils.appendMessages(new JSONObject().put(MESSAGES, new JSONArray()));
-      } catch (Exception e) {
-        throw e instanceof OBException ? (OBException) e : new IllegalStateException(e);
-      }
-    }, "Conversation ID is required");
+  public void appendRejectsEmptyBatch() throws Exception {
     storedConversationFoundByExternalId();
-    JSONObject badMeta = message("user", "hi", null).put("metadata", "not-an-object");
-    assertRejected(() -> {
-      try {
-        ConversationUtils.appendMessages(appendBody(badMeta));
-      } catch (Exception e) {
-        throw e instanceof OBException ? (OBException) e : new IllegalStateException(e);
-      }
-    }, "metadata must be a JSON object");
+
+    assertAppendRejected(appendBody(), "messages is required");
+  }
+
+  /**
+   * More than 100 messages in one call are rejected.
+   *
+   * @throws Exception if the test fails
+   */
+  @Test
+  public void appendRejectsOversizeBatch() throws Exception {
+    storedConversationFoundByExternalId();
+    JSONObject[] many = new JSONObject[101];
+    for (int i = 0; i < many.length; i++) {
+      many[i] = message(ROLE_USER, "m" + i, null);
+    }
+
+    assertAppendRejected(appendBody(many), "Too many messages");
+  }
+
+  /**
+   * Messages cannot be appended to an archived conversation.
+   *
+   * @throws Exception if the test fails
+   */
+  @Test
+  public void appendRejectsArchivedConversation() throws Exception {
+    storedConversationFoundByExternalId();
+    when(storedConversation.isActive()).thenReturn(false);
+
+    assertAppendRejected(appendBody(message(ROLE_USER, TEXT_HI, null)), "archived");
+  }
+
+  /**
+   * The conversation id is mandatory.
+   *
+   * @throws Exception if the test fails
+   */
+  @Test
+  public void appendRequiresConversationId() throws Exception {
+    assertAppendRejected(new JSONObject().put(MESSAGES, new JSONArray()), ERR_CONVERSATION_REQUIRED);
+  }
+
+  /**
+   * Message metadata must be a JSON object.
+   *
+   * @throws Exception if the test fails
+   */
+  @Test
+  public void appendRequiresObjectMetadata() throws Exception {
+    storedConversationFoundByExternalId();
+    JSONObject badMeta = message(ROLE_USER, TEXT_HI, null).put(METADATA, "not-an-object");
+
+    assertAppendRejected(appendBody(badMeta), "metadata must be a JSON object");
   }
 
   // ---- owner-checked operations (used by the Etendo Go agent-chat servlet) ----
 
+  /**
+   * Rename, archive, restore and delete act on the owner's conversation.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void ownedOperationsActOnTheOwnersConversation() throws Exception {
     storedConversationFoundByExternalId();
 
-    ConversationUtils.renameOwnedConversation(CONV_EXT_ID, "New title");
+    ConversationWriteUtils.renameOwnedConversation(CONV_EXT_ID, "New title");
     verify(storedConversation).setTitle("New title");
 
-    ConversationUtils.setOwnedConversationActive(CONV_EXT_ID, false);
+    ConversationWriteUtils.setOwnedConversationActive(CONV_EXT_ID, false);
     verify(storedConversation).setActive(false);
-    ConversationUtils.setOwnedConversationActive(CONV_EXT_ID, true);
+    ConversationWriteUtils.setOwnedConversationActive(CONV_EXT_ID, true);
     verify(storedConversation).setActive(true);
 
     Message stored = mock(Message.class);
     when(storedConversation.getETCOPMessageList()).thenReturn(new ArrayList<>(List.of(stored)));
-    ConversationUtils.deleteOwnedConversation(CONV_EXT_ID);
+    ConversationWriteUtils.deleteOwnedConversation(CONV_EXT_ID);
     verify(obDal).remove(stored);
     verify(obDal).remove(storedConversation);
   }
 
+  /**
+   * Somebody else's conversation is treated as missing by every owned operation and nothing changes.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void ownedOperationsTreatSomeoneElsesConversationAsMissingAndChangeNothing() throws Exception {
     when(storedConversation.getUserContact()).thenReturn(otherUser);
     storedConversationFoundByExternalId();
 
-    assertRejected(() -> {
-      try {
-        ConversationUtils.getOwnedConversationMessages(CONV_EXT_ID);
-      } catch (org.codehaus.jettison.json.JSONException e) {
-        throw new IllegalStateException(e);
-      }
-    }, "Conversation not found");
-    assertRejected(() -> ownedCall(() -> ConversationUtils.renameOwnedConversation(CONV_EXT_ID, "x")), "Conversation not found");
-    assertRejected(() -> ownedCall(() -> ConversationUtils.setOwnedConversationActive(CONV_EXT_ID, false)), "Conversation not found");
-    assertRejected(() -> ownedCall(() -> ConversationUtils.setOwnedConversationActive(CONV_EXT_ID, true)), "Conversation not found");
-    assertRejected(() -> ownedCall(() -> ConversationUtils.deleteOwnedConversation(CONV_EXT_ID)), "Conversation not found");
+    assertRejected(() -> ConversationWriteUtils.getOwnedConversationMessages(CONV_EXT_ID), ERR_NOT_FOUND);
+    assertRejected(() -> ConversationWriteUtils.renameOwnedConversation(CONV_EXT_ID, "x"), ERR_NOT_FOUND);
+    assertRejected(() -> ConversationWriteUtils.setOwnedConversationActive(CONV_EXT_ID, false), ERR_NOT_FOUND);
+    assertRejected(() -> ConversationWriteUtils.setOwnedConversationActive(CONV_EXT_ID, true), ERR_NOT_FOUND);
+    assertRejected(() -> ConversationWriteUtils.deleteOwnedConversation(CONV_EXT_ID), ERR_NOT_FOUND);
     verify(storedConversation, never()).setTitle(anyString());
     verify(storedConversation, never()).setActive(org.mockito.ArgumentMatchers.anyBoolean());
     verify(obDal, never()).remove(any());
   }
 
+  /**
+   * A missing conversation, a blank id and invalid titles are rejected.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
-  public void ownedOperationsRejectMissingConversationBlankIdAndBadTitles() {
+  public void ownedOperationsRejectMissingConversationBlankIdAndBadTitles() throws Exception {
     when(convCrit.uniqueResult()).thenReturn(null);
-    assertRejected(() -> ownedCall(() -> ConversationUtils.deleteOwnedConversation("nope")), "Conversation not found");
-    assertRejected(() -> ownedCall(() -> ConversationUtils.deleteOwnedConversation("")), "Conversation ID is required");
-    assertRejected(() -> ownedCall(() -> ConversationUtils.renameOwnedConversation(CONV_EXT_ID, "  ")), "Title is required");
-    assertRejected(() -> ownedCall(() -> ConversationUtils.renameOwnedConversation(CONV_EXT_ID, "x".repeat(256))), "too long");
+
+    assertRejected(() -> ConversationWriteUtils.deleteOwnedConversation("nope"), ERR_NOT_FOUND);
+    assertRejected(() -> ConversationWriteUtils.deleteOwnedConversation(""), ERR_CONVERSATION_REQUIRED);
+    assertRejected(() -> ConversationWriteUtils.renameOwnedConversation(CONV_EXT_ID, "  "), "Title is required");
+    assertRejected(() -> ConversationWriteUtils.renameOwnedConversation(CONV_EXT_ID, TOO_LONG_TEXT), "too long");
   }
 
+  /**
+   * Once ownership is proven the messages are read by primary key.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void ownedMessagesAreReadByPrimaryKeyOnceOwnershipIsProven() throws Exception {
     storedConversationFoundByExternalId();
@@ -493,28 +594,18 @@ public class ConversationWriteEndpointsTest {
     when(obDal.get(Conversation.class, CONV_ID)).thenReturn(storedConversation);
     when(storedConversation.getETCOPMessageList()).thenReturn(new ArrayList<>());
 
-    JSONArray result = ConversationUtils.getOwnedConversationMessages(CONV_EXT_ID);
+    JSONArray result = ConversationWriteUtils.getOwnedConversationMessages(CONV_EXT_ID);
 
     assertEquals(0, result.length());
   }
 
-  @FunctionalInterface
-  private interface OwnedCall {
-    void run() throws Exception;
-  }
-
-  private void ownedCall(OwnedCall call) {
-    try {
-      call.run();
-    } catch (OBException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
   // ---- HTTP handlers ----
 
+  /**
+   * The HTTP handlers write the JSON result on success and send a 400 with the message on rejection.
+   *
+   * @throws Exception if the test fails
+   */
   @Test
   public void handlersWriteJsonOnSuccessAndSendErrorOnRejection() throws Exception {
     HttpServletRequest request = mock(HttpServletRequest.class);
@@ -523,19 +614,19 @@ public class ConversationWriteEndpointsTest {
     when(response.getWriter()).thenReturn(new PrintWriter(out));
 
     mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(request))
-        .thenReturn(new JSONObject().put("external_id", "abc"));
+        .thenReturn(new JSONObject().put(EXTERNAL_ID, "abc"));
     ConversationUtils.handleCreateConversation(request, response);
     assertTrue(new JSONObject(out.toString()).getBoolean("success"));
 
     mockedRequestUtils.when(() -> RequestUtils.extractRequestBody(request))
-        .thenReturn(new JSONObject().put("conversation_id", "missing").put(MESSAGES,
-            new JSONArray().put(message("user", "hi", null))));
+        .thenReturn(new JSONObject().put(CONVERSATION_ID, "missing").put(MESSAGES,
+            new JSONArray().put(message(ROLE_USER, TEXT_HI, null))));
     when(convCrit.uniqueResult()).thenReturn(null);
     ConversationUtils.handleAppendMessages(request, response);
     ArgumentCaptor<String> msg = ArgumentCaptor.forClass(String.class);
     verify(response, times(1)).sendError(org.mockito.ArgumentMatchers.eq(HttpServletResponse.SC_BAD_REQUEST),
         msg.capture());
     assertNotNull(msg.getValue());
-    assertEquals("Conversation not found", msg.getValue());
+    assertEquals(ERR_NOT_FOUND, msg.getValue());
   }
 }

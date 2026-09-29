@@ -8,12 +8,7 @@ import static com.etendoerp.copilot.util.CopilotConstants.PROP_QUESTION;
 
 import java.io.IOException;
 import java.util.Comparator;
-import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -28,12 +23,10 @@ import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.provider.OBProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
-import org.openbravo.model.ad.access.User;
 
 import com.etendoerp.copilot.data.Conversation;
 import com.etendoerp.copilot.data.CopilotApp;
@@ -55,18 +48,10 @@ import com.etendoerp.copilot.rest.RestServiceUtil;
 public class ConversationUtils {
   public static final Logger log4j = LogManager.getLogger(ConversationUtils.class);
   private static final String TITLE_GENERATOR_ID = "1844CE5E2BCB404DAAC470216B7D6495";
-  private static final String PROP_TITLE = "title";
-  private static final String PROP_SUCCESS = "success";
+  static final String PROP_TITLE = "title";
+  static final String PROP_SUCCESS = "success";
   /** Message of the error raised for a missing conversation and, deliberately, for one owned by someone else. */
   public static final String CONVERSATION_NOT_FOUND = "Conversation not found";
-  private static final String PROP_EXTERNAL_ID = "external_id";
-  private static final String PROP_MESSAGES = "messages";
-  private static final String PROP_ROLE = "role";
-  private static final String PROP_TEXT = "text";
-  private static final String PROP_METADATA = "metadata";
-  private static final int MAX_TITLE_LENGTH = 255;
-  private static final int MAX_EXTERNAL_ID_LENGTH = 255;
-  private static final int MAX_MESSAGES_PER_CALL = 100;
 
 
   private ConversationUtils() {
@@ -415,7 +400,7 @@ public class ConversationUtils {
   public static void handleCreateConversation(HttpServletRequest request,
       HttpServletResponse response) throws IOException {
     executeInAdminMode(response, () -> writeJsonResponse(response,
-        createConversation(extractRequestBody(request))));
+        ConversationWriteUtils.createConversation(extractRequestBody(request))));
   }
 
   /**
@@ -437,245 +422,16 @@ public class ConversationUtils {
   public static void handleAppendMessages(HttpServletRequest request,
       HttpServletResponse response) throws IOException {
     executeInAdminMode(response, () -> writeJsonResponse(response,
-        appendMessages(extractRequestBody(request))));
+        ConversationWriteUtils.appendMessages(extractRequestBody(request))));
   }
 
-  public static JSONObject createConversation(JSONObject json) throws JSONException {
-    String title = optText(json, PROP_TITLE);
-    if (title != null && title.length() > MAX_TITLE_LENGTH) {
-      throw new OBException("Title is too long (max " + MAX_TITLE_LENGTH + ")");
-    }
-    String externalId = StringUtils.trimToNull(optText(json, PROP_EXTERNAL_ID));
-    if (externalId != null && externalId.length() > MAX_EXTERNAL_ID_LENGTH) {
-      throw new OBException("external_id is too long (max " + MAX_EXTERNAL_ID_LENGTH + ")");
-    }
-    String appId = StringUtils.trimToNull(optText(json, CopilotConstants.PROP_APP_ID));
-    CopilotApp app = appId == null ? null : CopilotUtils.getAssistantByIDOrName(appId);
-
-    boolean created = true;
-    Conversation conversation = null;
-    if (externalId == null) {
-      externalId = UUID.randomUUID().toString();
-    } else {
-      conversation = findByExternalId(externalId);
-    }
-    if (conversation != null) {
-      // external_id is globally unique: reusing one is only allowed for its owner.
-      if (!isOwnedByCurrentUser(conversation)) {
-        throw new OBException("external_id is not available");
-      }
-      created = false;
-    } else {
-      conversation = TrackingUtil.newConversation(externalId, app);
-      if (StringUtils.isNotBlank(title)) {
-        conversation.setTitle(title);
-      }
-      conversation.setLastMsg(new Date());
-      OBDal.getInstance().save(conversation);
-      OBDal.getInstance().flush();
-    }
-    return new JSONObject().put(PROP_SUCCESS, true)
-        .put(CopilotConstants.PROP_CONVERSATION_ID, externalId)
-        .put("created", created);
-  }
-
-  public static JSONObject appendMessages(JSONObject json) throws JSONException {
-    String conversationId = optText(json, CopilotConstants.PROP_CONVERSATION_ID);
-    if (StringUtils.isEmpty(conversationId)) {
-      throwConversationIDRequired();
-    }
-    JSONArray messages = json.optJSONArray(PROP_MESSAGES);
-    if (messages == null || messages.length() == 0) {
-      throw new OBException("messages is required and must not be empty");
-    }
-    if (messages.length() > MAX_MESSAGES_PER_CALL) {
-      throw new OBException("Too many messages (max " + MAX_MESSAGES_PER_CALL + " per call)");
-    }
-    Conversation conversation = getConversationByIDorExtRef(conversationId, true);
-    // Someone else's conversation is reported exactly like a missing one.
-    if (conversation == null || !isOwnedByCurrentUser(conversation)) {
-      throw new OBException(CONVERSATION_NOT_FOUND);
-    }
-    if (!conversation.isActive()) {
-      throw new OBException("Conversation is archived");
-    }
-    // Validate everything before writing anything: a bad message must not leave a half-saved turn.
-    for (int i = 0; i < messages.length(); i++) {
-      validateMessage(messages.optJSONObject(i), i);
-    }
-
-    long lineNo = TrackingUtil.nextLineNo(conversation);
-    Set<String> seenInBatch = new HashSet<>();
-    JSONArray results = new JSONArray();
-    int saved = 0;
-    for (int i = 0; i < messages.length(); i++) {
-      JSONObject item = messages.getJSONObject(i);
-      String extId = StringUtils.trimToNull(optText(item, PROP_EXTERNAL_ID));
-      JSONObject result = new JSONObject();
-      if (extId != null) {
-        result.put(PROP_EXTERNAL_ID, extId);
-      }
-      if (extId != null && (!seenInBatch.add(extId) || messageExists(conversation, extId))) {
-        results.put(result.put("duplicate", true));
-        continue;
-      }
-      Message message = OBProvider.getInstance().get(Message.class);
-      message.setClient(conversation.getClient());
-      message.setOrganization(conversation.getOrganization());
-      message.setConversation(conversation);
-      message.setRole(roleOf(item));
-      message.setMessage(item.getString(PROP_TEXT));
-      JSONObject metadata = item.optJSONObject(PROP_METADATA);
-      message.setMetadata(metadata != null ? metadata.toString() : null);
-      message.setExternalID(extId);
-      message.setLineno(lineNo);
-      OBDal.getInstance().save(message);
-      result.put("lineno", lineNo).put("duplicate", false);
-      results.put(result);
-      lineNo += 10;
-      saved++;
-    }
-    if (saved > 0) {
-      conversation.setLastMsg(new Date());
-      OBDal.getInstance().save(conversation);
-    }
-    OBDal.getInstance().flush();
-    return new JSONObject().put(PROP_SUCCESS, true)
-        .put(CopilotConstants.PROP_CONVERSATION_ID, conversation.getExternalID())
-        .put("saved", saved)
-        .put("skipped", messages.length() - saved)
-        .put(PROP_MESSAGES, results);
-  }
-
-  // ---------------------------------------------------------------------------------------
-  // Owner-checked operations for callers that authenticate the user themselves (the Etendo Go
-  // agent-chat servlet, which accepts the cookie session /sws/copilot does not). Unlike the
-  // legacy by-id handlers above, EVERY one of these requires the conversation to belong to the
-  // current OBContext user; a foreign or missing conversation is reported identically as
-  // CONVERSATION_NOT_FOUND. They take plain arguments, run under whatever OBContext the caller
-  // set up, and do not touch the HTTP request or response.
-  // ---------------------------------------------------------------------------------------
-
-  /**
-   * Looks a conversation up by id or external id, including archived ones, and requires it to be
-   * owned by the current user.
-   *
-   * @param conversationId
-   *     the conversation primary key or external id
-   * @return the conversation, never null
-   * @throws OBException
-   *     {@link #CONVERSATION_NOT_FOUND} when it does not exist or belongs to another user
-   */
-  public static Conversation requireOwnedConversation(String conversationId) {
-    if (StringUtils.isEmpty(conversationId)) {
-      throwConversationIDRequired();
-    }
-    Conversation conversation = getConversationByIDorExtRef(conversationId, true);
-    if (conversation == null || !isOwnedByCurrentUser(conversation)) {
-      throw new OBException(CONVERSATION_NOT_FOUND);
-    }
-    return conversation;
-  }
-
-  /** Messages of an owned conversation ({@code id, role, content, timestamp}), oldest line first. */
-  public static JSONArray getOwnedConversationMessages(String conversationId) throws JSONException {
-    Conversation conversation = requireOwnedConversation(conversationId);
-    return getConversationMessages(conversation.getId());
-  }
-
-  /** Renames an owned conversation. */
-  public static JSONObject renameOwnedConversation(String conversationId, String title) throws JSONException {
-    if (StringUtils.isBlank(title)) {
-      throw new OBException("Title is required");
-    }
-    if (title.length() > MAX_TITLE_LENGTH) {
-      throw new OBException("Title is too long (max " + MAX_TITLE_LENGTH + ")");
-    }
-    Conversation conversation = requireOwnedConversation(conversationId);
-    conversation.setTitle(title);
-    OBDal.getInstance().save(conversation);
-    OBDal.getInstance().flush();
-    return new JSONObject().put(PROP_SUCCESS, true).put(PROP_TITLE, title);
-  }
-
-  /** Archives ({@code active=false}) or restores ({@code active=true}) an owned conversation. */
-  public static JSONObject setOwnedConversationActive(String conversationId, boolean active) throws JSONException {
-    Conversation conversation = requireOwnedConversation(conversationId);
-    conversation.setActive(active);
-    OBDal.getInstance().save(conversation);
-    OBDal.getInstance().flush();
-    return new JSONObject().put(PROP_SUCCESS, true);
-  }
-
-  /** Permanently deletes an owned conversation and all its messages. */
-  public static JSONObject deleteOwnedConversation(String conversationId) throws JSONException {
-    removeConversationWithMessages(requireOwnedConversation(conversationId));
-    return new JSONObject().put(PROP_SUCCESS, true);
-  }
-
-  private static void removeConversationWithMessages(Conversation conversation) {
+  static void removeConversationWithMessages(Conversation conversation) {
     List<Message> messages = conversation.getETCOPMessageList();
     for (Message msg : messages) {
       OBDal.getInstance().remove(msg);
     }
     OBDal.getInstance().remove(conversation);
     OBDal.getInstance().flush();
-  }
-
-  /** String value of a key, or null when absent or JSON null (jettison would return "null"). */
-  private static String optText(JSONObject json, String key) {
-    return json.has(key) && !json.isNull(key) ? json.optString(key, null) : null;
-  }
-
-  private static void validateMessage(JSONObject item, int index) {
-    if (item == null) {
-      throw new OBException("messages[" + index + "] must be an object");
-    }
-    roleOf(item);
-    if (StringUtils.isBlank(optText(item, PROP_TEXT))) {
-      throw new OBException("messages[" + index + "].text is required");
-    }
-    String extId = optText(item, PROP_EXTERNAL_ID);
-    if (extId != null && extId.length() > MAX_EXTERNAL_ID_LENGTH) {
-      throw new OBException("messages[" + index + "].external_id is too long");
-    }
-    if (item.has(PROP_METADATA) && !item.isNull(PROP_METADATA) && item.optJSONObject(PROP_METADATA) == null) {
-      throw new OBException("messages[" + index + "].metadata must be a JSON object");
-    }
-  }
-
-  /** Maps the request role (user|assistant) to the stored constant; anything else is rejected. */
-  private static String roleOf(JSONObject item) {
-    String role = StringUtils.lowerCase(StringUtils.defaultString(optText(item, PROP_ROLE)), Locale.ROOT);
-    if ("user".equals(role)) {
-      return CopilotConstants.MESSAGE_USER;
-    }
-    if ("assistant".equals(role)) {
-      return CopilotConstants.MESSAGE_ASSISTANT;
-    }
-    throw new OBException("Invalid role '" + role + "': must be 'user' or 'assistant'");
-  }
-
-  private static boolean isOwnedByCurrentUser(Conversation conversation) {
-    User owner = conversation.getUserContact();
-    User current = OBContext.getOBContext().getUser();
-    return owner != null && current != null && StringUtils.equals(owner.getId(), current.getId());
-  }
-
-  private static Conversation findByExternalId(String externalId) {
-    OBCriteria<Conversation> crit = OBDal.getInstance().createCriteria(Conversation.class);
-    crit.setFilterOnActive(false);
-    crit.add(Restrictions.eq(Conversation.PROPERTY_EXTERNALID, externalId));
-    crit.setMaxResults(1);
-    return (Conversation) crit.uniqueResult();
-  }
-
-  private static boolean messageExists(Conversation conversation, String externalId) {
-    OBCriteria<Message> crit = OBDal.getInstance().createCriteria(Message.class);
-    crit.add(Restrictions.eq(Message.PROPERTY_CONVERSATION, conversation));
-    crit.add(Restrictions.eq(Message.PROPERTY_EXTERNALID, externalId));
-    crit.setMaxResults(1);
-    return crit.uniqueResult() != null;
   }
 
   /** Filter on the given app, or on "no app" when {@code assistant} is null. */
@@ -685,7 +441,7 @@ public class ConversationUtils {
         : Restrictions.eq(Conversation.PROPERTY_COPILOTAPP, assistant);
   }
 
-  private static void throwConversationIDRequired() {
+  static void throwConversationIDRequired() {
     throw new OBException(OBMessageUtils.messageBD("ETCOP_ConversationRequired"));
   }
 
@@ -828,7 +584,7 @@ public class ConversationUtils {
     return getConversationByIDorExtRef(conversationId, false);
   }
 
-  private static Conversation getConversationByIDorExtRef(String conversationId, boolean includeInactive) {
+  static Conversation getConversationByIDorExtRef(String conversationId, boolean includeInactive) {
     Conversation conversation = OBDal.getInstance().get(Conversation.class, conversationId);
 
     if (conversation == null) {

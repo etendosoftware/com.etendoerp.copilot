@@ -109,6 +109,7 @@ public class ConversationUtilsTest {
   private static final String TEST_APP_ID = "testAppId123";
   private static final String TEST_TITLE = "Test Conversation Title";
   private static final String TEST_USER_ID = "testUserId123";
+  private static final String NO_APP_RESTRICTION = "copilotApp is null";
   private static final String ERROR_CONVERSATION_REQUIRED = "Conversation ID is required";
   private static final String ERROR_APP_ID_REQUIRED = "App ID is required";
   private static final String TITLE_KEY = "title";
@@ -321,7 +322,7 @@ public class ConversationUtilsTest {
     // app_id present: filtered on that app (unchanged legacy behaviour), never on "no app"
     List<String> restrictions = capturedRestrictions();
     assertTrue(restrictions.toString(), restrictions.stream().anyMatch(r -> r.startsWith("copilotApp=")));
-    assertFalse(restrictions.toString(), restrictions.contains("copilotApp is null"));
+    assertFalse(restrictions.toString(), restrictions.contains(NO_APP_RESTRICTION));
   }
 
   /**
@@ -346,7 +347,7 @@ public class ConversationUtilsTest {
     assertTrue(RESPONSE_SHOULD_BE_JSON_ARRAY, stringWriter.toString().startsWith("["));
     verify(mockResponse, never()).sendError(anyInt(), anyString());
     List<String> restrictions = capturedRestrictions();
-    assertTrue(restrictions.toString(), restrictions.contains("copilotApp is null"));
+    assertTrue(restrictions.toString(), restrictions.contains(NO_APP_RESTRICTION));
     assertTrue(restrictions.toString(), restrictions.stream().anyMatch(r -> r.startsWith("userContact=")));
     mockedCopilotUtils.verifyNoInteractions();
   }
@@ -381,7 +382,7 @@ public class ConversationUtilsTest {
     // app_id present: filtered on that app (unchanged legacy behaviour), never on "no app"
     List<String> restrictions = capturedRestrictions();
     assertTrue(restrictions.toString(), restrictions.stream().anyMatch(r -> r.startsWith("copilotApp=")));
-    assertFalse(restrictions.toString(), restrictions.contains("copilotApp is null"));
+    assertFalse(restrictions.toString(), restrictions.contains(NO_APP_RESTRICTION));
   }
 
   /**
@@ -406,7 +407,7 @@ public class ConversationUtilsTest {
     assertTrue(RESPONSE_SHOULD_BE_JSON_ARRAY, stringWriter.toString().startsWith("["));
     verify(mockResponse, never()).sendError(anyInt(), anyString());
     List<String> restrictions = capturedRestrictions();
-    assertTrue(restrictions.toString(), restrictions.contains("copilotApp is null"));
+    assertTrue(restrictions.toString(), restrictions.contains(NO_APP_RESTRICTION));
     assertTrue(restrictions.toString(), restrictions.stream().anyMatch(r -> r.startsWith("userContact=")));
     mockedCopilotUtils.verifyNoInteractions();
   }
