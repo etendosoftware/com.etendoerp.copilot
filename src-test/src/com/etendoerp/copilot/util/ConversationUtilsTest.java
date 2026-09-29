@@ -17,15 +17,19 @@
 package com.etendoerp.copilot.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,6 +40,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -43,10 +48,12 @@ import javax.servlet.http.HttpServletResponse;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Criterion;
 import org.hibernate.criterion.Order;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
@@ -277,6 +284,12 @@ public class ConversationUtilsTest {
     verify(mockResponse, times(1)).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
   }
 
+  private List<String> capturedRestrictions() {
+    ArgumentCaptor<Criterion> captor = ArgumentCaptor.forClass(Criterion.class);
+    verify(mockConversationCriteria, atLeastOnce()).add(captor.capture());
+    return captor.getAllValues().stream().map(Object::toString).collect(Collectors.toList());
+  }
+
   /**
    * Test handleConversations with valid app ID.
    *
@@ -305,25 +318,38 @@ public class ConversationUtilsTest {
     String response = stringWriter.toString();
     assertTrue(RESPONSE_SHOULD_BE_JSON_ARRAY, response.startsWith("["));
     verify(mockResponse, times(1)).setContentType(anyString());
+    // app_id present: filtered on that app (unchanged legacy behaviour), never on "no app"
+    List<String> restrictions = capturedRestrictions();
+    assertTrue(restrictions.toString(), restrictions.stream().anyMatch(r -> r.startsWith("copilotApp=")));
+    assertFalse(restrictions.toString(), restrictions.contains("copilotApp is null"));
   }
 
   /**
-   * Test handleConversations with missing app ID.
+   * Without app_id the current user's app-less conversations are listed.
    *
    * @throws Exception if test fails
    */
   @Test
-  public void testHandleConversationsMissingAppId() throws Exception {
+  public void testHandleConversationsWithoutAppIdListsAppLessConversationsOfTheUser() throws Exception {
     // Given
     when(mockRequest.getParameter(CopilotConstants.PROP_APP_ID)).thenReturn(null);
+    when(mockConversationCriteria.list()).thenReturn(new ArrayList<>(List.of(mockConversation)));
+    StringWriter stringWriter = new StringWriter();
+    PrintWriter writer = new PrintWriter(stringWriter);
+    when(mockResponse.getWriter()).thenReturn(writer);
 
     // When
     ConversationUtils.handleConversations(mockRequest, mockResponse);
 
-    // Then
-    verify(mockResponse, times(1)).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+    // Then: no error, the user filter is kept and the app filter is "no app"
+    writer.flush();
+    assertTrue(RESPONSE_SHOULD_BE_JSON_ARRAY, stringWriter.toString().startsWith("["));
+    verify(mockResponse, never()).sendError(anyInt(), anyString());
+    List<String> restrictions = capturedRestrictions();
+    assertTrue(restrictions.toString(), restrictions.contains("copilotApp is null"));
+    assertTrue(restrictions.toString(), restrictions.stream().anyMatch(r -> r.startsWith("userContact=")));
+    mockedCopilotUtils.verifyNoInteractions();
   }
-
   /**
    * Test handleArchivedConversations with valid app ID.
    *
@@ -352,25 +378,38 @@ public class ConversationUtilsTest {
     String response = stringWriter.toString();
     assertTrue(RESPONSE_SHOULD_BE_JSON_ARRAY, response.startsWith("["));
     verify(mockResponse, times(1)).setContentType(anyString());
+    // app_id present: filtered on that app (unchanged legacy behaviour), never on "no app"
+    List<String> restrictions = capturedRestrictions();
+    assertTrue(restrictions.toString(), restrictions.stream().anyMatch(r -> r.startsWith("copilotApp=")));
+    assertFalse(restrictions.toString(), restrictions.contains("copilotApp is null"));
   }
 
   /**
-   * Test handleArchivedConversations with missing app ID.
+   * Archived variant: blank app_id lists the user's archived app-less conversations.
    *
    * @throws Exception if test fails
    */
   @Test
-  public void testHandleArchivedConversationsMissingAppId() throws Exception {
+  public void testHandleArchivedConversationsWithoutAppIdListsAppLessArchivedOnes() throws Exception {
     // Given
-    when(mockRequest.getParameter(CopilotConstants.PROP_APP_ID)).thenReturn(null);
+    when(mockRequest.getParameter(CopilotConstants.PROP_APP_ID)).thenReturn("   ");
+    when(mockConversationCriteria.list()).thenReturn(new ArrayList<>(List.of(mockConversation)));
+    StringWriter stringWriter = new StringWriter();
+    PrintWriter writer = new PrintWriter(stringWriter);
+    when(mockResponse.getWriter()).thenReturn(writer);
 
     // When
     ConversationUtils.handleArchivedConversations(mockRequest, mockResponse);
 
-    // Then
-    verify(mockResponse, times(1)).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+    // Then: no error, the user filter is kept and the app filter is "no app"
+    writer.flush();
+    assertTrue(RESPONSE_SHOULD_BE_JSON_ARRAY, stringWriter.toString().startsWith("["));
+    verify(mockResponse, never()).sendError(anyInt(), anyString());
+    List<String> restrictions = capturedRestrictions();
+    assertTrue(restrictions.toString(), restrictions.contains("copilotApp is null"));
+    assertTrue(restrictions.toString(), restrictions.stream().anyMatch(r -> r.startsWith("userContact=")));
+    mockedCopilotUtils.verifyNoInteractions();
   }
-
   /**
    * Test handleRenameConversation with valid payload.
    *
