@@ -39,6 +39,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.codehaus.jettison.json.JSONArray;
+import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.After;
 import org.junit.Before;
@@ -200,7 +201,7 @@ public class ConversationWriteEndpointsTest {
     when(convCrit.uniqueResult()).thenReturn(storedConversation);
   }
 
-  private JSONObject message(String role, String text, String externalId) throws Exception {
+  private JSONObject message(String role, String text, String externalId) throws JSONException {
     JSONObject m = new JSONObject().put("role", role).put("text", text);
     if (externalId != null) {
       m.put(EXTERNAL_ID, externalId);
@@ -208,7 +209,7 @@ public class ConversationWriteEndpointsTest {
     return m;
   }
 
-  private JSONObject appendBody(JSONObject... msgs) throws Exception {
+  private JSONObject appendBody(JSONObject... msgs) throws JSONException {
     JSONArray arr = new JSONArray();
     for (JSONObject m : msgs) {
       arr.put(m);
@@ -216,13 +217,13 @@ public class ConversationWriteEndpointsTest {
     return new JSONObject().put(CONVERSATION_ID, CONV_EXT_ID).put(MESSAGES, arr);
   }
 
-  /** A call under test that may throw the checked exceptions of the JSON API. */
+  /** A call under test that may throw the checked exception of the JSON API. */
   @FunctionalInterface
   private interface Call {
-    void run() throws Exception;
+    void run() throws JSONException;
   }
 
-  private void assertRejected(Call call, String expectedFragment) throws Exception {
+  private void assertRejected(Call call, String expectedFragment) throws JSONException {
     try {
       call.run();
       fail("Expected OBException containing: " + expectedFragment);
@@ -231,7 +232,7 @@ public class ConversationWriteEndpointsTest {
     }
   }
 
-  private void assertAppendRejected(JSONObject body, String expectedFragment) throws Exception {
+  private void assertAppendRejected(JSONObject body, String expectedFragment) throws JSONException {
     assertRejected(() -> ConversationWriteUtils.appendMessages(body), expectedFragment);
   }
 
