@@ -59,13 +59,18 @@ export async function askWithClientTools(
     }
 
     const answer = await postQuestion(body);
+
     const calls: ToolCall[] = Array.isArray(answer?.tool_calls) ? answer.tool_calls : [];
     if (calls.length === 0) {
       return answer;
     }
 
-    onProgress?.({ calls, text: answer.response });
-    exchange.push({ calls, results: await executeClientTools(calls) });
+    const serverResults = Array.isArray(answer?.server_results) ? answer.server_results : [];
+    const serverCallIds = new Set(serverResults.map((result: { id: string }) => result.id));
+    const clientCalls = calls.filter((call) => !serverCallIds.has(call.id));
+    onProgress?.({ calls: clientCalls, text: answer.response });
+    const clientResults = await executeClientTools(clientCalls);
+    exchange.push({ calls, results: [...serverResults, ...clientResults] });
   }
 
   throw new Error(

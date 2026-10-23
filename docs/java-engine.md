@@ -1,6 +1,7 @@
 # Java engine (LangChain4j) — running an agent without the Python container
 
-Status: implemented and **verified end to end on 2026-09-03**. Chat plus client-executed tools.
+Status: the Java runtime supports plain chat, client-executed WebMCP tools, and a CDI-contributed
+server-tool foundation; individual ETCOP tools must still be implemented as Java beans.
 
 Verified run: agent *Pepin puercoespin* (`multimodel`, no server tools / KB / MCP), `copilot.engine=java`,
 Python container stopped. Asked "Buscá las ventanas de ventas y abrime la de Sales Order" from the
@@ -63,7 +64,7 @@ copilot.openai.base.url=http://localhost:4000
 # Model call timeout, seconds. Default 120.
 copilot.engine.java.timeout.seconds=120
 
-# Rounds of client-executed tools allowed per question. Default 25.
+# Client and server tool rounds allowed per question. Default 25.
 copilot.engine.java.max.tool.rounds=25
 ```
 
@@ -92,8 +93,8 @@ RestService                        (unchanged)
 | `engine/LangChain4jEngine` | Builds the message list, calls the model, emits the SSE frame. |
 | `engine/ChatModelFactory` | Maps provider + model + temperature + timeout to a LangChain4j `ChatModel`. |
 
-**The chat front-end is not modified.** The engine emits the same server-sent event shape the
-Python runtime emits:
+For agents without server tools, the existing chat interaction and answer shapes are unchanged.
+Mixed server/client tool rounds add only the `answer.server_results` echo described in §6.
 
 ```
 data: {"answer": {"response": "...", "conversation_id": "..."}}
@@ -123,19 +124,22 @@ A fallback is always logged at WARN, because it is a degradation rather than rou
 in Java only when **all** of these hold:
 
 - the agent type is `langchain` or `multimodel`
-- the payload declares no server-side `tools` (client-executed tools are a different field and
-  are supported, see §6)
+- every server-side tool in `tools` has a registered Java `ServerTool` implementation (client
+  WebMCP tools are a separate field and are supported, see §6)
 - the payload declares no OpenAPI `specs`
 - the payload declares no `mcp_servers`
 - the agent has no knowledge-base app source
+- the payload does not request code execution (`code_execution`, CodeAct); CodeAct is not
+  migrated and stays Python-only
 
-Everything else falls back to Python (or fails, in `java-strict`). This guard exists so that
-capability loss is never silent: an agent with tools must not be answered by an engine that
-ignores them.
+An agent with missing Java tool implementations falls back to Python (or fails, in `java-strict`),
+and the warning names the missing `ETCOP_TOOL.VALUE` values. This keeps capability loss explicit.
+Agents with Java implementations execute their tools in the server loop described in §6.
 
 Consequently the Python container is still required for: team graphs (`langgraph`), the OpenAI
-Assistants app type, tools, knowledge bases / RAG, MCP servers, transcription, file processing
-and the code interpreter. **Docker disappears for chat-only agents, not for the product.**
+Assistants app type, tools without Java implementations, knowledge bases / RAG, MCP servers,
+transcription, file processing and the code interpreter. **Docker disappears only as the runtime
+for supported Java-engine requests, not for the product.**
 
 ## 5. Deliberate limitations of this version
 
@@ -143,18 +147,17 @@ and the code interpreter. **Docker disappears for chat-only agents, not for the 
   bubble (`App.tsx` → `handleNewMessage`) and does not accumulate deltas — which is why the
   Python runtime streams *events*, not tokens. Emitting token deltas would create one bubble per
   token. Real streaming therefore needs a front-end change and was left out on purpose.
-- **No server-side tools.** `ETCOP_TOOL` implementations live in Python and are not executed
-  here; an agent that declares them still falls back. Client-executed tools *are* supported, see
-  §6 below.
-- **No `extra_info` consumption.** The block is still assembled and would be available to a
-  future Java tool, but nothing reads it yet.
+- Server-side tools run only when `ETCOP_TOOL.VALUE` has a CDI-discovered Java implementation;
+  missing implementations still fall back to Python. Client-executed tools are also supported,
+  see §6 below.
+- Tool implementations can read the immutable identity and defensive `extra_info` snapshot from
+  `ToolExecutionContext`; no tool-specific context is exposed when the agent has no server tools.
 
 ## 6. Client-executed tools (WebMCP)
 
-The engine supports tools that the **browser** executes and the model merely chooses. This is what
-makes the WebMCP tools registered by Etendo Classic usable from an agent, and it needs **no tool
-implementations in Java at all**: adding a tool in the browser adds it to the agent with no server
-change.
+The engine also supports tools that the **browser** executes while the model chooses them. This is
+the WebMCP capability registered by Etendo Classic; these client tools need no server implementation
+and remain independent of Java `ServerTool` beans.
 
 ### The loop
 
@@ -174,8 +177,8 @@ requests, which is why this fits the existing design — the conversation memory
 `ETCOP_MESSAGE`, not in the runtime. Echoing the calls back adds no trust boundary: the client
 controls the tool results by construction anyway.
 
-`ClientToolSupport.DEFAULT_MAX_TOOL_ROUNDS` (25) caps the rounds per question, overridable with
-`copilot.engine.java.max.tool.rounds`. It is a backstop against a model that never stops calling
+`ClientToolSupport.DEFAULT_MAX_TOOL_ROUNDS` (25) caps client-exchanged rounds and internal
+server-tool loops, overridable with `copilot.engine.java.max.tool.rounds`. It is a backstop against a
 tools, not a flow-control knob, so it sits well above what real work needs: creating a single
 record already spends most of a dozen rounds — read the screen, find the window, open it, start the
 record, list the fields, write them, save, read the screen back to confirm — and more when a
@@ -188,11 +191,35 @@ read-only tools and cut real work short as soon as the tool set grew.
 |---|---|---|
 | `client_tools` | client → server | Tool descriptors, as `document.modelContext.getTools()` reports them. `inputSchema` is accepted **both** as a JSON string (what WebMCP actually sends) and as an object. |
 | `tool_exchange` | client → server | Ordered rounds of `{calls, results}` already played out for this question. |
-| `answer.tool_calls` | server → client | The calls to execute, each with `id`, `name` and `arguments` (a JSON string). |
-| `answer.role` | server → client | `tool_call` on such a turn. |
+| `answer.tool_calls` | server → client | All calls requested by the model, with `id`, `name` and `arguments` (a JSON string). |
+| `answer.server_results` | server → client | In a mixed batch, `{id, name, result}` records for server calls already executed. The client skips those call IDs and echoes these results alongside browser results in the next `tool_exchange.results`. |
+| `answer.role` | server → client | `tool_call` on a turn with calls to execute or echo. |
 
 Each top-level property of `inputSchema` is passed to LangChain4j as a **raw** schema rather than
 translated field by field, so arbitrary nesting survives untouched.
+
+### Server-executed tools
+
+Server tools are selected by the `tools` request field, whose names are the exact
+`ETCOP_TOOL.VALUE` values. The Java registry resolves each name to a CDI bean. A tool from this or
+another module registers as an `@ApplicationScoped @Named("<ETCOP_TOOL.VALUE>")` bean implementing
+`ServerTool`; it supplies its `ToolSpecification` and `execute(JSONObject, ToolExecutionContext)`.
+The returned `name()` must match the `@Named` value. A non-empty `ETCOP_TOOL.JSON_STRUCTURE` supplies
+the OpenAI function schema and overrides the implementation's parameter schema.
+
+Each server invocation runs on the bounded `copilot-tool-N` daemon executor with a new,
+non-administrator `OBContext`, its own DAL transaction and audit `SessionInfo`. Success commits;
+any failure rolls back and cleans the worker before reuse. `ToolExecutionContext.admin(...)` is the
+explicit balanced escape hatch for narrow privileged reads. Only tools declaring
+`needsWebService() == true` require a web-service-enabled role. A tool timeout cancels the worker.
+Failures are returned to the model as a safe tool-result error; no exception details or token enter
+the model response. The server loop and client exchange use the same configured round limit.
+
+A mixed batch still returns the original set of model calls. Results already produced on the server
+are included in `answer.server_results`; `toolLoop.ts` executes only the remaining browser calls and
+copies both result sets into the ordinary `tool_exchange.results`. The next request therefore
+reconstructs one assistant tool-call message and one result for every call without adding a
+conversation turn. Server-only rounds stay inside the same engine invocation.
 
 ### The client side
 
@@ -201,7 +228,7 @@ Two modules in the chat app implement the browser half:
 | File | Role |
 |---|---|
 | `com.etendoerp.copilot.chat/src/utils/webmcp.ts` | Discovery and execution. Reads `document.modelContext` **of the iframe's own realm** — WebMCP scopes tools by origin, so the same-origin chat inherits the tools Classic registered without touching `window.parent`. Degrades to "no tools" on any browser without the API. |
-| `com.etendoerp.copilot.chat/src/utils/toolLoop.ts` | The POST loop, capped at the same 5 rounds as the backend. |
+| `com.etendoerp.copilot.chat/src/utils/toolLoop.ts` | The POST loop, capped at the same configured 25 rounds as the backend; it also skips server calls already listed in `answer.server_results` and echoes their results. |
 
 `App.tsx` branches in `handleSendMessage`: when the page registered tools, the turn goes through
 the POST loop; otherwise the existing GET/SSE path is untouched. Two send paths coexist on
@@ -277,3 +304,9 @@ remove the stale 2.13.x jars from `WebContent/WEB-INF/lib` after a build, or ena
 - `ClientToolSupportTest` covers the WebMCP translation layer — the JSON-string `inputSchema`, the
   bare and wrapped tool-call envelopes, the exchange rebuild, a missing client result and the round
   cap.
+- `LangChain4jEngineServerToolTest` covers server-loop continuation, safe failure results, the
+  round cap, and the mixed server/client `server_results` envelope.
+- `ServerToolRegistryTest` covers name resolution through an in-memory fake lookup,
+  `JSON_STRUCTURE` overrides and missing implementation names.
+- `ToolExecutionContextTest` exercises worker identity binding, timeout cancellation and cleanup via a
+  lifecycle seam without a database fixture; it does not replace an integration test against DAL.

@@ -73,7 +73,7 @@ The resulting object (langchain/multimodel case) is roughly:
   "specs": [ { "name": "…", "type": "FLOW", "spec": "{…openapi…}" } ],
   "kb_vectordb_id": "…", "kb_search_k": 4,
   "mcp_servers": [ … ],
-  "structured_output_json_schema": "…",
+  "output_schema": "…",
   "conversation_id": "uuid",
   "ad_user_id": "…", "ad_client_id": "…",
   "question": "<Context>…</Context><Question>…</Question>",

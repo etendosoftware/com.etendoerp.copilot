@@ -2,8 +2,12 @@ package com.etendoerp.copilot.engine;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -16,13 +20,19 @@ import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.engine.tool.ServerTool;
+import com.etendoerp.copilot.engine.tool.ServerToolRegistry;
+import com.etendoerp.copilot.engine.tool.ServerToolRegistry.ResolvedTools;
+import com.etendoerp.copilot.engine.tool.ToolExecutionContext;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.etendoerp.copilot.util.CopilotConstants;
 
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
@@ -36,11 +46,9 @@ import dev.langchain4j.model.chat.request.ChatRequest;
  * Etendo already keeps in {@code ETCOP_MESSAGE} and ships as {@code history}, so no additional
  * memory store is involved.
  * <p>
- * Server-sent events are emitted in the exact shape the Python runtime produces
- * ({@code data: {"answer": {...}}}), which is why the chat front-end needs no change. The current
- * implementation emits a single answer frame; the front-end renders every frame as its own bubble
- * and does not accumulate token deltas, so token-level streaming would need a front-end change and
- * is intentionally left out of this first version.
+ * Server-sent events keep the Python runtime's answer shape. Mixed tool-call responses carry the
+ * additional server-result echo needed by the existing WebMCP POST loop; token-level streaming
+ * remains intentionally out of scope because the front-end renders each SSE frame as a message.
  */
 public class LangChain4jEngine implements CopilotEngine {
 
@@ -48,59 +56,189 @@ public class LangChain4jEngine implements CopilotEngine {
 
   private static final String PROP_ROLE = "role";
   private static final String PROP_CONTENT = "content";
+  private static final String PROP_EXTRA_INFO = "extra_info";
+
+  private final ServerToolRegistry serverToolRegistry;
+  private final Function<JSONObject, ChatModel> modelProvider;
+  private final ContextProvider contextProvider;
+
+  public LangChain4jEngine() {
+    this(new ServerToolRegistry(), ChatModelFactory::build, ToolExecutionContext::capture);
+  }
+
+  LangChain4jEngine(ServerToolRegistry serverToolRegistry, Function<JSONObject, ChatModel> modelProvider,
+      ContextProvider contextProvider) {
+    this.serverToolRegistry = serverToolRegistry;
+    this.modelProvider = modelProvider;
+    this.contextProvider = contextProvider;
+  }
 
   @Override
   public JSONObject execute(boolean asyncRequest, HttpServletResponse queue, JSONObject request,
       CopilotApp app) throws IOException, JSONException {
-
     List<ChatMessage> messages = buildMessages(request);
+    ResolvedTools serverTools = serverToolRegistry.resolve(request);
     List<ToolSpecification> clientTools = ClientToolSupport.toolSpecifications(request);
-    ChatModel model = ChatModelFactory.build(request);
+    List<ToolSpecification> offeredTools = offeredSpecifications(serverTools, clientTools);
     String conversationId = request.optString(RestServiceUtil.PROP_CONVERSATION_ID, null);
 
-    AiMessage aiMessage;
-    try {
-      ChatRequest.Builder chatRequest = ChatRequest.builder().messages(messages);
-      if (!clientTools.isEmpty()) {
-        chatRequest.toolSpecifications(clientTools);
+    // Capture once, before the first model call. A failure is returned as a tool result only if a
+    // server tool is actually requested; chat-only and client-only behavior stays unchanged.
+    ToolExecutionContext context = null;
+    if (serverTools.hasTools()) {
+      try {
+        context = contextProvider.capture(app, conversationId, request.optJSONObject(PROP_EXTRA_INFO));
+      } catch (RuntimeException e) {
+        log.warn("Unable to capture the user's context for server tools for agent '{}'.", app.getName());
       }
-      aiMessage = model.chat(chatRequest.build()).aiMessage();
-    } catch (RuntimeException e) {
-      log.error("The Java Copilot engine failed while calling the model for agent '{}'", app.getName(), e);
-      throw new OBException("Copilot (Java engine) error: " + e.getMessage(), e);
     }
 
-    if (aiMessage != null && aiMessage.hasToolExecutionRequests()) {
-      // The model wants a client-side tool. End the turn and let the client execute and come back.
-      JSONObject toolCall = ClientToolSupport.toolCallAnswer(aiMessage, conversationId);
-      log.info("Copilot engine: asking the client to execute {} tool(s) for agent '{}'",
-          aiMessage.toolExecutionRequests().size(), app.getName());
-      if (asyncRequest) {
-        stream(queue, toolCall);
-        return toolCall;
+    ChatModel model = modelProvider.apply(request);
+    AiMessage aiMessage = chat(model, messages, offeredTools, app);
+    Set<String> clientToolNames = toolNames(clientTools);
+    int serverToolRounds = 0;
+
+    while (aiMessage != null && aiMessage.hasToolExecutionRequests()) {
+      List<ToolExecutionRequest> serverCalls = new ArrayList<>();
+      List<ToolExecutionRequest> clientCalls = new ArrayList<>();
+      for (ToolExecutionRequest call : aiMessage.toolExecutionRequests()) {
+        if (serverTools.tool(call.name()) != null || !clientToolNames.contains(call.name())) {
+          serverCalls.add(call);
+        } else {
+          clientCalls.add(call);
+        }
       }
-      return new JSONObject().put(RestServiceUtil.PROP_ANSWER, toolCall);
+
+      if (!clientCalls.isEmpty()) {
+        JSONArray serverResults = executeServerCalls(serverCalls, serverTools, context, app,
+            serverToolRounds >= ClientToolSupport.maxToolRounds());
+        JSONObject toolCall = serverCalls.isEmpty()
+            ? ClientToolSupport.toolCallAnswer(aiMessage, conversationId)
+            : ClientToolSupport.toolCallAnswer(aiMessage, conversationId, serverResults);
+        log.info("Copilot engine: asking the client to execute {} tool(s) for agent '{}'",
+            clientCalls.size(), app.getName());
+        if (asyncRequest) {
+          stream(queue, toolCall);
+          return toolCall;
+        }
+        return new JSONObject().put(RestServiceUtil.PROP_ANSWER, toolCall);
+      }
+
+      if (serverToolRounds >= ClientToolSupport.maxToolRounds()) {
+        String cappedAnswer = StringUtils.defaultIfBlank(aiMessage.text(),
+            "The server tool round limit was reached. Please ask the assistant to continue.");
+        return complete(asyncRequest, queue, cappedAnswer, conversationId);
+      }
+
+      serverToolRounds++;
+      messages.add(aiMessage);
+      for (ToolExecutionRequest call : aiMessage.toolExecutionRequests()) {
+        String result = executeServerTool(serverTools.tool(call.name()), call, context, app);
+        messages.add(ToolExecutionResultMessage.from(call.id(), call.name(), result));
+      }
+      aiMessage = chat(model, messages, offeredTools, app);
     }
 
     String answerText = aiMessage == null ? null : aiMessage.text();
     if (StringUtils.isEmpty(answerText)) {
       throw new OBException("Copilot (Java engine) returned an empty response.");
     }
+    return complete(asyncRequest, queue, answerText, conversationId);
+  }
 
+  private List<ToolSpecification> offeredSpecifications(ResolvedTools serverTools,
+      List<ToolSpecification> clientTools) {
+    if (!serverTools.hasTools()) {
+      return clientTools;
+    }
+    List<ToolSpecification> all = new ArrayList<>(serverTools.specifications());
+    Set<String> names = toolNames(all);
+    for (ToolSpecification clientTool : clientTools) {
+      if (names.add(clientTool.name())) {
+        all.add(clientTool);
+      }
+    }
+    return all;
+  }
+
+  private AiMessage chat(ChatModel model, List<ChatMessage> messages, List<ToolSpecification> tools,
+      CopilotApp app) {
+    try {
+      ChatRequest.Builder request = ChatRequest.builder().messages(messages);
+      if (!tools.isEmpty()) {
+        request.toolSpecifications(tools);
+      }
+      return model.chat(request.build()).aiMessage();
+    } catch (RuntimeException e) {
+      log.error("The Java Copilot engine failed while calling the model for agent '{}'", app.getName(), e);
+      throw new OBException("Copilot (Java engine) error: " + e.getMessage(), e);
+    }
+  }
+
+  private JSONArray executeServerCalls(List<ToolExecutionRequest> calls, ResolvedTools tools,
+      ToolExecutionContext context, CopilotApp app, boolean roundLimitReached) throws JSONException {
+    JSONArray results = new JSONArray();
+    for (ToolExecutionRequest call : calls) {
+      String result = roundLimitReached
+          ? "The server tool round limit was reached; this call was not executed."
+          : executeServerTool(tools.tool(call.name()), call, context, app);
+      results.put(toolResult(call, result));
+    }
+    return results;
+  }
+
+  private String executeServerTool(ServerTool tool, ToolExecutionRequest call,
+      ToolExecutionContext context, CopilotApp app) {
+    if (tool == null) {
+      return "Tool '" + call.name() + "' has no Java implementation.";
+    }
+    if (context == null) {
+      return "The user's context for server tool execution could not be initialized.";
+    }
+    try {
+      if (tool.needsWebService() && !context.webServiceEnabled()) {
+        return "Tool '" + call.name() + "' requires a role with web services enabled.";
+      }
+      return context.call(tool.timeout(), () -> tool.execute(new JSONObject(call.arguments()), context));
+    } catch (Throwable failure) {
+      log.warn("Server tool '{}' failed for agent '{}' ({}).", call.name(), app.getName(),
+          failure.getClass().getSimpleName());
+      return "Tool '" + call.name() + "' failed during execution.";
+    }
+  }
+
+  private JSONObject toolResult(ToolExecutionRequest call, String result) throws JSONException {
+    JSONObject toolResult = new JSONObject();
+    toolResult.put(ClientToolSupport.PROP_ID, call.id());
+    toolResult.put(ClientToolSupport.PROP_NAME, call.name());
+    toolResult.put(ClientToolSupport.PROP_RESULT, StringUtils.defaultString(result));
+    return toolResult;
+  }
+
+  private Set<String> toolNames(List<ToolSpecification> tools) {
+    Set<String> names = new HashSet<>();
+    for (ToolSpecification tool : tools) {
+      names.add(tool.name());
+    }
+    return names;
+  }
+
+  private JSONObject complete(boolean asyncRequest, HttpServletResponse queue, String answerText,
+      String conversationId) throws IOException, JSONException {
     JSONObject answer = new JSONObject();
     answer.put(RestServiceUtil.PROP_RESPONSE, answerText);
     if (StringUtils.isNotEmpty(conversationId)) {
       answer.put(RestServiceUtil.PROP_CONVERSATION_ID, conversationId);
     }
-
     if (!asyncRequest) {
-      // Mirrors the Python synchronous body: {"answer": {...}}
       return new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
     }
-
     stream(queue, answer);
-    // Mirrors what RestServiceUtil.serverSideEvents returns for the streaming path: the bare answer.
     return answer;
+  }
+
+  interface ContextProvider {
+    ToolExecutionContext capture(CopilotApp app, String conversationId, JSONObject extraInfo);
   }
 
   /**

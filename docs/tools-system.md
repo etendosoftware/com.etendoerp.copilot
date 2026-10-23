@@ -1,8 +1,8 @@
 # Tools System
 
-A "tool" is a Python class the LLM may call. Its *availability* is decided in Etendo, its
-*implementation* lives in Python. Understanding both halves is a prerequisite for the UI
-Tools plan.
+An "ETCOP_TOOL" is a function the LLM may call. Its *availability* is decided in Etendo; legacy
+implementations live in Python, while the Java engine can execute CDI-contributed server tools.
+Understanding both paths is a prerequisite for the UI Tools plan.
 
 ## 1. Declaration in the Application Dictionary
 
@@ -67,16 +67,75 @@ extra = ThreadContext.get_data("extra_info") or {}
 token = extra.get("auth", {}).get("ETENDO_TOKEN")
 ```
 
-## 5. What is missing for UI tools
+## 5. Java server-tool implementations
 
-Every existing tool is **server-executed**: the LLM calls it, Python runs it, a string
-comes back. There is no notion of a tool whose execution happens **in the browser**.
-Adding one requires:
+The Java engine resolves every name in the request's `tools` array by CDI bean name. A Java
+implementation may live in the Copilot module or in another discovered module; Copilot does not
+maintain a per-tool class list. The bean name and `ServerTool.name()` must both equal
+`ETCOP_TOOL.VALUE`.
 
-- a way for the UI to declare, per request, which client-side capabilities exist;
-- a synthetic Python tool per declared capability, whose "execution" is *emitting an
-  action* rather than doing work;
-- a transport for that action back to the browser (an SSE role, or `metadata`);
-- a dispatcher in the chat UI.
+```java
+import java.util.Arrays;
 
-See [plans/2026-09-03-ui-tools.md](plans/2026-09-03-ui-tools.md).
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Named;
+
+import org.codehaus.jettison.json.JSONObject;
+
+import com.etendoerp.copilot.engine.tool.ServerTool;
+import com.etendoerp.copilot.engine.tool.ToolExecutionContext;
+
+import dev.langchain4j.agent.tool.ToolSpecification;
+import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
+import dev.langchain4j.model.chat.request.json.JsonRawSchema;
+
+@ApplicationScoped
+@Named("AddNumbersTool") // equals ETCOP_TOOL.VALUE
+public class AddNumbersTool implements ServerTool {
+  @Override
+  public String name() {
+    return "AddNumbersTool";
+  }
+
+  @Override
+  public ToolSpecification specification() {
+    return ToolSpecification.builder().name(name()).description("Add two integers")
+        .parameters(JsonObjectSchema.builder()
+            .addProperty("left", JsonRawSchema.from("{\"type\":\"integer\"}"))
+            .addProperty("right", JsonRawSchema.from("{\"type\":\"integer\"}"))
+            .required(Arrays.asList("left", "right"))
+            .build())
+        .build();
+  }
+
+  @Override
+  public String execute(JSONObject arguments, ToolExecutionContext context) throws Exception {
+    return Integer.toString(arguments.getInt("left") + arguments.getInt("right"));
+  }
+}
+```
+
+`specification()` supplies the default model schema. When the request carries a non-empty
+`ETCOP_TOOL.JSON_STRUCTURE`, its OpenAI function `parameters` schema takes precedence, matching
+Python's configured-tool behavior. `execute()` receives parsed object arguments and the captured
+context. The engine wraps it in `context.call(tool.timeout(), ...)`; implementations must not
+manually bind or clean `OBContext`/DAL sessions. Use `context.admin(...)` only for a narrow balanced
+privileged operation. Set `needsWebService()` to `true` only for loopback-HTTP tools; those calls
+are rejected with a model-readable tool error if the asking role has web services disabled.
+
+`ToolExecutionContext` exposes immutable identity IDs, a defensive read-only `extraInfo()` snapshot,
+a per-question concurrent `attributes()` map, and on-demand `mintToken()` for a real SWS callback.
+The token is null for a role without web services and must never be logged or returned to the model.
+Tool failures become safe result messages, and the bounded server loop uses the same configured
+round limit as client-executed tools.
+
+An agent with a declared tool name that has no CDI implementation is routed to Python (or rejected
+in `java-strict`); the fallback reason names the missing `ETCOP_TOOL.VALUE`.
+
+
+## 6. Client-executed tools (WebMCP)
+
+WebMCP tools are declared separately in the request's `client_tools` field, offered alongside
+server tools to the model, and executed by the browser. They are not entries in `ETCOP_TOOL` and do
+not need a Java `ServerTool` bean. The browser echoes each completed round through
+`tool_exchange`; mixed server/client result handling is documented in [java-engine.md](java-engine.md#6-client-executed-tools-webmcp).

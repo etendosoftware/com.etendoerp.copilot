@@ -58,7 +58,9 @@ public class ClientToolSupport {
   public static final String PROP_CLIENT_TOOLS = "client_tools";
   /** Ordered rounds of {calls, results} already exchanged for this question. */
   public static final String PROP_TOOL_EXCHANGE = "tool_exchange";
-  /** The calls the engine is asking the client to execute. */
+  /** Mixed server/client turns attach results for already-executed server calls here. */
+  public static final String PROP_SERVER_RESULTS = "server_results";
+  /** Tool-call answer property for calls already executed by the server. */
   public static final String PROP_TOOL_CALLS = "tool_calls";
   /** Role of an answer that carries tool calls instead of text. */
   public static final String ROLE_TOOL_CALL = "tool_call";
@@ -367,6 +369,15 @@ public class ClientToolSupport {
    *     when the answer cannot be assembled
    */
   public static JSONObject toolCallAnswer(AiMessage aiMessage, String conversationId) throws JSONException {
+    return toolCallAnswer(aiMessage, conversationId, null);
+  }
+
+  /**
+   * Build a mixed client/server call envelope. Server results are echoed by the client in that
+   * round's normal {@code tool_exchange.results} array.
+   */
+  public static JSONObject toolCallAnswer(AiMessage aiMessage, String conversationId,
+      JSONArray serverResults) throws JSONException {
     JSONArray calls = new JSONArray();
     for (ToolExecutionRequest requested : aiMessage.toolExecutionRequests()) {
       JSONObject call = new JSONObject();
@@ -382,6 +393,9 @@ public class ClientToolSupport {
     answer.put(RestServiceUtil.PROP_RESPONSE, StringUtils.defaultString(aiMessage.text()));
     if (StringUtils.isNotEmpty(conversationId)) {
       answer.put(RestServiceUtil.PROP_CONVERSATION_ID, conversationId);
+    }
+    if (serverResults != null && serverResults.length() > 0) {
+      answer.put(PROP_SERVER_RESULTS, serverResults);
     }
     return answer;
   }

@@ -31,16 +31,18 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.engine.tool.ServerTool;
+import com.etendoerp.copilot.engine.tool.ServerToolRegistry;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.etendoerp.copilot.util.CopilotConstants;
 
 /**
  * Unit tests for {@link CopilotEngineSelector#unsupportedReason(JSONObject, CopilotApp)}.
  * <p>
- * The rule under test is the guard that keeps the Java engine from silently dropping a
- * capability it does not implement yet: whenever the payload declares tools, specs, MCP servers,
- * a knowledge base or an agent type that only the Python runtime understands, the request must be
- * reported as unsupported so the selector falls back to Python.
+ * The rule under test keeps the Java engine from silently dropping a capability it does not yet
+ * implement: a declared tool without a Java implementation, specs, MCP servers, a knowledge base
+ * or an agent type only the Python runtime understands must be reported as unsupported so the
+ * selector falls back to Python.
  */
 public class CopilotEngineSelectorTest {
 
@@ -108,13 +110,13 @@ public class CopilotEngineSelectorTest {
   }
 
   /**
-   * An agent that declares tools must not be served by an engine that ignores them.
+   * A malformed tool descriptor cannot be resolved to a Java implementation.
    *
    * @throws JSONException
    *     when the payload cannot be built
    */
   @Test
-  public void agentWithToolsIsNotSupported() throws JSONException {
+  public void malformedToolDescriptorIsNotSupported() throws JSONException {
     JSONObject request = baseRequest(CopilotConstants.APP_TYPE_LANGCHAIN);
     request.put(RestServiceUtil.PROP_TOOLS, new JSONArray().put(new JSONObject().put("type", "function")));
 
@@ -123,6 +125,43 @@ public class CopilotEngineSelectorTest {
     assertNotNull(reason);
     assertTrue(reason.contains("tools"));
   }
+
+  @Test
+  public void missingJavaToolIsNamedInTheFallbackReason() throws JSONException {
+    JSONObject request = baseRequest(CopilotConstants.APP_TYPE_LANGCHAIN);
+    request.put(RestServiceUtil.PROP_TOOLS, new JSONArray().put(toolDescriptor("MissingJavaTool")));
+
+    String reason = CopilotEngineSelector.unsupportedReason(request, app, new ServerToolRegistry(name -> null));
+
+    assertNotNull(reason);
+    assertTrue(reason.contains("MissingJavaTool"));
+  }
+
+  @Test
+  public void registeredJavaToolDoesNotBlockTheJavaEngine() throws JSONException {
+    JSONObject request = baseRequest(CopilotConstants.APP_TYPE_LANGCHAIN);
+    request.put(RestServiceUtil.PROP_TOOLS, new JSONArray().put(toolDescriptor("AvailableJavaTool")));
+    ServerTool implementation = new ServerTool() {
+      @Override
+      public String name() {
+        return "AvailableJavaTool";
+      }
+
+      @Override
+      public dev.langchain4j.agent.tool.ToolSpecification specification() {
+        return dev.langchain4j.agent.tool.ToolSpecification.builder().name(name()).build();
+      }
+
+      @Override
+      public String execute(JSONObject arguments, com.etendoerp.copilot.engine.tool.ToolExecutionContext context) {
+        return "ok";
+      }
+    };
+
+    assertNull(CopilotEngineSelector.unsupportedReason(request, app,
+        new ServerToolRegistry(name -> implementation)));
+  }
+
 
   /**
    * An empty tools array is what a toolless agent actually sends, and must not block the engine.
@@ -156,6 +195,37 @@ public class CopilotEngineSelectorTest {
   }
 
   /**
+   * CodeAct agents run generated code in the Python runtime only, so the Java engine must refuse them.
+   *
+   * @throws JSONException
+   *     when the payload cannot be built
+   */
+  @Test
+  public void agentWithCodeExecutionIsNotSupported() throws JSONException {
+    JSONObject request = baseRequest(CopilotConstants.APP_TYPE_LANGCHAIN);
+    request.put(RestServiceUtil.PROP_CODE_EXECUTION, true);
+
+    String reason = CopilotEngineSelector.unsupportedReason(request, app);
+
+    assertNotNull(reason);
+    assertTrue(reason.contains("CodeAct"));
+  }
+
+  /**
+   * An agent with code execution switched off is a plain agent and must stay on the Java engine.
+   *
+   * @throws JSONException
+   *     when the payload cannot be built
+   */
+  @Test
+  public void agentWithCodeExecutionDisabledIsSupported() throws JSONException {
+    JSONObject request = baseRequest(CopilotConstants.APP_TYPE_LANGCHAIN);
+    request.put(RestServiceUtil.PROP_CODE_EXECUTION, false);
+
+    assertNull(CopilotEngineSelector.unsupportedReason(request, app));
+  }
+
+  /**
    * Build the minimal payload {@code buildRequestJson} would produce for a chat-only agent.
    *
    * @param appType
@@ -170,4 +240,9 @@ public class CopilotEngineSelectorTest {
     request.put(RestServiceUtil.PROP_QUESTION, "Hello");
     return request;
   }
+  private JSONObject toolDescriptor(String name) throws JSONException {
+    return new JSONObject().put("type", "function")
+        .put("function", new JSONObject().put("name", name));
+  }
+
 }

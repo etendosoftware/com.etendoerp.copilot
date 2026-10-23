@@ -11,6 +11,8 @@ import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.engine.tool.ServerToolRegistry;
+import com.etendoerp.copilot.engine.tool.ServerToolRegistry.ResolvedTools;
 import com.etendoerp.copilot.rest.RestServiceUtil;
 import com.etendoerp.copilot.util.CopilotConstants;
 
@@ -25,9 +27,8 @@ import com.etendoerp.copilot.util.CopilotConstants;
  *   <li>{@code java-strict} — run in-process always; fail loudly instead of falling back.
  *       Use this to prove that no request is silently reaching the Python container.</li>
  * </ul>
- * The Java engine currently supports plain single-agent chat only. Anything that needs the
- * Python runtime — team graphs, the OpenAI Assistants API, tools, knowledge bases, MCP
- * servers — is not supported yet and is reported by {@link #unsupportedReason}.
+ * The Java engine supports langchain/multimodel agents with registered Java tools and client-side
+ * WebMCP tools. Anything outside that surface is reported by {@link #unsupportedReason}.
  */
 public class CopilotEngineSelector {
 
@@ -140,13 +141,34 @@ public class CopilotEngineSelector {
    * @return a human readable reason, or {@code null} when the request is supported
    */
   public static String unsupportedReason(JSONObject request, CopilotApp app) {
+    return unsupportedReason(request, app, new ServerToolRegistry());
+  }
+
+
+  /**
+   * Explain why a request cannot be served by the Java engine.
+   *
+   * @param request
+   *     the payload built by {@code RestServiceUtil.buildRequestJson}
+   * @param app
+   *     the agent serving the request
+   * @param serverToolRegistry
+   *     the Java implementations available in this runtime
+   * @return a human readable reason, or {@code null} when the request is supported
+   */
+  public static String unsupportedReason(JSONObject request, CopilotApp app,
+      ServerToolRegistry serverToolRegistry) {
     String type = request.optString(RestServiceUtil.PROP_TYPE, null);
     if (!StringUtils.equalsIgnoreCase(type, CopilotConstants.APP_TYPE_LANGCHAIN)
         && !StringUtils.equalsIgnoreCase(type, CopilotConstants.APP_TYPE_MULTIMODEL)) {
       return String.format("agent type '%s' is only implemented in the Python runtime", type);
     }
     if (hasEntries(request.optJSONArray(RestServiceUtil.PROP_TOOLS))) {
-      return "the agent declares tools, which the Java engine does not execute yet";
+      ResolvedTools tools = serverToolRegistry.resolve(request);
+      if (!tools.missingNames().isEmpty()) {
+        return "the agent declares tools that have no Java implementation: "
+            + String.join(", ", tools.missingNames());
+      }
     }
     if (hasEntries(request.optJSONArray("specs"))) {
       return "the agent declares OpenAPI specs, which the Java engine does not execute yet";
@@ -156,6 +178,9 @@ public class CopilotEngineSelector {
     }
     if (app.getETCOPAppSourceList().stream().anyMatch(CopilotConstants::isKbBehaviour)) {
       return "the agent has a knowledge base, which the Java engine cannot query yet";
+    }
+    if (request.optBoolean(RestServiceUtil.PROP_CODE_EXECUTION, false)) {
+      return "the agent runs code execution (CodeAct), which is not implemented in the Java engine";
     }
     return null;
   }
