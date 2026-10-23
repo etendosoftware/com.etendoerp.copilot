@@ -49,7 +49,7 @@ proof of concept that did not take off. Consequences to implement:
 2. Server-side tool foundation:
    - [x] Add `ToolExecutionContext`, the CDI-backed Java registry, and the bounded server-tool loop
      with shared client/server round limits and context isolation.
-   - [ ] Add initial concrete tool implementations (`ReadFileTool`, `WriteFileTool`, `APICallTool`).
+   - [x] Add initial concrete tool implementations (`ReadFileTool`, `WriteFileTool`, `APICallTool`).
 3. Rest of the toolpack, by priority (see the tools inventory).
 4. OpenAPI/FLOW tools and MCP client.
 5. Knowledge base and indexing (replaces `/addToVectorDB` and the other vector routes).

@@ -139,3 +139,81 @@ WebMCP tools are declared separately in the request's `client_tools` field, offe
 server tools to the model, and executed by the browser. They are not entries in `ETCOP_TOOL` and do
 not need a Java `ServerTool` bean. The browser echoes each completed round through
 `tool_exchange`; mixed server/client result handling is documented in [java-engine.md](java-engine.md#6-client-executed-tools-webmcp).
+
+## 7. Java tool implementation status
+
+Java implementations are named CDI beans in the Copilot module or a dependent extension module.
+The following mappings describe the currently ported tools; tools not listed remain Python-only.
+
+| Python class | Java class | Module | Execution |
+|---|---|---|---|
+| ReadFileTool | ReadFileTool | toolpack | in-process |
+| WriteFileTool | WriteFileTool | toolpack | in-process |
+| PrintDirectoryTool | PrintDirectoryTool | toolpack | in-process |
+| FileCopyTool | FileCopyTool | toolpack | in-process |
+| APICallTool | APICallTool | toolpack | loopback HTTP for Etendo; direct HTTP externally |
+| TestRunTool | TestRunTool | devassistant | in-process |
+| ProcessDefinitionJasperTool | ProcessDefinitionJasperTool | devassistant | loopback HTTP |
+| ClientInitTool | ClientInitTool | devassistant | loopback HTTP |
+| OrgInitTool | OrgInitTool | devassistant | loopback HTTP |
+| EtendoSQLToCSVTool | EtendoSQLToCSVTool | toolpack | loopback HTTP |
+| DockerTool | DockerTool | toolpack | Docker |
+| SimpleOcrTool | SimpleOcrTool | copilot | in-process |
+| OcrTool | OcrTool | toolpack | in-process |
+| XMLTranslationTool | XMLTranslationTool | devassistant | in-process |
+| PdfToImagesTool | PdfToImagesTool | toolpack | in-process |
+| XLSTool | XLSTool | toolpack | in-process |
+| UncompressTool | UncompressTool | toolpack | in-process |
+| AudioTool | AudioTool | toolpack | in-process |
+| MemoryTool | — | — | deferred: KB package |
+| TaskManagementTool | — | — | deferred: teams package |
+| OpenAPI ApiTool | — | — | dropped by decision |
+
+| Python class | Java class | Module | Execution |
+|---|---|---|---|
+| AttachFileTool | AttachFileTool | toolpack | loopback HTTP |
+| CodbarTool | CodbarTool | toolpack | in-process |
+| ExcelOCRTool | ExcelOCRTool | toolpack | in-process |
+| GoogleDriveTool | GoogleDriveTool | toolpack | HTTP |
+| GoogleSpreadsheetsTool | GoogleSpreadsheetsTool | toolpack | HTTP |
+| LoadOAuthTokenTool | LoadOAuthTokenTool | toolpack | in-process |
+| SendEmailTool | SendEmailTool | toolpack | SMTP/HTTP |
+| TaskCreatorTool | TaskCreatorTool | toolpack | loopback HTTP |
+| TavilySearchTool | TavilySearchTool | toolpack | external HTTP |
+| OCRExampleCreatorTool | — | — | dropped by decision |
+| TemplateTool | — | — | dropped by decision |
+| HelloWorldTool | — | — | dropped by decision |
+| CustomHelloWorldMultiArgsTool | — | — | dropped by decision |
+| ExampleTool | — | — | dropped by decision |
+| MemoryTool | — | — | deferred: KB package |
+| TaskManagementTool | — | — | deferred: teams package |
+| ApiTool (OpenAPI generator) | — | — | dropped by decision |
+
+## 8. File-tool filesystem policy and threat model
+
+File tools treat agent-supplied paths, archive entries, and downloaded content as untrusted.
+`ToolWorkspace` applies the policy centrally and `FileToolSupport` performs guarded reads and
+writes. Reads and writes use separate comma-separated absolute directory lists:
+`copilot.tools.fs.read.roots` and `copilot.tools.fs.write.roots`. If unset, each defaults to the
+per-conversation workspace. The older `copilot.tools.fs.roots` setting is a fallback for either
+list not explicitly configured. The workspace defaults to
+`/tmp/etendo-copilot/<conversation>` and must remain outside the deployed webapp and protected
+configuration paths.
+
+The hard deny-list cannot be overridden by configured roots: the deployed webapp, Tomcat
+`webapps` and `conf`, the Etendo `config` directory, `Openbravo.properties`,
+`gradle.properties`, `.git` internals, and dotfiles under the JVM user home. Path traversal,
+symlink escapes, and hard-linked files are rejected, including for write destinations. Writes
+have no executable permission; no file tool executes a file.
+
+Defaults are 100 MiB and 1,000 files per conversation, 25 MiB per file, 1,000 archive entries,
+100 MiB expanded archive data, and a 100:1 maximum archive expansion ratio. Configure the
+quotas with `copilot.tools.fs.max.conversation.bytes`, `copilot.tools.fs.max.conversation.files`,
+and `copilot.tools.fs.max.file.bytes`; archive limits use
+`copilot.tools.fs.archive.max.entries`, `copilot.tools.fs.archive.max.bytes`, and
+`copilot.tools.fs.archive.max.ratio`. ZIP extraction rejects path escapes and symlink entries.
+
+`FileDownloaderTool` permits HTTP(S) only, blocks resolved private, loopback, link-local,
+multicast, and metadata addresses, validates redirect targets (at most three redirects), and
+applies connection/request timeouts and the per-file download cap. These controls reduce
+server-side request forgery risk; downloaded content remains inert data and is never executed.

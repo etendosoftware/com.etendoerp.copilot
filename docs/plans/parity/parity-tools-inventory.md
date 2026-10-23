@@ -67,4 +67,51 @@ Legend. **Callback** = HTTP to Etendo with ETENDO_TOKEN / `etendo_utils` (`get_e
 - **P1 (not shipped, general value, small):** AttachFileTool, FileDownloaderTool, SendEmailTool, TavilySearchTool, PdfToImagesTool, XLSTool, UncompressTool, AudioTool, GoogleSpreadsheetsTool (+ GoogleServiceUtil), ApiTool/OpenAPI generator, TaskCreatorTool.
 - **P2 (niche/drop candidates):** CodbarTool, ExcelOCRTool, OCRExampleCreatorTool, TemplateTool, HelloWorldTool, CustomHelloWorldMultiArgsTool, ExampleTool (keep as Java test fixtures), OpenAPIPetStoreTool, OCRAdvancedTool duplicate row, stale deps sections (DDLTool, CreateReferencesTool, DBQueryGenerator).
 
+## Java status
+
+`done` means a Java implementation is present; `partial` means the port still lacks Python
+behavior; `deferred` names the Java package that owns the future migration.
+
+| Python tool | Java status |
+|---|---|
+| APICallTool | done |
+| AttachFileTool | done |
+| AudioTool | done |
+| CodbarTool | done |
+| DockerTool | done |
+| EtendoSQLToCSVTool | done |
+| ExcelOCRTool | done |
+| FileCopyTool | done |
+| FileDownloaderTool | done |
+| GoogleDriveTool | done |
+| GoogleSpreadsheetsTool | done |
+| LoadOAuthTokenTool | done |
+| MemoryTool | deferred: KB package |
+| OCRExampleCreatorTool | dropped by decision |
+| OcrTool | done |
+| OCRAdvancedTool | dropped by decision: duplicate of OcrTool |
+| PdfToImagesTool | done |
+| PrintDirectoryTool | done |
+| ReadFileTool | done |
+| SendEmailTool | done |
+| TaskCreatorTool | done |
+| TavilySearchTool | done |
+| TemplateTool | dropped by decision |
+| UncompressTool | done |
+| WriteFileTool | done |
+| XLSTool | done |
+| OpenAPIPetStoreTool | deferred: OpenAPI package |
+| HelloWorldTool | dropped by decision |
+| CustomHelloWorldMultiArgsTool | dropped by decision |
+| SimpleOcrTool | done |
+| ExampleTool | dropped by decision |
+| TaskManagementTool | deferred: teams package |
+| ApiTool (OpenAPI generator) | dropped by decision |
+| MCP `agent_tools.py` | deferred: MCP package |
+| ClientInitTool | done |
+| OrgInitTool | done |
+| ProcessDefinitionJasperTool | done |
+| TestRunTool | done |
+| XMLTranslationTool | done |
+
 Caveats: usage derived only from `src-db/database/sourcedata` and `referencedata` XML in /modules; customer/AD data not seen. Per-tool library lists came from import/regex scanning, not full reads.

@@ -59,6 +59,25 @@ Build dependencies: existing `dev.langchain4j:langchain4j` and `langchain4j-open
 
 Chroma local files contain data not transparently queryable through LangChain4j's pgvector store. Provide a full reindex from existing `ETCOP_APP_SOURCE` attachments using the same reset/sync/purge contract. For each app, create new namespace, index every current source using the selected embedding model, verify counts and sampled retrieval under tenant/client scope, then switch assistant configuration/engine to Java. Keep Python and Java stores side by side during staged migration; do not dual-write indefinitely. If original source files are unavailable, require an explicit Chroma export/import utility; embeddings cannot safely be reused if model/dimensions/store layout differ. Image collection/CLIP references are separate behavior and need a separate parity decision, especially the `OcrTool` consumer.
 
+## OCR reference search
+
+Python `find_similar_reference` embeds the first input image with FastEmbed's
+`Qdrant/clip-ViT-B-32-vision` model, then queries the agent's Chroma `IMAGES`
+collection for the nearest vector (`copilot/core/vectordb_utils.py:595-613`).
+The result carries the stored reference path in metadata and its base64 image
+in the document (`:648-655`). Matching requires compatible image embeddings
+and cannot be reproduced by comparing Etendo files directly.
+
+The toolpack exposes `com.etendoerp.copilot.toolpack.tools.ocr.ReferenceSearch`:
+`find(agentId, imagePath, maxDistance, ignoreThreshold)` returns the best
+reference (path and image base64) or empty. The KB package must provide the
+implementation backed by its pgvector/image embedding store; it must query
+only the agent's image-reference corpus, return the nearest reference, and
+reject it when L2 distance exceeds `maxDistance` unless `ignoreThreshold` is
+true. The threshold is resolved from the same configured OCR similarity
+threshold used by Python. Until that implementation is available, OcrTool
+runs without a reference and uses its standard extraction prompt.
+
 ## Risks
 
 - pgvector is opt-in in db.extended and vectors require extension/schema provisioning; fail clearly without activation rather than silently falling back.

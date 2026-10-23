@@ -75,7 +75,7 @@ dependencies {
      *
      * The fix belongs to the platform (bumping core's Jackson), which is outside this module.
      * Until then, delete the stale jackson-databind/core/annotations 2.13.x jars from
-     * WebContent/WEB-INF/lib after a build, or pin a single version here with the block below.
+     * WebContent/WEB-INF/lib after a build, or enable the resolutionStrategy.force block below.
      *
      * configurations.all {
      *     resolutionStrategy.force 'com.fasterxml.jackson.core:jackson-databind:2.22.1',
@@ -88,4 +88,7 @@ dependencies {
     implementation("dev.langchain4j:langchain4j-anthropic:${langchain4jVersion}")
     implementation("dev.langchain4j:langchain4j-google-ai-gemini:${langchain4jVersion}")
     implementation("dev.langchain4j:langchain4j-ollama:${langchain4jVersion}")
+    implementation('org.apache.pdfbox:pdfbox:3.0.5') {
+        exclude group: 'org.apache.logging.log4j'
+    }
 }

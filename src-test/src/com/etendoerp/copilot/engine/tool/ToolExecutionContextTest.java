@@ -100,7 +100,7 @@ public class ToolExecutionContextTest {
     AtomicInteger rollbacks = new AtomicInteger();
     CountDownLatch started = new CountDownLatch(1);
     CountDownLatch interrupted = new CountDownLatch(1);
-    CountDownLatch cleaned = new CountDownLatch(1);
+    CountDownLatch cleaned = new CountDownLatch(2);
     ToolExecutionContext.Binding binding = new ToolExecutionContext.Binding() {
       @Override
       public void bind(ToolExecutionContext context) {

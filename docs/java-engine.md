@@ -310,3 +310,40 @@ remove the stale 2.13.x jars from `WebContent/WEB-INF/lib` after a build, or ena
   `JSON_STRUCTURE` overrides and missing implementation names.
 - `ToolExecutionContextTest` exercises worker identity binding, timeout cancellation and cleanup via a
   lifecycle seam without a database fixture; it does not replace an integration test against DAL.
+
+## 9. Tool runtime configuration
+
+`copilot.tools.fs.read.roots` and `copilot.tools.fs.write.roots` are optional, comma-separated
+lists of existing absolute directories. Configure them independently in `Openbravo.properties`:
+
+```properties
+copilot.tools.fs.read.roots=/Users/etendo/Workspace/erp,/Users/etendo/Workspace/tests
+copilot.tools.fs.write.roots=/Users/etendo/Workspace/erp
+```
+
+When unset, both access lists contain only the conversation workspace
+(`/tmp/etendo-copilot/<conversation>` by default). The legacy `copilot.tools.fs.roots`
+property remains a fallback for either list that is not separately set. `COPILOT_WORKSPACE`
+or `COPILOT_WORKING_DIR` system properties can select a different workspace root; the resolved
+conversation directory must be outside protected application and system paths.
+
+The hard deny-list cannot be overridden by configured roots: the deployed webapp, Tomcat
+`webapps` and `conf`, the Etendo `config` directory, `Openbravo.properties`, `gradle.properties`,
+`.git` internals, and dotfiles below the JVM user home. Path traversal, symlink escapes, and
+hard-linked files are rejected. Writes are non-executable. File tools do not execute files.
+
+The default quotas are 100 MiB and 1,000 files per conversation, and 25 MiB per file.
+Override with `copilot.tools.fs.max.conversation.bytes`, `.max.conversation.files`, and
+`.max.file.bytes`. Archive extraction defaults to 1,000 entries, 100 MiB expanded data, and
+a 100:1 expansion ratio; configure `copilot.tools.fs.archive.max.entries`,
+`.max.bytes`, and `.max.ratio`.
+
+Docker containers use the isolated `none` network by default. To enable networking only for
+one agent's DockerTool configuration, set `network_enabled` to `true` in that tool's
+`tool_config` entry. The server property `copilot.tools.docker.network.enabled=true` enables
+networking globally and overrides per-tool settings. Reused containers must match the selected
+policy; a mismatch is rejected rather than silently changing a running container.
+
+The `APICallTool` has an argument-dependent web-service gate: external URLs may be called
+without a web-service-enabled role, while Etendo-origin requests are rejected with a clear
+permission error. Redirects cannot forward Etendo credentials to another origin.
