@@ -23,32 +23,34 @@ public final class KnowledgeBaseEmbeddingModel {
   private KnowledgeBaseEmbeddingModel() { }
 
   public static EmbeddingModel build() {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String selectedModel = embeddingModelPreference();
-    ProviderCredentials credentials = ProviderCredentials.create();
-    ProviderCredentials.ProviderConfig config;
-    if (StringUtils.isNotBlank(selectedModel)) {
-      config = credentials.resolve(selectedModel);
-    } else {
-      try {
-        config = credentials.resolve(DEFAULT_ETENDO_MODEL);
-      } catch (OBException missingEtendoAlias) {
-        String legacyModel = CopilotUtils.readPropertyWithLegacyCompatibility(properties,
-            "copilot.embedding.model", "text-embedding-3-small");
-        config = credentials.resolve(legacyModel);
-      }
-    }
-
+    ProviderCredentials.ProviderConfig config = resolveConfig();
     String modelName = config.gatewayMode() && !"etendo".equalsIgnoreCase(config.provider())
         ? config.provider() + "/" + config.model() : config.model();
     OpenAiEmbeddingModel.OpenAiEmbeddingModelBuilder builder = OpenAiEmbeddingModel.builder()
         .modelName(modelName)
         .apiKey(StringUtils.defaultIfBlank(config.apiKey(), "dummy"))
         .timeout(Duration.ofSeconds(Long.parseLong(config.timeoutSeconds())));
-    if (StringUtils.isNotBlank(config.baseUrl())) {
-      builder.baseUrl(config.baseUrl());
-    }
+    if (StringUtils.isNotBlank(config.baseUrl())) builder.baseUrl(config.baseUrl());
     return builder.build();
+  }
+
+  public static String identity() {
+    ProviderCredentials.ProviderConfig config = resolveConfig();
+    return config.provider().toLowerCase(java.util.Locale.ROOT) + "/" + config.model();
+  }
+
+  private static ProviderCredentials.ProviderConfig resolveConfig() {
+    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+    String selectedModel = embeddingModelPreference();
+    ProviderCredentials credentials = ProviderCredentials.create();
+    if (StringUtils.isNotBlank(selectedModel)) return credentials.resolve(selectedModel);
+    try {
+      return credentials.resolve(DEFAULT_ETENDO_MODEL);
+    } catch (OBException missingEtendoAlias) {
+      String legacyModel = CopilotUtils.readPropertyWithLegacyCompatibility(properties,
+          "copilot.embedding.model", "text-embedding-3-small");
+      return credentials.resolve(legacyModel);
+    }
   }
 
   private static String embeddingModelPreference() {

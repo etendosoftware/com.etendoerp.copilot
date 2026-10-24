@@ -44,17 +44,16 @@ make PG_CONFIG=$THESEUS/bin/pg_config PG_SYSROOT=$(xcrun --show-sdk-path) with_l
 make PG_CONFIG=$THESEUS/bin/pg_config PG_SYSROOT=$(xcrun --show-sdk-path) with_llvm=no install
 ```
 
-### Finding for the Copilot KB code (found by the same probe, needs a fix)
+### Finding for the Copilot KB code (fixed in code; not yet verified live)
 
-`KnowledgeBaseSchemaProvisioning` creates `embedding vector NOT NULL` (no dimensions) and then
-`CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)`. On real pgvector the table is created but the index
-fails: `ERROR: column does not have dimensions`. Also, a column without dimensions accepts vectors of different
-sizes, and a search then fails with `different vector dimensions 2 and 3` as soon as two embedding models have
-indexed into the same table. An expression + partial index works:
-`CREATE INDEX ... USING hnsw ((embedding::vector(N)) vector_cosine_ops) WHERE vector_dims(embedding) = N`, queried
-with `WHERE vector_dims(embedding) = N ORDER BY embedding::vector(N) <=> ?`. Decision needed: a configured embedding
-dimension (property or the chosen embedding model's) that provisioning, indexing and search all use. This must be
-fixed before the KB can be called working; it could not be seen without pgvector.
+The original code created `embedding vector NOT NULL` without a dimension and then attempted a
+dimensionless HNSW index, which pgvector rejects with `column does not have dimensions`. Mixed
+dimensions also fail at search with `different vector dimensions 2 and 3`. The code now keeps the
+unconstrained vector column, records model identity and dimensions per row, drops the broken
+index, and creates best-effort partial expression HNSW indexes for dimensions up to 2000. Search
+preflights stored model/dimension counts, filters/casts to matching vectors, and reports
+incompatible or partially re-indexed data clearly. The local PostgreSQL used here does not have
+pgvector, so these code changes have not been exercised against a live extension yet.
 
 ## 3. Options
 

@@ -22,7 +22,8 @@ public class KnowledgeBaseIndexerTest {
     RecordingExecutor executor = new RecordingExecutor();
     EmbeddingModel embeddings = mock(EmbeddingModel.class);
     when(embeddings.embed(anyString())).thenReturn(Response.from(Embedding.from(new float[] {0.25f, 0.75f})));
-    KnowledgeBaseIndexer indexer = new KnowledgeBaseIndexer(new KnowledgeBaseStore(executor), embeddings);
+    KnowledgeBaseIndexer indexer = new KnowledgeBaseIndexer(new KnowledgeBaseStore(executor), embeddings,
+        "test/provider-model");
     Path file = Files.createTempFile("copilot-kb-test", ".txt");
     try {
       Files.writeString(file, "alpha beta gamma");
@@ -48,9 +49,11 @@ public class KnowledgeBaseIndexerTest {
     @Override public boolean hasPgVector() { return true; }
     @Override public boolean hasTable() { return true; }
     @Override public int update(String sql, Object... values) {
-      this.sql = sql;
-      this.values = values;
-      upserts++;
+      if (sql.startsWith("INSERT")) {
+        this.sql = sql;
+        this.values = values;
+        upserts++;
+      }
       return 1;
     }
     @Override public List<Object[]> query(String sql, Object... values) { return List.of(); }

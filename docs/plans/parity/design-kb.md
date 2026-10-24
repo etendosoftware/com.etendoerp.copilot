@@ -123,6 +123,27 @@ runs without a reference and uses its standard extraction prompt.
 - `worktrees/copilot-ETP-5136/src/com/etendoerp/copilot/engine/ChatModelFactory.java:35-48,59-61,104-110` — proxy configuration convention.
 - `worktrees/copilot-ETP-5136/build.gradle:18,55-95` — LangChain4j version and current dependencies.
 - `worktrees/copilot-ETP-5136/docs/plans/parity/parity-tools-inventory.md:28` — MemoryTool Chroma vector usage.
+
+### Stored schema and embedding-model changes
+
+`etcop_kb_chunk` retains an unconstrained `embedding vector NOT NULL` and stores
+`embedding_model varchar(200) NOT NULL` plus `embedding_dims int NOT NULL` on every chunk.
+For pre-existing tables, the optional pgvector module script adds those columns with the
+`legacy/unknown` and `0` upgrade defaults, preserves the scope index, adds an
+`(app_id, ad_client_id, namespace, embedding_dims)` index, and drops the old dimensionless
+HNSW index. Runtime indexing best-effort creates one partial expression HNSW index per vector
+dimension up to 2000; failure is logged and indexing continues. This limited runtime DDL
+requires the Etendo database user to own the table.
+
+Search groups scoped rows by model and dimension before vector SQL. No rows retains the normal
+empty-index behavior; all rows matching the active provider/model and dimensions are searched;
+zero matches fails clearly with incompatible/re-index-required information; a partial re-index
+searches matching rows only and reports the count of ignored chunks. Re-indexing replaces the
+source's chunks in the same Etendo transaction, while changing the model configuration alone
+never deletes data. The `etendo-embeddings` proxy alias can be repointed without changing its
+dimensions, which cannot be detected from stored metadata; re-index after Etendo announces an
+alias change. Different dimensions are detected automatically. MemoryTool follows the same
+compatibility check in its own namespace and advises clearing and re-adding memories.
 ## Implemented Java slice and remaining cutover work
 
 The Java module now has a parameterized pgvector store, proxy-compatible OpenAI embedding

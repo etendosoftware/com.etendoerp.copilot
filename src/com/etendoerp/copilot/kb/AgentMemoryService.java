@@ -41,7 +41,7 @@ public class AgentMemoryService {
     if (query == null || query.isBlank()) throw new IllegalArgumentException("'query' is required");
     store.ensureReady();
     return store.search(agentId, userId, namespace(agentId), KnowledgeBaseEmbeddingModel.vector(model, query),
-        Math.max(1, Math.min(20, k)));
+        Math.max(1, Math.min(20, k)), KnowledgeBaseEmbeddingModel.identity());
   }
   private boolean exists(String agentId, String userId, String id) {
     return store.hasSource(agentId, userId, namespace(agentId), id);
@@ -50,7 +50,7 @@ public class AgentMemoryService {
     store.ensureReady();
     String hash = Integer.toHexString(memory.hashCode());
     store.upsert(id, agentId, userId, namespace(agentId), id, "memory", memory, hash,
-        KnowledgeBaseEmbeddingModel.vector(model, memory));
+        KnowledgeBaseEmbeddingModel.vector(model, memory), KnowledgeBaseEmbeddingModel.identity());
   }
   private static String namespace(String agentId) { return "MEMORY_" + agentId; }
 }

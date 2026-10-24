@@ -18,6 +18,7 @@ package com.etendoerp.copilot.process;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -462,4 +463,23 @@ public class SyncAssistantTest extends WeldBaseTest {
       verify(obDal).save(newRoleApp);
     }
   }
+  @Test
+  public void incompatibleKbSyncErrorFlagsOnlyItsAgent() throws Exception {
+    SyncAssistant assistant = new SyncAssistant();
+    JSONObject result = new JSONObject().put("responseActions", new JSONArray().put(
+        new JSONObject().put("showMsgInProcessView", new JSONObject().put("msgText", "Sync complete"))));
+    JSONArray errors = new JSONArray().put(new JSONObject().put("agentId", "agent-a")
+        .put("message", "Knowledge-base sync failed for agent 'A': vectors incompatible; re-index required."));
+    java.lang.reflect.Method append = SyncAssistant.class.getDeclaredMethod(
+        "appendSyncErrorsToMessage", JSONObject.class, JSONArray.class);
+    append.setAccessible(true);
+    append.invoke(assistant, result, errors);
+    JSONObject message = result.getJSONArray("responseActions").getJSONObject(0)
+        .getJSONObject("showMsgInProcessView");
+    assertEquals("warning", message.getString("msgType"));
+    assertTrue(message.getString("msgText").contains("agent 'A'"));
+    assertTrue(message.getString("msgText").contains("re-index required"));
+    assertEquals(1, errors.length());
+  }
+
 }

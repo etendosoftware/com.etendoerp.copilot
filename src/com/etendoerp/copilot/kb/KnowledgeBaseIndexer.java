@@ -15,10 +15,16 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 public final class KnowledgeBaseIndexer {
   private final KnowledgeBaseStore store;
   private volatile EmbeddingModel embeddingModel;
+  private final String configuredModelIdentity;
 
-  public KnowledgeBaseIndexer() { this(new KnowledgeBaseStore(), null); }
+  public KnowledgeBaseIndexer() { this(new KnowledgeBaseStore(), null, null); }
   public KnowledgeBaseIndexer(KnowledgeBaseStore store, EmbeddingModel embeddingModel) {
-    this.store = store; this.embeddingModel = embeddingModel;
+    this(store, embeddingModel, null);
+  }
+  public KnowledgeBaseIndexer(KnowledgeBaseStore store, EmbeddingModel embeddingModel, String modelIdentity) {
+    this.store = store;
+    this.embeddingModel = embeddingModel;
+    this.configuredModelIdentity = modelIdentity;
   }
 
   public void index(String appId, String sourceId, String namespace, String clientId, Path file,
@@ -40,20 +46,33 @@ public final class KnowledgeBaseIndexer {
       throw new OBException("Unsupported knowledge-base file extension: ." + ext);
     }
     store.ensureReady();
+    store.markSourcePurge(appId, clientId, namespace, sourceId);
     int size = maxChunkSize == null ? 1000 : Math.toIntExact(maxChunkSize);
     int overlap = chunkOverlap == null ? 200 : Math.toIntExact(chunkOverlap);
     try {
       int ordinal = 0;
       List<KnowledgeBaseDocumentParser.ParsedDocument> documents = KnowledgeBaseDocumentParser.parse(fileName, bytes);
       EmbeddingModel model = getEmbeddingModel();
+      String modelIdentity = configuredModelIdentity == null
+          ? KnowledgeBaseEmbeddingModel.identity() : configuredModelIdentity;
+      int dimensions = -1;
       for (KnowledgeBaseDocumentParser.ParsedDocument document : documents) {
         for (String chunk : KnowledgeBaseChunker.split(document.text(), document.extension(), skipSplitting, size, overlap)) {
           String contentHash = sha256(chunk);
           String id = sha256(appId + '|' + clientId + '|' + namespace + '|' + sourceId + '|' + ordinal++ + '|' + contentHash);
+          float[] vector = KnowledgeBaseEmbeddingModel.vector(model, chunk);
+          dimensions = vector.length;
           store.upsert(id, appId, clientId, namespace, sourceId, document.name(), chunk, contentHash,
-              KnowledgeBaseEmbeddingModel.vector(model, chunk));
+              vector, modelIdentity);
         }
       }
+      if (dimensions > 0) {
+        store.ensureIndex(dimensions);
+        org.apache.logging.log4j.LogManager.getLogger(KnowledgeBaseIndexer.class).info(
+            "Knowledge-base sync indexed {} chunks for source {} with model {}/{}.", ordinal, sourceId,
+            modelIdentity, dimensions);
+      }
+      store.purgeSource(appId, clientId, namespace, sourceId);
     } catch (IOException e) { throw new OBException("Could not parse knowledge-base source " + fileName + '.', e); }
   }
 

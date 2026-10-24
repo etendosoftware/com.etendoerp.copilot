@@ -17,10 +17,13 @@ public final class KnowledgeBaseSql {
     return new Scope(appId, clients);
   }
 
-  public static String searchSql() {
-    return "SELECT content,source_name,source_id,embedding <=> CAST(? AS vector) distance FROM etcop_kb_chunk "
+  public static String searchSql(int dimensions) {
+    if (dimensions < 1) throw new IllegalArgumentException("Embedding dimensions must be positive");
+    return "SELECT content,source_name,source_id,embedding::vector(" + dimensions + ") <=> CAST(? AS vector("
+        + dimensions + ")) distance FROM etcop_kb_chunk "
         + "WHERE app_id=? AND namespace=? AND ad_client_id IN (?,?) AND purge=false "
-        + "ORDER BY embedding <=> CAST(? AS vector) LIMIT ?";
+        + "AND embedding_model=? AND embedding_dims=? AND vector_dims(embedding)=" + dimensions
+        + " ORDER BY embedding::vector(" + dimensions + ") <=> CAST(? AS vector(" + dimensions + ")) LIMIT ?";
   }
 
   public static String deleteByClientSql() {

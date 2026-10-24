@@ -30,13 +30,21 @@ public class KnowledgeBaseSearch implements ServerTool {
     int k = Math.max(1, Math.min(20, context.attributes().get("kb_search_k") instanceof Number
         ? ((Number) context.attributes().get("kb_search_k")).intValue() : 4));
     store.ensureReady();
-    var matches = store.search(context.agentId(), context.clientId(), "KB_" + context.agentId(),
-        KnowledgeBaseEmbeddingModel.vector(KnowledgeBaseEmbeddingModel.build(), query), k);
+    java.util.List<KnowledgeBaseStore.Match> matches;
+    try {
+      matches = store.search(context.agentId(), context.clientId(), "KB_" + context.agentId(),
+          KnowledgeBaseEmbeddingModel.vector(KnowledgeBaseEmbeddingModel.build(), query), k,
+          KnowledgeBaseEmbeddingModel.identity());
+    } catch (com.etendoerp.copilot.kb.KnowledgeBaseIncompatibleException incompatible) {
+      return new JSONObject().put("error", incompatible.getMessage()).toString();
+    }
     JSONObject result = new JSONObject();
     org.codehaus.jettison.json.JSONArray passages = new org.codehaus.jettison.json.JSONArray();
     for (KnowledgeBaseStore.Match match : matches) {
-      passages.put(new JSONObject().put("text", match.content()).put("source", match.sourceName())
-          .put("source_id", match.sourceId()).put("distance", match.distance()));
+      org.codehaus.jettison.json.JSONObject passage = new JSONObject().put("text", match.content())
+          .put("source", match.sourceName()).put("source_id", match.sourceId()).put("distance", match.distance());
+      if (match.warning() != null) result.put("warning", match.warning());
+      passages.put(passage);
     }
     result.put("results", passages);
     return result.toString();

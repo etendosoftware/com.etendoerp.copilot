@@ -50,6 +50,21 @@ embedding model property is retained during migration. Run `update.database` aft
 pgvector to provision the KB table/indexes; runtime requests never perform DDL and report a clear
 error when pgvector or the provisioned table is missing.
 
+Each knowledge-base chunk stores its resolved embedding provider/model identity and vector
+dimension alongside the vector. Search compares the current embedding identity and dimensions
+with the scoped stored rows before vector SQL: incompatible indexes return an explicit
+“incompatible, reindex required” message instead of a PostgreSQL dimension error. A partial
+re-index searches only matching chunks and reports how many other chunks are ignored. Re-index
+with **Sync Assistant**, which replaces each source's chunks; changing the default model alone
+does not delete stored data. MemoryTool uses its separate namespace and directs incompatible
+memories to be cleared and re-added.
+
+`etendo-embeddings` is a proxy alias. If Etendo repoints it to another model with the same
+dimensions, stored vectors cannot be identified as stale; re-index after Etendo announces an
+alias change. A different vector dimension is detected automatically. Indexes are created
+on-demand at indexing time using limited runtime DDL (the Etendo database user must own the
+KB table); HNSW is skipped above 2000 dimensions.
+
 ```properties
 # Deprecated Openbravo.properties fallback (Release N)
 copilot.proxy.url=https://llm.etendo.software

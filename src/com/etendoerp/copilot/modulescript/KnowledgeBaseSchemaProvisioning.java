@@ -19,10 +19,15 @@ public final class KnowledgeBaseSchemaProvisioning {
         "CREATE TABLE IF NOT EXISTS " + TABLE + " ("
             + "chunk_id varchar(64) PRIMARY KEY, app_id varchar(32) NOT NULL, ad_client_id varchar(32) NOT NULL, "
             + "namespace varchar(64) NOT NULL, source_id varchar(32) NOT NULL, source_name text NOT NULL, "
-            + "content text NOT NULL, content_hash varchar(64) NOT NULL, embedding vector NOT NULL, purge boolean NOT NULL DEFAULT false)",
+            + "content text NOT NULL, content_hash varchar(64) NOT NULL, embedding vector NOT NULL, "
+            + "embedding_model varchar(200) NOT NULL DEFAULT 'legacy/unknown', embedding_dims int NOT NULL DEFAULT 0, "
+            + "purge boolean NOT NULL DEFAULT false)",
+        "ALTER TABLE " + TABLE + " ADD COLUMN IF NOT EXISTS embedding_model varchar(200) NOT NULL DEFAULT 'legacy/unknown'",
+        "ALTER TABLE " + TABLE + " ADD COLUMN IF NOT EXISTS embedding_dims int NOT NULL DEFAULT 0",
         "CREATE INDEX IF NOT EXISTS etcop_kb_scope_idx ON " + TABLE + " (app_id, ad_client_id, namespace)",
-        "CREATE INDEX IF NOT EXISTS etcop_kb_embedding_idx ON " + TABLE
-            + " USING hnsw (embedding vector_cosine_ops)");
+        "CREATE INDEX IF NOT EXISTS etcop_kb_model_scope_idx ON " + TABLE
+            + " (app_id, ad_client_id, namespace, embedding_dims)",
+        "DROP INDEX IF EXISTS etcop_kb_embedding_idx");
   }
 
   public interface Executor {
