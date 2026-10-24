@@ -31,10 +31,18 @@ import com.etendoerp.copilot.rest.RestServiceUtil;
 public class PythonCopilotEngine implements CopilotEngine {
 
   private static final Logger log = LogManager.getLogger(PythonCopilotEngine.class);
+  private static final java.util.concurrent.atomic.AtomicBoolean DEPRECATION_LOGGED =
+      new java.util.concurrent.atomic.AtomicBoolean();
 
   @Override
   public JSONObject execute(boolean asyncRequest, HttpServletResponse queue, JSONObject request,
       CopilotApp app) throws IOException, JSONException {
+    if (DEPRECATION_LOGGED.compareAndSet(false, true)) {
+      log.warn("The Python Copilot engine (copilot.engine=python) is DEPRECATED and will be removed; "
+          + "set copilot.engine=java to run agents in-process. Agents the Java engine cannot serve yet "
+          + "keep falling back to Python and are listed by the 'Copilot engine: python ... (falling back' "
+          + "log lines.");
+    }
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String copilotPort = readPropertyWithLegacyCompatibility(properties, "copilot.port", "5005");
     String copilotHost = readPropertyWithLegacyCompatibility(properties, "copilot.host", "localhost");

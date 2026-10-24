@@ -8,6 +8,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Base64;
+import java.util.Locale;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -38,7 +42,15 @@ import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
-
+import dev.langchain4j.model.chat.request.ResponseFormat;
+import dev.langchain4j.model.chat.request.ResponseFormatType;
+import dev.langchain4j.model.chat.request.json.JsonRawSchema;
+import dev.langchain4j.data.message.Content;
+import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.data.message.TextContent;
+import dev.langchain4j.model.chat.request.json.JsonSchema;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.output.TokenUsage;
 /**
  * Runs the agent inside Tomcat with LangChain4j, so a plain chat agent needs no Python container.
  * <p>
@@ -87,6 +99,13 @@ public class LangChain4jEngine implements CopilotEngine {
         .load(request.optJSONArray("mcp_servers"), reserved);
     try {
       return executeWithMcp(asyncRequest, queue, request, app, mcpTools, localTools, clientTools);
+    } catch (RuntimeException e) {
+      if (asyncRequest) {
+        Usage usage = new Usage();
+        streamRole(queue, StringUtils.defaultIfBlank(e.getMessage(), "Copilot request failed."), "error",
+            request.optString(RestServiceUtil.PROP_CONVERSATION_ID, null), usage);
+      }
+      throw e;
     } finally {
       mcpTools.close();
     }
@@ -118,7 +137,8 @@ public class LangChain4jEngine implements CopilotEngine {
     }
 
     ChatModel model = modelProvider.apply(request);
-    AiMessage aiMessage = chat(model, messages, offeredTools, app);
+    Usage usage = new Usage();
+    AiMessage aiMessage = chat(model, messages, offeredTools, app, request, usage);
     Set<String> clientToolNames = toolNames(clientTools);
     int serverToolRounds = 0;
 
@@ -151,23 +171,26 @@ public class LangChain4jEngine implements CopilotEngine {
       if (serverToolRounds >= ClientToolSupport.maxToolRounds()) {
         String cappedAnswer = StringUtils.defaultIfBlank(aiMessage.text(),
             "The server tool round limit was reached. Please ask the assistant to continue.");
-        return complete(asyncRequest, queue, cappedAnswer, conversationId);
+        return complete(asyncRequest, queue, cappedAnswer, conversationId, usage);
       }
 
       serverToolRounds++;
       messages.add(aiMessage);
-      for (ToolExecutionRequest call : aiMessage.toolExecutionRequests()) {
-        String result = executeServerTool(serverTools.tool(call.name()), mcpTools, call, context, app);
-        messages.add(ToolExecutionResultMessage.from(call.id(), call.name(), result));
-      }
-      aiMessage = chat(model, messages, offeredTools, app);
+        for (ToolExecutionRequest call : aiMessage.toolExecutionRequests()) {
+          if (asyncRequest) {
+            streamRole(queue, call.name(), "tool", conversationId, usage);
+          }
+          String result = executeServerTool(serverTools.tool(call.name()), mcpTools, call, context, app);
+          messages.add(ToolExecutionResultMessage.from(call.id(), call.name(), result));
+        }
+      aiMessage = chat(model, messages, offeredTools, app, request, usage);
     }
 
     String answerText = aiMessage == null ? null : aiMessage.text();
     if (StringUtils.isEmpty(answerText)) {
       throw new OBException("Copilot (Java engine) returned an empty response.");
     }
-    return complete(asyncRequest, queue, answerText, conversationId);
+    return complete(asyncRequest, queue, answerText, conversationId, usage);
   }
 
   private List<ToolSpecification> offeredSpecifications(ResolvedTools serverTools,
@@ -188,16 +211,28 @@ public class LangChain4jEngine implements CopilotEngine {
   }
 
   private AiMessage chat(ChatModel model, List<ChatMessage> messages, List<ToolSpecification> tools,
-      CopilotApp app) {
+      CopilotApp app, JSONObject payload, Usage usage) {
     try {
       ChatRequest.Builder request = ChatRequest.builder().messages(messages);
       if (!tools.isEmpty()) {
         request.toolSpecifications(tools);
       }
-      return model.chat(request.build()).aiMessage();
+      String schema = payload.optString(RestServiceUtil.PROP_OUTPUT_SCHEMA, "");
+      if (StringUtils.isNotBlank(schema)) {
+        JSONObject outputSchema = new JSONObject(schema);
+        JsonSchema jsonSchema = JsonSchema.builder().name("response")
+            .rootElement(JsonRawSchema.from(outputSchema.toString())).build();
+        request.responseFormat(ResponseFormat.builder().type(ResponseFormatType.JSON)
+            .jsonSchema(jsonSchema).build());
+      }
+      ChatResponse response = model.chat(request.build());
+      usage.add(response.tokenUsage());
+      return response.aiMessage();
     } catch (RuntimeException e) {
       log.error("The Java Copilot engine failed while calling the model for agent '{}'", app.getName(), e);
       throw new OBException("Copilot (Java engine) error: " + e.getMessage(), e);
+    } catch (JSONException e) {
+      throw new OBException("Copilot (Java engine) received an invalid output_schema.", e);
     }
   }
 
@@ -252,21 +287,45 @@ public class LangChain4jEngine implements CopilotEngine {
   }
 
   private JSONObject complete(boolean asyncRequest, HttpServletResponse queue, String answerText,
-      String conversationId) throws IOException, JSONException {
+      String conversationId, Usage usage) throws IOException, JSONException {
     JSONObject answer = new JSONObject();
     answer.put(RestServiceUtil.PROP_RESPONSE, answerText);
     if (StringUtils.isNotEmpty(conversationId)) {
       answer.put(RestServiceUtil.PROP_CONVERSATION_ID, conversationId);
     }
+    answer.put(PROP_ROLE, JSONObject.NULL);
+    JSONObject metadata = usage.metadata();
+    if (metadata.length() > 0) {
+      answer.put("metadata", metadata);
+    }
     if (!asyncRequest) {
       return new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
     }
-    stream(queue, answer);
+    stream(queue, answer, usage);
     return answer;
   }
 
   interface ContextProvider {
     ToolExecutionContext capture(CopilotApp app, String conversationId, JSONObject extraInfo);
+  }
+
+  static final class Usage {
+    private int input;
+    private int output;
+    private boolean streamStarted;
+
+    void add(TokenUsage usage) {
+      if (usage != null) {
+        input += usage.inputTokenCount() == null ? 0 : usage.inputTokenCount();
+        output += usage.outputTokenCount() == null ? 0 : usage.outputTokenCount();
+      }
+    }
+
+    JSONObject metadata() throws JSONException {
+      return input == 0 && output == 0 ? new JSONObject()
+          : new JSONObject().put("input_tokens", input).put("output_tokens", output)
+              .put("total_tokens", input + output);
+    }
   }
 
   /**
@@ -283,13 +342,37 @@ public class LangChain4jEngine implements CopilotEngine {
    *     when the frame cannot be assembled
    */
   private void stream(HttpServletResponse queue, JSONObject answer) throws IOException, JSONException {
+    stream(queue, answer, null);
+  }
+
+  private void stream(HttpServletResponse queue, JSONObject answer, Usage usage)
+      throws IOException, JSONException {
     RestServiceUtil.setEventStreamMode(queue);
     PrintWriter writerToFront = queue.getWriter();
-    // The Python relay opens the stream with an empty frame; keep the same handshake.
-    RestServiceUtil.sendEventToFront(writerToFront, new JSONObject(), true);
-    RestServiceUtil.sendEventToFront(writerToFront, new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer),
-        true);
+    if (usage == null || !usage.streamStarted) {
+      RestServiceUtil.sendEventToFront(writerToFront, new JSONObject(), true);
+      if (usage != null) {
+        usage.streamStarted = true;
+      }
+    }
+    RestServiceUtil.sendEventToFront(writerToFront, new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer), true);
     writerToFront.flush();
+  }
+
+  private void streamRole(HttpServletResponse queue, String response, String role, String conversationId,
+      Usage usage) throws IOException, JSONException {
+    RestServiceUtil.setEventStreamMode(queue);
+    PrintWriter writer = queue.getWriter();
+    if (!usage.streamStarted) {
+      RestServiceUtil.sendEventToFront(writer, new JSONObject(), true);
+      usage.streamStarted = true;
+    }
+    JSONObject frame = new JSONObject().put(RestServiceUtil.PROP_RESPONSE, response).put(PROP_ROLE, role);
+    if (StringUtils.isNotEmpty(conversationId)) {
+      frame.put(RestServiceUtil.PROP_CONVERSATION_ID, conversationId);
+    }
+    RestServiceUtil.sendEventToFront(writer, new JSONObject().put(RestServiceUtil.PROP_ANSWER, frame), true);
+    writer.flush();
   }
   static void beginTeamStream(HttpServletResponse queue) throws IOException, JSONException {
     RestServiceUtil.setEventStreamMode(queue);
@@ -335,12 +418,60 @@ public class LangChain4jEngine implements CopilotEngine {
     if (StringUtils.isBlank(question)) {
       throw new OBException("Copilot (Java engine): the request carries no question.");
     }
-    messages.add(UserMessage.from(question));
+    messages.add(userMessage(question, request.optJSONArray("local_file_ids")));
 
     // Rounds of client-executed tools already played out for this same question.
     ClientToolSupport.appendExchange(messages, request);
 
     return messages;
+  }
+  static UserMessage userMessage(String question, JSONArray localFileIds) throws JSONException {
+    List<Content> content = new ArrayList<>();
+    content.add(TextContent.from(question));
+    List<String> images = new ArrayList<>();
+    List<String> files = new ArrayList<>();
+    if (localFileIds != null) {
+      for (int i = 0; i < localFileIds.length(); i++) {
+        String pathValue = localFileIds.optString(i, "");
+        if (StringUtils.isBlank(pathValue)) {
+          continue;
+        }
+        Path path = Path.of(pathValue).normalize();
+        if (!Files.isRegularFile(path)) {
+          log.warn("Skipping missing local Copilot attachment '{}'.", pathValue);
+          continue;
+        }
+        String mime = imageMime(path);
+        if (mime == null) {
+          files.add(path.toString());
+        } else {
+          try {
+            content.add(ImageContent.from(dev.langchain4j.data.image.Image.builder()
+                .base64Data(Base64.getEncoder().encodeToString(Files.readAllBytes(path)))
+                .mimeType(mime).build()));
+            images.add(path.toString());
+          } catch (IOException e) {
+            log.warn("Unable to read local Copilot image '{}'.", pathValue, e);
+          }
+        }
+      }
+    }
+    if (!files.isEmpty()) {
+      content.add(TextContent.from("Attached files:\\n" + String.join("\\n", files)));
+    }
+    if (!images.isEmpty()) {
+      content.add(TextContent.from("Local Files Ids for Context:\\n - " + String.join("\\n - ", images)));
+    }
+    return UserMessage.from(content);
+  }
+
+  private static String imageMime(Path path) {
+    String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+    if (name.endsWith(".jpeg") || name.endsWith(".jpg")) return "image/jpeg";
+    if (name.endsWith(".png")) return "image/png";
+    if (name.endsWith(".webp")) return "image/webp";
+    if (name.endsWith(".gif")) return "image/gif";
+    return null;
   }
 
   /**

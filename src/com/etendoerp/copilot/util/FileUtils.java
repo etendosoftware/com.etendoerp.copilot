@@ -509,6 +509,23 @@ public class FileUtils {
     checkSizeFile(f);
     return RestServiceUtil.handleFile(f, endpoint);
   }
+  public static String storeAttachment(DiskFileItem itemDisk) throws Exception {
+    String originalFileName = normalizeOriginalFileName(itemDisk);
+    int dotIndex = originalFileName.lastIndexOf('.');
+    String extension = dotIndex == -1 ? null : originalFileName.substring(dotIndex);
+    String prefix = dotIndex == -1 ? originalFileName : originalFileName.substring(0, dotIndex);
+    prefix = prefix + "_";
+    if (prefix.length() < 3) {
+      prefix = (prefix + "___").substring(0, 3);
+    }
+    Path stored = createSecureTempFile(prefix, extension);
+    File file = stored.toFile();
+    file.deleteOnExit();
+    setOwnerOnlyPermissions(stored, file);
+    writeDiskItemToFile(itemDisk, file);
+    checkSizeFile(file);
+    return file.getAbsolutePath();
+  }
 
   /**
    * Writes the content of a DiskFileItem to a specified file.

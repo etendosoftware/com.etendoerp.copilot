@@ -22,13 +22,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Test;
+import javax.servlet.http.HttpServletResponse;
 
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.engine.tool.ServerTool;
@@ -44,6 +49,10 @@ import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.output.TokenUsage;
+import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.message.TextContent;
 
 /** Pure loop tests using a fake model and a test-only server tool. */
 public class LangChain4jEngineServerToolTest {
@@ -171,6 +180,80 @@ public class LangChain4jEngineServerToolTest {
     assertEquals(3, replayedExchange.size());
     assertEquals("server-result", ((ToolExecutionResultMessage) replayedExchange.get(1)).text());
     assertEquals("client-result", ((ToolExecutionResultMessage) replayedExchange.get(2)).text());
+  }
+  @Test
+  public void localImagesBecomeMultimodalUserContent() throws Exception {
+    Path image = Files.createTempFile("copilot-image-", ".png");
+    Path document = Files.createTempFile("copilot-document-", ".txt");
+    Files.write(image, new byte[] { 1, 2, 3 });
+    List<ChatRequest> requests = new ArrayList<>();
+    ChatModel model = scriptedModel(requests, AiMessage.from("done"));
+    JSONArray files = new JSONArray().put(image.toString()).put(document.toString());
+    JSONObject payload = requestWithTools().put("local_file_ids", files);
+
+    engine(tool(SERVER_TOOL, (arguments, context) -> "done"), model, context())
+        .execute(false, null, payload, app());
+
+    UserMessage user = (UserMessage) requests.get(0).messages().get(0);
+    assertTrue(user.contents().stream().anyMatch(ImageContent.class::isInstance));
+    assertTrue(user.contents().stream().filter(TextContent.class::isInstance)
+        .map(TextContent.class::cast).anyMatch(text -> text.text().contains("Attached files:\\n" + document)));
+    Files.deleteIfExists(image);
+    Files.deleteIfExists(document);
+  }
+  @Test
+  public void usageAndOutputSchemaAreAggregatedAcrossModelRounds() throws Exception {
+    List<ChatRequest> requests = new ArrayList<>();
+    ChatModel model = scriptedModelWithUsage(requests, new TokenUsage(11, 5),
+        new TokenUsage(7, 3), request(SERVER_TOOL, "call-usage", "{}"), AiMessage.from("{\"ok\":true}"));
+    JSONObject payload = requestWithTools().put(RestServiceUtil.PROP_OUTPUT_SCHEMA,
+        "{\"type\":\"object\",\"properties\":{\"ok\":{\"type\":\"boolean\"}}}");
+
+    JSONObject answer = engine(tool(SERVER_TOOL, (arguments, context) -> "done"), model, context())
+        .execute(false, null, payload, app()).getJSONObject(RestServiceUtil.PROP_ANSWER);
+
+    assertEquals(18, answer.getJSONObject("metadata").getInt("input_tokens"));
+    assertEquals(8, answer.getJSONObject("metadata").getInt("output_tokens"));
+    assertEquals(26, answer.getJSONObject("metadata").getInt("total_tokens"));
+    assertEquals(dev.langchain4j.model.chat.request.ResponseFormatType.JSON,
+        requests.get(0).responseFormat().type());
+    assertEquals(requests.get(0).responseFormat(), requests.get(1).responseFormat());
+  }
+  @Test
+  public void asyncServerToolEmitsToolFrameBeforeFinalAnswer() throws Exception {
+    StringWriter output = new StringWriter();
+    HttpServletResponse servletResponse = mock(HttpServletResponse.class);
+    when(servletResponse.getWriter()).thenReturn(new PrintWriter(output));
+    ChatModel model = scriptedModel(new ArrayList<>(), request(SERVER_TOOL, "call-stream", "{}"),
+        AiMessage.from("finished"));
+
+    engine(tool(SERVER_TOOL, (arguments, context) -> "done"), model, context())
+        .execute(true, servletResponse, requestWithTools(), app());
+
+    String frames = output.toString();
+    int toolFrame = frames.indexOf("\"role\":\"tool\"");
+    int finalFrame = frames.lastIndexOf("finished");
+    assertTrue(toolFrame >= 0);
+    assertTrue(finalFrame > toolFrame);
+  }
+
+  private ChatModel scriptedModelWithUsage(List<ChatRequest> seenRequests, TokenUsage firstUsage,
+      TokenUsage secondUsage, AiMessage... responses) {
+    ChatModel model = mock(ChatModel.class);
+    AtomicInteger index = new AtomicInteger();
+    try {
+      when(model.chat(any(ChatRequest.class))).thenAnswer(invocation -> {
+        seenRequests.add(invocation.getArgument(0));
+        int responseIndex = Math.min(index.getAndIncrement(), responses.length - 1);
+        ChatResponse response = mock(ChatResponse.class);
+        when(response.aiMessage()).thenReturn(responses[responseIndex]);
+        when(response.tokenUsage()).thenReturn(responseIndex == 0 ? firstUsage : secondUsage);
+        return response;
+      });
+    } catch (Exception e) {
+      throw new AssertionError(e);
+    }
+    return model;
   }
 
   private LangChain4jEngine engine(ServerTool tool, ChatModel model, ToolExecutionContext context) {

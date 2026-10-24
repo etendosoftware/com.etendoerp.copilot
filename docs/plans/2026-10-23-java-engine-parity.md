@@ -39,14 +39,14 @@ proof of concept that did not take off. Consequences to implement:
 
 ## Known bugs in the current branch
 
-- Java sends `structured_output_json_schema`, Python reads `output_schema`: structured output
-  probably never reaches Python.
+- Fixed: Java now sends `output_schema` (the key Python reads, same as the epic branch); structured output
+  reaches both runtimes.
 - `code_execution` is ignored silently by the Java engine (see above).
 
 ## Implementation order
 
 1. Bugs and selector behavior:
-   - [ ] Align the structured-output payload field with Python's `output_schema`.
+   - [x] Align the structured-output payload field with Python's `output_schema`.
    - [x] Reject `code_execution` in the Java selector instead of silently ignoring CodeAct.
 2. Server-side tool foundation:
    - [x] Add `ToolExecutionContext`, the CDI-backed Java registry, and the bounded server-tool loop

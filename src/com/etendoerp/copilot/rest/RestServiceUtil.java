@@ -118,7 +118,7 @@ public class RestServiceUtil {
   public static final String PROP_AD_CLIENT_ID = "ad_client_id";
   public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
   public static final String METADATA = "metadata";
-  public static final String PROP_OUTPUT_SCHEMA = "structured_output_json_schema";
+  public static final String PROP_OUTPUT_SCHEMA = "output_schema";
 
   /**
    * Private constructor to prevent instantiation of utility class.
@@ -192,17 +192,36 @@ public class RestServiceUtil {
   public static JSONObject handleFile(List<FileItem> items, String endpoint) throws Exception {
     logIfDebug(String.format("items: %d", items.size()));
     JSONObject responseJson = new JSONObject();
-    // Create a list of files to delete them later when the process finishes
+    boolean storeInJava = ("attachFile".equalsIgnoreCase(endpoint) || "transcription".equalsIgnoreCase(endpoint))
+        && javaEngineConfigured();
     for (FileItem item : items) {
       if (item.isFormField()) {
         continue;
       }
       DiskFileItem itemDisk = (DiskFileItem) item;
-      String answer = FileUtils.processFileItem(itemDisk, endpoint);
-      responseJson.put(item.getFieldName(), answer);
+      String answer;
+      if ("transcription".equalsIgnoreCase(endpoint) && storeInJava) {
+        File audio = new File(FileUtils.storeAttachment(itemDisk));
+        try {
+          answer = com.etendoerp.copilot.util.CopilotAudioTranscription.transcribe(audio);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new OBException("Audio transcription was interrupted.", e);
+        } finally {
+          Files.deleteIfExists(audio.toPath());
+        }
+      } else {
+        answer = storeInJava ? FileUtils.storeAttachment(itemDisk)
+            : FileUtils.processFileItem(itemDisk, endpoint);
+      }
+      responseJson.put(storeInJava && "transcription".equalsIgnoreCase(endpoint)
+          ? PROP_ANSWER : item.getFieldName(), answer);
     }
-
     return responseJson;
+  }
+  private static boolean javaEngineConfigured() {
+    String engine = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("copilot.engine", "python");
+    return "java".equalsIgnoreCase(engine) || "java-strict".equalsIgnoreCase(engine);
   }
 
 
@@ -223,6 +242,9 @@ public class RestServiceUtil {
    *     when the response cannot be parsed as JSON
    */
   public static String handleFile(File f, String endpoint) throws IOException, JSONException {
+    if ("attachFile".equalsIgnoreCase(endpoint) && javaEngineConfigured()) {
+      return f.getAbsolutePath();
+    }
     java.util.Properties prop = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     java.net.http.HttpResponse<String> response = CopilotUtils.getResponseFromCopilot(prop, endpoint, new JSONObject(),
         f);

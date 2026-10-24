@@ -40,6 +40,9 @@ import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 
+import dev.langchain4j.model.output.TokenUsage;
+import java.util.ArrayList;
+import java.util.List;
 public class TeamEngineTest {
   private static final String MEMBER_TOOL = "team_member_researcher";
 
@@ -65,6 +68,28 @@ public class TeamEngineTest {
     assertTrue(frames.contains("\"response\":\"Researcher: Research result\""));
     assertEquals(4, memberHistoryMessages.get());
     assertTrue(frames.contains("\"response\":\"Here is the answer.\""));
+  }
+  @Test
+  public void structuredOutputAndUsageIncludeSupervisorAndMemberCalls() throws Exception {
+    JSONObject request = request().put(RestServiceUtil.PROP_OUTPUT_SCHEMA,
+        "{\"type\":\"object\",\"properties\":{\"ok\":{\"type\":\"boolean\"}}}");
+    List<ChatRequest> supervisorRequests = new ArrayList<>();
+    List<ChatRequest> memberRequests = new ArrayList<>();
+    AtomicInteger supervisorCalls = new AtomicInteger();
+    ChatModel supervisor = scriptedWithUsage(supervisorRequests, new TokenUsage(1, 2), ignored ->
+        supervisorCalls.getAndIncrement() == 0
+            ? toolCall(MEMBER_TOOL, "usage-call", "{\"task\":\"research\"}") : AiMessage.from("{\"ok\":true}"));
+    ChatModel member = scriptedWithUsage(memberRequests, new TokenUsage(3, 4),
+        ignored -> AiMessage.from("evidence"));
+
+    JSONObject answer = engine(request, supervisor, member).execute(false, null, request, app())
+        .getJSONObject(RestServiceUtil.PROP_ANSWER);
+
+    assertEquals(5, answer.getJSONObject("metadata").getInt("input_tokens"));
+    assertEquals(8, answer.getJSONObject("metadata").getInt("output_tokens"));
+    assertEquals(dev.langchain4j.model.chat.request.ResponseFormatType.JSON,
+        supervisorRequests.get(0).responseFormat().type());
+    assertEquals(null, memberRequests.get(0).responseFormat());
   }
 
   @Test
@@ -175,6 +200,23 @@ public class TeamEngineTest {
     return response;
   }
 
+  private ChatModel scriptedWithUsage(List<ChatRequest> requests, TokenUsage usage,
+      java.util.function.Function<ChatRequest, AiMessage> behavior) {
+    ChatModel model = mock(ChatModel.class);
+    try {
+      when(model.chat(any(ChatRequest.class))).thenAnswer(invocation -> {
+        ChatRequest request = invocation.getArgument(0);
+        requests.add(request);
+        ChatResponse response = mock(ChatResponse.class);
+        when(response.aiMessage()).thenReturn(behavior.apply(request));
+        when(response.tokenUsage()).thenReturn(usage);
+        return response;
+      });
+    } catch (Exception e) {
+      throw new AssertionError(e);
+    }
+    return model;
+  }
   private ChatModel scripted(java.util.function.Function<ChatRequest, AiMessage> behavior) {
     ChatModel model = mock(ChatModel.class);
     try {

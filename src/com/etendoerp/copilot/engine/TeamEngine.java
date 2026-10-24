@@ -46,6 +46,9 @@ import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonRawSchema;
+import dev.langchain4j.model.chat.request.ResponseFormat;
+import dev.langchain4j.model.chat.request.ResponseFormatType;
+import dev.langchain4j.model.chat.request.json.JsonSchema;
 
 /** In-process, bounded supervisor loop for team (langgraph) requests. */
 public final class TeamEngine {
@@ -106,6 +109,7 @@ public final class TeamEngine {
     }
 
     List<ChatMessage> messages = supervisorMessages(request, members);
+    LangChain4jEngine.Usage usage = new LangChain4jEngine.Usage();
     ChatModel supervisor;
     try {
       supervisor = modelProvider.apply(request);
@@ -120,7 +124,16 @@ public final class TeamEngine {
       try {
         ChatRequest.Builder chatRequest = ChatRequest.builder().messages(messages);
         if (!specifications.isEmpty()) chatRequest.toolSpecifications(specifications);
-        answer = supervisor.chat(chatRequest.build()).aiMessage();
+        String outputSchema = request.optString(RestServiceUtil.PROP_OUTPUT_SCHEMA, "");
+        if (StringUtils.isNotBlank(outputSchema)) {
+          JsonSchema schema = JsonSchema.builder().name("response")
+              .rootElement(JsonRawSchema.from(new JSONObject(outputSchema).toString())).build();
+          chatRequest.responseFormat(ResponseFormat.builder().type(ResponseFormatType.JSON)
+              .jsonSchema(schema).build());
+        }
+        dev.langchain4j.model.chat.response.ChatResponse modelResponse = supervisor.chat(chatRequest.build());
+        usage.add(modelResponse.tokenUsage());
+        answer = modelResponse.aiMessage();
       } catch (RuntimeException e) {
         log.error("Team supervisor model failed for agent '{}'.", app.getName(), e);
         emit(async, response, "error", "The team supervisor could not complete the request.", conversationId);
@@ -137,8 +150,8 @@ public final class TeamEngine {
           throw new OBException("Copilot team supervisor returned an empty response.");
         }
         emit(async, response, "node", "Writing the answer…", conversationId);
-        emit(async, response, null, finalText, conversationId);
-        return answerObject(finalText, conversationId, async);
+        emit(async, response, null, finalText, conversationId, usage);
+        return answerObject(finalText, conversationId, async, usage);
       }
 
       messages.add(answer);
@@ -154,7 +167,7 @@ public final class TeamEngine {
           try {
             result = runMember(member, task, request.optJSONArray(RestServiceUtil.PROP_HISTORY),
                 context, app, memberMemories, async, response, conversationId,
-                mcpTools.members.get(memberKeyByToolName.get(call.name())));
+                mcpTools.members.get(memberKeyByToolName.get(call.name())), usage);
           } catch (Throwable failure) {
             log.warn("Team member '{}' failed; continuing supervisor loop ({}).", member.optString("name"),
                 failure.getClass().getSimpleName());
@@ -226,7 +239,7 @@ public final class TeamEngine {
 
   private String runMember(JSONObject member, String task, JSONArray history, ToolExecutionContext context,
       CopilotApp app, Map<String, List<ChatMessage>> memories, boolean async, HttpServletResponse response,
-      String conversationId, McpClientToolLoader.LoadedTools memberMcpTools) {
+      String conversationId, McpClientToolLoader.LoadedTools memberMcpTools, LangChain4jEngine.Usage usage) {
     String type = member.optString("type", "");
     if (!CopilotConstants.APP_TYPE_LANGCHAIN.equalsIgnoreCase(type)
         && !CopilotConstants.APP_TYPE_MULTIMODEL.equalsIgnoreCase(type)) {
@@ -249,7 +262,9 @@ public final class TeamEngine {
       ChatRequest.Builder req = ChatRequest.builder().messages(messages);
       if (memberTools.hasTools()) req.toolSpecifications(memberTools.specifications());
       if (memberMcpTools.hasTools()) req.toolSpecifications(memberMcpTools.specifications());
-      AiMessage answer = model.chat(req.build()).aiMessage();
+      dev.langchain4j.model.chat.response.ChatResponse modelResponse = model.chat(req.build());
+      usage.add(modelResponse.tokenUsage());
+      AiMessage answer = modelResponse.aiMessage();
       if (answer == null) throw new OBException("Member '" + name + "' returned no response.");
       if (!answer.hasToolExecutionRequests()) {
         String text = answer.text();
@@ -342,7 +357,7 @@ public final class TeamEngine {
     }
     String question = request.optString(RestServiceUtil.PROP_QUESTION, null);
     if (StringUtils.isBlank(question)) throw new OBException("Copilot team request carries no question.");
-    messages.add(UserMessage.from(question));
+    messages.add(LangChain4jEngine.userMessage(question, request.optJSONArray("local_file_ids")));
     return messages;
   }
 
@@ -352,9 +367,13 @@ public final class TeamEngine {
     return "team_member_" + safe.toLowerCase(java.util.Locale.ROOT);
   }
 
-  private JSONObject answerObject(String text, String conversationId, boolean async) throws JSONException {
+  private JSONObject answerObject(String text, String conversationId, boolean async,
+      LangChain4jEngine.Usage usage) throws JSONException {
     JSONObject answer = new JSONObject().put(RestServiceUtil.PROP_RESPONSE, text);
     if (StringUtils.isNotEmpty(conversationId)) answer.put(RestServiceUtil.PROP_CONVERSATION_ID, conversationId);
+    answer.put("role", JSONObject.NULL);
+    JSONObject metadata = usage.metadata();
+    if (metadata.length() > 0) answer.put("metadata", metadata);
     return async ? answer : new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer);
   }
 
@@ -372,15 +391,24 @@ public final class TeamEngine {
   }
 
   private void emit(boolean async, HttpServletResponse response, String role, String text, String conversationId) {
+    emit(async, response, role, text, conversationId, null);
+  }
+
+  private void emit(boolean async, HttpServletResponse response, String role, String text, String conversationId,
+      LangChain4jEngine.Usage usage) {
     if (!async) return;
     try {
       JSONObject answer = new JSONObject().put(RestServiceUtil.PROP_RESPONSE, text);
       if (StringUtils.isNotEmpty(conversationId)) answer.put(RestServiceUtil.PROP_CONVERSATION_ID, conversationId);
-      if (role != null) answer.put("role", role);
+      answer.put("role", role == null ? JSONObject.NULL : role);
+      if (usage != null) {
+        JSONObject metadata = usage.metadata();
+        if (metadata.length() > 0) answer.put("metadata", metadata);
+      }
       LangChain4jEngine.streamTeamFrame(response, answer);
       if (streamDebugEnabled() && !"debug".equals(role)) {
-        JSONObject debug = new JSONObject().put(RestServiceUtil.PROP_RESPONSE, "Team event: " + StringUtils.defaultString(role, "final")
-            + " — " + text);
+        JSONObject debug = new JSONObject().put(RestServiceUtil.PROP_RESPONSE,
+            "Team event: " + StringUtils.defaultString(role, "final") + " — " + text);
         if (StringUtils.isNotEmpty(conversationId)) debug.put(RestServiceUtil.PROP_CONVERSATION_ID, conversationId);
         debug.put("role", "debug");
         LangChain4jEngine.streamTeamFrame(response, debug);

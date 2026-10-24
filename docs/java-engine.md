@@ -35,7 +35,7 @@ copilot.engine=java
 
 | Value | Behaviour |
 |---|---|
-| `python` | Always call the Python container. Identical to the behaviour before this feature existed. |
+| `python` | **Deprecated.** Always call the Python container. Identical to the behaviour before this feature existed; a one-time WARN is logged on first use. It will be removed once the Java engine is the default. |
 | `java` | Run in-process when the request is supported; otherwise log a warning and fall back to Python. |
 | `java-strict` | Run in-process always; raise an error instead of falling back. Use it to prove no request is silently reaching the container. |
 
@@ -184,20 +184,28 @@ implementations for declared server tools, or CodeAct. OpenAPI operations are ge
 time; ordinary fixed-entity contracts execute in-process and RX-specific/other operations use
 authenticated `EtendoHttp` loopback, as described above. CodeAct's Python execution is intentionally
 not run in the Etendo JVM. An unavailable MCP server does not trigger a whole-request fallback: its
-loader logs the failure and exposes no tools from that server. The Python container is still needed
-for the OpenAI Assistants app type, tools without Java implementations, transcription, file
-processing and the code interpreter. **Docker disappears only as the runtime for supported
-Java-engine requests, not for the product.**
+loader logs the failure and exposes no tools from that server. Explicit Java mode stores question
+uploads in private Java temp files, resolves local image paths as multimodal content, and transcribes
+audio in-process with the shared Whisper helper. `python` mode retains the legacy upload and
+transcription routes. **Docker disappears only as the runtime for supported Java-engine requests,
+not for the product.**
 
 ## 5. Deliberate limitations of this version
 
-- **No token-level streaming.** The chat front-end renders every SSE frame as its own message
-  bubble (`App.tsx` → `handleNewMessage`) and does not accumulate deltas — which is why the
-  Python runtime streams *events*, not tokens. Emitting token deltas would create one bubble per
-  token. Real streaming therefore needs a front-end change and was left out on purpose.
+- **No token-level streaming.** Python emits event frames, not token deltas, and the chat front-end
+  renders each SSE frame as its own message bubble (`App.tsx` → `handleNewMessage`). Java retains
+  that granularity; single-agent server-tool invocations emit `role:"tool"` frames, then one final
+  answer frame. Client tool-call turns retain their existing `tool_call` frame.
 - Server-side tools run only when `ETCOP_TOOL.VALUE` has a CDI-discovered Java implementation;
   missing implementations still fall back to Python. Client-executed tools are also supported,
   see §6 below.
+- Single-agent Java requests pass `output_schema` as a LangChain4j JSON response format and attach
+  aggregate `input_tokens`, `output_tokens` and `total_tokens` usage metadata when providers report
+  token counts. Team supervisor and member calls contribute to the same usage totals, and the team
+  supervisor receives `output_schema` when configured. Provider-specific support depends on the
+  model implementation's JSON response-format support.
+- Java attachment paths are JVM-temp files and currently rely on `deleteOnExit`; no durable
+  attachment retention/cleanup policy is provided.
 - Tool implementations can read the immutable identity and defensive `extra_info` snapshot from
   `ToolExecutionContext`; no tool-specific context is exposed when the agent has no server tools.
 
