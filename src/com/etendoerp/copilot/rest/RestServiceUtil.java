@@ -222,7 +222,7 @@ public class RestServiceUtil {
   }
   private static boolean javaEngineConfigured() {
     String engine = OBPropertiesProvider.getInstance().getOpenbravoProperties().getProperty("copilot.engine", "python");
-    return "java".equalsIgnoreCase(engine) || "java-strict".equalsIgnoreCase(engine);
+    return "java".equalsIgnoreCase(engine);
   }
 
 
@@ -1037,6 +1037,11 @@ public class RestServiceUtil {
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_AppNotFound")));
     }
     // read the json sent
+    String engine = CopilotEngineSelector.configuredEngine();
+    if (StringUtils.equalsIgnoreCase(engine, CopilotEngineSelector.ENGINE_JAVA)) {
+      return com.etendoerp.copilot.engine.team.TeamGraphDescription.fromRequest(
+          buildTeamGraphImageRequest(copilotApp)).toPngBase64();
+    }
     HttpResponse<String> responseFromCopilot = null;
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     try {
@@ -1085,6 +1090,22 @@ public class RestServiceUtil {
     handleErrorMessagesIfExists(answer);
     return answer.getString(PROP_RESPONSE);
   }
+  private static JSONObject buildTeamGraphImageRequest(CopilotApp copilotApp) throws JSONException {
+    JSONObject request = new JSONObject().put(PROP_NAME, copilotApp.getName())
+        .put("display_name", copilotApp.getName());
+    JSONArray assistants = new JSONArray();
+    for (com.etendoerp.copilot.data.TeamMember teamMember : copilotApp.getETCOPTeamMemberList()) {
+      CopilotApp member = teamMember.getMember();
+      assistants.put(new JSONObject()
+          .put("name", member.getName().replaceAll("[^a-zA-Z0-9]", ""))
+          .put("display_name", member.getName())
+          .put("type", member.getAppType()));
+    }
+    request.put("assistants", assistants);
+    request.put(PROP_TOOLS, com.etendoerp.copilot.util.ToolsUtil.getToolSet(copilotApp));
+    return request;
+  }
+
 
   /**
    * Constructs a JSON object representing an error event in response to a request.

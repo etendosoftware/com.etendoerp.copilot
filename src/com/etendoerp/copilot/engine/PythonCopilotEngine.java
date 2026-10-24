@@ -39,9 +39,8 @@ public class PythonCopilotEngine implements CopilotEngine {
       CopilotApp app) throws IOException, JSONException {
     if (DEPRECATION_LOGGED.compareAndSet(false, true)) {
       log.warn("The Python Copilot engine (copilot.engine=python) is DEPRECATED and will be removed; "
-          + "set copilot.engine=java to run agents in-process. Agents the Java engine cannot serve yet "
-          + "keep falling back to Python and are listed by the 'Copilot engine: python ... (falling back' "
-          + "log lines.");
+          + "set copilot.engine=java to run agents in-process. In java mode there is no fallback to "
+          + "Python: requests the Java engine cannot serve fail with an explicit error.");
     }
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
     String copilotPort = readPropertyWithLegacyCompatibility(properties, "copilot.port", "5005");

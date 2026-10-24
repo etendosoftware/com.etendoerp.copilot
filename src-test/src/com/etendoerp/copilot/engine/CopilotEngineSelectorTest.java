@@ -250,6 +250,15 @@ public class CopilotEngineSelectorTest {
    * @throws JSONException
    *     when the payload cannot be built
    */
+  @Test
+  public void deprecatedAgentTypesAreRefusedByTheJavaEngine() {
+    assertTrue(CopilotEngineSelector.isRemovedAgentType("langchain"));
+    assertTrue(CopilotEngineSelector.isRemovedAgentType("openai-assistant"));
+    assertTrue(!CopilotEngineSelector.isRemovedAgentType("multimodel"));
+    assertTrue(!CopilotEngineSelector.isRemovedAgentType("langgraph"));
+    assertTrue(!CopilotEngineSelector.isRemovedAgentType(null));
+  }
+
   private JSONObject baseRequest(String appType) throws JSONException {
     JSONObject request = new JSONObject();
     request.put(RestServiceUtil.PROP_TYPE, appType);

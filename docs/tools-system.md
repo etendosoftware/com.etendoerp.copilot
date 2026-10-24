@@ -129,8 +129,8 @@ The token is null for a role without web services and must never be logged or re
 Tool failures become safe result messages, and the bounded server loop uses the same configured
 round limit as client-executed tools.
 
-An agent with a declared tool name that has no CDI implementation is routed to Python (or rejected
-in `java-strict`); the fallback reason names the missing `ETCOP_TOOL.VALUE`.
+An agent with a declared tool name that has no CDI implementation is rejected in `java` mode;
+the error names the missing `ETCOP_TOOL.VALUE`.
 
 
 ## 6. Client-executed tools (WebMCP)

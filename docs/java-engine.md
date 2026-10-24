@@ -29,15 +29,14 @@ The Java engine is a second executor of the very same payload.
 One property in `Openbravo.properties`:
 
 ```properties
-# python (default) | java | java-strict
+# python (default, deprecated) | java
 copilot.engine=java
 ```
 
 | Value | Behaviour |
 |---|---|
 | `python` | **Deprecated.** Always call the Python container. Identical to the behaviour before this feature existed; a one-time WARN is logged on first use. It will be removed once the Java engine is the default. |
-| `java` | Run in-process when the request is supported; otherwise log a warning and fall back to Python. |
-| `java-strict` | Run in-process always; raise an error instead of falling back. Use it to prove no request is silently reaching the container. |
+| `java` | Run in-process. There is **no fallback to Python**: a request the Java engine cannot serve fails with an error that names the reason, so whatever is not adapted yet is visible instead of silently reaching the container. (`java-strict` no longer exists; it was the same thing.) |
 
 Provider, model, endpoint, and credentials are resolved together from the selected
 `ETCOP_OPENAI_MODEL` row by `ProviderCredentials`. Link an `ETCOP_API_KEY` record to use
@@ -119,7 +118,7 @@ request without enabling debug logging:
 
 ```
 Copilot engine: java (LangChain4j) for agent 'Demo' (no Python container involved)
-Copilot engine: python for agent 'Bastian' (falling back, the agent has a knowledge base, ...)
+Copilot engine: java cannot serve agent 'Bastian': the agent declares a tool that has no Java implementation: ...
 ```
 
 A fallback is always logged at WARN, because it is a degradation rather than routine.
@@ -129,13 +128,14 @@ A fallback is always logged at WARN, because it is a degradation rather than rou
 `CopilotEngineSelector.unsupportedReason` is the single place that decides. A request is served
 in Java only when **all** of these hold:
 
-- the agent type is `langchain`, `multimodel`, or `langgraph`; `openai-assistant` is not
-  implemented as a Java agent type. The Python `/assistant` route also rejects the legacy
-  Assistants flow, and Python's team graph explicitly rejects `openai-assistant` members.
+- the agent type is `multimodel` or `langgraph`. `langchain` and `openai-assistant` are deprecated in the
+  Application Dictionary (list entries "(Deprecated)") and are NOT supported by the Java engine in either `java`
+  mode: the request fails with a message asking to change the agent to Multimodel. In the Python runtime `langchain` was identical to `multimodel`; migrating an
+  agent is just changing its type and selecting its model. `copilot.engine=python` still serves them.
 - each `langgraph` team member must be `langchain` or `multimodel`; other member types have no
   Java member runner.
 - every server-side tool in `tools` has a registered Java `ServerTool` implementation. A missing
-  implementation falls back to Python (or fails in `java-strict`) rather than silently dropping
+  implementation fails the request (naming the tool) rather than silently dropping
   a declared capability. Browser WebMCP tools are separate and supported, see §6.
 - `specs[]` are parsed per question into immutable OpenAPI operation descriptors and request-scoped
   `ServerTool` instances. The registry appends these supplementary tools directly; they do not need
@@ -164,8 +164,8 @@ are qualified with the configured server name. Configured remote credentials are
 MCP connection; the Etendo SWS token is not forwarded. The inbound MCP servlet is a separate
 surface.
 
-An agent with missing Java tool implementations falls back to Python (or fails, in `java-strict`),
-and the warning names the missing `ETCOP_TOOL.VALUE` values. This keeps capability loss explicit.
+An agent with missing Java tool implementations fails the request,
+and the error names the missing `ETCOP_TOOL.VALUE` values. This keeps capability loss explicit.
 Agents with Java implementations execute their tools in the server loop described in §6.
 
 Team graphs run an in-process, bounded supervisor loop. The supervisor and each member can use
@@ -179,7 +179,16 @@ in a bounded in-process cache (up to 64 conversations, 16 members per team, and 
 These checkpoints are not compatible with Python's SQLite files and are lost on Tomcat restart.
 `openai-assistant` team members remain unsupported because the Python graph runtime explicitly rejects them.
 
-The Java selector falls back to Python for unsupported agent/member types, missing Java
+The **Sync LangGraph Image** process is also supported in `java` mode. It
+builds the same start → supervisor → member → supervisor / end topology from the team request and
+renders a deterministic PNG with Java2D in the Etendo process; it does not call Mermaid Ink or
+another external renderer. The supervisor is highlighted and long member labels wrap. Teams with
+1–30 members are supported. As in Python, a graph image requires a team with at least one member;
+the Java path reports a clear error for a non-team request. `python` mode continues to use the
+existing `/graph` route and LangGraph Mermaid PNG renderer. This image path is only used by the
+explicit graph-image process; normal Java chat requests do not render diagrams.
+
+The Java selector rejects (it never falls back to Python) unsupported agent/member types, missing Java
 implementations for declared server tools, or CodeAct. OpenAPI operations are generated at request
 time; ordinary fixed-entity contracts execute in-process and RX-specific/other operations use
 authenticated `EtendoHttp` loopback, as described above. CodeAct's Python execution is intentionally
@@ -197,7 +206,7 @@ not for the product.**
   that granularity; single-agent server-tool invocations emit `role:"tool"` frames, then one final
   answer frame. Client tool-call turns retain their existing `tool_call` frame.
 - Server-side tools run only when `ETCOP_TOOL.VALUE` has a CDI-discovered Java implementation;
-  missing implementations still fall back to Python. Client-executed tools are also supported,
+  missing implementations fail the request. Client-executed tools are also supported,
   see §6 below.
 - Single-agent Java requests pass `output_schema` as a LangChain4j JSON response format and attach
   aggregate `input_tokens`, `output_tokens` and `total_tokens` usage metadata when providers report

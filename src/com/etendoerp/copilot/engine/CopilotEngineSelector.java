@@ -22,10 +22,9 @@ import com.etendoerp.copilot.util.CopilotConstants;
  * The choice is made by the {@code copilot.engine} property in {@code Openbravo.properties}:
  * <ul>
  *   <li>{@code python} (default) — always delegate to the Python container.</li>
- *   <li>{@code java} — run in-process with LangChain4j when the request is supported,
- *       otherwise fall back to Python and log why.</li>
- *   <li>{@code java-strict} — run in-process always; fail loudly instead of falling back.
- *       Use this to prove that no request is silently reaching the Python container.</li>
+ *   <li>{@code java} — run in-process with LangChain4j. There is NO fallback to Python: a request
+ *       the Java engine cannot serve fails with a message that says why, so whatever is not
+ *       adapted yet is visible instead of silently reaching the Python container.</li>
  * </ul>
  * The Java engine supports langchain/multimodel agents, in-process team graphs, registered server
  * tools, client-side WebMCP tools, configured MCP servers, and Java-backed knowledge-base retrieval.
@@ -38,7 +37,6 @@ public class CopilotEngineSelector {
   public static final String PROPERTY_ENGINE = "copilot.engine";
   public static final String ENGINE_PYTHON = "python";
   public static final String ENGINE_JAVA = "java";
-  public static final String ENGINE_JAVA_STRICT = "java-strict";
 
   private CopilotEngineSelector() {
   }
@@ -52,7 +50,7 @@ public class CopilotEngineSelector {
    *     the agent serving the request
    * @return the engine to use; never {@code null}
    * @throws OBException
-   *     in {@code java-strict} mode when the request cannot be served in Java
+   *     in {@code java} mode when the request cannot be served in Java
    */
   public static CopilotEngine get(JSONObject request, CopilotApp app) {
     String configured = configuredEngine();
@@ -63,22 +61,24 @@ public class CopilotEngineSelector {
       return new PythonCopilotEngine();
     }
 
+    String removedType = request.optString(RestServiceUtil.PROP_TYPE, null);
+    if (isRemovedAgentType(removedType)) {
+      throw new OBException(String.format(
+          "Agent '%s' has the type '%s', which the Java Copilot engine does not support (it is "
+              + "deprecated). Change the agent's type to Multimodel and select its model in the "
+              + "Agents window.", app.getName(), removedType));
+    }
+
     String reason = unsupportedReason(request, app);
     if (reason == null) {
       logSelection(configured, app, "java (LangChain4j)", "no Python container involved");
       return new LangChain4jEngine();
     }
 
-    if (StringUtils.equalsIgnoreCase(configured, ENGINE_JAVA_STRICT)) {
-      throw new OBException(
-          String.format("The Java Copilot engine cannot serve this request: %s. Set %s=%s to allow "
-              + "falling back to the Python container.", reason, PROPERTY_ENGINE, ENGINE_JAVA));
-    }
-
-    warnIfClientToolsWillBeIgnored(request, app);
-    // A fallback is a degradation, not routine: always warn, whatever the configured engine is.
-    log.warn("Copilot engine: python for agent '{}' (falling back, {})", app.getName(), reason);
-    return new PythonCopilotEngine();
+    log.error("Copilot engine: java cannot serve agent '{}': {}", app.getName(), reason);
+    throw new OBException(
+        String.format("The Java Copilot engine cannot serve this request: %s. Set %s=%s to use the "
+            + "deprecated Python runtime for it.", reason, PROPERTY_ENGINE, ENGINE_PYTHON));
   }
 
   /**
@@ -205,5 +205,19 @@ public class CopilotEngineSelector {
 
   private static boolean hasEntries(JSONArray array) {
     return array != null && array.length() > 0;
+  }
+
+  /**
+   * Agent types that are deprecated in the Application Dictionary and have no Java implementation:
+   * {@code langchain} (identical to {@code multimodel} in the Python runtime) and
+   * {@code openai-assistant} (OpenAI Assistants API).
+   *
+   * @param type
+   *     the agent type of the request
+   * @return true when the Java engine refuses the type
+   */
+  static boolean isRemovedAgentType(String type) {
+    return StringUtils.equalsIgnoreCase(type, CopilotConstants.APP_TYPE_LANGCHAIN)
+        || StringUtils.equalsIgnoreCase(type, CopilotConstants.APP_TYPE_OPENAI);
   }
 }

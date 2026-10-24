@@ -33,8 +33,8 @@ such improvement in the PR description.
 `code_execution` (CodeAct agents, `code_evaluators.py`, the Riza/evaluator path) is NOT migrated. It was a
 proof of concept that did not take off. Consequences to implement:
 
-- Add `code_execution` to `CopilotEngineSelector.unsupportedReason`, so a CodeAct agent falls back to
-  Python (or fails in `java-strict`) instead of being silently served as a plain agent.
+- Add `code_execution` to `CopilotEngineSelector.unsupportedReason`, so a CodeAct agent is rejected in `java` mode
+  (it never falls back to Python) instead of being silently served as a plain agent.
 - Drop it from the "to migrate" list; when Python is removed, CodeAct is removed with it.
 
 ## Known bugs in the current branch

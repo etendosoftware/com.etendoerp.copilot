@@ -63,8 +63,7 @@ front-end change and doubles an already hand-rolled routing if-chain in `RestSer
 
 ```properties
 copilot.engine=python      # default, unchanged behaviour
-copilot.engine=java        # in-process when supported, fall back to Python otherwise
-copilot.engine=java-strict # in-process always, fail instead of falling back
+copilot.engine=java        # in-process always; unsupported requests fail (no fallback to Python)
 ```
 
 A per-agent AD column was considered and rejected for this iteration: a property needs no

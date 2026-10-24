@@ -135,7 +135,7 @@ public class CopilotUtils {
       engine = readPropertyWithLegacyCompatibility(
           OBPropertiesProvider.getInstance().getOpenbravoProperties(), "copilot.engine", "python");
     }
-    return "java".equalsIgnoreCase(engine) || "java-strict".equalsIgnoreCase(engine);
+    return "java".equalsIgnoreCase(engine);
   }
 
   /**
