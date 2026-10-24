@@ -154,10 +154,11 @@ public class FileUtils {
   }
 
   /**
-   * Sends a binary file to the vector database for indexing.
+   * Delegates file indexing to the configured Copilot engine.
    *
    * @param fileFromCopilotFile The file to be indexed.
    * @param dbName The name of the vector database.
+   * @param sourceId The app-source identity used by Java indexing.
    * @param extension The file extension.
    * @param skipSplitting Whether to skip splitting the file into chunks.
    * @param maxChunkSize The maximum size of each chunk.
@@ -165,10 +166,10 @@ public class FileUtils {
    * @param clientId The client ID associated with the operation.
    * @throws JSONException If an error occurs while processing JSON data.
    */
-  static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName, String extension, boolean skipSplitting,
-      Long maxChunkSize, Long chunkOverlap, String clientId) throws JSONException {
-    CopilotUtils.toVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap,
-        clientId);
+  static void binaryFileToVectorDB(File fileFromCopilotFile, String dbName, String sourceId, String extension,
+      boolean skipSplitting, Long maxChunkSize, Long chunkOverlap, String clientId) throws JSONException {
+    CopilotUtils.toVectorDB(fileFromCopilotFile, dbName, sourceId, extension, skipSplitting, maxChunkSize,
+        chunkOverlap, clientId);
   }
 
   /**

@@ -514,19 +514,18 @@ public class GetMCPConfiguration extends Action {
    * @return the resolved MCP base URL (including port when applicable).
    */
   public String getContextUrlMCP(String customContextUrl) {
-    if (StringUtils.isNotBlank(customContextUrl)) {
-      return customContextUrl;
+    if (!CopilotUtils.isJavaEngine()) {
+      if (StringUtils.isNotBlank(customContextUrl)) return customContextUrl;
+      var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+      String contextUrl = properties.getProperty("context.url.copilot.mcp", null);
+      if (StringUtils.isNotBlank(contextUrl)) return contextUrl;
+      String mcpPort = properties.getProperty("copilot.port.mcp", "5006");
+      return LOCALHOST_PREFIX + ":" + mcpPort;
     }
     var properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String contextUrl = properties.getProperty("context.url.copilot.mcp", null);
-    if (StringUtils.isNotBlank(contextUrl)) {
-      //we have context url for MCP, so must return it
-      return contextUrl;
-    }
-    //fallback using standard context.url and MCP port(COPILOT_PORT_MCP)
-    String mcpPort = properties.getProperty("copilot.port.mcp", "5006");
-    //fallback using localhost and MCP port(COPILOT_PORT_MCP)
-    return LOCALHOST_PREFIX + ":" + mcpPort;
+    String origin = StringUtils.defaultIfBlank(customContextUrl, properties.getProperty("context.url.copilot.mcp"));
+    if (StringUtils.isBlank(origin)) origin = properties.getProperty("context.url", LOCALHOST_PREFIX);
+    return StringUtils.removeEnd(origin.trim(), "/") + "/sws/copilot";
   }
 
   /**
@@ -580,13 +579,14 @@ public class GetMCPConfiguration extends Action {
     JSONObject config = new JSONObject();
 
     // Build URL depending on "direct" (shared)
-    String url = req.contextUrlMcp + "/" + req.agentId;
+    String url = CopilotUtils.isJavaEngine()
+        ? StringUtils.removeEnd(req.contextUrlMcp, "/") + "/mcp/" + req.agentId
+        : StringUtils.removeEnd(req.contextUrlMcp, "/") + "/" + req.agentId;
     if (req.direct) {
       url += "/direct/mcp";
     } else {
       url += "/mcp";
     }
-
     // Determine key and display name using customName and prefixMode rules
     String key;
     String displayName;

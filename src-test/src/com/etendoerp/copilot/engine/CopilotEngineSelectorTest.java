@@ -39,10 +39,9 @@ import com.etendoerp.copilot.util.CopilotConstants;
 /**
  * Unit tests for {@link CopilotEngineSelector#unsupportedReason(JSONObject, CopilotApp)}.
  * <p>
- * The rule under test keeps the Java engine from silently dropping a capability it does not yet
- * implement: a declared tool without a Java implementation, specs, MCP servers, a knowledge base
- * or an agent type only the Python runtime understands must be reported as unsupported so the
- * selector falls back to Python.
+ * The Java engine must report capabilities that it cannot run so the selector falls back to
+ * Python. Those capabilities include declared tools without Java implementations, CodeAct, and
+ * agent types only the Python runtime understands; FLOW specs are generated per request in Java.
  */
 public class CopilotEngineSelectorTest {
 
@@ -81,19 +80,32 @@ public class CopilotEngineSelectorTest {
   }
 
   /**
-   * Team graphs only exist in the Python runtime.
-   *
-   * @throws JSONException
-   *     when the payload cannot be built
+   * Langgraph teams are supported when their members use Java-backed model agents.
    */
   @Test
-  public void langgraphAgentIsNotSupported() throws JSONException {
+  public void langgraphTeamWithModelMemberIsSupported() throws JSONException {
     JSONObject request = baseRequest(CopilotConstants.APP_TYPE_LANGGRAPH);
+    request.put("assistants", new JSONArray().put(new JSONObject()
+        .put("name", "Researcher").put("type", CopilotConstants.APP_TYPE_LANGCHAIN)));
 
-    String reason = CopilotEngineSelector.unsupportedReason(request, app);
+    assertNull(CopilotEngineSelector.unsupportedReason(request, app));
+  }
+  @Test
+  public void flowSpecsAreSupportedByRequestScopedTools() throws JSONException {
+    JSONObject request = baseRequest(CopilotConstants.APP_TYPE_LANGCHAIN);
+    request.put("specs", new JSONArray().put(new JSONObject().put("name", "sample")
+        .put("type", "FLOW").put("spec", "{\"paths\":{}}")));
 
-    assertNotNull(reason);
-    assertTrue(reason.contains(CopilotConstants.APP_TYPE_LANGGRAPH));
+    assertNull(CopilotEngineSelector.unsupportedReason(request, app));
+  }
+
+  @Test
+  public void openaiAssistantTeamMemberRemainsUnsupported() throws JSONException {
+    JSONObject request = baseRequest(CopilotConstants.APP_TYPE_LANGGRAPH);
+    request.put("assistants", new JSONArray().put(new JSONObject()
+        .put("name", "Remote").put("type", CopilotConstants.APP_TYPE_OPENAI)));
+
+    assertTrue(CopilotEngineSelector.unsupportedReason(request, app).contains("openai-assistant"));
   }
 
   /**
@@ -177,21 +189,25 @@ public class CopilotEngineSelectorTest {
     assertNull(CopilotEngineSelector.unsupportedReason(request, app));
   }
 
-  /**
-   * MCP servers need a client the Java engine does not wire yet.
-   *
-   * @throws JSONException
-   *     when the payload cannot be built
-   */
+  /** MCP servers are request-scoped Java client tools. */
   @Test
-  public void agentWithMcpServersIsNotSupported() throws JSONException {
+  public void agentWithMcpServersIsSupported() throws JSONException {
     JSONObject request = baseRequest(CopilotConstants.APP_TYPE_LANGCHAIN);
     request.put("mcp_servers", new JSONArray().put(new JSONObject().put("name", "files")));
 
-    String reason = CopilotEngineSelector.unsupportedReason(request, app);
+    assertNull(CopilotEngineSelector.unsupportedReason(request, app));
+  }
 
-    assertNotNull(reason);
-    assertTrue(reason.contains("MCP"));
+  @Test
+  public void teamAndMemberMcpServersAreSupported() throws JSONException {
+    JSONObject member = new JSONObject().put("name", "researcher")
+        .put("type", CopilotConstants.APP_TYPE_LANGCHAIN)
+        .put("mcp_servers", new JSONArray().put(new JSONObject().put("name", "member-files")));
+    JSONObject request = baseRequest(CopilotConstants.APP_TYPE_LANGGRAPH)
+        .put("assistants", new JSONArray().put(member))
+        .put("mcp_servers", new JSONArray().put(new JSONObject().put("name", "supervisor-files")));
+
+    assertNull(CopilotEngineSelector.unsupportedReason(request, app));
   }
 
   /**

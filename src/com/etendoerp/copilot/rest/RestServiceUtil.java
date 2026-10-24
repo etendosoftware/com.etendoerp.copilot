@@ -118,7 +118,7 @@ public class RestServiceUtil {
   public static final String PROP_AD_CLIENT_ID = "ad_client_id";
   public static final String ETCOP_COPILOT_ERROR = "ETCOP_CopilotError";
   public static final String METADATA = "metadata";
-  public static final String PROP_OUTPUT_SCHEMA = "output_schema";
+  public static final String PROP_OUTPUT_SCHEMA = "structured_output_json_schema";
 
   /**
    * Private constructor to prevent instantiation of utility class.

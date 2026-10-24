@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.codehaus.jettison.json.JSONObject;
+import org.codehaus.jettison.json.JSONArray;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import org.junit.After;
@@ -204,6 +205,19 @@ public class CopilotSyncStartupTest extends WeldBaseTest {
     verify(obDal, times(2)).get(CopilotApp.class, APP_ID_1);
     mockedUtils.verify(() -> CopilotAppInfoUtils.markAsSynchronized(copilotApp));
     verify(obDal, times(2)).flush();
+    verify(obDal).commitAndClose();
+  }
+  @Test
+  public void testInitialize_KbSyncErrorLeavesOnlyFailedAgentPending() throws Exception {
+    setupPendingApp();
+    JSONObject error = new JSONObject().put("agentId", APP_ID_1)
+        .put("message", "Knowledge-base sync failed: pgvector not available.");
+    when(syncAssistant.doExecute(any(), anyString()))
+        .thenReturn(new JSONObject().put("syncErrors", new JSONArray().put(error)));
+
+    startup.initialize();
+
+    mockedUtils.verify(() -> CopilotAppInfoUtils.markAsSynchronized(copilotApp), never());
     verify(obDal).commitAndClose();
   }
 

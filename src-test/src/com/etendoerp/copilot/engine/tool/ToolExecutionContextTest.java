@@ -96,6 +96,30 @@ public class ToolExecutionContextTest {
   }
 
   @Test
+  public void workspaceIdentityIsProtectedOnlyDuringToolExecution() throws Exception {
+    ToolExecutionContext context = new ToolExecutionContext("user-1", "role-1", "client-1",
+        "org-1", null, "en_US", "agent-1", "conversation-1", false, new JSONObject(),
+        new ToolExecutionContext.Binding() {
+          @Override
+          public void bind(ToolExecutionContext ignored) {
+          }
+
+          @Override
+          public void finish(boolean success) {
+          }
+        });
+
+    assertFalse(ToolExecutionContext.isWorkspaceActive("client-1", "user-1", "conversation-1"));
+    context.call(Duration.ofSeconds(5), () -> {
+      assertTrue(ToolExecutionContext.isWorkspaceActive("client-1", "user-1", "conversation-1"));
+      assertTrue(ToolExecutionContext.isConversationActive("conversation-1"));
+      return null;
+    });
+    assertFalse(ToolExecutionContext.isWorkspaceActive("client-1", "user-1", "conversation-1"));
+    assertFalse(ToolExecutionContext.isConversationActive("conversation-1"));
+  }
+
+  @Test
   public void timeoutInterruptsTheWorkerAndRollsBackEvenIfTheBodyReturns() throws Exception {
     AtomicInteger rollbacks = new AtomicInteger();
     CountDownLatch started = new CountDownLatch(1);

@@ -64,6 +64,23 @@ public class ServerToolRegistryTest {
     assertTrue(resolved.specifications().get(0).parameters().properties().containsKey("original"));
   }
 
+  @Test
+  public void addsKnowledgeBaseSearchOnlyWhenRequested() {
+    ServerTool kb = new ServerTool() {
+      @Override public String name() { return "KnowledgeBaseSearch"; }
+      @Override public ToolSpecification specification() {
+        return ToolSpecification.builder().name(name()).parameters(JsonObjectSchema.builder().build()).build();
+      }
+      @Override public String execute(JSONObject arguments, ToolExecutionContext context) { return ""; }
+    };
+    ServerToolRegistry registry = new ServerToolRegistry(name -> "KnowledgeBaseSearch".equals(name) ? kb : null);
+    JSONObject request = new JSONObject();
+    assertFalse(registry.resolve(request).hasTools());
+    ServerToolRegistry.ResolvedTools withKb = registry.resolve(request, true);
+    assertTrue(withKb.hasTools());
+    assertEquals("KnowledgeBaseSearch", withKb.specifications().get(0).name());
+  }
+
   private ServerTool testTool() {
     JsonObjectSchema parameters = JsonObjectSchema.builder()
         .addProperty("original", JsonRawSchema.from("{\"type\":\"string\"}"))

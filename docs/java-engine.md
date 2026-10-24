@@ -51,6 +51,12 @@ model name:
    refuses to build without one.
 3. Otherwise each provider uses its **native** client.
 
+Knowledge-base embeddings use the same OpenAI-compatible endpoint and proxy key fallback as the
+chat model. Set `copilot.embedding.model` to override the default `text-embedding-3-small`.
+When a proxy is configured, the model is sent as `openai/<model>`. Run `update.database` after
+installing pgvector to provision the KB table/indexes; runtime requests never perform DDL and
+report a clear error when pgvector or the provisioned table is missing.
+
 ```properties
 copilot.proxy.url=https://llm.etendo.software   # gateway; enables proxy mode for every provider
 openai.api.key=sk-...
@@ -66,6 +72,9 @@ copilot.engine.java.timeout.seconds=120
 
 # Client and server tool rounds allowed per question. Default 25.
 copilot.engine.java.max.tool.rounds=25
+
+# Stream team orchestration debug events (default false).
+copilot.stream.debug=false
 ```
 
 The provider and model come from `ETCOP_MODEL`, resolved by `CopilotModelUtils`, and the
@@ -123,23 +132,62 @@ A fallback is always logged at WARN, because it is a degradation rather than rou
 `CopilotEngineSelector.unsupportedReason` is the single place that decides. A request is served
 in Java only when **all** of these hold:
 
-- the agent type is `langchain` or `multimodel`
-- every server-side tool in `tools` has a registered Java `ServerTool` implementation (client
-  WebMCP tools are a separate field and are supported, see §6)
-- the payload declares no OpenAPI `specs`
-- the payload declares no `mcp_servers`
-- the agent has no knowledge-base app source
-- the payload does not request code execution (`code_execution`, CodeAct); CodeAct is not
-  migrated and stays Python-only
+- the agent type is `langchain`, `multimodel`, or `langgraph`; `openai-assistant` is not
+  implemented as a Java agent type. The Python `/assistant` route also rejects the legacy
+  Assistants flow, and Python's team graph explicitly rejects `openai-assistant` members.
+- each `langgraph` team member must be `langchain` or `multimodel`; other member types have no
+  Java member runner.
+- every server-side tool in `tools` has a registered Java `ServerTool` implementation. A missing
+  implementation falls back to Python (or fails in `java-strict`) rather than silently dropping
+  a declared capability. Browser WebMCP tools are separate and supported, see §6.
+- `specs[]` are parsed per question into immutable OpenAPI operation descriptors and request-scoped
+  `ServerTool` instances. The registry appends these supplementary tools directly; they do not need
+  CDI beans or durable registrations. Operation names, descriptions and argument schemas follow the
+  Python generator's FLOW naming/parameter rules.
+  Only a fixed-entity RX read with descriptor-declared entity/field allowlists, local Etendo server,
+  and simple projection/sort/paging arguments uses core `DefaultJsonDataService.fetch` under the
+  caller's non-admin `OBContext`. RX-specific reads and writes use `EtendoHttp` loopback. Generic
+  JSON add/update currently also enters cross-org-reference admin mode, while remove commits
+  internally, so writes remain loopback to preserve the caller-context/security contract. Each
+  operation logs its classification and reason; unknown operations remain loopback.
+- the payload and each team member may declare `mcp_servers`. These become request-scoped
+  LangChain4j MCP tools over stdio or Streamable HTTP.
+- the payload does not request code execution (`code_execution`, CodeAct). CodeAct runs Python
+  code and is deliberately not executed inside the Etendo JVM.
+- agents with KB sources receive the implicit `KnowledgeBaseSearch` tool. It uses the Java
+  pgvector index; missing pgvector or an unprovisioned table produces a clear runtime error.
+
+MCP clients are opened for each question and closed when the engine finishes. Disabled servers
+are ignored; missing transport defaults to stdio as in Python. Unsupported transports or
+configurations produce no MCP tools for that question and are logged. Remote tool-name collisions
+are qualified with the configured server name. Configured remote credentials are used only for the
+MCP connection; the Etendo SWS token is not forwarded. The inbound MCP servlet is a separate
+surface.
 
 An agent with missing Java tool implementations falls back to Python (or fails, in `java-strict`),
 and the warning names the missing `ETCOP_TOOL.VALUE` values. This keeps capability loss explicit.
 Agents with Java implementations execute their tools in the server loop described in §6.
 
-Consequently the Python container is still required for: team graphs (`langgraph`), the OpenAI
-Assistants app type, tools without Java implementations, knowledge bases / RAG, MCP servers,
-transcription, file processing and the code interpreter. **Docker disappears only as the runtime
-for supported Java-engine requests, not for the product.**
+Team graphs run an in-process, bounded supervisor loop. The supervisor and each member can use
+their own declared Java server tools and request-scoped MCP tools; member tools execute through
+the same user-context boundary. The supervisor is capped at 100 iterations and each member uses
+the configured tool-round cap (default 25; `copilot.engine.java.max.tool.rounds`).
+Team task state is attached to the current `ToolExecutionContext` under a private versioned key, so it is
+isolated to that user's request and is not persisted across requests.
+Member histories replay ETCOP_MESSAGE `USER`/`ASSISTANT` entries and retain member-specific messages
+in a bounded in-process cache (up to 64 conversations, 16 members per team, and 16 KiB/member).
+These checkpoints are not compatible with Python's SQLite files and are lost on Tomcat restart.
+`openai-assistant` team members remain unsupported because the Python graph runtime explicitly rejects them.
+
+The Java selector falls back to Python for unsupported agent/member types, missing Java
+implementations for declared server tools, or CodeAct. OpenAPI operations are generated at request
+time; ordinary fixed-entity contracts execute in-process and RX-specific/other operations use
+authenticated `EtendoHttp` loopback, as described above. CodeAct's Python execution is intentionally
+not run in the Etendo JVM. An unavailable MCP server does not trigger a whole-request fallback: its
+loader logs the failure and exposes no tools from that server. The Python container is still needed
+for the OpenAI Assistants app type, tools without Java implementations, transcription, file
+processing and the code interpreter. **Docker disappears only as the runtime for supported
+Java-engine requests, not for the product.**
 
 ## 5. Deliberate limitations of this version
 
@@ -284,18 +332,24 @@ authorization here**: an argument dictated by the content of a record the model 
 the user's rights. Anything that mutates data needs confirm-by-click, and navigation should be
 re-checked against the real `OBContext`. See `docs/plans/2026-09-03-ui-tools.md` §11.
 
-## 7. Known classpath conflict — read before the first build
+## 6.1. Inbound MCP servlet
 
-LangChain4j 1.19.0 requires `jackson-databind` **2.22.1**. Etendo already deploys
-`jackson-databind` **2.13.2.2** in `WebContent/WEB-INF/lib`. Both jars land there and Tomcat
-loads them in filename order, so 2.13 wins and LangChain4j fails at runtime with
-`NoSuchMethodError` / `NoClassDefFoundError` under `com.fasterxml.jackson`.
+`CopilotMcpServlet` is registered at `/sws/copilot/mcp/*`. Generated URLs now use
+`/sws/copilot/mcp/{agentId}/mcp` and `/sws/copilot/mcp/{agentId}/direct/mcp`; this replaces the
+Python listener's separate-port URLs. The servlet is synchronous, stateless Streamable HTTP at
+protocol version `2025-03-26`: it handles initialize, ping, tool listing/calls and notifications,
+does not assign session IDs or provide SSE, and authenticates the SWS identity for each request.
+Role-to-agent assignment is checked on every request; tool calls run through the Java tool context.
+See [MCP_SETUP.md](MCP_SETUP.md) for supported modes, auth and the exact external URL migration.
 
-The real fix — bumping the platform's Jackson — is outside this module. Until then either
-remove the stale 2.13.x jars from `WebContent/WEB-INF/lib` after a build, or enable the
-`resolutionStrategy.force` block already written (commented) in `build.gradle`.
+## 7. Dependency compatibility
 
-`slf4j-api` 2.0.18 vs the deployed 2.0.17 and `jspecify` 1.0.0 are compatible and need nothing.
+The Java runtime uses LangChain4j **1.19.3** and the published MCP integration
+**1.19.3-beta29** artifact (whose POM depends on LangChain4j 1.19.3). MCP depends on
+Jackson 2.22.1. The integrated build deployed the matching Jackson 2.22.1 jars; no older
+Jackson copies or duplicate Log4j versions were present in `WebContent/WEB-INF/lib`.
+Newly added dependencies exclude Log4j because Etendo supplies the runtime Log4j jars.
+Recheck the deployed library directory if these dependency versions change.
 
 ## 8. Testing
 

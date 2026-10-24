@@ -10,7 +10,7 @@ group          = "com.etendoerp"
 version        = "3.3.0"
 description    = "Etendo Copilot Platform"
 ext.artifact   = "copilot"
-ext.langchain4jVersion = "1.19.0"
+ext.langchain4jVersion = "1.19.3"
 ext.repository = "https://maven.pkg.github.com/etendosoftware/com.etendoerp.copilot.extensions"
 
 configurations {
@@ -67,27 +67,20 @@ dependencies {
      * Only needed to run an agent inside Tomcat without the Python container; the Python
      * engine keeps working untouched when these jars are present.
      *
-     * KNOWN CLASSPATH CONFLICT - read before the first build.
-     * LangChain4j 1.19.0 requires jackson-databind 2.22.1, while Etendo already deploys
-     * jackson-databind 2.13.2.2 in WebContent/WEB-INF/lib. Both jars end up there and Tomcat
-     * loads them in filename order, so 2.13 wins and LangChain4j fails at runtime with
-     * NoSuchMethodError / NoClassDefFoundError under com.fasterxml.jackson.
-     *
-     * The fix belongs to the platform (bumping core's Jackson), which is outside this module.
-     * Until then, delete the stale jackson-databind/core/annotations 2.13.x jars from
-     * WebContent/WEB-INF/lib after a build, or enable the resolutionStrategy.force block below.
-     *
-     * configurations.all {
-     *     resolutionStrategy.force 'com.fasterxml.jackson.core:jackson-databind:2.22.1',
-     *                              'com.fasterxml.jackson.core:jackson-core:2.22.1',
-     *                              'com.fasterxml.jackson.core:jackson-annotations:2.22'
-     * }
+     * LangChain4j is aligned at 1.19.3. The published MCP integration uses the
+     * matching 1.19.3-beta29 artifact version and depends on the same LangChain4j core.
+     * Its Jackson requirement is 2.22.1; keep the application's Jackson jars aligned
+     * with the resolved dependency graph. Newly introduced dependencies exclude Log4j
+     * because Etendo supplies its own runtime Log4j jars.
      */
     implementation("dev.langchain4j:langchain4j:${langchain4jVersion}")
     implementation("dev.langchain4j:langchain4j-open-ai:${langchain4jVersion}")
     implementation("dev.langchain4j:langchain4j-anthropic:${langchain4jVersion}")
     implementation("dev.langchain4j:langchain4j-google-ai-gemini:${langchain4jVersion}")
     implementation("dev.langchain4j:langchain4j-ollama:${langchain4jVersion}")
+    implementation("dev.langchain4j:langchain4j-mcp:1.19.3-beta29") {
+        exclude group: 'org.apache.logging.log4j'
+    }
     implementation('org.apache.pdfbox:pdfbox:3.0.5') {
         exclude group: 'org.apache.logging.log4j'
     }

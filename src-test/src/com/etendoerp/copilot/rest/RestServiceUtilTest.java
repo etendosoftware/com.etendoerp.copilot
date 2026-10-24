@@ -370,17 +370,18 @@ class RestServiceUtilTest {
 
   @Test
   void testDetermineEndpoint() {
-    // Use a simple stub for CopilotApp
-    class TestCopilotApp extends CopilotApp {
-      @Override
-      public String getAppType() {
-        return CopilotConstants.APP_TYPE_OPENAI;
-      }
+    CopilotApp copilotApp = Mockito.mock(CopilotApp.class);
+    try (org.mockito.MockedStatic<CopilotUtils> copilotUtils = Mockito.mockStatic(CopilotUtils.class,
+        Mockito.CALLS_REAL_METHODS)) {
+      copilotUtils.when(() -> CopilotUtils.checkIfGraphQuestion(copilotApp)).thenReturn(false);
+      Assertions.assertEquals(RestServiceUtil.QUESTION, RestServiceUtil.determineEndpoint(false, copilotApp));
+      Assertions.assertEquals(RestServiceUtil.AQUESTION, RestServiceUtil.determineEndpoint(true, copilotApp));
+
+      copilotUtils.when(() -> CopilotUtils.checkIfGraphQuestion(copilotApp)).thenReturn(true);
+      Assertions.assertEquals(RestServiceUtil.GRAPH, RestServiceUtil.determineEndpoint(false, copilotApp));
+      Assertions.assertEquals(RestServiceUtil.AGRAPH, RestServiceUtil.determineEndpoint(true, copilotApp));
     }
-    CopilotApp copilotApp = new TestCopilotApp();
-    // For static method, just test both branches
-    Assertions.assertEquals(RestServiceUtil.QUESTION, RestServiceUtil.determineEndpoint(false, copilotApp));
-    Assertions.assertEquals(RestServiceUtil.AQUESTION, RestServiceUtil.determineEndpoint(true, copilotApp));
+
   }
 
   @Test

@@ -22,7 +22,7 @@ such improvement in the PR description.
 
 | # | Topic | Decision |
 |---|---|---|
-| 1 | RX datasource endpoints (`/sws/com.etendoerp.etendorx.datasource/*`) and OpenAPI/FLOW tools | Loopback HTTP with a token minted per call, inside Java only. May move to DAL later, tool by tool. |
+| 1 | RX datasource endpoints (`/sws/com.etendoerp.etendorx.datasource/*`) and OpenAPI/FLOW tools | Parse each FLOW operation at question time; run only fixed-entity plain reads through core JSON service in the caller's non-admin `OBContext`. Keep RX-specific, all writes, and non-entity operations on explicit, classified `EtendoHttp` loopback because core add/update elevates cross-org reference mode and remove commits internally. Never depend on `com.etendoerp.go`. |
 | 2 | Python dynamic MCP server | Rewrite in Java inside this module, using GO as a design reference only. |
 | 3 | `isWebServiceEnabled` gate | Kept only for tools that go over HTTP. In-process tools run with the asking user's role and no such gate. |
 | 4 | Tools acting on another Etendo instance (login with credentials, `remote_host`) | Rewrite in Java as HTTP tools. |
@@ -45,18 +45,22 @@ proof of concept that did not take off. Consequences to implement:
 
 ## Implementation order
 
-1. Fix the two bugs above.
+1. Bugs and selector behavior:
+   - [ ] Align the structured-output payload field with Python's `output_schema`.
+   - [x] Reject `code_execution` in the Java selector instead of silently ignoring CodeAct.
 2. Server-side tool foundation:
    - [x] Add `ToolExecutionContext`, the CDI-backed Java registry, and the bounded server-tool loop
      with shared client/server round limits and context isolation.
    - [x] Add initial concrete tool implementations (`ReadFileTool`, `WriteFileTool`, `APICallTool`).
-3. Rest of the toolpack, by priority (see the tools inventory).
-4. OpenAPI/FLOW tools and MCP client.
-5. Knowledge base and indexing (replaces `/addToVectorDB` and the other vector routes).
-6. Teams / supervisor (`langgraph`).
-7. MCP server in Java.
-8. Intermediate streaming, attachments/images, usage tokens.
-9. Remove `copilot.host`, `copilot.port`, `PythonCopilotEngine` and the Python routes.
+3. [x] Port the selected toolpack/devassistant tools; intentionally dropped tools remain listed in
+   the tools inventory.
+4. [x] OpenAPI/FLOW operation descriptors and request-scoped tools; [x] request-scoped MCP client over supported transports.
+5. [x] Add PostgreSQL/pgvector knowledge-base memory, retrieval and text indexing with optional
+   provisioning when the database lacks pgvector. [ ] Image-similarity/CLIP indexing.
+6. [x] Add bounded Teams / supervisor (`langgraph`) execution with server and MCP tools.
+7. [x] Add the authenticated Java MCP servlet and application-dictionary registration.
+8. [ ] Intermediate streaming, attachments/images, transcription and usage tokens.
+9. [ ] Remove `copilot.host`, `copilot.port`, `PythonCopilotEngine` and the Python routes.
 
 ## Risks to keep in sight
 

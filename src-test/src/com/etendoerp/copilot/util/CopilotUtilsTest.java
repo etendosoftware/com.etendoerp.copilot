@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -35,9 +36,12 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.util.Collections;
 import java.util.Properties;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.MockedStatic;
@@ -70,6 +74,7 @@ public class CopilotUtilsTest extends WeldBaseTest {
   private static final String TEST_APP_ID = "appId";
   private static final String TEST_APP_NAME = "TestApp";
   private static final String SYNC_FAILED_MESSAGE = "Sync failed";
+  private String previousEngine;
 
   /**
    * Sets up the necessary mocks and test context before each test.
@@ -87,7 +92,14 @@ public class CopilotUtilsTest extends WeldBaseTest {
     VariablesSecureApp vsa = new VariablesSecureApp(OBContext.getOBContext().getUser().getId(),
         OBContext.getOBContext().getCurrentClient().getId(), OBContext.getOBContext().getCurrentOrganization().getId(),
         OBContext.getOBContext().getRole().getId());
+    previousEngine = System.getProperty("copilot.engine");
+    System.setProperty("copilot.engine", "java");
     RequestContext.get().setVariableSecureApp(vsa);
+  }
+  @After
+  public void restoreEngineProperty() {
+    if (previousEngine == null) System.clearProperty("copilot.engine");
+    else System.setProperty("copilot.engine", previousEngine);
   }
 
   /**
@@ -109,28 +121,6 @@ public class CopilotUtilsTest extends WeldBaseTest {
     }
   }
 
-  /**
-   * Test resetVectorDB when the operation fails with HTTP error.
-   * Verifies that when the Copilot service returns a non-200 status code,
-   * an OBException is thrown with an appropriate error message containing
-   * the application name.
-   */
-  @Test
-  public void testResetVectorDBFailure() {
-    CopilotApp app = mock(CopilotApp.class);
-    when(app.getId()).thenReturn(TEST_APP_ID);
-    when(app.getName()).thenReturn(TEST_APP_NAME);
-    HttpResponse<String> response = mock(HttpResponse.class);
-    when(response.statusCode()).thenReturn(400);
-    when(response.body()).thenReturn("error");
-    try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class,
-        CALLS_REAL_METHODS); MockedStatic<OBMessageUtils> messageUtils = mockStatic(OBMessageUtils.class)) {
-      utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
-      messageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB")).thenReturn("Reset failed: %s, %s");
-      OBException ex = assertThrows(OBException.class, () -> CopilotUtils.resetVectorDB(app));
-      assertTrue(ex.getMessage().contains(TEST_APP_NAME));
-    }
-  }
 
   /**
    * Test throwMissingAttachException for attached type files.
@@ -321,75 +311,115 @@ public class CopilotUtilsTest extends WeldBaseTest {
   }
 
   /**
-   * Test purgeVectorDB with successful operation.
-   * Verifies that when the Copilot service returns status 200,
-   * the vector database is purged successfully without throwing exceptions.
-   *
-   * @throws JSONException if there's an error processing the JSON response
+   * Purging runs in the KB package and is scoped to the app's client and the shared root client.
    */
   @Test
   public void testPurgeVectorDBSuccess() throws JSONException {
     CopilotApp app = mock(CopilotApp.class);
     when(app.getId()).thenReturn(TEST_APP_ID);
-    when(app.getName()).thenReturn(TEST_APP_NAME);
-    org.openbravo.model.ad.system.Client mockClient = mock(org.openbravo.model.ad.system.Client.class);
-    when(mockClient.getId()).thenReturn("TEST_CLIENT_ID");
-    when(app.getClient()).thenReturn(mockClient);
+    org.openbravo.model.ad.system.Client client = mock(org.openbravo.model.ad.system.Client.class);
+    when(client.getId()).thenReturn("TEST_CLIENT_ID");
+    when(app.getClient()).thenReturn(client);
 
-    HttpResponse<String> response = mock(HttpResponse.class);
-    when(response.statusCode()).thenReturn(200);
-    try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
-      utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
-      // Should not throw exception
+    try (org.mockito.MockedConstruction<com.etendoerp.copilot.kb.KnowledgeBaseStore> stores =
+        org.mockito.Mockito.mockConstruction(com.etendoerp.copilot.kb.KnowledgeBaseStore.class)) {
       CopilotUtils.purgeVectorDB(app);
+
+      com.etendoerp.copilot.kb.KnowledgeBaseStore store = stores.constructed().get(0);
+      org.mockito.Mockito.verify(store).ensureReady();
+      org.mockito.Mockito.verify(store).purge(TEST_APP_ID, "TEST_CLIENT_ID", "KB_" + TEST_APP_ID);
+      org.mockito.Mockito.verify(store).purge(TEST_APP_ID, "0", "KB_" + TEST_APP_ID);
     }
   }
 
   /**
-   * Test purgeVectorDB when the operation fails with HTTP error.
-   * Verifies that when the Copilot service returns status 500,
-   * an OBException is thrown with an error message containing the application name.
+   * Store failures from the in-process purge operation propagate to the caller.
    */
   @Test
   public void testPurgeVectorDBFailure() {
     CopilotApp app = mock(CopilotApp.class);
     when(app.getId()).thenReturn(TEST_APP_ID);
-    when(app.getName()).thenReturn(TEST_APP_NAME);
-    org.openbravo.model.ad.system.Client mockClient = mock(org.openbravo.model.ad.system.Client.class);
-    when(mockClient.getId()).thenReturn("TEST_CLIENT_ID");
-    when(app.getClient()).thenReturn(mockClient);
+    org.openbravo.model.ad.system.Client client = mock(org.openbravo.model.ad.system.Client.class);
+    when(client.getId()).thenReturn("TEST_CLIENT_ID");
+    when(app.getClient()).thenReturn(client);
+    OBException storeFailure = new OBException("Purge failed");
 
-    HttpResponse<String> response = mock(HttpResponse.class);
-    when(response.statusCode()).thenReturn(500);
-    when(response.body()).thenReturn("error");
-    try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class,
-        CALLS_REAL_METHODS); MockedStatic<OBMessageUtils> messageUtils = mockStatic(OBMessageUtils.class)) {
-      utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
-      messageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB")).thenReturn("Purge failed: %s, %s");
-      OBException ex = assertThrows(OBException.class, () -> CopilotUtils.purgeVectorDB(app));
-      assertTrue(ex.getMessage().contains(TEST_APP_NAME));
+    try (org.mockito.MockedConstruction<com.etendoerp.copilot.kb.KnowledgeBaseStore> stores =
+        org.mockito.Mockito.mockConstruction(com.etendoerp.copilot.kb.KnowledgeBaseStore.class, (store, context) ->
+            org.mockito.Mockito.doThrow(storeFailure).when(store)
+                .purge(TEST_APP_ID, "TEST_CLIENT_ID", "KB_" + TEST_APP_ID))) {
+      OBException thrown = assertThrows(OBException.class, () -> CopilotUtils.purgeVectorDB(app));
+      assertEquals(storeFailure, thrown);
+      org.mockito.Mockito.verify(stores.constructed().get(0)).purge(TEST_APP_ID, "TEST_CLIENT_ID",
+          "KB_" + TEST_APP_ID);
     }
   }
 
   /**
-   * Test resetVectorDB with successful operation.
-   * Verifies that when the Copilot service returns status 200,
-   * the vector database is reset successfully without throwing exceptions.
-   *
-   * @throws JSONException if there's an error processing the JSON response
+   * Reset runs in the KB package and is scoped to the current client and the shared root client.
    */
   @Test
   public void testResetVectorDBSuccess() throws JSONException {
     CopilotApp app = mock(CopilotApp.class);
     when(app.getId()).thenReturn(TEST_APP_ID);
-    when(app.getName()).thenReturn(TEST_APP_NAME);
+
+    try (org.mockito.MockedConstruction<com.etendoerp.copilot.kb.KnowledgeBaseStore> stores =
+        org.mockito.Mockito.mockConstruction(com.etendoerp.copilot.kb.KnowledgeBaseStore.class)) {
+      CopilotUtils.resetVectorDB(app);
+
+      com.etendoerp.copilot.kb.KnowledgeBaseStore store = stores.constructed().get(0);
+      org.mockito.Mockito.verify(store).ensureReady();
+      org.mockito.Mockito.verify(store).reset(TEST_APP_ID, OBContext.getOBContext().getCurrentClient().getId(),
+          "KB_" + TEST_APP_ID);
+      org.mockito.Mockito.verify(store).reset(TEST_APP_ID, "0", "KB_" + TEST_APP_ID);
+    }
+  }
+
+  @Test
+  public void testResetVectorDBFailure() {
+    CopilotApp app = mock(CopilotApp.class);
+    when(app.getId()).thenReturn(TEST_APP_ID);
+    String clientId = OBContext.getOBContext().getCurrentClient().getId();
+    OBException storeFailure = new OBException("Reset failed");
+
+    try (org.mockito.MockedConstruction<com.etendoerp.copilot.kb.KnowledgeBaseStore> stores =
+        org.mockito.Mockito.mockConstruction(com.etendoerp.copilot.kb.KnowledgeBaseStore.class, (store, context) ->
+            org.mockito.Mockito.doThrow(storeFailure).when(store)
+                .reset(TEST_APP_ID, clientId, "KB_" + TEST_APP_ID))) {
+      OBException thrown = assertThrows(OBException.class, () -> CopilotUtils.resetVectorDB(app));
+      assertEquals(storeFailure, thrown);
+      org.mockito.Mockito.verify(stores.constructed().get(0)).reset(TEST_APP_ID, clientId,
+          "KB_" + TEST_APP_ID);
+    }
+  }
+  @Test
+  public void testPythonModeUsesLegacyVectorDatabaseRoutes() throws Exception {
+    String previousEngine = System.getProperty("copilot.engine");
+    System.setProperty("copilot.engine", "python");
+    File file = Files.createTempFile("copilot-python-kb", ".txt").toFile();
+    CopilotApp app = mock(CopilotApp.class);
+    when(app.getId()).thenReturn(TEST_APP_ID);
+    org.openbravo.model.ad.system.Client client = mock(org.openbravo.model.ad.system.Client.class);
+    when(client.getId()).thenReturn("TEST_CLIENT_ID");
+    when(app.getClient()).thenReturn(client);
     HttpResponse<String> response = mock(HttpResponse.class);
     when(response.statusCode()).thenReturn(200);
+    List<String> endpoints = new ArrayList<>();
     try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
-      utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
-      // Should not throw exception
+      utils.when(() -> CopilotUtils.getResponseFromCopilot(any(Properties.class), anyString(),
+          any(JSONObject.class), nullable(File.class))).thenAnswer(invocation -> {
+            endpoints.add(invocation.getArgument(1));
+            return response;
+          });
+      CopilotUtils.toVectorDB(file, "KB_" + TEST_APP_ID, "source", "txt", false, null, null, "TEST_CLIENT_ID");
       CopilotUtils.resetVectorDB(app);
+      CopilotUtils.purgeVectorDB(app);
+    } finally {
+      if (previousEngine == null) System.clearProperty("copilot.engine");
+      else System.setProperty("copilot.engine", previousEngine);
+      Files.deleteIfExists(file.toPath());
     }
+    assertEquals(List.of("addToVectorDB", "ResetVectorDB", "purgeVectorDB"), endpoints);
   }
 
   /**
@@ -495,85 +525,6 @@ public class CopilotUtilsTest extends WeldBaseTest {
     assertEquals("", result);
   }
 
-  /**
-   * Test toVectorDB with successful file upload.
-   * Verifies that when the Copilot service returns status 200,
-   * the file is successfully uploaded to the vector database without exceptions.
-   *
-   * @throws JSONException if there's an error processing the JSON request
-   */
-  @Test
-  public void testToVectorDBSuccess() throws JSONException {
-    File file = mock(File.class);
-    when(file.getName()).thenReturn(TEST_TXT_FILE);
-    HttpResponse<String> response = mock(HttpResponse.class);
-    when(response.statusCode()).thenReturn(200);
-    try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
-      utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
-      // Should not throw exception
-      CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null, null);
-    }
-  }
-
-  /**
-   * Test toVectorDB with chunk size and overlap parameters.
-   * Verifies that the method successfully handles custom chunking parameters
-   * for text splitting during vector database upload.
-   *
-   * @throws JSONException if there's an error processing the JSON request
-   */
-  @Test
-  public void testToVectorDBWithChunkParams() throws JSONException {
-    File file = mock(File.class);
-    when(file.getName()).thenReturn(TEST_TXT_FILE);
-    HttpResponse<String> response = mock(HttpResponse.class);
-    when(response.statusCode()).thenReturn(200);
-    try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class, CALLS_REAL_METHODS)) {
-      utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
-      // Should not throw exception
-      CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, 1000L, 100L, null);
-    }
-  }
-
-  /**
-   * Test toVectorDB when the upload fails with HTTP error.
-   * Verifies that when the Copilot service returns status 500,
-   * an OBException is thrown with the sync failed message.
-   */
-  @Test
-  public void testToVectorDBFailure() {
-    File file = mock(File.class);
-    when(file.getName()).thenReturn(TEST_TXT_FILE);
-    HttpResponse<String> response = mock(HttpResponse.class);
-    when(response.statusCode()).thenReturn(500);
-    try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class,
-        CALLS_REAL_METHODS); MockedStatic<OBMessageUtils> messageUtils = mockStatic(OBMessageUtils.class)) {
-      utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(response);
-      messageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")).thenReturn(SYNC_FAILED_MESSAGE);
-      OBException ex = assertThrows(OBException.class,
-          () -> CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null, null));
-      assertEquals(SYNC_FAILED_MESSAGE, ex.getMessage());
-    }
-  }
-
-  /**
-   * Test toVectorDB when response is null.
-   * Verifies that when the Copilot service returns a null response,
-   * an OBException is thrown with the sync failed message.
-   */
-  @Test
-  public void testToVectorDBNullResponse() {
-    File file = mock(File.class);
-    when(file.getName()).thenReturn(TEST_TXT_FILE);
-    try (MockedStatic<CopilotUtils> utils = mockStatic(CopilotUtils.class,
-        CALLS_REAL_METHODS); MockedStatic<OBMessageUtils> messageUtils = mockStatic(OBMessageUtils.class)) {
-      utils.when(() -> CopilotUtils.getResponseFromCopilot(any(), anyString(), any(), any())).thenReturn(null);
-      messageUtils.when(() -> OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")).thenReturn(SYNC_FAILED_MESSAGE);
-      OBException ex = assertThrows(OBException.class,
-          () -> CopilotUtils.toVectorDB(file, TEST_DB, "txt", false, null, null, null));
-      assertEquals(SYNC_FAILED_MESSAGE, ex.getMessage());
-    }
-  }
 
   /**
    * Test createMultipartBody with all available fields populated.

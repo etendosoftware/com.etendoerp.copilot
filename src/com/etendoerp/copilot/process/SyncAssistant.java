@@ -227,7 +227,7 @@ public class SyncAssistant extends BaseProcessActionHandler {
     Set<CopilotAppSource> appSourcesToRefresh = new HashSet<>();
     for (CopilotApp app : appList) {
       List<CopilotAppSource> appSources = app.getETCOPAppSourceList();
-      CopilotAppInfoUtils.markAsSynchronized(app);
+      if (!CopilotUtils.isJavaEngine()) CopilotAppInfoUtils.markAsSynchronized(app);
       appSourcesToRefresh.addAll(appSources);
     }
 
@@ -425,33 +425,55 @@ public class SyncAssistant extends BaseProcessActionHandler {
   private JSONObject syncKnowledgeFiles(List<CopilotApp> appList,
       String openaiApiKey) throws JSONException, IOException {
     int syncCount = 0;
+    JSONArray syncErrors = new JSONArray();
 
     for (CopilotApp app : appList) {
-      // Filter the application's sources to include only knowledge base files
       String clientID = OBContext.getOBContext().getCurrentClient().getId();
-      List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream().filter(
-          CopilotConstants::isKbBehaviour).filter(
-          kbf -> mustUpdateKBF(kbf, clientID)
-      ).collect(Collectors.toList());
-      // Handle synchronization based on the application type
-      switch (app.getAppType()) {
-        case CopilotConstants.APP_TYPE_OPENAI:
-          throw new OBException("OpenAI sync is disabled. Change the agent type to Multi-Model.");
-        case CopilotConstants.APP_TYPE_LANGCHAIN:
-        case CopilotConstants.APP_TYPE_MULTIMODEL:
-          syncKBFilesToLangChain(app, knowledgeBaseFiles);
-          break;
-        case CopilotConstants.APP_TYPE_LANGGRAPH:
-          log.debug("Sync not needed for LangGraph");
-          break;
-        default:
-          log.warn("Unsupported application type encountered: {}", app.getAppType());
+      List<CopilotAppSource> knowledgeBaseFiles = app.getETCOPAppSourceList().stream()
+          .filter(CopilotConstants::isKbBehaviour).filter(kbf -> mustUpdateKBF(kbf, clientID))
+          .collect(Collectors.toList());
+      try {
+        switch (app.getAppType()) {
+          case CopilotConstants.APP_TYPE_OPENAI:
+            throw new OBException("OpenAI sync is disabled. Change the agent type to Multi-Model.");
+          case CopilotConstants.APP_TYPE_LANGCHAIN:
+          case CopilotConstants.APP_TYPE_MULTIMODEL:
+            syncKBFilesToLangChain(app, knowledgeBaseFiles);
+            break;
+          case CopilotConstants.APP_TYPE_LANGGRAPH:
+            log.debug("Sync not needed for LangGraph");
+            break;
+          default:
+            log.warn("Unsupported application type encountered: {}", app.getAppType());
+        }
+        syncCount++;
+        if (CopilotUtils.isJavaEngine()) CopilotAppInfoUtils.markAsSynchronized(app);
+      } catch (RuntimeException | IOException | JSONException e) {
+        if (!CopilotUtils.isJavaEngine() || knowledgeBaseFiles.isEmpty()) throw e;
+        String message = "Knowledge-base sync failed for agent '" + app.getName() + "': " + e.getMessage();
+        log.warn(message);
+        syncErrors.put(new JSONObject().put("agentId", app.getId()).put("message", message));
       }
-      syncCount++;
     }
 
-    // Build and return a message summarizing the synchronization results
-    return buildMessage(syncCount, appList.size());
+    JSONObject result = buildMessage(syncCount, appList.size());
+    result.put("syncErrors", syncErrors);
+    appendSyncErrorsToMessage(result, syncErrors);
+    return result;
+  }
+  private void appendSyncErrorsToMessage(JSONObject result, JSONArray syncErrors) throws JSONException {
+    if (syncErrors.length() == 0) return;
+    JSONArray actions = result.optJSONArray("responseActions");
+    JSONObject action = actions == null ? null : actions.optJSONObject(0);
+    JSONObject message = action == null ? null : action.optJSONObject("showMsgInProcessView");
+    if (message == null) return;
+    StringBuilder details = new StringBuilder(message.optString("msgText"));
+    for (int i = 0; i < syncErrors.length(); i++) {
+      JSONObject error = syncErrors.optJSONObject(i);
+      if (error != null) details.append('\n').append(error.optString("message"));
+    }
+    message.put("msgType", "warning");
+    message.put("msgText", details.toString());
   }
 
   private boolean mustUpdateKBF(CopilotAppSource kbf, String clientID) {
@@ -480,15 +502,15 @@ public class SyncAssistant extends BaseProcessActionHandler {
    * @throws IOException
    *     If an input/output error occurs during the synchronization process.
    */
-  private void syncKBFilesToLangChain(CopilotApp app,
-      List<CopilotAppSource> knowledgeBaseFiles) throws JSONException, IOException {
+  private void syncKBFilesToLangChain(CopilotApp app, List<CopilotAppSource> knowledgeBaseFiles)
+      throws JSONException, IOException {
+    if (CopilotUtils.isJavaEngine() && knowledgeBaseFiles.isEmpty()) return;
     CopilotUtils.resetVectorDB(app);
     for (CopilotAppSource appSource : knowledgeBaseFiles) {
       CopilotUtils.syncAppLangchainSource(appSource);
     }
     CopilotUtils.purgeVectorDB(app);
   }
-
   /**
    * Builds a JSON message object to be displayed in the process view.
    * <p>

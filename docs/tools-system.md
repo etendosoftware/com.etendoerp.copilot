@@ -140,6 +140,23 @@ server tools to the model, and executed by the browser. They are not entries in 
 not need a Java `ServerTool` bean. The browser echoes each completed round through
 `tool_exchange`; mixed server/client result handling is documented in [java-engine.md](java-engine.md#6-client-executed-tools-webmcp).
 
+## MCP tools
+
+The single-agent engine and each team supervisor/member open fresh LangChain4j MCP clients for
+each request and close them when that engine invocation completes. `mcp_servers` keeps the Python request shape: `name`, `disabled`,
+`transport`, `url`, `command`, `args`, `env`, `headers`, and timeout fields. Missing
+transport defaults to stdio; disabled entries are omitted. LangChain4j transports supported here
+are stdio and Streamable HTTP (`http`/`streamable_http`). Legacy SSE, WebSocket, stdio `cwd`,
+and opaque Python `auth` objects are unsupported; configurations requiring them yield no MCP
+tools rather than being silently reinterpreted. HTTP authentication must be expressed as explicit
+request headers; the Etendo caller's SWS bearer is never forwarded.
+Discovery has a 45-second aggregate deadline. A tool-name conflict with another offered tool is
+qualified as `<server-name>__<tool-name>` and dispatched through the retained client-to-tool map.
+
+The inbound MCP servlet is separate: it uses the `CopilotMcpServlet` route and `ToolExecutionContext`
+to expose Java tools under the authenticated role. Endpoint paths, stateless request handling,
+authentication, and deliberately unsupported OAuth details are in [MCP_SETUP.md](MCP_SETUP.md).
+
 ## 7. Java tool implementation status
 
 Java implementations are named CDI beans in the Copilot module or a dependent extension module.
@@ -165,8 +182,8 @@ The following mappings describe the currently ported tools; tools not listed rem
 | XLSTool | XLSTool | toolpack | in-process |
 | UncompressTool | UncompressTool | toolpack | in-process |
 | AudioTool | AudioTool | toolpack | in-process |
-| MemoryTool | — | — | deferred: KB package |
-| TaskManagementTool | — | — | deferred: teams package |
+| MemoryTool | MemoryTool | toolpack | in-process; per-agent/user pgvector memory |
+| TaskManagementTool | TaskManagementTool | toolpack | in-process; team-run task state |
 | OpenAPI ApiTool | — | — | dropped by decision |
 
 | Python class | Java class | Module | Execution |
@@ -185,20 +202,41 @@ The following mappings describe the currently ported tools; tools not listed rem
 | HelloWorldTool | — | — | dropped by decision |
 | CustomHelloWorldMultiArgsTool | — | — | dropped by decision |
 | ExampleTool | — | — | dropped by decision |
-| MemoryTool | — | — | deferred: KB package |
-| TaskManagementTool | — | — | deferred: teams package |
 | ApiTool (OpenAPI generator) | — | — | dropped by decision |
+
+OpenAPI `specs[].spec` operations generated from `FLOW` definitions are supplementary per-question
+`ServerTool` instances. They are passed to `ServerToolRegistry.resolve(request, includeKnowledgeBase,
+supplementaryTools)`, are not CDI beans, and are not cached.
+
+`TaskManagementTool` accepts `mode` (`get_next`, `add_tasks`, `status`, `mark_done`) and optional
+`new_tasks`. Its state is isolated to the captured user's `ToolExecutionContext`, with a bounded
+queue (1,000 tasks) and task length (4,096 characters); it is not global or persisted across requests.
 
 ## 8. File-tool filesystem policy and threat model
 
 File tools treat agent-supplied paths, archive entries, and downloaded content as untrusted.
 `ToolWorkspace` applies the policy centrally and `FileToolSupport` performs guarded reads and
-writes. Reads and writes use separate comma-separated absolute directory lists:
+writes. Read and write access use separate comma-separated absolute directory lists:
 `copilot.tools.fs.read.roots` and `copilot.tools.fs.write.roots`. If unset, each defaults to the
 per-conversation workspace. The older `copilot.tools.fs.roots` setting is a fallback for either
-list not explicitly configured. The workspace defaults to
-`/tmp/etendo-copilot/<conversation>` and must remain outside the deployed webapp and protected
-configuration paths.
+list not explicitly configured. `copilot.tools.workspace.dir` configures the workspace base;
+otherwise it defaults to `${java.io.tmpdir}/etendo-copilot-workspaces/<client>/<user>/<conversation>`.
+If the JVM temporary directory is protected (for example, a dot-directory under the JVM user's
+home), the default falls back to `/tmp`, then to `etendo-copilot-workspaces` under the JVM user
+home. Missing client, user, or conversation IDs use `mcp` as a safe segment, so direct MCP tool
+calls without a conversation ID still receive a persistent, writable workspace. Workspace
+directories are created with owner-only permissions where the filesystem supports POSIX
+permissions. The default and configured workspace must remain outside the deployed webapp and
+protected configuration paths.
+
+Conversation workspaces expire after `copilot.tools.workspace.ttl.hours` (default 24 hours;
+maximum ten years), measured from the workspace directory's last-modified time. File-tool
+workspace access refreshes that timestamp on each call, and the bounded server-tool execution
+currently in use independently of its age. Cleanup is both lazy (at most once every ten minutes)
+and scheduled by a daemon service that stops with the application context. The janitor only
+considers conversation directories at the managed layout depth under the configured/default
+workspace root; it never follows symlinks or traverses outside that root, and logs scanned/deleted
+counts at INFO.
 
 The hard deny-list cannot be overridden by configured roots: the deployed webapp, Tomcat
 `webapps` and `conf`, the Etendo `config` directory, `Openbravo.properties`,

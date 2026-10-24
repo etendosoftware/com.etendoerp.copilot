@@ -1,210 +1,49 @@
 # MCP Server Configuration
 
-## Overview
+Etendo Copilot exposes MCP endpoints from its Java servlet in the Etendo web application. The
+servlet does not open a separate Python/Uvicorn listener and does not use `copilot.port.mcp`.
+The MCP endpoint is available only when the Copilot module is deployed and Etendo is running.
 
-The Etendo Copilot includes a Model Context Protocol (MCP) server that **always runs** in parallel with the main FastAPI server. This allows integration with Claude Desktop and other MCP clients.
+## Endpoints
 
-The MCP server supports two connection modes:
-- **Simple Mode**: Provides a single `ask_agent` tool for natural language interaction with agents
-- **Direct Mode**: Exposes all agent tools for direct execution plus agent prompt reading capabilities
+Generated configurations use the servlet mapping below:
 
-**Transport**: The MCP server uses **HTTP Streaming**, the modern standard for real-time communication:
-- ✅ **Native HTTP streaming** protocol (modern standard)
-- ✅ **Direct HTTP communication** without SSE or WebSocket complexity
-- ✅ **Bi-directional streaming** over standard HTTP
-- ✅ **Modern replacement** for SSE and WebSockets
-- ✅ **Protocol-native** streaming support
+- Standard/conversational: `/sws/copilot/mcp/{AGENT_ID}/mcp`
+- Direct tools: `/sws/copilot/mcp/{AGENT_ID}/direct/mcp`
 
-The MCP server implementation is completely contained within the `copilot/core/mcp/` module, keeping the main application code clean and modular.
+The former Python paths (`/{AGENT_ID}/mcp` and `/{AGENT_ID}/direct/mcp` on the separate MCP
+port) are replaced. `GetMCPConfiguration` now emits the servlet URL while retaining the existing
+`token_header`, `token_url`, and `npx mcp-remote` configuration shapes. Existing manually authored
+URLs must be updated to the paths above. `context.url.copilot.mcp` remains an optional public
+origin override; the servlet suffix `/sws/copilot` is added by the configuration process.
 
-## Environment Variables
+## Authentication and transport
 
-### COPILOT_PORT_MCP
-- **Description**: Port for the MCP server
-- **Default**: 5007 (always runs, even if not specified)
-- **Type**: Integer
-- **Required**: Optional (uses default 5007 if not set)
+MCP requests are authenticated with an Etendo Secure Web Services bearer token. Generated clients
+use `Authorization: Bearer <token>`; compatibility extraction also accepts `etendo-token`,
+`x-etendo-token`, and the `token` query parameter. The token's role must be assigned to the target
+Copilot agent. Unauthorized requests return 401 and a protected-resource metadata challenge.
 
-## Configuration
+The servlet supports synchronous Streamable HTTP POST JSON-RPC for the `2025-03-26` protocol
+revision. It responds with JSON, accepts notifications with HTTP 202, implements `initialize`,
+`ping`, `tools/list`, and `tools/call`, and does not open SSE GET streams or allocate session IDs.
+Requests are stateless; clients may initialize each new connection. `GET` is reserved for the
+protected-resource metadata document, and `OPTIONS` provides CORS preflight handling.
 
-The MCP server starts automatically on port 5007. To use a custom port, add to your `.env` file:
+## Modes
 
-```bash
-COPILOT_PORT_MCP=5009  # Optional: custom port
-```
+- **Standard** publishes `ask_agent_{normalized-agent-name}`. Calls are handled in-process by the
+  Java engine and accept `question` plus an optional `conversation_id`.
+- **Direct** publishes the configured Java server tools available to the agent and
+  `get_agent_prompt`. Tools execute through `ToolExecutionContext` using the caller's SWS identity
+  and role. Tools without Java implementations are not exposed.
 
-If `COPILOT_PORT_MCP` is not set, the server will use port **5007** by default.
+The servlet intentionally does not expose Python-only utilities, OAuth login/PKCE endpoints,
+resources, or dynamically generated tool stubs. Configure `token_header` or `token_url` for
+external clients; legacy `oauth` configurations do not gain OAuth support from this servlet.
 
-## Usage
+## Generate a client configuration
 
-1. Start the application normally with `python run.py`
-2. Both servers will start automatically:
-   - Main FastAPI server on port 5000 (or `COPILOT_PORT`)
-   - MCP server on port 5007 (or `COPILOT_PORT_MCP`)
-
-**No configuration required** - the MCP server is always enabled.
-
-## Connection Modes
-
-The MCP server supports two distinct connection modes:
-
-### Simple Mode (Default)
-- **URL Pattern**: `http://localhost:5007/{AGENT_ID}/mcp`
-- **Purpose**: Provides a conversational interface to interact with agents
-- **Tools**: `ask_agent`, `ping`, `hello_world`, `server_info`
-- **Use Case**: Natural language interaction with agents
-
-### Direct Mode (Advanced)
-- **URL Pattern**: `http://localhost:5007/{AGENT_ID}/direct/mcp`
-- **Purpose**: Direct access to all agent tools and configuration
-- **Tools**: All agent-specific tools, `get_agent_prompt`, basic utility tools
-- **Use Case**: Precise control over tool execution and agent introspection
-
-## Quick Configuration
-
-Use the Gradle task to generate MCP client configuration:
-
-```bash
-./gradlew copilot.mcp.config -PagentId=YOUR_AGENT_ID -Pmode=simple
-./gradlew copilot.mcp.config -PagentId=YOUR_AGENT_ID -Pmode=direct
-```
-
-## Server Architecture
-
-### Parallel Execution
-- The MCP server runs in a separate daemon thread with its own asyncio event loop
-- Uses `uvicorn.Server` for async ASGI support (not `uvicorn.run` which blocks)
-- Graceful shutdown handling with signal handlers
-- No blocking of the main FastAPI server
-
-### Threading Model
-```
-Main Process
-├── Main Thread (FastAPI server via uvicorn.run)
-└── MCP Thread (MCP server via asyncio event loop)
-    └── uvicorn.Server (async ASGI)
-```
-
-## Server Output
-
-When both servers start, you'll see colored output:
-- 🟢 Green: Main server status
-- 🔵 Blue: MCP server status
-- 🟣 Purple: Debug information
-- 🔴 Red: Error messages
-
-## Integration with Claude Desktop
-
-To integrate with Claude Desktop, add the following to your Claude Desktop configuration:
-
-```json
-{
-  "mcpServers": {
-    "etendo-copilot": {
-      "command": "node",
-      "args": ["path/to/mcp-client.js"],
-      "env": {
-        "MCP_SERVER_URL": "http://localhost:5009"
-      }
-    }
-  }
-}
-```
-
-## Development Notes
-
-- **Always enabled**: MCP server starts automatically on every application launch
-- **Default port 5007**: No configuration needed for basic usage
-- **No uvicorn conflicts**: Uses `uvicorn.Server` (async) instead of `uvicorn.run` (blocking)
-- **Modular design**: All MCP code is isolated in the `mcp/` module
-- **Clean shutdown**: Automatic cleanup on SIGTERM/SIGINT
-- **Custom ports**: Use `COPILOT_PORT_MCP` environment variable for custom ports
-- **Debug support**: Inherits debug settings from main server
-- **Thread-safe**: Proper asyncio loop management per thread
-
-## Module Structure
-
-```
-copilot/core/mcp/
-├── __init__.py                    # Module exports
-├── simplified_dynamic_server.py   # Dynamic MCP server implementation
-├── simplified_dynamic_manager.py  # Dynamic MCP lifecycle manager
-├── simplified_dynamic_utils.py    # Dynamic MCP utilities and cleanup
-├── utils.py                       # Integration utilities
-├── tools/                         # MCP tool implementations
-│   ├── __init__.py
-│   └── base.py
-├── resources/                     # MCP resource providers
-│   ├── __init__.py
-│   └── base.py
-├── schemas/                       # Pydantic models
-│   ├── __init__.py
-│   └── protocol.py
-└── handlers/                      # Request handlers
-    └── __init__.py
-```
-
-## FastMCP Decorator Syntax
-
-When developing tools and resources for the MCP server, use the correct FastMCP decorator syntax:
-
-### ✅ Correct Syntax
-```python
-# Adding tools
-@app.tool()  # Note: parentheses required
-def my_tool():
-    """Tool description"""
-    return "result"
-
-# Adding resources
-@app.resource("uri://example")
-def my_resource():
-    """Resource description"""
-    return "content"
-```
-
-### ❌ Incorrect Syntax
-```python
-# This will cause error: "The @tool decorator was used incorrectly"
-@app.tool  # Missing parentheses
-def my_tool():
-    return "result"
-```
-
-## HTTP Streaming Transport
-
-The MCP server uses modern HTTP streaming transport, the current standard for real-time communication:
-
-### Connection Endpoints
-- **HTTP Streaming**: `http://localhost:5007`
-- **Direct Protocol**: Native MCP over HTTP streaming
-- **No additional paths**: Direct connection to the server
-
-### Client Connection
-Modern MCP clients connect directly to the HTTP streaming endpoint:
-
-```bash
-# Direct HTTP streaming connection
-curl -N http://localhost:5007
-```
-
-```python
-# Python MCP client connection
-import asyncio
-import httpx
-
-async def connect_to_mcp():
-    async with httpx.AsyncClient() as client:
-        async with client.stream('GET', 'http://localhost:5007') as response:
-            async for chunk in response.aiter_text():
-                print("MCP Response:", chunk)
-
-asyncio.run(connect_to_mcp())
-```
-
-### Transport Benefits
-- **Modern Standard**: Latest MCP transport protocol
-- **Direct HTTP**: No SSE or WebSocket wrapper needed
-- **Streaming**: Native bi-directional communication
-- **Efficient**: Optimized for real-time data exchange
-- **Compatible**: Works with standard HTTP tools and libraries
+Use the existing Copilot `GetMCPConfiguration` process to generate endpoint URLs and authentication
+headers. For clients requiring a subprocess bridge, the existing `mcp-remote` compatibility mode
+continues to wrap the same servlet URL.

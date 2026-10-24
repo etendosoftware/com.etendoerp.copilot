@@ -74,6 +74,7 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
 
     // default token
     mockedCopilotUtils.when(CopilotUtils::generateEtendoToken).thenReturn("TOKEN");
+    mockedCopilotUtils.when(CopilotUtils::isJavaEngine).thenReturn(true);
 
     // default messageBD
     mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(any(String.class))).thenAnswer(inv -> {
@@ -203,7 +204,7 @@ public class GetMCPConfigurationTest extends WeldBaseTest {
 
     String html = g.getHTMLConfigurations(params, List.of(a));
     assertFalse(html.contains(LOCALHOST_WARNING));
-    assertTrue(html.contains("https://example.com:1234/AGENT6/mcp"));
+    assertTrue(html.contains("https://example.com:1234/sws/copilot/mcp/AGENT6/mcp"));
   }
 
   @Test

@@ -56,6 +56,52 @@ public final class ServerToolRegistry {
   public ResolvedTools resolve(JSONObject request) {
     return resolve(request == null ? null : request.optJSONArray(PROP_TOOLS));
   }
+  /** Resolve configured tools and optionally append the implicit KB search tool. */
+  public ResolvedTools resolve(JSONObject request, boolean includeKnowledgeBase) {
+    if (!includeKnowledgeBase) return resolve(request);
+    JSONArray descriptors = new JSONArray();
+    JSONArray configured = request == null ? null : request.optJSONArray(PROP_TOOLS);
+    if (configured != null) {
+      for (int i = 0; i < configured.length(); i++) descriptors.put(configured.opt(i));
+    }
+    boolean present = false;
+    for (int i = 0; i < descriptors.length(); i++) {
+      JSONObject descriptor = descriptors.optJSONObject(i);
+      if ("KnowledgeBaseSearch".equals(functionName(descriptor))) present = true;
+    }
+    if (!present) {
+      try {
+        descriptors.put(new JSONObject().put("type", "function")
+            .put("function", new JSONObject().put("name", "KnowledgeBaseSearch")));
+      } catch (org.codehaus.jettison.json.JSONException e) {
+        throw new IllegalStateException("Could not add the knowledge-base tool.", e);
+      }
+    }
+    return resolve(descriptors);
+  }
+  /**
+   * Resolve configured tools and append request-scoped tools generated from supplementary
+   * descriptors (for example OpenAPI operations). Supplementary tools do not need CDI bean names:
+   * they are immutable instances bound to the current request and are never cached globally.
+   */
+  public ResolvedTools resolve(JSONObject request, boolean includeKnowledgeBase,
+      List<ServerTool> supplementaryTools) {
+    ResolvedTools resolved = resolve(request, includeKnowledgeBase);
+    Map<String, ServerTool> tools = new LinkedHashMap<>(resolved.tools());
+    List<ToolSpecification> specifications = new ArrayList<>(resolved.specifications());
+    List<String> missing = new ArrayList<>(resolved.missingNames());
+    for (ServerTool tool : supplementaryTools == null ? Collections.<ServerTool>emptyList() : supplementaryTools) {
+      if (tool == null || StringUtils.isBlank(tool.name()) || tools.containsKey(tool.name())) continue;
+      ToolSpecification specification = tool.specification();
+      if (specification == null) {
+        missing.add(tool.name());
+      } else {
+        tools.put(tool.name(), tool);
+        specifications.add(specification);
+      }
+    }
+    return new ResolvedTools(tools, specifications, missing);
+  }
 
   /** @return whether CDI can resolve an implementation with this exact tool name */
   public boolean hasImplementation(String name) {

@@ -20,11 +20,13 @@ import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.engine.mcp.McpClientToolLoader;
 import com.etendoerp.copilot.engine.tool.ServerTool;
 import com.etendoerp.copilot.engine.tool.ServerToolRegistry;
 import com.etendoerp.copilot.engine.tool.ServerToolRegistry.ResolvedTools;
 import com.etendoerp.copilot.engine.tool.ToolExecutionContext;
 import com.etendoerp.copilot.rest.RestServiceUtil;
+import com.etendoerp.copilot.engine.tool.openapi.OpenApiToolGenerator;
 import com.etendoerp.copilot.util.CopilotConstants;
 
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
@@ -73,14 +75,35 @@ public class LangChain4jEngine implements CopilotEngine {
     this.contextProvider = contextProvider;
   }
 
-  @Override
   public JSONObject execute(boolean asyncRequest, HttpServletResponse queue, JSONObject request,
       CopilotApp app) throws IOException, JSONException {
-    List<ChatMessage> messages = buildMessages(request);
-    ResolvedTools serverTools = serverToolRegistry.resolve(request);
+    boolean hasKnowledgeBase = app.getETCOPAppSourceList().stream().anyMatch(CopilotConstants::isKbBehaviour);
+    ResolvedTools localTools = serverToolRegistry.resolve(request, hasKnowledgeBase,
+        new OpenApiToolGenerator().tools(request.optJSONArray("specs")));
     List<ToolSpecification> clientTools = ClientToolSupport.toolSpecifications(request);
-    List<ToolSpecification> offeredTools = offeredSpecifications(serverTools, clientTools);
+    Set<String> reserved = toolNames(localTools.specifications());
+    reserved.addAll(toolNames(clientTools));
+    McpClientToolLoader.LoadedTools mcpTools = new McpClientToolLoader()
+        .load(request.optJSONArray("mcp_servers"), reserved);
+    try {
+      return executeWithMcp(asyncRequest, queue, request, app, mcpTools, localTools, clientTools);
+    } finally {
+      mcpTools.close();
+    }
+  }
+
+  private JSONObject executeWithMcp(boolean asyncRequest, HttpServletResponse queue, JSONObject request,
+      CopilotApp app, McpClientToolLoader.LoadedTools mcpTools, ResolvedTools serverTools,
+      List<ToolSpecification> clientTools) throws IOException, JSONException {
+    List<ChatMessage> messages = buildMessages(request);
+    List<ToolSpecification> offeredTools = offeredSpecifications(serverTools, mcpTools, clientTools);
     String conversationId = request.optString(RestServiceUtil.PROP_CONVERSATION_ID, null);
+    if (CopilotConstants.APP_TYPE_LANGGRAPH.equalsIgnoreCase(
+        request.optString(RestServiceUtil.PROP_TYPE, ""))) {
+      return new TeamEngine(serverToolRegistry, modelProvider, contextProvider)
+          .execute(asyncRequest, queue, request, app);
+    }
+    // Tool descriptors and request-scoped MCP clients were resolved before entering this loop.
 
     // Capture once, before the first model call. A failure is returned as a tool result only if a
     // server tool is actually requested; chat-only and client-only behavior stays unchanged.
@@ -88,6 +111,7 @@ public class LangChain4jEngine implements CopilotEngine {
     if (serverTools.hasTools()) {
       try {
         context = contextProvider.capture(app, conversationId, request.optJSONObject(PROP_EXTRA_INFO));
+        context.attributes().put("kb_search_k", request.optInt(RestServiceUtil.PROP_KB_SEARCH_K, 4));
       } catch (RuntimeException e) {
         log.warn("Unable to capture the user's context for server tools for agent '{}'.", app.getName());
       }
@@ -102,15 +126,15 @@ public class LangChain4jEngine implements CopilotEngine {
       List<ToolExecutionRequest> serverCalls = new ArrayList<>();
       List<ToolExecutionRequest> clientCalls = new ArrayList<>();
       for (ToolExecutionRequest call : aiMessage.toolExecutionRequests()) {
-        if (serverTools.tool(call.name()) != null || !clientToolNames.contains(call.name())) {
+        if (serverTools.tool(call.name()) != null || mcpTools.hasTool(call.name())
+            || !clientToolNames.contains(call.name())) {
           serverCalls.add(call);
         } else {
           clientCalls.add(call);
         }
       }
-
       if (!clientCalls.isEmpty()) {
-        JSONArray serverResults = executeServerCalls(serverCalls, serverTools, context, app,
+        JSONArray serverResults = executeServerCalls(serverCalls, serverTools, mcpTools, context, app,
             serverToolRounds >= ClientToolSupport.maxToolRounds());
         JSONObject toolCall = serverCalls.isEmpty()
             ? ClientToolSupport.toolCallAnswer(aiMessage, conversationId)
@@ -133,7 +157,7 @@ public class LangChain4jEngine implements CopilotEngine {
       serverToolRounds++;
       messages.add(aiMessage);
       for (ToolExecutionRequest call : aiMessage.toolExecutionRequests()) {
-        String result = executeServerTool(serverTools.tool(call.name()), call, context, app);
+        String result = executeServerTool(serverTools.tool(call.name()), mcpTools, call, context, app);
         messages.add(ToolExecutionResultMessage.from(call.id(), call.name(), result));
       }
       aiMessage = chat(model, messages, offeredTools, app);
@@ -147,12 +171,14 @@ public class LangChain4jEngine implements CopilotEngine {
   }
 
   private List<ToolSpecification> offeredSpecifications(ResolvedTools serverTools,
-      List<ToolSpecification> clientTools) {
-    if (!serverTools.hasTools()) {
-      return clientTools;
-    }
+      McpClientToolLoader.LoadedTools mcpTools, List<ToolSpecification> clientTools) {
     List<ToolSpecification> all = new ArrayList<>(serverTools.specifications());
     Set<String> names = toolNames(all);
+    for (ToolSpecification mcpTool : mcpTools.specifications()) {
+      if (names.add(mcpTool.name())) {
+        all.add(mcpTool);
+      }
+    }
     for (ToolSpecification clientTool : clientTools) {
       if (names.add(clientTool.name())) {
         all.add(clientTool);
@@ -176,21 +202,23 @@ public class LangChain4jEngine implements CopilotEngine {
   }
 
   private JSONArray executeServerCalls(List<ToolExecutionRequest> calls, ResolvedTools tools,
-      ToolExecutionContext context, CopilotApp app, boolean roundLimitReached) throws JSONException {
+      McpClientToolLoader.LoadedTools mcpTools, ToolExecutionContext context, CopilotApp app,
+      boolean roundLimitReached) throws JSONException {
     JSONArray results = new JSONArray();
     for (ToolExecutionRequest call : calls) {
       String result = roundLimitReached
           ? "The server tool round limit was reached; this call was not executed."
-          : executeServerTool(tools.tool(call.name()), call, context, app);
+          : executeServerTool(tools.tool(call.name()), mcpTools, call, context, app);
       results.put(toolResult(call, result));
     }
     return results;
   }
 
-  private String executeServerTool(ServerTool tool, ToolExecutionRequest call,
-      ToolExecutionContext context, CopilotApp app) {
+  static String executeServerTool(ServerTool tool, McpClientToolLoader.LoadedTools mcpTools,
+      ToolExecutionRequest call, ToolExecutionContext context, CopilotApp app) {
     if (tool == null) {
-      return "Tool '" + call.name() + "' has no Java implementation.";
+      return mcpTools.hasTool(call.name()) ? mcpTools.execute(call.name(), call.arguments())
+          : "Tool '" + call.name() + "' has no Java implementation.";
     }
     if (context == null) {
       return "The user's context for server tool execution could not be initialized.";
@@ -263,6 +291,20 @@ public class LangChain4jEngine implements CopilotEngine {
         true);
     writerToFront.flush();
   }
+  static void beginTeamStream(HttpServletResponse queue) throws IOException, JSONException {
+    RestServiceUtil.setEventStreamMode(queue);
+    PrintWriter writer = queue.getWriter();
+    RestServiceUtil.sendEventToFront(writer, new JSONObject(), true);
+    writer.flush();
+  }
+
+  static void streamTeamFrame(HttpServletResponse queue, JSONObject answer) throws IOException, JSONException {
+    RestServiceUtil.setEventStreamMode(queue);
+    PrintWriter writer = queue.getWriter();
+    RestServiceUtil.sendEventToFront(writer, new JSONObject().put(RestServiceUtil.PROP_ANSWER, answer), true);
+    writer.flush();
+  }
+
 
   /**
    * Turn the request payload into the message list handed to the model: the system prompt, the

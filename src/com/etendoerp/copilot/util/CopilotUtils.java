@@ -83,19 +83,16 @@ public class CopilotUtils {
   private static final String DEFAULT_PROMPT_PREFERENCE_KEY = "ETCOP_DefaultContextPrompt";
 
   /**
-   * Uploads a file to the vector database with specified parameters.
-   * <p>
-   * This method sends a file to the vector database using the Copilot service.
-   * It constructs a JSON request with the file details, database name, format,
-   * and additional parameters such as chunk size and overlap. If the response
-   * from the Copilot service indicates a failure, an {@link OBException} is thrown.
+   * Indexes a knowledge-base file using the configured Copilot engine. Python mode preserves the
+   * multipart request to the Python vector routes; Java modes index into the in-process pgvector
+   * store.
    *
    * @param fileToSend
    *     The {@link File} to be uploaded to the vector database.
    * @param dbName
    *     The name of the vector database to which the file will be uploaded.
-   * @param format
-   *     The file format (e.g., "csv", "json").
+   * @param sourceId the Copilot app source ID used to scope Java index records
+   * @param format the file format (for example, "csv" or "json")
    * @param skipSplitting
    *     A boolean indicating whether to skip splitting the file into chunks.
    * @param maxChunkSize
@@ -105,34 +102,37 @@ public class CopilotUtils {
    * @param clientId
    *     The client ID associated with the file upload, or null to use a default value, which is "0" (meaning global).
    * @throws JSONException
-   *     If an error occurs while constructing the JSON request.
+   *     If an error occurs while constructing the Python route request.
    * @throws OBException
-   *     If the response from the Copilot service indicates a failure.
+   *     If the vector indexing operation fails.
    */
-  public static void toVectorDB(File fileToSend, String dbName, String format, boolean skipSplitting, Long maxChunkSize,
-      Long chunkOverlap, String clientId) throws JSONException {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String endpoint = "addToVectorDB";
-    HttpResponse<String> responseFromCopilot;
-    JSONObject jsonRequestForCopilot = new JSONObject();
-    jsonRequestForCopilot.put("filename", fileToSend.getName());
-    jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
-    jsonRequestForCopilot.put("extension", format);
-    jsonRequestForCopilot.put("overwrite", false);
-    jsonRequestForCopilot.put("skip_splitting", skipSplitting);
-    jsonRequestForCopilot.put(AD_CLIENT_ID, StringUtils.defaultIfEmpty(clientId, "0"));
-    if (maxChunkSize != null) {
-      jsonRequestForCopilot.put(MAX_CHUNK_SIZE, maxChunkSize);
+  public static void toVectorDB(File fileToSend, String dbName, String sourceId, String format, boolean skipSplitting,
+      Long maxChunkSize, Long chunkOverlap, String clientId) throws JSONException {
+    if (!isJavaEngine()) {
+      Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+      JSONObject request = new JSONObject().put("filename", fileToSend.getName())
+          .put(KB_VECTORDB_ID, dbName).put("extension", format).put("overwrite", false)
+          .put("skip_splitting", skipSplitting).put(AD_CLIENT_ID, StringUtils.defaultIfEmpty(clientId, "0"));
+      if (maxChunkSize != null) request.put(MAX_CHUNK_SIZE, maxChunkSize);
+      if (chunkOverlap != null) request.put(CHUNK_OVERLAP, chunkOverlap);
+      HttpResponse<String> response = getResponseFromCopilot(properties, "addToVectorDB", request, fileToSend);
+      if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) {
+        throw new OBException(OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB"));
+      }
+      return;
     }
-    if (chunkOverlap != null) {
-      jsonRequestForCopilot.put(CHUNK_OVERLAP, chunkOverlap);
-    }
+    String appId = dbName.startsWith("KB_") ? dbName.substring(3) : dbName;
+    new com.etendoerp.copilot.kb.KnowledgeBaseIndexer().index(appId, sourceId, dbName, clientId,
+        fileToSend.toPath(), skipSplitting, maxChunkSize, chunkOverlap);
+  }
 
-    responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot, fileToSend);
-
-    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_Error_sync_vectorDB")));
+  public static boolean isJavaEngine() {
+    String engine = System.getProperty("copilot.engine");
+    if (StringUtils.isBlank(engine)) {
+      engine = readPropertyWithLegacyCompatibility(
+          OBPropertiesProvider.getInstance().getOpenbravoProperties(), "copilot.engine", "python");
     }
+    return "java".equalsIgnoreCase(engine) || "java-strict".equalsIgnoreCase(engine);
   }
 
   /**
@@ -327,34 +327,31 @@ public class CopilotUtils {
   }
 
   /**
-   * Resets the vector database for the specified {@link CopilotApp} instance.
-   * <p>
-   * This method sends a request to the Copilot service to reset the vector database
-   * associated with the given application. If the response status code is not in the
-   * range of 200-299, an {@link OBException} is thrown with an appropriate error message.
+   * Resets the application's knowledge base. Python mode delegates to the legacy Python route;
+   * Java modes reset the in-process index for the current client and, when needed, the shared root
+   * client.
    *
-   * @param app
-   *     The {@link CopilotApp} instance for which the vector database is to be reset.
-   * @throws JSONException
-   *     If an error occurs while constructing the JSON request.
-   * @throws OBException
-   *     If the response from the Copilot service indicates a failure.
+   * @param app the application whose knowledge base should be reset
+   * @throws OBException if the operation fails or the Java knowledge-base schema is not ready
    */
   public static void resetVectorDB(CopilotApp app) throws JSONException {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String dbName = "KB_" + app.getId();
-    JSONObject jsonRequestForCopilot = new JSONObject();
-
-    jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
-    jsonRequestForCopilot.put(AD_CLIENT_ID, OBContext.getOBContext().getCurrentClient().getId());
-    String endpoint = "ResetVectorDB";
-    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
-        null);
-    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
-          responseFromCopilot != null ? responseFromCopilot.body() : ""));
+    if (!isJavaEngine()) {
+      Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+      JSONObject request = new JSONObject().put(KB_VECTORDB_ID, "KB_" + app.getId())
+          .put(AD_CLIENT_ID, OBContext.getOBContext().getCurrentClient().getId());
+      HttpResponse<String> response = getResponseFromCopilot(properties, "ResetVectorDB", request, null);
+      if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
+            response == null ? "" : response.body()));
+      }
+      return;
     }
-
+    com.etendoerp.copilot.kb.KnowledgeBaseStore store = new com.etendoerp.copilot.kb.KnowledgeBaseStore();
+    store.ensureReady();
+    String namespace = "KB_" + app.getId();
+    String clientId = OBContext.getOBContext().getCurrentClient().getId();
+    store.reset(app.getId(), clientId, namespace);
+    if (!"0".equals(clientId)) store.reset(app.getId(), "0", namespace);
   }
 
   /**
@@ -430,8 +427,8 @@ public class CopilotUtils {
     // Check if the file extension is valid
     if (FileUtils.isValidExtension(extension)) {
       // Upload the file to the vector database
-      FileUtils.binaryFileToVectorDB(fileFromCopilotFile, dbName, extension, skipSplitting, maxChunkSize, chunkOverlap,
-          fileToSync.getClient().getId());
+      FileUtils.binaryFileToVectorDB(fileFromCopilotFile, dbName, appSource.getId(), extension, skipSplitting,
+          maxChunkSize, chunkOverlap, fileToSync.getClient().getId());
     } else {
       // Throw an exception for invalid file formats
       throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorInvalidFormat"), extension));
@@ -718,36 +715,31 @@ public class CopilotUtils {
   }
 
   /**
-   * Purges the vector database for the given CopilotApp instance.
-   * This method sends a request to the Copilot service to purge the vector
-   * database associated with the specified app.
-   * If the response status code is not in the range of 200-299, it throws an
-   * OBException.
+   * Purges outdated knowledge-base records. Python mode delegates to the legacy Python route;
+   * Java modes purge the in-process index for the app's client and, when needed, the shared root
+   * client.
    *
-   * @param app
-   *     The CopilotApp instance for which the vector database is to be
-   *     purged.
-   * @throws JSONException
-   *     If there is an error constructing the JSON request.
-   * @throws OBException
-   *     If the response from the Copilot service indicates a
-   *     failure.
+   * @param app the application whose knowledge base should be purged
+   * @throws OBException if the operation fails or the Java knowledge-base schema is not ready
    */
   public static void purgeVectorDB(CopilotApp app) throws JSONException {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String dbName = "KB_" + app.getId();
-    JSONObject jsonRequestForCopilot = new JSONObject();
-
-    jsonRequestForCopilot.put(KB_VECTORDB_ID, dbName);
-    jsonRequestForCopilot.put(AD_CLIENT_ID, app.getClient().getId());
-    String endpoint = "purgeVectorDB";
-    HttpResponse<String> responseFromCopilot = getResponseFromCopilot(properties, endpoint, jsonRequestForCopilot,
-        null);
-    if (responseFromCopilot == null || responseFromCopilot.statusCode() < 200 || responseFromCopilot.statusCode() >= 300) {
-      throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
-          responseFromCopilot != null ? responseFromCopilot.body() : ""));
+    if (!isJavaEngine()) {
+      Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
+      JSONObject request = new JSONObject().put(KB_VECTORDB_ID, "KB_" + app.getId())
+          .put(AD_CLIENT_ID, app.getClient().getId());
+      HttpResponse<String> response = getResponseFromCopilot(properties, "purgeVectorDB", request, null);
+      if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) {
+        throw new OBException(String.format(OBMessageUtils.messageBD("ETCOP_ErrorResetVectorDB"), app.getName(),
+            response == null ? "" : response.body()));
+      }
+      return;
     }
-
+    com.etendoerp.copilot.kb.KnowledgeBaseStore store = new com.etendoerp.copilot.kb.KnowledgeBaseStore();
+    store.ensureReady();
+    String namespace = "KB_" + app.getId();
+    String clientId = app.getClient().getId();
+    store.purge(app.getId(), clientId, namespace);
+    if (!"0".equals(clientId)) store.purge(app.getId(), "0", namespace);
   }
 
   /**
@@ -1167,27 +1159,30 @@ public class CopilotUtils {
     if (StringUtils.isNotEmpty(copilotApp.getDescription())) {
       jsonRequestForCopilot.put(RestServiceUtil.PROP_DESCRIPTION, copilotApp.getDescription());
     }
-    JSONArray appSpecs = new JSONArray();
-    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
-      if (StringUtils.equals(appSource.getBehaviour(), CopilotConstants.FILE_BEHAVIOUR_SPECS)) {
-        JSONObject spec = new JSONObject();
-        try {
-          spec.put("name", appSource.getFile().getName());
-          spec.put("type", appSource.getFile().getType());
-          spec.put("spec", CopilotUtils.getAppSourceContent(appSource));
-          appSpecs.put(spec);
-        } catch (JSONException e) {
-          throw new OBException("Error while building the app specs", e);
-        }
-      }
-    }
-    jsonRequestForCopilot.put("specs", appSpecs);
+    jsonRequestForCopilot.put("specs", getAppSpecs(copilotApp));
 
     // Add MCP configurations
     JSONArray mcpConfigurations = MCPUtils.getMCPConfigurations(copilotApp);
     if (mcpConfigurations.length() > 0) {
       jsonRequestForCopilot.put("mcp_servers", mcpConfigurations);
     }
+  }
+
+  /** Build the OpenAPI FLOW documents supplied with an agent's Java tool request. */
+  public static JSONArray getAppSpecs(CopilotApp copilotApp) throws JSONException, IOException {
+    JSONArray appSpecs = new JSONArray();
+    if (copilotApp.getETCOPAppSourceList() == null) return appSpecs;
+    for (CopilotAppSource appSource : copilotApp.getETCOPAppSourceList()) {
+      if (StringUtils.equals(appSource.getBehaviour(), CopilotConstants.FILE_BEHAVIOUR_SPECS)
+          && appSource.getFile() != null) {
+        JSONObject spec = new JSONObject();
+        spec.put("name", appSource.getFile().getName());
+        spec.put("type", appSource.getFile().getType());
+        spec.put("spec", getAppSourceContent(appSource));
+        appSpecs.put(spec);
+      }
+    }
+    return appSpecs;
   }
 
   /**

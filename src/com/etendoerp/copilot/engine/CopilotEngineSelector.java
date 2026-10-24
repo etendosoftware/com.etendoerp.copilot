@@ -27,8 +27,9 @@ import com.etendoerp.copilot.util.CopilotConstants;
  *   <li>{@code java-strict} — run in-process always; fail loudly instead of falling back.
  *       Use this to prove that no request is silently reaching the Python container.</li>
  * </ul>
- * The Java engine supports langchain/multimodel agents with registered Java tools and client-side
- * WebMCP tools. Anything outside that surface is reported by {@link #unsupportedReason}.
+ * The Java engine supports langchain/multimodel agents, in-process team graphs, registered server
+ * tools, client-side WebMCP tools, configured MCP servers, and Java-backed knowledge-base retrieval.
+ * Anything outside that surface is reported by {@link #unsupportedReason}.
  */
 public class CopilotEngineSelector {
 
@@ -160,24 +161,41 @@ public class CopilotEngineSelector {
       ServerToolRegistry serverToolRegistry) {
     String type = request.optString(RestServiceUtil.PROP_TYPE, null);
     if (!StringUtils.equalsIgnoreCase(type, CopilotConstants.APP_TYPE_LANGCHAIN)
-        && !StringUtils.equalsIgnoreCase(type, CopilotConstants.APP_TYPE_MULTIMODEL)) {
+        && !StringUtils.equalsIgnoreCase(type, CopilotConstants.APP_TYPE_MULTIMODEL)
+        && !StringUtils.equalsIgnoreCase(type, CopilotConstants.APP_TYPE_LANGGRAPH)) {
       return String.format("agent type '%s' is only implemented in the Python runtime", type);
     }
+    if (StringUtils.equalsIgnoreCase(type, CopilotConstants.APP_TYPE_LANGGRAPH)) {
+      JSONArray members = request.optJSONArray("assistants");
+      if (members == null || members.length() == 0) return "the team has no members";
+      for (int i = 0; i < members.length(); i++) {
+        JSONObject member = members.optJSONObject(i);
+        if (member == null) return "the team contains an invalid member configuration";
+        String memberType = member.optString("type", null);
+        if (StringUtils.equalsIgnoreCase(memberType, CopilotConstants.APP_TYPE_OPENAI)) {
+          return "openai-assistant team members are not implemented in the Python graph runtime";
+        }
+        if (!StringUtils.equalsIgnoreCase(memberType, CopilotConstants.APP_TYPE_LANGCHAIN)
+            && !StringUtils.equalsIgnoreCase(memberType, CopilotConstants.APP_TYPE_MULTIMODEL)) {
+          return String.format("team member type '%s' is unsupported by the Java team engine", memberType);
+        }
+        ResolvedTools memberTools = serverToolRegistry.resolve(member, false,
+            new com.etendoerp.copilot.engine.tool.openapi.OpenApiToolGenerator()
+                .tools(member.optJSONArray("specs")));
+        if (!memberTools.missingNames().isEmpty()) {
+          return "team member declares tools that have no Java implementation: "
+              + String.join(", ", memberTools.missingNames());
+        }
+      }
+    }
     if (hasEntries(request.optJSONArray(RestServiceUtil.PROP_TOOLS))) {
-      ResolvedTools tools = serverToolRegistry.resolve(request);
+      ResolvedTools tools = serverToolRegistry.resolve(request, false,
+          new com.etendoerp.copilot.engine.tool.openapi.OpenApiToolGenerator()
+              .tools(request.optJSONArray("specs")));
       if (!tools.missingNames().isEmpty()) {
         return "the agent declares tools that have no Java implementation: "
             + String.join(", ", tools.missingNames());
       }
-    }
-    if (hasEntries(request.optJSONArray("specs"))) {
-      return "the agent declares OpenAPI specs, which the Java engine does not execute yet";
-    }
-    if (hasEntries(request.optJSONArray("mcp_servers"))) {
-      return "the agent declares MCP servers, which the Java engine does not connect to yet";
-    }
-    if (app.getETCOPAppSourceList().stream().anyMatch(CopilotConstants::isKbBehaviour)) {
-      return "the agent has a knowledge base, which the Java engine cannot query yet";
     }
     if (request.optBoolean(RestServiceUtil.PROP_CODE_EXECUTION, false)) {
       return "the agent runs code execution (CodeAct), which is not implemented in the Java engine";

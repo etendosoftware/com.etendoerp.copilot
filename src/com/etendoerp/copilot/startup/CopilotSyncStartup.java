@@ -223,18 +223,30 @@ public class CopilotSyncStartup implements ApplicationInitializer {
     if (ids == null) {
       return;
     }
+    java.util.Set<String> failedIds = new java.util.HashSet<>();
+    JSONArray syncErrors = res.optJSONArray("syncErrors");
+    for (int i = 0; syncErrors != null && i < syncErrors.length(); i++) {
+      JSONObject error = syncErrors.optJSONObject(i);
+      if (error == null) continue;
+      String appId = error.optString("agentId", "");
+      if (!appId.isEmpty()) failedIds.add(appId);
+      log.warn("Copilot startup sync issue for agent {}: {}", appId, error.optString("message"));
+    }
+    int synchronizedCount = 0;
     for (int i = 0; i < ids.length(); i++) {
       String appId = ids.optString(i);
-      if (appId == null || appId.isEmpty()) {
+      if (appId == null || appId.isEmpty() || failedIds.contains(appId)) {
         continue;
       }
       CopilotApp app = OBDal.getInstance().get(CopilotApp.class, appId);
       if (app != null) {
         CopilotAppInfoUtils.markAsSynchronized(app);
+        synchronizedCount++;
       }
     }
     OBDal.getInstance().flush();
-    log.info("Copilot startup: marked {} agents as synchronized", ids.length());
+    log.info("Copilot startup: marked {} agents as synchronized; {} agents need KB attention",
+        synchronizedCount, failedIds.size());
   }
 
   private void waitForSessionInfoInitialized() throws InterruptedException {

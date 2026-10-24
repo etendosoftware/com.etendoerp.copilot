@@ -55,8 +55,8 @@ public class GetMCPConfigurationNewTest {
   private static final String DIRECT = "Direct";
   private static final String HEADERS = "headers";
   private static final String HELLO = "hello";
-  private static final String HTTP_EXAMPLE_COM = "http://example.com";
-  private static final String HTTP_LOCALHOST_5006 = "http://localhost:5006";
+  private static final String HTTP_EXAMPLE_COM = "http://example.com/sws/copilot";
+  private static final String HTTP_LOCALHOST_5006 = "http://localhost/sws/copilot";
   private static final String MCP_REMOTE = "mcp-remote";
   private static final String MCP_REMOTE_MODE = "mcp_remote_mode";
   private static final String MYKEY = "mykey";
@@ -76,6 +76,7 @@ public class GetMCPConfigurationNewTest {
     mockedOBMessageUtils = mockStatic(OBMessageUtils.class);
 
     mockedCopilotUtils.when(CopilotUtils::generateEtendoToken).thenReturn("TEST_TOKEN");
+    mockedCopilotUtils.when(CopilotUtils::isJavaEngine).thenReturn(true);
 
     mockedOBMessageUtils.when(() -> OBMessageUtils.messageBD(any(String.class))).thenAnswer(inv ->
       inv.getArgument(0)
@@ -198,8 +199,7 @@ public class GetMCPConfigurationNewTest {
   @Test
   public void testGetConfigStandardMode() throws Exception {
     GetMCPConfiguration.ConfigRequest req = new GetMCPConfiguration.ConfigRequest("agent1", AGENT_ONE);
-    req.setOptions(false, false, "mytoken", HTTP_LOCALHOST_5006, null, false, null);
-
+    req.setOptions(false, false, "mytoken", "http://localhost/sws/copilot", null, false, null);
     JSONObject config = GetMCPConfiguration.getConfig(req);
     assertNotNull(config);
 
@@ -208,7 +208,7 @@ public class GetMCPConfigurationNewTest {
 
     JSONObject inner = config.getJSONObject(key);
     assertEquals(AGENT_ONE, inner.getString("name"));
-    assertEquals("http://localhost:5006/agent1/mcp", inner.getString("url"));
+    assertEquals("http://localhost/sws/copilot/mcp/agent1/mcp", inner.getString("url"));
     assertEquals("http", inner.getString("type"));
     assertTrue(inner.has(HEADERS));
     assertEquals("Bearer mytoken", inner.getJSONObject(HEADERS).getString("Authorization"));
@@ -227,7 +227,7 @@ public class GetMCPConfigurationNewTest {
     String key = config.keys().next().toString();
     JSONObject inner = config.getJSONObject(key);
 
-    assertEquals("http://example.com/agent2/direct/mcp", inner.getString("url"));
+    assertEquals("http://example.com/sws/copilot/mcp/agent2/direct/mcp", inner.getString("url"));
   }
 
   /**
@@ -246,7 +246,7 @@ public class GetMCPConfigurationNewTest {
     assertEquals("npx", inner.getString("command"));
     JSONArray args = inner.getJSONArray("args");
     assertEquals(MCP_REMOTE, args.getString(0));
-    assertEquals("http://example.com/agent3/mcp", args.getString(1));
+    assertEquals("http://example.com/sws/copilot/mcp/agent3/mcp", args.getString(1));
     assertEquals("--header", args.getString(2));
     assertEquals("Authorization: Bearer tok3", args.getString(3));
   }
@@ -299,7 +299,7 @@ public class GetMCPConfigurationNewTest {
     JSONObject inner = config.getJSONObject(key);
 
     JSONArray args = inner.getJSONArray("args");
-    assertEquals("http://example.com/agent6/direct/mcp", args.getString(1));
+    assertEquals("http://example.com/sws/copilot/mcp/agent6/direct/mcp", args.getString(1));
   }
 
   // --- getServerUrlFromConfig tests ---
@@ -421,40 +421,46 @@ public class GetMCPConfigurationNewTest {
 
   // --- getContextUrlMCP tests ---
 
-  /** Test get context url m c p custom url. */
+  /** Test servlet context suffix on explicit MCP URLs. */
   @Test
-  public void testGetContextUrlMCPCustomUrl() {
+  public void testGetContextUrlMCPExplicitUrls() {
     GetMCPConfiguration g = new GetMCPConfiguration();
-    assertEquals("https://custom.com", g.getContextUrlMCP("https://custom.com"));
-  }
-
-  /** Test get context url m c p from property. */
-  @Test
-  public void testGetContextUrlMCPFromProperty() {
+    assertEquals("https://custom.com/sws/copilot", g.getContextUrlMCP("https://custom.com"));
     props.setProperty("context.url.copilot.mcp", "https://prop.com");
-    GetMCPConfiguration g = new GetMCPConfiguration();
-    assertEquals("https://prop.com", g.getContextUrlMCP(null));
+    assertEquals("https://prop.com/sws/copilot", g.getContextUrlMCP(null));
   }
 
-  /** Test get context url m c p fallback to localhost with port. */
+  /** Test fallback to the configured Etendo context without a dedicated MCP port. */
   @Test
-  public void testGetContextUrlMCPFallbackToLocalhostWithPort() {
-    props.setProperty("copilot.port.mcp", "9999");
+  public void testGetContextUrlMCPFallbackToEtendoContext() {
+    props.setProperty("context.url", "https://etendo.example.com");
     GetMCPConfiguration g = new GetMCPConfiguration();
-    assertEquals("http://localhost:9999", g.getContextUrlMCP(null));
+    assertEquals("https://etendo.example.com/sws/copilot", g.getContextUrlMCP(null));
+  }
+  @Test
+  public void testPythonModeRetainsLegacyMcpUrlFlow() throws Exception {
+    mockedCopilotUtils.when(CopilotUtils::isJavaEngine).thenReturn(false);
+    props.setProperty("context.url.copilot.mcp", "https://python.example/mcp");
+    GetMCPConfiguration configuration = new GetMCPConfiguration();
+    assertEquals("https://python.example/mcp", configuration.getContextUrlMCP(null));
+
+    GetMCPConfiguration.ConfigRequest request = new GetMCPConfiguration.ConfigRequest("agent-id", AGENT_ONE);
+    request.setOptions(true, false, "token", "https://python.example/mcp", null, false, "oauth");
+    JSONObject config = GetMCPConfiguration.getConfig(request);
+    assertEquals("https://python.example/mcp/agent-id/direct/mcp",
+        config.getJSONObject(GetMCPConfiguration.normalize(AGENT_ONE)).getString("url"));
   }
 
-  /** Test get context url m c p fallback default port. */
+  /** Test default context uses localhost and the servlet mapping. */
   @Test
   public void testGetContextUrlMCPFallbackDefaultPort() {
     GetMCPConfiguration g = new GetMCPConfiguration();
     assertEquals(HTTP_LOCALHOST_5006, g.getContextUrlMCP(null));
   }
 
-  /** Test get context url m c p blank custom url. */
+  /** Test blank custom URL uses the servlet mapping. */
   @Test
   public void testGetContextUrlMCPBlankCustomUrl() {
-    props.setProperty("copilot.port.mcp", "5006");
     GetMCPConfiguration g = new GetMCPConfiguration();
     assertEquals(HTTP_LOCALHOST_5006, g.getContextUrlMCP(""));
   }

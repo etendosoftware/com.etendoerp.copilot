@@ -52,6 +52,7 @@ public final class ToolExecutionContext {
       0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(QUEUE_CAPACITY), new ToolThreadFactory(),
       new ThreadPoolExecutor.AbortPolicy());
   private static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(5);
+  private static final ConcurrentMap<String, AtomicInteger> ACTIVE_WORKSPACES = new ConcurrentHashMap<>();
 
   private final String userId;
   private final String roleId;
@@ -144,6 +145,28 @@ public final class ToolExecutionContext {
     return attributes;
   }
 
+  /** True while any bounded server-tool call is using this managed workspace identity. */
+  public static boolean isWorkspaceActive(String clientId, String userId, String conversationId) {
+    return ACTIVE_WORKSPACES.containsKey(workspaceKey(clientId, userId, conversationId));
+  }
+
+  /** Custom workspace roots omit the client/user path levels; any matching active conversation is protected. */
+  public static boolean isConversationActive(String conversationId) {
+    String suffix = "/" + safeSegment(conversationId, "mcp");
+    return ACTIVE_WORKSPACES.keySet().stream().anyMatch(key -> key.endsWith(suffix));
+  }
+
+  private static String workspaceKey(String clientId, String userId, String conversationId) {
+    return safeSegment(clientId, "mcp") + "/" + safeSegment(userId, "mcp") + "/"
+        + safeSegment(conversationId, "mcp");
+  }
+
+  private static String safeSegment(String value, String fallback) {
+    if (value == null || value.isBlank()) return fallback;
+    String segment = value.replaceAll("[^A-Za-z0-9._-]", "_");
+    return segment.isBlank() || segment.equals(".") || segment.equals("..") ? "default" : segment;
+  }
+
   /**
    * Run the body on a dedicated, bounded daemon worker with this identity bound to DAL state.
    * A timeout cancels the worker with interruption; success commits and every failure rolls back.
@@ -215,7 +238,12 @@ public final class ToolExecutionContext {
   }
 
   private <T> T runBound(Callable<T> body, AtomicBoolean cancelled) throws Exception {
-    Thread.interrupted();
+    String workspaceKey = workspaceKey(clientId, userId, conversationId);
+    ACTIVE_WORKSPACES.compute(workspaceKey, (key, count) -> {
+      if (count == null) count = new AtomicInteger();
+      count.incrementAndGet();
+      return count;
+    });
     boolean success = false;
     try {
       binding.bind(this);
@@ -224,9 +252,14 @@ public final class ToolExecutionContext {
       return result;
     } finally {
       try {
-        binding.finish(success);
+        try {
+          binding.finish(success);
+        } finally {
+          Thread.interrupted();
+        }
       } finally {
-        Thread.interrupted();
+        ACTIVE_WORKSPACES.computeIfPresent(workspaceKey, (key, count) ->
+            count.decrementAndGet() == 0 ? null : count);
       }
     }
   }

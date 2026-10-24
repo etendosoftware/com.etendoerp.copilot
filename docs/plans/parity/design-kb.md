@@ -123,3 +123,25 @@ runs without a reference and uses its standard extraction prompt.
 - `worktrees/copilot-ETP-5136/src/com/etendoerp/copilot/engine/ChatModelFactory.java:35-48,59-61,104-110` — proxy configuration convention.
 - `worktrees/copilot-ETP-5136/build.gradle:18,55-95` — LangChain4j version and current dependencies.
 - `worktrees/copilot-ETP-5136/docs/plans/parity/parity-tools-inventory.md:28` — MemoryTool Chroma vector usage.
+## Implemented Java slice and remaining cutover work
+
+The Java module now has a parameterized pgvector store, proxy-compatible OpenAI embedding
+factory, parser/chunker/indexer, in-process source refresh calls, and an implicit
+`KnowledgeBaseSearch` server tool for agents with KB sources. The Copilot update.database
+module script creates the table and indexes only when `vector` is already installed; when it is
+absent or DDL fails, it logs a warning and lets the update continue. Provisioning is idempotent.
+Runtime indexing/search never creates schema and fails with
+`pgvector not available / KB table not provisioned, run update.database` when unavailable.
+
+Text sources supported by the Java parser are PDF, Markdown, plain text, Java, Python, JavaScript,
+XML, JSON, and ZIP (expanded in memory with a 64 MiB per-entry cap). The existing file extension
+allow-list also includes PNG/JPG/JPEG. CLIP vision embeddings are not currently provided: this
+classpath has no ONNX Runtime/model artifact and the input pipeline lacks a CLIP-compatible
+preprocessor. `ReferenceSearch` therefore remains empty and OCR follows its standard extraction
+prompt, matching the documented “no reference found” behavior. BMP/TIFF/GIF/WebP indexing is also
+not available in the Java KB.
+
+Legacy Chroma vectors are not imported. Run the existing `SyncAssistant` knowledge-base refresh
+for each agent after deploying Java; it resets the agent namespace, indexes current
+`ETCOP_APP_SOURCE` records, then purges rows left marked stale. Memory rows use the same physical
+pgvector table but `MEMORY_<agentId>` namespaces and user-id scoping, separate from KB collections.
