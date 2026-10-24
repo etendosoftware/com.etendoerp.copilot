@@ -37,6 +37,13 @@ Key environment variables to configure in your `.env` file:
 * `GOOGLE_API_KEY`: Google API key for Google AI models
 * `BASTIAN_URL`: URL for Bastian service integration
 
+When this Python service is used by the Etendo application, the Java runtime resolves model and
+API-key configuration from the Etendo AI API Keys window and sends it request-scoped to Python.
+The environment variables above remain fallback configuration for standalone Python deployments
+and for existing Etendo installs during the credential deprecation period. See
+[`docs/java-engine.md`](docs/java-engine.md#2-configuration) and
+[`docs/request-flow.md`](docs/request-flow.md) for the resolution and secret-handling contract.
+
 # Backend Development
 
 ## Virtual environment

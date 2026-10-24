@@ -49,8 +49,15 @@ public class PythonCopilotEngine implements CopilotEngine {
     String endpoint = RestServiceUtil.determineEndpoint(asyncRequest, app);
 
     if (log.isDebugEnabled()) {
-      log.debug("Request to Copilot:");
-      log.debug(new JSONObject(request.toString()).toString(2));
+      JSONObject logRequest = new JSONObject(request.toString());
+      JSONObject extraInfo = logRequest.optJSONObject("extra_info");
+      if (extraInfo != null) {
+        JSONObject llmCredentials = extraInfo.optJSONObject("llm");
+        if (llmCredentials != null && llmCredentials.has("api_key")) {
+          llmCredentials.put("api_key", "[REDACTED]");
+        }
+      }
+      log.debug(logRequest.toString(2));
     }
 
     URL url = new URL(String.format("http://%s:%s%s", copilotHost, copilotPort, endpoint));

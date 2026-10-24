@@ -58,6 +58,7 @@ import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.MessageTrl;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.config.ProviderCredentials;
 import com.etendoerp.copilot.engine.ClientToolSupport;
 import com.etendoerp.copilot.engine.CopilotEngineSelector;
 import com.etendoerp.copilot.data.CopilotAppSource;
@@ -324,12 +325,9 @@ public class RestServiceUtil {
         CopilotUtils.validateOpenAIKey();
         break;
       case CopilotConstants.APP_TYPE_LANGCHAIN:
-        CopilotUtils.validateOpenAIKey();
-        break;
       case CopilotConstants.APP_TYPE_MULTIMODEL:
-        if (StringUtils.equals(CopilotModelUtils.getProvider(copilotApp), CopilotConstants.PROVIDER_OPENAI)) {
-          CopilotUtils.validateOpenAIKey();
-        }
+        CopilotUtils.validateOpenAIKey(CopilotModelUtils.getProvider(copilotApp),
+            CopilotModelUtils.getAppModel(copilotApp));
         break;
       case CopilotConstants.APP_TYPE_LANGGRAPH:
         break;
@@ -941,6 +939,15 @@ public class RestServiceUtil {
     try {
       jsonExtraInfo.put("auth", CopilotUtils.getAuthJson(role, context));
       jsonExtraInfo.put("model_config", CopilotUtils.getModelsConfigJSON());
+      ProviderCredentials.ProviderConfig credentials = ProviderCredentials.create()
+          .resolve(jsonRequest.optString(PROP_MODEL, null));
+      JSONObject llmCredentials = new JSONObject();
+      llmCredentials.put("provider", credentials.provider());
+      llmCredentials.put("model", credentials.model());
+      llmCredentials.put("api_key", credentials.apiKey());
+      llmCredentials.put("base_url", credentials.baseUrl());
+      llmCredentials.put("gateway_mode", credentials.gatewayMode());
+      jsonExtraInfo.put("llm", llmCredentials);
       jsonRequest.put("extra_info", jsonExtraInfo);
     } catch (Exception e) {
       log.error("Error adding auth token to extraInfo", e);

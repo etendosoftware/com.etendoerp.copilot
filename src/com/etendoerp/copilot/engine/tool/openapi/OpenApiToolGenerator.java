@@ -188,8 +188,8 @@ public final class OpenApiToolGenerator {
   private static String loopbackReason(String server, String path, String method) {
     if (!path.startsWith(RX_PREFIX)) return "EtendoHttp loopback: non-datasource, external, workflow, or binary operation requires its original endpoint";
     if (path.contains("{") || path.contains("}")) return "EtendoHttp loopback: dynamic datasource/entity path is not trusted as a model-supplied entity identifier";
-    if (method.equalsIgnoreCase("GET")) return "EtendoHttp loopback: RX datasource request/session, RSQL, selector, tab, or projection semantics are not proven equivalent";
-    return "EtendoHttp loopback: core JSON add/update enters cross-org-reference admin mode and remove commits internally; caller-context transaction-safe writes are not available";
+    if (method.equalsIgnoreCase("GET")) return "EtendoHttp loopback: RX servlet session setup enters admin mode and its tab/RSQL/projection behavior is not safely reproduced in caller context";
+    return "EtendoHttp loopback: RX write requests require tab/session/form/callout processing; caller-context-safe transaction semantics are not established";
   }
 
   private static boolean isEtendoServer(String server) {

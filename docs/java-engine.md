@@ -39,36 +39,30 @@ copilot.engine=java
 | `java` | Run in-process when the request is supported; otherwise log a warning and fall back to Python. |
 | `java-strict` | Run in-process always; raise an error instead of falling back. Use it to prove no request is silently reaching the container. |
 
-Model credentials and endpoints. Provider resolution **mirrors the Python runtime**
-(`copilot/core/utils/agent.py::get_llm`) so both engines reach the same endpoint with the same
-model name:
+Provider, model, endpoint, and credentials are resolved together from the selected
+`ETCOP_OPENAI_MODEL` row by `ProviderCredentials`. Link an `ETCOP_API_KEY` record to use
+database-managed credentials; an unlinked existing model continues to use legacy properties as a
+deprecated fallback. Etendo-managed model aliases (`etendo-fast`, `etendo-smart`, and
+`etendo-embeddings`) are sent to `https://llm.etendo.software` without a provider prefix.
 
-1. **Ollama** is handled natively, before anything else.
-2. **Proxy mode** — if `copilot.proxy.url` is set, it applies to *every* provider: the
-   OpenAI-compatible client is pointed at that gateway and the model name is prefixed with its
-   original provider (`openai/gpt-4.1`), which is how the gateway resolves the real credentials.
-   The API key falls back to `"dummy"` when `openai.api.key` is unset, because the OpenAI client
-   refuses to build without one.
-3. Otherwise each provider uses its **native** client.
-
-Knowledge-base embeddings use the same OpenAI-compatible endpoint and proxy key fallback as the
-chat model. Set `copilot.embedding.model` to override the default `text-embedding-3-small`.
-When a proxy is configured, the model is sent as `openai/<model>`. Run `update.database` after
-installing pgvector to provision the KB table/indexes; runtime requests never perform DDL and
-report a clear error when pgvector or the provisioned table is missing.
+Knowledge-base embeddings use the selected system embedding-model preference when configured,
+falling back to the `etendo-embeddings` alias when its API key record is linked. The legacy
+embedding model property is retained during migration. Run `update.database` after installing
+pgvector to provision the KB table/indexes; runtime requests never perform DDL and report a clear
+error when pgvector or the provisioned table is missing.
 
 ```properties
-copilot.proxy.url=https://llm.etendo.software   # gateway; enables proxy mode for every provider
+# Deprecated Openbravo.properties fallback (Release N)
+copilot.proxy.url=https://llm.etendo.software
 openai.api.key=sk-...
 anthropic.api.key=sk-ant-...
 gemini.api.key=...
 ollama.base.url=http://localhost:11434
-
-# Direct mode only: override the OpenAI endpoint without prefixing the model name.
 copilot.openai.base.url=http://localhost:4000
-
-# Model call timeout, seconds. Default 120.
 copilot.engine.java.timeout.seconds=120
+
+# Properties are read only when the model has no linked API Key record.
+# Each deprecated property read logs one WARN per JVM start.
 
 # Client and server tool rounds allowed per question. Default 25.
 copilot.engine.java.max.tool.rounds=25
@@ -76,6 +70,9 @@ copilot.engine.java.max.tool.rounds=25
 # Stream team orchestration debug events (default false).
 copilot.stream.debug=false
 ```
+Deprecation schedule: Release N keeps these values as fallback and warns on read; Release N+1
+ignores them for model resolution and logs an error if they remain configured; Release N+2 removes
+the fallback. Python mode keeps using the legacy properties until the Python runtime is removed.
 
 The provider and model come from `ETCOP_MODEL`, resolved by `CopilotModelUtils`, and the
 per-model `max_tokens` is read from `extra_info.model_config` — the same structure Python
@@ -146,10 +143,13 @@ in Java only when **all** of these hold:
   Python generator's FLOW naming/parameter rules.
   Only a fixed-entity RX read with descriptor-declared entity/field allowlists, local Etendo server,
   and simple projection/sort/paging arguments uses core `DefaultJsonDataService.fetch` under the
-  caller's non-admin `OBContext`. RX-specific reads and writes use `EtendoHttp` loopback. Generic
-  JSON add/update currently also enters cross-org-reference admin mode, while remove commits
-  internally, so writes remain loopback to preserve the caller-context/security contract. Each
-  operation logs its classification and reason; unknown operations remain loopback.
+  caller's non-admin `OBContext`; this is a narrow service call, not RX servlet dispatch. The RX
+  `DataSourceServlet.doGet` enters admin mode while preparing session state, and its facade lacks a
+  DELETE entrypoint; RX tab/session/form/callout routes therefore remain explicit EtendoHttp
+  loopback. Writes also remain loopback because caller-context transaction-safe semantics are not
+  established. `SMFWHE_WBHK` workflow actions are not datasource CRUD; their dedicated webhook path
+  must invoke `WebhookInvoker`, not infer a webhook from arbitrary OpenAPI route text. Each operation
+  logs its classification and reason; unknown operations remain loopback.
 - the payload and each team member may declare `mcp_servers`. These become request-scoped
   LangChain4j MCP tools over stdio or Streamable HTTP.
 - the payload does not request code execution (`code_execution`, CodeAct). CodeAct runs Python

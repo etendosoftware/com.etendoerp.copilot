@@ -173,11 +173,12 @@ def serve_graph(question: GraphQuestionSchema):
     print_call_info(copilot_agent, question)
     try:
         load_thread_context(question)
+        extra_info = ThreadContext.get_data("extra_info") or {}
         copilot_debug(
             "Thread "
             + str(threading.get_ident())
-            + " Saving extra info:"
-            + str(ThreadContext.get_data("extra_info"))
+            + " Saving extra info keys:"
+            + str(sorted(extra_info.keys()))
         )
         agent_response: AgentResponse = copilot_agent.execute(question)
         response = agent_response.output

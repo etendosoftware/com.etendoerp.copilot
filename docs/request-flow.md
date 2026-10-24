@@ -79,8 +79,11 @@ The resulting object (langchain/multimodel case) is roughly:
   "question": "<Context>…</Context><Question>…</Question>",
   "local_file_ids": [ … ],
   "extra_info": {
-     "auth":         { "ETENDO_TOKEN": "…", "ETENDO_HOST": "…" },
-     "model_config": { … }
+    "auth":         { "ETENDO_TOKEN": "…", "ETENDO_HOST": "…" },
+    "model_config": { … },
+    "llm":           { "provider": "openai", "model": "gpt-4o",
+                       "api_key": "[redacted]", "base_url": null,
+                       "gateway_mode": false }
   }
 }
 ```
@@ -89,6 +92,10 @@ The resulting object (langchain/multimodel case) is roughly:
 (`RestServiceUtil.java:904`) and is then handed to every registered
 `CopilotQuestionHook` (`hook/CopilotQuestionHookManager.java:39`), which may add or
 mutate anything in the request.
+
+`extra_info.llm` carries the Java-resolved model credentials only for the active request while
+Python remains supported. The request debug logger redacts `api_key`, and the Python context log
+records only the extra-info field names; this value must not be persisted or returned to clients.
 
 > **`extra_info` is the natural carrier for UI Tools.** It is an untyped `dict` on the
 > Python side (`schemas.py: QuestionSchema.extra_info: Optional[dict]`), it survives the

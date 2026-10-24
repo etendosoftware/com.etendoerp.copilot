@@ -16,6 +16,8 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotModel;
+import com.etendoerp.copilot.config.ProviderCredentials;
+
 
 /**
  * Handles synchronization status updates for the Copilot application whenever
@@ -49,6 +51,7 @@ public class ModelHandler extends EntityPersistenceEventObserver {
     if (!isValidEvent(event)) {
       return;
     }
+    ProviderCredentials.invalidateCache();
     Entity e = ModelProvider.getInstance().getEntity(CopilotModel.class);
     var propDefault = e.getProperty(CopilotModel.PROPERTY_DEFAULT);
     var propDefaultOverride = e.getProperty(CopilotModel.PROPERTY_DEFAULTOVERRIDE);

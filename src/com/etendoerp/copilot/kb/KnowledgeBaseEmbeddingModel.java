@@ -6,34 +6,59 @@ import java.util.Properties;
 import org.apache.commons.lang3.StringUtils;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.erpCommon.businessUtility.Preferences;
 
+import com.etendoerp.copilot.config.ProviderCredentials;
 import com.etendoerp.copilot.util.CopilotUtils;
+
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 
-/** Resolves the embedding endpoint with the same proxy/provider convention as ChatModelFactory. */
+/** Resolves the configured embedding model through the central provider credential service. */
 public final class KnowledgeBaseEmbeddingModel {
+  private static final String DEFAULT_ETENDO_MODEL = "etendo-embeddings";
+
   private KnowledgeBaseEmbeddingModel() { }
+
   public static EmbeddingModel build() {
     Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String proxy = CopilotUtils.readPropertyWithLegacyCompatibility(properties, "copilot.proxy.url", null);
-    String key = CopilotUtils.readPropertyWithLegacyCompatibility(properties, "openai.api.key", null);
-    String modelName = CopilotUtils.readPropertyWithLegacyCompatibility(properties,
-        "copilot.embedding.model", "text-embedding-3-small");
-    String routedModelName = StringUtils.isNotBlank(proxy) ? "openai/" + StringUtils.defaultIfBlank(modelName, "text-embedding-3-small")
-        : StringUtils.defaultIfBlank(modelName, "text-embedding-3-small");
+    String selectedModel = embeddingModelPreference();
+    ProviderCredentials credentials = ProviderCredentials.create();
+    ProviderCredentials.ProviderConfig config;
+    if (StringUtils.isNotBlank(selectedModel)) {
+      config = credentials.resolve(selectedModel);
+    } else {
+      try {
+        config = credentials.resolve(DEFAULT_ETENDO_MODEL);
+      } catch (OBException missingEtendoAlias) {
+        String legacyModel = CopilotUtils.readPropertyWithLegacyCompatibility(properties,
+            "copilot.embedding.model", "text-embedding-3-small");
+        config = credentials.resolve(legacyModel);
+      }
+    }
+
+    String modelName = config.gatewayMode() && !"etendo".equalsIgnoreCase(config.provider())
+        ? config.provider() + "/" + config.model() : config.model();
     OpenAiEmbeddingModel.OpenAiEmbeddingModelBuilder builder = OpenAiEmbeddingModel.builder()
-        .modelName(routedModelName)
-        .apiKey(StringUtils.defaultIfBlank(key, StringUtils.isNotBlank(proxy) ? "dummy" : null))
-        .timeout(Duration.ofSeconds(120));
-    if (StringUtils.isNotBlank(proxy)) builder.baseUrl(proxy);
-    else {
-      String baseUrl = CopilotUtils.readPropertyWithLegacyCompatibility(properties, "copilot.openai.base.url", null);
-      if (StringUtils.isNotBlank(baseUrl)) builder.baseUrl(baseUrl);
-      if (StringUtils.isBlank(key)) throw new OBException("openai.api.key is required for knowledge-base embeddings");
+        .modelName(modelName)
+        .apiKey(StringUtils.defaultIfBlank(config.apiKey(), "dummy"))
+        .timeout(Duration.ofSeconds(Long.parseLong(config.timeoutSeconds())));
+    if (StringUtils.isNotBlank(config.baseUrl())) {
+      builder.baseUrl(config.baseUrl());
     }
     return builder.build();
+  }
+
+  private static String embeddingModelPreference() {
+    try {
+      return Preferences.getPreferenceValue("ETCOP_DefaultEmbeddingModel", true,
+          OBContext.getOBContext().getCurrentClient(), OBContext.getOBContext().getCurrentOrganization(),
+          OBContext.getOBContext().getUser(), OBContext.getOBContext().getRole(), null);
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   public static float[] vector(EmbeddingModel model, String text) {

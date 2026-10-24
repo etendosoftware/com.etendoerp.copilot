@@ -22,111 +22,102 @@ Consequences: a key change needs a Tomcat/container restart; Etendo GO (multi-te
 key; keys sit in a file that is easy to leak (backups, support bundles, repo configs); Java and Python can
 disagree on the key.
 
-## 2. Target design
+## 2. Final target design (user-approved)
 
 ### 2.1 Data model
 
-- **`ETCOP_PROVIDER` (new)**: one row per provider configuration.
-  `SEARCHKEY` (openai, anthropic, gemini, ollama, ...), `NAME`, `TYPE` (list: `openai`, `anthropic`, `gemini`,
-  `ollama`, `openai_compatible`), `BASE_URL`, `API_KEY` (encrypted, masked in the UI), `TIMEOUT_SECONDS`,
-  `GATEWAY_MODE` (when true, every model of the providers routed through it is sent to this OpenAI-compatible
-  endpoint with the `provider/model` prefix: replaces `copilot.proxy.url`), `ISDEFAULT`, standard client/org/active
-  columns. Resolution is org -> client -> system (client 0), which gives per-tenant keys for Etendo GO without a
-  new mechanism.
-- **`ETCOP_OPENAI_MODEL`**: keep the table (renaming AD tables is costly and breaks references); add an FK
-  `ETCOP_PROVIDER_ID`. The `PROVIDER` string stays during the migration as the compatibility key and is derived
-  from the FK afterwards.
-- **Tool credentials**: one small table `ETCOP_TOOL_CREDENTIAL` (`TOOL`/`NAME`, encrypted `VALUE`, client/org)
-  for tools that need a secret (Tavily, Resend, Google OAuth client, ...). Both tables are read through the same
-  Java service, so there is one secret path, not two.
+- **`ETCOP_API_KEY` (new)** is the credential record and window `AI API Keys`. Each row has a
+  name, provider type, encrypted API key, optional base URL, active flag, and standard client/org
+  scope. The window is restricted to the System Administrator role. The key is masked on screen,
+  excluded from audit, and never returned in clear by APIs, DAL/JSON exports, logs, or errors.
+  Reuse Etendo's reversible encryption API, `org.openbravo.utils.FormatUtilities.encryptDecrypt`
+  (`true` encrypts, `false` decrypts), and the `Password (decryptable)` AD reference
+  (`16EC6DF4A59747749FDF256B7FBBB058`) to mask the value in the UI.
+- Keep **`ETCOP_OPENAI_MODEL`**. Add a nullable API-key FK. No validation blocks saving an
+  unlinked model: it resolves like today using deprecated properties/environment as fallback and
+  emits the one-time property warning. Only new `etendo-*` aliases require a linked key at use
+  time, with a clear error directing the administrator to AI API Keys.
+- Provider keys are required at runtime for `openai`, `anthropic`, `gemini`, and `etendo`;
+  `ollama` needs no API key. Other API-key providers (`tavily`, `resend`) are available to tool
+  consumers but are not model providers.
+- Model/key resolution uses most-specific applicable scope in order: organization, client,
+  system. Active status is required. Existing property configuration is only a deprecated fallback.
+- Add seeded Etendo-maintained aliases `etendo-fast`, `etendo-smart`, and `etendo-embeddings`,
+  provider `etendo`, endpoint `https://llm.etendo.software`, and no model-name prefix. Mark the
+  embedding alias as an embedding model. A system-level embedding-model preference wins when
+  configured; otherwise resolve the active `etendo-embeddings` alias and its configured key.
+- Tool credentials use `ETCOP_API_KEY` where the credential is an API key (e.g. `tavily`,
+  `resend`), resolved by the same Java service. Do not add a parallel tool-secret table.
 
-### 2.2 Java service
+### 2.2 Resolution and consumers
 
-`com.etendoerp.copilot.config.ProviderCredentials` (one class, replaces all scattered property reads):
+One Java `ProviderCredentials` service resolves from a model row, including provider, model name,
+API key, base URL, and timeout. All Java consumers use that service: `ChatModelFactory`,
+`OpenAIUtils.getOpenaiApiKey` and its callers, embeddings/KnowledgeBase, transcription,
+`SYNCMODELS`/`ModelHandler`/`SyncAssistant`, and provider-aware `CopilotUtils.validateOpenAIKey`.
+Remove scattered credential/endpoint property reads. Ollama remains keyless. The Java service
+provides a tool-key lookup for `ToolSecrets` in toolpack and related tool consumers.
 
-```java
-ProviderConfig resolve(String providerKey);           // org -> client -> system, then deprecated properties
-String toolSecret(String tool, String name);           // same order
-record ProviderConfig(String type, String baseUrl, String apiKey, Duration timeout, boolean gatewayMode) {}
-```
+While Python mode exists, Java sends the resolved credentials in request-only `extra_info` so the
+container does not need separately configured credentials. This payload must never be logged or
+persisted. Existing installs in Python mode continue to work through the Java-resolved data or
+the deprecated property fallback.
 
-- Resolution never throws on a missing optional key; it returns a typed "missing" result so the engine reports
-  `no API key for provider X configured under Copilot > Providers`, not a stack trace.
-- Short-lived cache keyed by `(client, org, provider)`, invalidated by an entity event handler on save, so an edit
-  applies on the next request with no restart.
-- The decrypted key lives only inside `ProviderConfig` for the duration of the call: never logged, never put in
-  prompts, SSE frames, `ETCOP_MESSAGE`, exceptions or the request JSON the user can see. `toString()` masks it.
-- Encryption: the reversible encrypted-column mechanism already used by Etendo core for secrets (SMTP password
-  handling in `Utility`/`EmailManager` uses `FormatUtilities.encryptDecrypt`). Phase 0 confirms the exact API and
-  the AD reference/`ISENCRYPTED` handling and the UI masking.
+The service has a short-lived cache keyed by scope/model and an entity event handler invalidates
+affected entries on API-key/model edits. Secrets remain transient, `toString()` is masked, and
+missing credentials produce safe errors without exposing values.
 
-### 2.3 Where it is consumed (every call site that changes)
+### 2.3 Legacy properties and import
 
-| Call site | Change |
-|---|---|
-| `ChatModelFactory` | Build the model from `ProviderConfig` (type, base URL, key, timeout, gateway mode). Remove the property reads and the `"dummy"` special case; gateway mode keeps the placeholder key only when the provider row has none. |
-| `OpenAIUtils.getOpenaiApiKey` and its callers (Assistants API, vector/embeddings, transcription, model sync) | Resolve through `ProviderCredentials`. |
-| `CopilotUtils.validateOpenAIKey` / `RestServiceUtil` ~307-310 | Provider-aware validation (type-specific cheap call, or skip for gateway mode); results never include the key. |
-| `ModelHandler`, `SyncAssistant`, `SYNCMODELS` | Model sync uses the provider row for the list-models call. |
-| Python (while it still exists) | Java sends the resolved credentials to the container inside the request (`extra_info.llm`, not logged); `get_api_key`/`get_proxy_url`/`agent.py:69`/`core/agent/agent.py:42` read the request first, the environment second. Removed with Python. |
-| Toolpack/devassistant tools | Java tools read secrets through `ToolExecutionContext` -> `ProviderCredentials.toolSecret`, never `System.getenv`. |
-| Docs | `docs/java-engine.md` (properties block), module README, `docs/request-flow.md`, release notes. |
+`openai.api.key`, `anthropic.api.key`, `gemini.api.key`, `ollama.base.url`,
+`copilot.proxy.url`, `copilot.openai.base.url`, and
+`copilot.engine.java.timeout.seconds` are deprecated fallbacks. A read emits exactly one WARN per
+property per JVM start and names its replacement in AI API Keys/model configuration. DB records
+win. An idempotent module script on `update.database` and an explicit import process create API-key
+records from properties present at upgrade time and link existing models without overwriting
+configured records. Proxy/gateway configuration is represented by model key/base-URL records.
+Python continues honoring these properties as fallback until its code is removed.
+
+Deprecation schedule: Release N (this ticket) imports and warns while preserving fallback;
+Release N+1 ignores these values for model resolution and logs an error when a deprecated property
+is present; Release N+2 removes fallback reads and property documentation.
 
 ### 2.4 Security and access
 
-- Only a dedicated role (System Administrator by default) can create/edit providers and credentials; the window is
-  not readable by normal roles. The API never returns the key (field masked; "set / not set" indicator only).
-- Exclude the secret columns from audit trail and from any DAL JSON export; redact them in `ad_audit`/logs.
-- Tools run as the asking user, so a user cannot read a secret by asking a tool: secrets are resolved server-side
-  inside the tool, and tool results are not allowed to echo them (covered by a test with a canary key).
-- Per-tenant keys: a client's key is only visible to that client's resolution path; system-level (client 0) rows
-  are the fallback.
+- Only the dedicated administrator role can read/edit AI API Keys; no normal user/API response can
+  retrieve decrypted keys. Exclude secret columns from audit and JSON/DAL exports.
+- Canary-key coverage proves no key appears in logs, exception messages, SSE frames,
+  `ETCOP_MESSAGE`, MCP responses, or tool results.
+- Provider/key changes take effect without restart through entity-event cache invalidation.
 
-## 3. Deprecation of the properties
+## 3. Implementation order
 
-1. **Release N (this ticket)**: DB first, properties as fallback. Every property read emits a single WARN per key
-   per JVM start: `openai.api.key in Openbravo.properties is deprecated; configure it under Copilot > Providers`.
-   A new process/button (and a module script on `update.database`) imports existing keys, base URLs and the proxy
-   URL from the properties into `ETCOP_PROVIDER` at system level when the table is empty, so an upgrade keeps
-   working with no manual step and the warning disappears once imported.
-2. **Release N+1**: properties ignored for keys (still read for non-secret bootstrap like the Python host while
-   Python exists); startup logs an ERROR if a deprecated key is still present.
-3. **Release N+2**: remove the fallback code and the property documentation. Clean cutover: no alias left.
+1. Confirm Etendo reversible-encryption API and AD reference/column settings.
+2. Create `ETCOP_API_KEY`, AI API Keys window/access, model FK, aliases, and sourcedata.
+3. Implement `ProviderCredentials`, safe serialization, scope resolution, and cache invalidation.
+4. Migrate every Java caller, model sync, tools, and Python request credential handoff.
+5. Add idempotent import process and update.database module script; add per-property one-time warnings.
+6. Update docs and tests, including provider resolution, import, key redaction, and embedding selection.
 
-## 4. Implementation order
+## 4. Tests and acceptance evidence
 
-1. Phase 0 (research, no behaviour change): confirm the encryption/masking API in core, complete the tool-secret
-   inventory (toolpack, devassistant), confirm how SyncModels uses the key.
-2. AD: `ETCOP_PROVIDER`, FK on the model table, `ETCOP_TOOL_CREDENTIAL`, windows/tabs, role access, seed rows
-   (system-level providers matching today's catalogue).
-3. `ProviderCredentials` + event-handler cache invalidation + masking/redaction.
-4. Switch `ChatModelFactory`, `OpenAIUtils`, validation and model sync; properties as logged fallback.
-5. Import process + module script; deprecation warnings.
-6. Python request carries credentials (compat) - dropped with Python.
-7. Tool secrets through `ToolExecutionContext`.
-8. Docs and release notes; schedule N+1 / N+2 removal.
+- Unit tests cover organization -> client -> system -> properties resolution; active/inactive and
+  missing records; provider-specific validation; embedding preference/fallback; cache invalidation.
+- Canary-key tests cover logs, errors, SSE, ETCOP_MESSAGE, MCP, and tool outputs.
+- Import tests cover idempotency, partial properties, existing records, model links, and gateway mapping.
+- Live environment evidence: create key/model records and resolve without an external LLM; run
+  update.database/import against legacy properties; inspect warning log; fetch/render the AD window.
+- Report per-class XML test results for each changed/added class. Real provider calls may be reported
+  as unverified if credentials/network are unavailable.
 
-## 5. Tests
+## 5. Improvements enabled
 
-- Resolution order org -> client -> system -> properties, including inactive rows and a missing provider.
-- The key never appears in: logs captured during a failing call, exception messages, SSE frames, `ETCOP_MESSAGE`,
-  tool results (canary-key test).
-- Cache: edit a key and the next request uses it; another tenant never sees it.
-- Import process: idempotent, does not overwrite existing rows, handles partial properties.
-- Gateway mode vs native providers produce the same `ChatModel` configuration as today (same base URL, model
-  prefix, placeholder behaviour) - behavioural parity test against the current `ChatModelFactory` outputs.
+- One tenant-aware credential path shared across Java, Python compatibility, validation, embeddings,
+  model sync and applicable tools.
+- Tenant-owned credentials with organization/client/system fallback and key rotation without restart.
+- Etendo-managed model aliases whose concrete provider fallbacks are maintained by Etendo.
 
-## 6. Improvements this enables
+## 6. Remaining implementation decisions
 
-- One credential path for Java engine, validation, model sync, embeddings and tools (instead of one reader per
-  call site); one "is this provider usable" check shown in the UI.
-- Per-client keys for Etendo GO and usage attribution per provider row.
-- No restart to rotate a key; keys leave the properties file (and support bundles).
-
-## 7. Open questions
-
-1. Per-tenant keys in this ticket, or system-level only first (schema supports both)?
-2. Gateway (`llm.etendo.software`) as a provider row of type `openai_compatible` with `GATEWAY_MODE`, as proposed,
-   or a separate "Gateway" entity?
-3. Rename `ETCOP_OPENAI_MODEL`? Proposed: no (cost, references), only add the FK.
-4. Which release numbers are N, N+1, N+2 for the deprecation window?
+- Release numbers are intentionally expressed as N, N+1, and N+2 until product release planning assigns
+  version numbers.

@@ -208,6 +208,16 @@ OpenAPI `specs[].spec` operations generated from `FLOW` definitions are suppleme
 `ServerTool` instances. They are passed to `ServerToolRegistry.resolve(request, includeKnowledgeBase,
 supplementaryTools)`, are not CDI beans, and are not cached.
 
+FLOW operation routing is explicit: only fixed-entity RX GETs with descriptor-declared entity and
+field allowlists plus simple query arguments use the core JSON read service inside the caller's
+non-admin context. This does not invoke the RX servlet. RX `DataSourceServlet.doGet` enters admin
+mode during request/session setup; its POST/PUT paths require RX tab/form/callout processing, and
+the facade has no DELETE entrypoint. Those routes remain authenticated EtendoHttp loopback until
+the RX module exposes a caller-context-safe API. `SMFWHE_WBHK` operations are webhook/process
+actions, not entity CRUD; when a descriptor identifies a configured webhook they must use
+`WebhookInvoker` so its role-access checks run. An arbitrary OpenAPI URL is not sufficient evidence
+to derive that webhook identity.
+
 `TaskManagementTool` accepts `mode` (`get_next`, `add_tasks`, `status`, `mark_done`) and optional
 `new_tasks`. Its state is isolated to the captured user's `ToolExecutionContext`, with a bounded
 queue (1,000 tasks) and task length (4,096 characters); it is not global or persisted across requests.

@@ -55,6 +55,25 @@ public class OpenApiToolGeneratorTest {
     assertEquals(OpenApiOperation.Route.LOOPBACK, operation.route());
     assertTrue(operation.reason().contains("EtendoHttp"));
   }
+
+  @Test
+  public void rxWritesRemainAuthenticatedLoopbackUntilCallerContextSemanticsAreSafe() throws Exception {
+    JSONObject spec = new JSONObject(SPEC);
+    JSONObject post = new JSONObject().put("operationId", "createCustomer")
+        .put("requestBody", new JSONObject().put("content", new JSONObject().put("application/json",
+            new JSONObject().put("schema", new JSONObject().put("type", "object")
+                .put("properties", new JSONObject().put("name", new JSONObject().put("type", "string")))))))
+        .put("responses", new JSONObject());
+    JSONObject path = spec.getJSONObject("paths").getJSONObject("/sws/com.etendoerp.etendorx.datasource/customer");
+    path.put("post", post);
+    path.remove("get");
+    JSONArray specs = new JSONArray().put(new JSONObject().put("type", "FLOW").put("spec", spec));
+
+    ServerTool tool = new OpenApiToolGenerator().tools(specs).get(0);
+
+    assertTrue(tool.needsWebService());
+    assertTrue(new OpenApiToolGenerator().parse(spec).get(0).reason().contains("caller-context-safe"));
+  }
   @Test
   public void rejectsArgumentsOutsideTheDeclaredOperationSchema() throws Exception {
     org.codehaus.jettison.json.JSONArray specs = new org.codehaus.jettison.json.JSONArray()
@@ -67,6 +86,40 @@ public class OpenApiToolGeneratorTest {
     }).tools(specs).get(0).execute(args, null);
 
     assertEquals(400, new JSONObject(result).getInt("status_code"));
+  }
+
+  @Test
+  public void inProcessReadUsesDescriptorEntityAndReturnsPythonResultShape() throws Exception {
+    JSONArray specs = new JSONArray().put(new JSONObject().put("type", "FLOW").put("spec", SPEC));
+    java.util.Map<String, String> received = new java.util.LinkedHashMap<>();
+    OpenApiDataService service = parameters -> {
+      received.putAll(parameters);
+      return "{\"response\":{\"data\":[]}}";
+    };
+    ServerTool tool = new OpenApiToolGenerator(service).tools(specs).get(0);
+
+    String result = tool.execute(new JSONObject().put("select", "name"), null);
+
+    assertEquals("BusinessPartner", received.get(org.openbravo.service.json.JsonConstants.ENTITYNAME));
+    assertFalse(received.containsKey("entityName"));
+    JSONObject response = new JSONObject(result);
+    assertEquals(200, response.getInt("status_code"));
+    assertEquals("{\"response\":{\"data\":[]}}", response.getString("content"));
+    assertFalse(tool.needsWebService());
+  }
+
+  @Test
+  public void inProcessReadMapsSecurityFailureWithoutLeakingExceptionDetails() throws Exception {
+    JSONArray specs = new JSONArray().put(new JSONObject().put("type", "FLOW").put("spec", SPEC));
+    OpenApiDataService service = parameters -> {
+      throw new org.openbravo.base.exception.OBSecurityException("sensitive detail");
+    };
+    ServerTool tool = new OpenApiToolGenerator(service).tools(specs).get(0);
+
+    JSONObject response = new JSONObject(tool.execute(new JSONObject(), null));
+
+    assertEquals(403, response.getInt("status_code"));
+    assertFalse(response.getString("content").contains("sensitive detail"));
   }
 
   @Test

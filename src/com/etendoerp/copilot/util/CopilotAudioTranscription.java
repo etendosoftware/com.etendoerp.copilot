@@ -9,13 +9,13 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.util.Properties;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.session.OBPropertiesProvider;
+
+import com.etendoerp.copilot.config.ProviderCredentials;
 
 /** Shared Whisper transcription client for the upload endpoint and AudioTool. */
 public final class CopilotAudioTranscription {
@@ -26,15 +26,12 @@ public final class CopilotAudioTranscription {
 
   public static String transcribe(File file) throws IOException, InterruptedException,
       org.codehaus.jettison.json.JSONException {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    String proxy = properties.getProperty("copilot.proxy.url");
-    String endpoint = StringUtils.isNotBlank(proxy) ? trimSlash(proxy) + "/v1/audio/transcriptions"
-        : StringUtils.defaultIfBlank(properties.getProperty("copilot.openai.base.url"), "https://api.openai.com")
-            .replaceAll("/+$", "") + "/v1/audio/transcriptions";
-    String key = StringUtils.defaultIfBlank(properties.getProperty("openai.api.key"),
-        StringUtils.isNotBlank(proxy) ? "dummy" : null);
+    ProviderCredentials.ProviderConfig config = ProviderCredentials.create().resolveDefault("openai");
+    String baseUrl = StringUtils.defaultIfBlank(config.baseUrl(), "https://api.openai.com");
+    String endpoint = trimSlash(baseUrl) + "/v1/audio/transcriptions";
+    String key = StringUtils.defaultIfBlank(config.apiKey(), config.gatewayMode() ? "dummy" : null);
     if (key == null) {
-      throw new OBException("OpenAI API key is not configured (openai.api.key)");
+      throw new OBException("No API key is configured for audio transcription.");
     }
     String boundary = "----EtendoCopilot" + UUID.randomUUID();
     byte[] bytes = Files.readAllBytes(file.toPath());

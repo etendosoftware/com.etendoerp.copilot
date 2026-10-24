@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -48,6 +50,7 @@ import org.openbravo.model.ad.access.User;
 import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.model.common.enterprise.Warehouse;
 
+import com.etendoerp.copilot.config.ProviderCredentials;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
@@ -205,17 +208,34 @@ public class CopilotUtils {
    */
   public static String readPropertyWithLegacyCompatibility(Properties properties, String propertyName,
       String defaultValue) {
-    // Assume that received propertyName is in the format "copilot.port" and we want to check if "COPILOT_PORT" exists for legacy compatibility
     if (properties.containsKey(propertyName)) {
+      warnIfDeprecatedCredentialProperty(propertyName);
       return properties.getProperty(propertyName);
     }
     var propertyLegacy = propertyName.toUpperCase().replace(".", "_");
     if (properties.containsKey(propertyLegacy)) {
-      log.warn("Property '{}' is deprecated, please use '{}' instead in gradle.properties", propertyLegacy,
-          propertyName);
+      if (DEPRECATED_CREDENTIAL_PROPERTIES.contains(propertyName)) {
+        warnIfDeprecatedCredentialProperty(propertyName);
+      } else {
+        log.warn("Property '{}' is deprecated, please use '{}' instead in gradle.properties", propertyLegacy,
+            propertyName);
+      }
       return properties.getProperty(propertyLegacy);
     }
     return defaultValue;
+  }
+
+  private static final Set<String> DEPRECATED_CREDENTIAL_PROPERTIES = Set.of(
+      "openai.api.key", "anthropic.api.key", "gemini.api.key", "ollama.base.url",
+      "copilot.proxy.url", "copilot.openai.base.url", "copilot.engine.java.timeout.seconds");
+  private static final Set<String> WARNED_CREDENTIAL_PROPERTIES = ConcurrentHashMap.newKeySet();
+
+  private static void warnIfDeprecatedCredentialProperty(String propertyName) {
+    if (DEPRECATED_CREDENTIAL_PROPERTIES.contains(propertyName)
+        && WARNED_CREDENTIAL_PROPERTIES.add(propertyName)) {
+      log.warn("Property '{}' is deprecated; configure credentials and endpoints in AI API Keys and link "
+          + "models to their API key records.", propertyName);
+    }
   }
 
   /**
@@ -947,15 +967,23 @@ public class CopilotUtils {
    *     If the OpenAI API key is invalid or an error occurs during the validation process.
    */
   public static void validateOpenAIKey() {
-    try {
-      final String openaiApiKey = OpenAIUtils.getOpenaiApiKey();
-      // Use OpenAIUtils helper to call the models endpoint. The helper returns a JSONObject when successful.
-      JSONObject resp = OpenAIUtils.makeRequestToOpenAI(openaiApiKey, ENDPOINT_MODELS, null, "GET", null, true);
-      if (resp == null) {
-        throw new OBException(OBMessageUtils.messageBD("ETCOP_OpenAIKeyNotValid"));
-      }
-    } catch (UnirestException | JSONException e) {
-      throw new OBException(e.getMessage());
+    ProviderCredentials.ProviderConfig config = ProviderCredentials.create().resolveDefault("openai");
+    validateProviderConfiguration(config);
+  }
+
+  public static void validateOpenAIKey(String provider, String model) {
+    ProviderCredentials.ProviderConfig config = ProviderCredentials.create().resolve(model);
+    if (!StringUtils.equalsIgnoreCase(provider, config.provider())) {
+      throw new OBException("The selected provider does not match the configured model.");
+    }
+    validateProviderConfiguration(config);
+  }
+
+  private static void validateProviderConfiguration(ProviderCredentials.ProviderConfig config) {
+    if (!StringUtils.equalsIgnoreCase(config.provider(), "ollama")
+        && StringUtils.isBlank(config.apiKey())) {
+      throw new OBException("No API key is configured for provider " + config.provider()
+          + "; link a key under AI API Keys.");
     }
   }
 

@@ -10,7 +10,6 @@ import java.net.URLConnection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -20,7 +19,6 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.attachment.AttachImplementationManager;
 import org.openbravo.dal.service.OBCriteria;
@@ -28,6 +26,7 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.model.ad.utility.Attachment;
 
+import com.etendoerp.copilot.config.ProviderCredentials;
 import com.etendoerp.copilot.data.CopilotApp;
 import com.etendoerp.copilot.data.CopilotAppSource;
 import com.etendoerp.copilot.data.CopilotFile;
@@ -138,8 +137,8 @@ public class OpenAIUtils {
    * @return the base URL to use for OpenAI API requests (proxy override if configured)
    */
   private static String getBaseUrl() {
-    var prop = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return CopilotUtils.readPropertyWithLegacyCompatibility(prop, "copilot.proxy.url", BASE_URL);
+    String configured = ProviderCredentials.create().resolveDefault("openai").baseUrl();
+    return StringUtils.defaultIfBlank(configured, BASE_URL);
   }
 
   /**
@@ -517,15 +516,13 @@ public class OpenAIUtils {
   }
 
   /**
-   * Retrieves the OpenAI API key from the Openbravo properties.
-   * <p>
-   * This method reads the OpenAI API key from the Openbravo properties file.
+   * Retrieves the configured API key from the default OpenAI model's linked key record, falling
+   * back to the deprecated property when that model has no key link.
    *
    * @return The OpenAI API key.
    */
   public static String getOpenaiApiKey() {
-    Properties properties = OBPropertiesProvider.getInstance().getOpenbravoProperties();
-    return CopilotUtils.readPropertyWithLegacyCompatibility(properties, OPENAI_API_KEY,null);
+    return ProviderCredentials.create().resolveDefault("openai").apiKey();
   }
 
 

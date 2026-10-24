@@ -4,7 +4,7 @@ import os
 from copilot.baseutils.logging_envvar import copilot_error, read_optional_env_var
 from copilot.core.schemas import QuestionSchema
 from copilot.core.utils import etendo_utils
-from copilot.core.utils.models import get_api_key, get_proxy_url
+from copilot.core.utils.models import get_api_key, get_proxy_url, get_request_llm
 from langchain.chat_models import init_chat_model
 
 _PROVIDER_ALIAS_MAP = {
@@ -39,15 +39,18 @@ def get_llm(model, provider, temperature):
         ChatModel: An initialized language model instance.
     """
     # Initialize the language model
+    request_llm = get_request_llm()
     if provider and "ollama" in provider:
-        ollama_host = read_optional_env_var("copilot.ollama.host", "ollama")
-        ollama_port = read_optional_env_var("copilot.ollama.port", "11434")
+        ollama_host = request_llm.get("base_url") or (
+            f"{read_optional_env_var('copilot.ollama.host', 'ollama')}:"
+            f"{read_optional_env_var('copilot.ollama.port', '11434')}"
+        )
         llm = init_chat_model(
             model_provider=provider,
             model=model,
             temperature=temperature,
             streaming=True,
-            base_url=f"{ollama_host}:{ollama_port}",
+            base_url=ollama_host,
             model_kwargs={"stream_options": {"include_usage": True}},
         )
 
@@ -55,35 +58,31 @@ def get_llm(model, provider, temperature):
         resolved_provider = _PROVIDER_ALIAS_MAP.get(provider, provider)
 
         if get_proxy_url() is not None:
-            # Proxy mode: prefix model with original provider, route through OpenAI
-            model_to_use = provider + "/" + model
+            model_to_use = model if provider == "etendo" else provider + "/" + model
             llm = init_chat_model(
                 model_provider="openai",
                 model=model_to_use,
                 temperature=temperature,
                 base_url=get_proxy_url(),
-                # Proxy mode routes every provider through the OpenAI-compatible
-                # client, which refuses to build without a key. When openai.api.key
-                # is unset (e.g. Gemini-only setups) fall back to a placeholder so
-                # the proxy can resolve the real credentials. Mirrors vectordb_utils.
-                api_key=get_api_key("openai") or "dummy",
+                api_key=get_api_key(provider) or "dummy",
                 model_kwargs={"stream_options": {"include_usage": True}},
                 streaming=True,
             )
         elif resolved_provider in _NATIVE_SDK_PROVIDERS:
-            # Native SDK providers (e.g. google_genai): no OpenAI-specific kwargs
             llm = init_chat_model(
                 model_provider=resolved_provider,
                 model=model,
                 temperature=temperature,
+                api_key=get_api_key(provider),
                 streaming=True,
             )
         else:
-            # OpenAI-compatible direct mode (no proxy)
             llm = init_chat_model(
                 model_provider=resolved_provider,
                 model=model,
                 temperature=temperature,
+                api_key=get_api_key(provider),
+                base_url=request_llm.get("base_url"),
                 model_kwargs={"stream_options": {"include_usage": True}},
                 streaming=True,
             )
@@ -113,9 +112,7 @@ def _fix_array_schemas(schema):
         fixed_schema["properties"] = {}
 
     if "properties" in fixed_schema:
-        fixed_schema["properties"] = {
-            k: _fix_array_schemas(v) for k, v in fixed_schema["properties"].items()
-        }
+        fixed_schema["properties"] = {k: _fix_array_schemas(v) for k, v in fixed_schema["properties"].items()}
 
     if "items" in fixed_schema:
         fixed_schema["items"] = _fix_array_schemas(fixed_schema["items"])
@@ -128,9 +125,7 @@ def _fix_array_schemas(schema):
             fixed_schema[keyword] = [_fix_array_schemas(item) for item in fixed_schema[keyword]]
 
     if DEFS_KEY in fixed_schema:
-        fixed_schema[DEFS_KEY] = {
-            k: _fix_array_schemas(v) for k, v in fixed_schema[DEFS_KEY].items()
-        }
+        fixed_schema[DEFS_KEY] = {k: _fix_array_schemas(v) for k, v in fixed_schema[DEFS_KEY].items()}
 
     return fixed_schema
 
@@ -166,11 +161,11 @@ def _fix_union_annotation(annotation, visited):
 
 def _simplify_multi_union(args, non_none_args, visited, base_model_cls):
     """Pick the best single type from a multi-type Union for Gemini compatibility."""
-    model_args = [a for a in non_none_args
-                  if isinstance(a, type) and issubclass(a, base_model_cls)]
+    model_args = [a for a in non_none_args if isinstance(a, type) and issubclass(a, base_model_cls)]
     picked = model_args[0] if model_args else non_none_args[0]
     if type(None) in args:
         from typing import Optional
+
         return Optional[_fix_annotation(picked, visited)]
     return _fix_annotation(picked, visited)
 
