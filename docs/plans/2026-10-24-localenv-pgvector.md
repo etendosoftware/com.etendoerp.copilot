@@ -111,10 +111,70 @@ pgvector, so these code changes have not been exercised against a live extension
 - PGX stays an experiment. If Etendo moves its supported matrix to PG 18, option C or the theseus PG 18 builds
   become the natural base and this plan collapses to "bump the engine".
 
-## 7. Next actions
+## 7. Verified live on 2026-10-24 (overlay applied to the shared cache tree)
+
+The theseus-built pgvector 0.8.7 (`vector.dylib` 203 KB, `vector.control`, `vector--*.sql`) was added to
+`~/.cache/etendo-localenv/bin/pg-16.15.0-darwin-arm64v8/{lib/postgresql,share/postgresql/extension}` (additive; no
+existing file touched). The environment `ETP-5136-min` (core develop, copilot + toolpack + devassistant +
+webhookevents) then ran the Java knowledge base against a mock OpenAI-compatible embeddings server
+(`parity/fixtures/kb_mock_embeddings.py`, dimension switchable at runtime) linked through the new
+`ETCOP_API_KEY` -> `etendo-embeddings` model structure. Seed: `parity/fixtures/kb-live-seed.sql`, documents under
+`parity/fixtures/docs/`.
+
+| Check | Result |
+|---|---|
+| Extension created by the Copilot module script (system user), table and scope indexes created by `update.database` | OK (0.8.7) |
+| Startup sync indexes two sources through the real indexer | OK: 2 chunks, model `etendo/etendo-embeddings`, 16 dims |
+| Partial HNSW index created per dimension | OK: `etcop_kb_hnsw_16`, later `_32` |
+| Search through the real `KnowledgeBaseSearch` tool over MCP direct mode | OK: exact text distance 0, other source behind |
+| Embedding dimension changed 16 -> 32 without re-index | OK: readable message `stored etendo/etendo-embeddings/16=2; current .../32. Re-index required`, no SQL error |
+| Partial state (one stale 16-dim chunk among 32-dim ones) | OK: matching rows searched, warning `1 chunks ... are ignored until re-indexed` |
+| Full re-index at another dimension | OK: old rows replaced, no mixed state |
+| 2048 dimensions (> 2000 HNSW limit) | OK: indexed, no HNSW index created, search works sequentially |
+| `MemoryTool` add / search / update / delete, and the incompatible case | OK (after the `source_id` fix below) |
+| Python service wait at startup in `copilot.engine=java` | Removed: startup sync no longer waits 5 x 30 s |
+
+Bugs found only by running it live (unit tests could not see them):
+
+1. `ProviderCredentials` compared the `char(1)` `isactive` column as a String; Hibernate returns a `Character`, so
+   every linked API key was treated as inactive.
+2. Memory ids are 36-char UUIDs but `source_id` was `varchar(32)`: `MemoryTool` add failed with an opaque message.
+   The column is now `varchar(64)` and existing tables are widened by the module script.
+3. Embedding resolution masked the real error: when `etendo-embeddings` failed, the legacy fallback model was tried
+   and its "No active model configuration" error was reported instead.
+4. `KnowledgeBaseSearch` was missing in MCP direct mode for KB agents.
+5. Tool failures were opaque (`The server tool execution failed.`) and left no cause in the log; the log now carries
+   the cause class and message and `OBException`/`IllegalArgumentException` messages reach the caller.
+6. `CopilotSyncStartup.waitForCopilotService` and `CopilotUtils.getSourcesPath` called the Python container even in
+   `java` mode.
+7. The module script change that creates the extension was missing an import (`java.util.Properties`), and
+   `local-env up` does not recompile module scripts: run `./gradlew compile.modulescript -Dmodule=<module>` after
+   editing `src-util/modulescript`.
+
+### Finding that changes the plan: pgvector breaks `update.database` without `db.extended`
+
+With the extension installed and `com.etendoerp.db.extended` absent, `update.database` fails with a
+`NullPointerException` in DBSM (`PostgrePLSQLFunctionConcurrentStandardization`, `LiteralFilter.removeLiterals`).
+`db.extended` avoids it with its `CreateExcludeFilter` build validation (it excludes the extension's functions from
+the model). Consequences:
+
+- Providing pgvector in local-env is not enough for a plain Copilot environment: the environment also needs
+  `db.extended` and its `exclude.filter` module, or the extension must stay absent. GO instances are fine
+  (`com.etendoerp.go` depends on `db.extended`).
+- The Copilot module script now enables the extension only when `db.extended` is installed (WARN otherwise).
+  Verified live: on a database where pgvector is available and `db.extended` is absent it logs the WARN and
+  `update.database` succeeds.
+- Adding `db.extended` to an existing environment is not a one-liner: its generated entities need its own AD
+  tables, so `compile.complete` fails until the database has them. It must be part of the environment from
+  `install`, i.e. a new environment created with it, not added afterwards.
+- Open question for the product: should the Copilot KB table also be listed in an exclude filter so DBSM never
+  treats `etcop_kb_chunk` as foreign? During the live run DBSM did not touch it, but this was not checked across
+  several `update.database` runs with `db.extended` installed.
+
+## 8. Next actions
 
 1. Decide A (overlay) vs A then B (also move to theseus for `psql`).
-2. Fix the KB dimension issue in §2 (property for the embedding dimension; partial expression HNSW index; filter
-   by `vector_dims` in `KnowledgeBaseStore.search`).
+2. KB dimension issue of §2: fixed in code (per-chunk model identity and dimension, partial expression HNSW index,
+   compatibility check before search) and verified live, see §7.
 3. Implement the build script and `pgvector_ensure()` in `etendo-localenv` on a branch.
 4. Run §5 and record the results in `docs/design.md` §6.10-style notes.

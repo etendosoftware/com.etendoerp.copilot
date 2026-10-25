@@ -205,7 +205,20 @@ public final class ToolExecutionContext {
       throw new ToolExecutionException("The server tool execution was interrupted.", e);
     } catch (ExecutionException e) {
       Throwable cause = e.getCause() == null ? e : e.getCause();
-      throw new ToolExecutionException("The server tool execution failed.", cause);
+      // The class and message go to the log (no secrets travel in them); the stack stays at debug.
+      org.apache.logging.log4j.Logger failureLog =
+          org.apache.logging.log4j.LogManager.getLogger(ToolExecutionContext.class);
+      failureLog.warn("Server tool call failed: {}: {}", cause.getClass().getName(), cause.getMessage());
+      failureLog.debug("Server tool failure stack", cause);
+      // Only exceptions written for people reach the model; anything else stays generic.
+      String detail = "";
+      if ((cause instanceof OBException || cause instanceof IllegalArgumentException)
+          && cause.getMessage() != null && !cause.getMessage().isBlank()) {
+        String text = cause.getMessage().replaceAll("\\s+", " ").trim();
+        detail = ": " + (text.length() > 300 ? text.substring(0, 300) : text);
+      }
+      throw new ToolExecutionException("The server tool execution failed" + (detail.isEmpty() ? "." : detail),
+          cause);
     }
   }
 

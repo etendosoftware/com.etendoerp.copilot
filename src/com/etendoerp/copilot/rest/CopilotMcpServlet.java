@@ -206,7 +206,10 @@ public class CopilotMcpServlet extends HttpBaseServlet {
     JSONArray descriptors = ToolsUtil.getToolSet(app);
     request.put(RestServiceUtil.PROP_TOOLS, descriptors);
     request.put("specs", CopilotUtils.getAppSpecs(app));
-    ResolvedTools tools = registry.resolve(request, false,
+    // Same rule as the engine: an agent with knowledge-base sources gets the retrieval tool.
+    boolean hasKnowledgeBase = app.getETCOPAppSourceList().stream()
+        .anyMatch(com.etendoerp.copilot.util.CopilotConstants::isKbBehaviour);
+    ResolvedTools tools = registry.resolve(request, hasKnowledgeBase,
         new OpenApiToolGenerator().tools(request.optJSONArray("specs")));
     ToolExecutionContext context = ToolExecutionContext.capture(app, null, null);
     List<CopilotApp> teamAgents = new ArrayList<>();

@@ -567,6 +567,10 @@ public class CopilotUtils {
    *     environment.
    */
   static String getSourcesPath(Properties properties) {
+    if (isJavaEngine()) {
+      // No Python container: there is nothing to ask, the sources are on this host.
+      return properties.getProperty("source.path");
+    }
     boolean inDocker;
     try {
       inDocker = isCopilotRunningInDocker(properties);

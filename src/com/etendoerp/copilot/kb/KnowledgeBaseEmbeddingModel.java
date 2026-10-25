@@ -49,7 +49,14 @@ public final class KnowledgeBaseEmbeddingModel {
     } catch (OBException missingEtendoAlias) {
       String legacyModel = CopilotUtils.readPropertyWithLegacyCompatibility(properties,
           "copilot.embedding.model", "text-embedding-3-small");
-      return credentials.resolve(legacyModel);
+      try {
+        return credentials.resolve(legacyModel);
+      } catch (OBException legacyFailure) {
+        // The alias is the configuration the user is meant to fix: report its problem, not the
+        // missing legacy model that was only tried as a last resort.
+        missingEtendoAlias.addSuppressed(legacyFailure);
+        throw missingEtendoAlias;
+      }
     }
   }
 

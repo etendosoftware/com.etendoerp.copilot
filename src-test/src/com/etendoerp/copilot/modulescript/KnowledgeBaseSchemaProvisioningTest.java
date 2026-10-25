@@ -19,14 +19,15 @@ public class KnowledgeBaseSchemaProvisioningTest {
   public void provisionsIdempotentTableAndIndexesWhenPgvectorExists() throws Exception {
     RecordingExecutor executor = new RecordingExecutor(true);
     assertTrue(KnowledgeBaseSchemaProvisioning.provision(executor));
-    assertEquals(6, executor.statements.size());
+    assertEquals(7, executor.statements.size());
     assertTrue(executor.statements.get(0).contains("CREATE TABLE IF NOT EXISTS etcop_kb_chunk"));
     assertTrue(executor.statements.get(0).contains("embedding_model varchar(200) NOT NULL"));
     assertTrue(executor.statements.get(0).contains("embedding_dims int NOT NULL"));
     assertTrue(executor.statements.get(1).contains("ADD COLUMN IF NOT EXISTS embedding_model"));
     assertTrue(executor.statements.get(2).contains("ADD COLUMN IF NOT EXISTS embedding_dims"));
-    assertTrue(executor.statements.get(4).contains("embedding_dims)"));
-    assertTrue(executor.statements.get(5).contains("DROP INDEX IF EXISTS etcop_kb_embedding_idx"));
+    assertTrue(executor.statements.get(3).contains("ALTER COLUMN source_id TYPE varchar(64)"));
+    assertTrue(executor.statements.get(5).contains("embedding_dims)"));
+    assertTrue(executor.statements.get(6).contains("DROP INDEX IF EXISTS etcop_kb_embedding_idx"));
   }
 
   private static final class RecordingExecutor implements KnowledgeBaseSchemaProvisioning.Executor {

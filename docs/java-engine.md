@@ -47,8 +47,17 @@ deprecated fallback. Etendo-managed model aliases (`etendo-fast`, `etendo-smart`
 Knowledge-base embeddings use the selected system embedding-model preference when configured,
 falling back to the `etendo-embeddings` alias when its API key record is linked. The legacy
 embedding model property is retained during migration. Run `update.database` after installing
-pgvector to provision the KB table/indexes; runtime requests never perform DDL and report a clear
-error when pgvector or the provisioned table is missing.
+pgvector to provision the KB table/indexes; requests report a clear error when pgvector or the
+provisioned table is missing (the only runtime DDL is the per-dimension HNSW index, see below).
+
+**pgvector needs `com.etendoerp.db.extended`.** DBSM (`update.database`) cannot read some pgvector
+functions (unnamed parameters) and fails with a `NullPointerException` once the extension exists, unless
+the functions are excluded from the model; `com.etendoerp.db.extended` generates that exclusion. The
+Copilot module script therefore creates the extension (system user first, application user as fallback)
+only when `db.extended` is installed; otherwise it logs a WARN and leaves pgvector alone. Do not enable
+pgvector by hand on an installation without `db.extended`: every later `update.database` would fail.
+Verified live: with the extension present and no exclusion, `update.database` fails in
+`PostgrePLSQLFunctionConcurrentStandardization`.
 
 Each knowledge-base chunk stores its resolved embedding provider/model identity and vector
 dimension alongside the vector. Search compares the current embedding identity and dimensions

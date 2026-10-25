@@ -253,8 +253,9 @@ public final class ProviderCredentials {
         return null;
       }
       Object[] row = rows.get(0);
+      // isactive is char(1): Hibernate returns a Character, so compare as text.
       return new ApiKeySettings((String) row[0], decrypt((String) row[1]), (String) row[2],
-          "Y".equals(row[3]));
+          "Y".equals(String.valueOf(row[3])));
     }
 
     private static String currentClientId() {

@@ -266,6 +266,11 @@ public class CopilotSyncStartup implements ApplicationInitializer {
   }
 
   private void waitForCopilotService() throws InterruptedException {
+    if (CopilotUtils.isJavaEngine()) {
+      // The Java engine runs in this JVM: there is no Python service to wait for.
+      log.info("copilot.engine=java: not waiting for the Python Copilot service");
+      return;
+    }
     String host = CopilotUtils.getCopilotHost();
     String port = CopilotUtils.getCopilotPort();
     if (StringUtils.isEmpty(host)) {
