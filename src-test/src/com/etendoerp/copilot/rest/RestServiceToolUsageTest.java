@@ -23,7 +23,11 @@ public class RestServiceToolUsageTest {
   private final RestService.ToolUsageSink sink = (tool, agent, usage, ms) ->
       received.add(new Object[] { tool, agent, usage, ms });
 
-  /** The usage is handed to the hooks and stripped from the answer sent to the browser. */
+  /**
+   * The usage is handed to the hooks and stripped from the answer sent to the browser.
+   *
+   * @throws Exception if the JSON fixtures cannot be built or read
+   */
   @Test
   public void theUsageIsRecordedAndNeverReachesTheCaller() throws Exception {
     String body = "{\"answer\":\"{\\\"total\\\":10}\",\"usage\":{\"model\":\"gemini/m\","
@@ -42,7 +46,11 @@ public class RestServiceToolUsageTest {
     assertEquals(820L, received.get(0)[3]);
   }
 
-  /** An answer without usage, or one that is not JSON, is sent as is and records nothing. */
+  /**
+   * An answer without usage, or one that is not JSON, is sent as is and records nothing.
+   *
+   * @throws Exception if the JSON fixtures cannot be built or read
+   */
   @Test
   public void anAnswerWithoutUsageIsSentUntouchedAndRecordsNothing() throws Exception {
     JSONObject request = new JSONObject().put(TOOL_NAME, "OtherTool");
@@ -54,7 +62,11 @@ public class RestServiceToolUsageTest {
     assertEquals(0, received.size());
   }
 
-  /** A hook that throws never changes what the caller receives. */
+  /**
+   * A hook that throws never changes what the caller receives.
+   *
+   * @throws Exception if the JSON fixtures cannot be built or read
+   */
   @Test
   public void aFailingHookNeverChangesTheAnswer() throws Exception {
     JSONObject request = new JSONObject().put(TOOL_NAME, OCR_TOOL);
