@@ -33,10 +33,12 @@ import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.erpCommon.utility.OBMessageUtils;
 
 import com.etendoerp.copilot.data.CopilotApp;
+import com.etendoerp.copilot.hook.CopilotToolUsageHookManager;
 import com.etendoerp.copilot.util.ConversationUtils;
 import com.etendoerp.copilot.util.CopilotConstants;
 import com.etendoerp.copilot.util.CopilotUtils;
@@ -324,6 +326,7 @@ public class RestService {
       throws IOException, JSONException {
     try {
       JSONObject jsonBody = RequestUtils.extractRequestBody(request);
+      long start = System.currentTimeMillis();
       java.net.http.HttpResponse<String> copilotResponse = CopilotUtils.getResponseFromCopilot(
           OBPropertiesProvider.getInstance().getOpenbravoProperties(),
           "executeTool",
@@ -334,9 +337,15 @@ public class RestService {
             "No response from Copilot");
         return;
       }
+      String body = copilotResponse.body();
+      if (copilotResponse.statusCode() / 100 == 2) {
+        body = takeToolUsage(body, jsonBody, System.currentTimeMillis() - start,
+            (tool, agent, usage, ms) -> WeldUtils.getInstanceFromStaticBeanManager(
+                CopilotToolUsageHookManager.class).executeHooks(tool, agent, usage, ms));
+      }
       response.setStatus(copilotResponse.statusCode());
       response.setContentType(APPLICATION_JSON_CHARSET_UTF_8);
-      response.getWriter().write(copilotResponse.body());
+      response.getWriter().write(body);
     } catch (JSONException e) {
       log4j.error(e);
       sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
@@ -346,6 +355,49 @@ public class RestService {
       sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
           "Error executing tool");
     }
+  }
+
+  /** Receives the usage a tool reported; see {@link CopilotToolUsageHookManager}. */
+  @FunctionalInterface
+  interface ToolUsageSink {
+    /**
+     * Receive the usage one tool call reported.
+     *
+     * @param toolName the tool that ran, as requested
+     * @param agentId the agent whose tool configuration was used, or null
+     * @param usage what the tool reported (model, tokens and, when priced, costUsd)
+     * @param durationMs how long Copilot took to answer, in milliseconds
+     */
+    void accept(String toolName, String agentId, JSONObject usage, long durationMs);
+  }
+
+  /**
+   * Take the {@code usage} a tool reported out of an {@code /executeTool} answer and hand it to
+   * {@code sink}. The caller gets the answer without it: what a model call cost is recorded, not
+   * shown. An answer that is not a JSON object, or carries no usage, is returned untouched, and a
+   * failing sink never changes the answer.
+   *
+   * @return the body to send to the caller
+   */
+  static String takeToolUsage(String body, JSONObject request, long durationMs, ToolUsageSink sink) {
+    JSONObject answer;
+    try {
+      answer = new JSONObject(body);
+    } catch (JSONException | RuntimeException e) {
+      return body;
+    }
+    JSONObject usage = answer.optJSONObject("usage");
+    if (usage == null) {
+      return body;
+    }
+    answer.remove("usage");
+    try {
+      sink.accept(request.optString("tool_name", null), request.optString("agent_id", null), usage,
+          durationMs);
+    } catch (Exception e) {
+      log4j.error("Could not record the usage of tool {}", request.optString("tool_name"), e);
+    }
+    return answer.toString();
   }
 
   private void handleCacheQuestion(HttpServletRequest request, HttpServletResponse response) {

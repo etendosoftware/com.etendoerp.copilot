@@ -376,3 +376,47 @@ def test_purge_vectordb_error_handling(mock_get_path, mock_get_settings, mock_ch
     # Make request and expect error - FastAPI will raise the exception
     with pytest.raises(Exception, match="Database connection error"):
         client.post("/purgeVectorDB", json={"kb_vectordb_id": kb_vectordb_id})
+
+
+class _PlainTool:
+    name = "PlainTool"
+
+    def run(self, params):
+        return f"plain:{params['x']}"
+
+
+class _PricedTool:
+    name = "PricedTool"
+
+    def run(self, params):
+        raise AssertionError("/executeTool must ask a pricing tool for its usage")
+
+    def run_with_usage(self, params):
+        return "ocr-json", {"model": "gemini/m", "inputTokens": 3, "outputTokens": 12, "costUsd": 4.7e-05}
+
+
+class _UnpricedFailure(_PricedTool):
+    name = "UnpricedFailure"
+
+    def run_with_usage(self, params):
+        return {"error": "nope"}, None
+
+
+@patch("copilot.core.routes.ToolLoader")
+def test_execute_tool_returns_the_usage_a_tool_reports(mock_loader):
+    mock_loader.return_value.load_configured_tools.return_value = [
+        _PlainTool(),
+        _PricedTool(),
+        _UnpricedFailure(),
+    ]
+
+    priced = client.post("/executeTool", json={"tool_name": "PricedTool", "params": {}})
+    assert priced.json() == {
+        "answer": "ocr-json",
+        "usage": {"model": "gemini/m", "inputTokens": 3, "outputTokens": 12, "costUsd": 4.7e-05},
+    }
+    # No usage key at all when the tool does not report one, or when it failed before the model.
+    plain = client.post("/executeTool", json={"tool_name": "PlainTool", "params": {"x": 1}})
+    assert plain.json() == {"answer": "plain:1"}
+    failed = client.post("/executeTool", json={"tool_name": "UnpricedFailure", "params": {}})
+    assert failed.json() == {"answer": {"error": "nope"}}
