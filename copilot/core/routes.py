@@ -13,7 +13,6 @@ import shutil
 import threading
 import uuid
 from pathlib import Path
-from typing import Optional
 
 import chromadb
 import requests
@@ -585,11 +584,17 @@ def execute_tool(body: ExecuteToolSchema):
         tool.agent_id = body.agent_id
 
     try:
-        result = tool.run(params)
-        return {"answer": result}
+        # A tool that reports what its model call cost (SimpleOcrTool) hands it back next to the
+        # answer; Etendo records it as a usage event and strips it before answering the browser.
+        run_with_usage = getattr(tool, "run_with_usage", None)
+        if callable(run_with_usage):
+            result, usage = run_with_usage(params)
+        else:
+            result, usage = tool.run(params), None
+        return {"answer": result, **({"usage": usage} if usage else {})}
     except Exception as e:
         copilot_error(f"executeTool '{body.tool_name}' failed: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error executing tool")
+        raise HTTPException(status_code=500, detail="Internal server error executing tool") from e
 
 
 @core_router.post("/attachFile")

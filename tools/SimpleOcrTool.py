@@ -5,6 +5,7 @@ Supports OpenAI (Responses API) and Gemini (Chat Completions via litellm).
 """
 
 import base64
+import math
 import os
 import time
 from pathlib import Path
@@ -90,8 +91,7 @@ def _validate_mime(file_path, mime):
     """Raise if MIME type is not supported."""
     if mime not in SUPPORTED_MIME_TYPES:
         raise ValueError(
-            f"Unsupported MIME type '{mime}' for {file_path}. "
-            f"Supported: {sorted(SUPPORTED_MIME_TYPES)}"
+            f"Unsupported MIME type '{mime}' for {file_path}. " f"Supported: {sorted(SUPPORTED_MIME_TYPES)}"
         )
 
 
@@ -102,11 +102,7 @@ def _get_model_config(agent_id):
     try:
         extra_info = get_extra_info()
         if extra_info:
-            tool_cfg = (
-                extra_info.get("tool_config", {})
-                .get(agent_id, {})
-                .get(SIMPLE_OCR_TOOL_ID, {})
-            )
+            tool_cfg = extra_info.get("tool_config", {}).get(agent_id, {}).get(SIMPLE_OCR_TOOL_ID, {})
             if tool_cfg:
                 model_name = tool_cfg.get("model")
                 provider = tool_cfg.get("provider")
@@ -141,6 +137,26 @@ def _model_id(provider, model_name, proxy_url):
     return f"{provider}/{model_name}" if proxy_url else model_name
 
 
+LITELLM_COST_HEADER = "x-litellm-response-cost"
+
+
+def _usage(raw, model_id, input_tokens, output_tokens):
+    """Usage of one model call: the model, its tokens and, when the litellm proxy priced it,
+    `costUsd` (header x-litellm-response-cost). A call nobody priced has no `costUsd`."""
+    usage = {
+        "model": model_id,
+        "inputTokens": input_tokens or 0,
+        "outputTokens": output_tokens or 0,
+    }
+    try:
+        cost = float(raw.headers.get(LITELLM_COST_HEADER))
+        if math.isfinite(cost) and cost >= 0:
+            usage["costUsd"] = cost
+    except (TypeError, ValueError):
+        pass
+    return usage
+
+
 def _structured_schema_dict(structured_schema):
     """Return a JSON Schema dict from a Pydantic class, a literal dict, or None."""
     if not structured_schema:
@@ -154,9 +170,11 @@ def _structured_schema_dict(structured_schema):
         return None
 
 
-def _call_openai(model_name, provider, system_prompt, question,
-                 file_bytes, mime, structured_schema=None):
-    """Call OpenAI via the Responses API through the litellm proxy."""
+def _call_openai(model_name, provider, system_prompt, question, file_bytes, mime, structured_schema=None):
+    """Call OpenAI via the Responses API through the litellm proxy.
+
+    Returns ``(text, usage)``; see :func:`_usage`.
+    """
     client, proxy_url = _get_client()
     mid = _model_id(provider, model_name, proxy_url)
 
@@ -164,23 +182,26 @@ def _call_openai(model_name, provider, system_prompt, question,
     user_content = []
 
     if mime == "application/pdf":
-        user_content.append({
-            "type": "input_file",
-            "filename": "document.pdf",
-            "file_data": f"data:application/pdf;base64,{file_b64}",
-        })
+        user_content.append(
+            {
+                "type": "input_file",
+                "filename": "document.pdf",
+                "file_data": f"data:application/pdf;base64,{file_b64}",
+            }
+        )
     else:
-        user_content.append({
-            "type": "input_image",
-            "image_url": f"data:{mime};base64,{file_b64}",
-        })
+        user_content.append(
+            {
+                "type": "input_image",
+                "image_url": f"data:{mime};base64,{file_b64}",
+            }
+        )
     user_content.append({"type": "input_text", "text": question})
 
     api_kwargs = {
         "model": mid,
         "input": [
-            {"role": "developer",
-             "content": [{"type": "input_text", "text": system_prompt}]},
+            {"role": "developer", "content": [{"type": "input_text", "text": system_prompt}]},
             {"role": "user", "content": user_content},
         ],
     }
@@ -200,15 +221,24 @@ def _call_openai(model_name, provider, system_prompt, question,
         }
 
     t0 = time.time()
-    response = client.responses.create(**api_kwargs)
+    raw = client.responses.with_raw_response.create(**api_kwargs)
+    response = raw.parse()
     copilot_debug(f"OpenAI Responses API: {time.time() - t0:.2f}s")
 
-    return response.output_text
+    tokens = getattr(response, "usage", None)
+    return response.output_text, _usage(
+        raw,
+        mid,
+        getattr(tokens, "input_tokens", 0),
+        getattr(tokens, "output_tokens", 0),
+    )
 
 
-def _call_gemini(model_name, provider, system_prompt, question,
-                 file_bytes, mime, structured_schema=None):
-    """Call Gemini via Chat Completions API routed through the litellm proxy."""
+def _call_gemini(model_name, provider, system_prompt, question, file_bytes, mime, structured_schema=None):
+    """Call Gemini via Chat Completions API routed through the litellm proxy.
+
+    Returns ``(text, usage)``; see :func:`_usage`.
+    """
     client, proxy_url = _get_client()
     mid = _model_id(provider, model_name, proxy_url)
 
@@ -218,11 +248,13 @@ def _call_gemini(model_name, provider, system_prompt, question,
         "model": mid,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": [
-                {"type": "image_url",
-                 "image_url": {"url": f"data:{mime};base64,{file_b64}"}},
-                {"type": "text", "text": question},
-            ]},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{file_b64}"}},
+                    {"type": "text", "text": question},
+                ],
+            },
         ],
         "temperature": DEFAULT_OCR_TEMPERATURE,
     }
@@ -235,10 +267,17 @@ def _call_gemini(model_name, provider, system_prompt, question,
         }
 
     t0 = time.time()
-    response = client.chat.completions.create(**api_kwargs)
+    raw = client.chat.completions.with_raw_response.create(**api_kwargs)
+    response = raw.parse()
     copilot_debug(f"Gemini Chat Completions: {time.time() - t0:.2f}s")
 
-    return response.choices[0].message.content
+    tokens = getattr(response, "usage", None)
+    return response.choices[0].message.content, _usage(
+        raw,
+        mid,
+        getattr(tokens, "prompt_tokens", 0),
+        getattr(tokens, "completion_tokens", 0),
+    )
 
 
 class SimpleOcrTool(ToolWrapper):
@@ -260,6 +299,11 @@ class SimpleOcrTool(ToolWrapper):
     args_schema: Type[ToolInput] = SimpleOcrToolInput
 
     def run(self, input_params, *args, **kwargs):
+        return self.run_with_usage(input_params)[0]
+
+    def run_with_usage(self, input_params):
+        """Run the OCR and also return the usage of the model call (or None when it failed
+        before calling the model). `/executeTool` records that usage; agents only see `run`."""
         t_start = time.time()
         try:
             file_path = _resolve_file_path(input_params.get("path"))
@@ -270,10 +314,7 @@ class SimpleOcrTool(ToolWrapper):
                 file_bytes = f.read()
 
             model_name, provider = _get_model_config(self.agent_id)
-            copilot_debug(
-                f"SimpleOcrTool: model={model_name}, "
-                f"provider={provider}, mime={mime}"
-            )
+            copilot_debug(f"SimpleOcrTool: model={model_name}, " f"provider={provider}, mime={mime}")
 
             question = input_params.get("question")
             structured_schema = None
@@ -289,21 +330,22 @@ class SimpleOcrTool(ToolWrapper):
                         copilot_debug(f"Using structured schema: {schema_name}")
 
             call = _call_gemini if _is_gemini(provider) else _call_openai
-            result = call(
-                model_name, provider, SYSTEM_PROMPT, question,
-                file_bytes, mime, structured_schema,
+            result, usage = call(
+                model_name,
+                provider,
+                SYSTEM_PROMPT,
+                question,
+                file_bytes,
+                mime,
+                structured_schema,
             )
 
-            copilot_debug(
-                f"SimpleOcrTool total: {time.time() - t_start:.2f}s"
-            )
-            return result
+            copilot_debug(f"SimpleOcrTool total: {time.time() - t_start:.2f}s")
+            return result, usage
 
         except Exception as e:
             import traceback
 
             copilot_debug(f"SimpleOcrTool error: {traceback.format_exc()}")
-            copilot_debug(
-                f"SimpleOcrTool error: {time.time() - t_start:.2f}s"
-            )
-            return {"error": str(e)}
+            copilot_debug(f"SimpleOcrTool error: {time.time() - t_start:.2f}s")
+            return {"error": str(e)}, None

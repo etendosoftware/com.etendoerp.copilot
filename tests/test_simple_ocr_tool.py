@@ -23,12 +23,21 @@ from tools.SimpleOcrTool import (
     _read_mime,
     _resolve_file_path,
     _structured_schema_dict,
+    _usage,
     _validate_mime,
 )
 
 
 class _FakeSchema(BaseModel):
     value: str
+
+
+def _raw(response, headers=None):
+    """What `with_raw_response.create` returns: the parsed response and the HTTP headers."""
+    raw = MagicMock()
+    raw.parse.return_value = response
+    raw.headers = headers or {}
+    return raw
 
 
 class TestSimpleOcrToolInput(unittest.TestCase):
@@ -39,15 +48,11 @@ class TestSimpleOcrToolInput(unittest.TestCase):
         self.assertIsNone(inp.structured_output)
 
     def test_valid_input_with_structured_output(self):
-        inp = SimpleOcrToolInput(
-            path="/x.pdf", question="Extract", structured_output="Invoice"
-        )
+        inp = SimpleOcrToolInput(path="/x.pdf", question="Extract", structured_output="Invoice")
         self.assertEqual(inp.structured_output, "Invoice")
 
     def test_structured_output_accepts_none_explicitly(self):
-        inp = SimpleOcrToolInput(
-            path="/x.pdf", question="Extract", structured_output=None
-        )
+        inp = SimpleOcrToolInput(path="/x.pdf", question="Extract", structured_output=None)
         self.assertIsNone(inp.structured_output)
 
     def test_missing_required_field_raises(self):
@@ -172,9 +177,7 @@ class TestGetModelConfig(unittest.TestCase):
     @patch("tools.SimpleOcrTool.get_extra_info")
     def test_returns_configured_values(self, mock_extra):
         mock_extra.return_value = {
-            "tool_config": {
-                "agent-1": {SIMPLE_OCR_TOOL_ID: {"model": "m", "provider": "gemini"}}
-            }
+            "tool_config": {"agent-1": {SIMPLE_OCR_TOOL_ID: {"model": "m", "provider": "gemini"}}}
         }
         model, provider = _get_model_config("agent-1")
         self.assertEqual(model, "m")
@@ -202,20 +205,66 @@ class TestGetModelConfig(unittest.TestCase):
         self.assertEqual(provider, DEFAULT_PROVIDER)
 
 
+class TestUsage(unittest.TestCase):
+    def test_cost_from_litellm_header(self):
+        usage = _usage(_raw(None, {"x-litellm-response-cost": "4.725e-05"}), "gemini/m", 3, 12)
+        self.assertEqual(
+            usage,
+            {
+                "model": "gemini/m",
+                "inputTokens": 3,
+                "outputTokens": 12,
+                "costUsd": 4.725e-05,
+            },
+        )
+
+    def test_no_cost_when_the_call_was_not_priced(self):
+        for headers in (
+            {},
+            {"x-litellm-response-cost": "nan"},
+            {"x-litellm-response-cost": "abc"},
+            {"x-litellm-response-cost": "-1"},
+        ):
+            self.assertNotIn("costUsd", _usage(_raw(None, headers), "m", 1, 1), headers)
+
+    def test_zero_cost_is_kept_and_missing_tokens_are_zero(self):
+        usage = _usage(_raw(None, {"x-litellm-response-cost": "0.0"}), "m", None, None)
+        self.assertEqual(usage["costUsd"], 0.0)
+        self.assertEqual((usage["inputTokens"], usage["outputTokens"]), (0, 0))
+
+
 class TestCallOpenAI(unittest.TestCase):
     @patch("tools.SimpleOcrTool._get_client")
     def test_pdf_payload_and_no_temperature_for_gpt5(self, mock_get_client):
         client = MagicMock()
         response = MagicMock(output_text="result")
-        client.responses.create.return_value = response
+        response.usage.input_tokens = 100
+        response.usage.output_tokens = 20
+        client.responses.with_raw_response.create.return_value = _raw(
+            response, {"x-litellm-response-cost": "0.003"}
+        )
         mock_get_client.return_value = (client, "https://proxy")
 
-        out = _call_openai(
-            "gpt-5-mini", "openai", "sys", "q",
-            b"pdfbytes", "application/pdf", None,
+        out, usage = _call_openai(
+            "gpt-5-mini",
+            "openai",
+            "sys",
+            "q",
+            b"pdfbytes",
+            "application/pdf",
+            None,
         )
         self.assertEqual(out, "result")
-        kwargs = client.responses.create.call_args.kwargs
+        self.assertEqual(
+            usage,
+            {
+                "model": "openai/gpt-5-mini",
+                "inputTokens": 100,
+                "outputTokens": 20,
+                "costUsd": 0.003,
+            },
+        )
+        kwargs = client.responses.with_raw_response.create.call_args.kwargs
         self.assertNotIn("temperature", kwargs)
         self.assertEqual(kwargs["model"], "openai/gpt-5-mini")
         self.assertEqual(kwargs["input"][1]["content"][0]["type"], "input_file")
@@ -225,14 +274,19 @@ class TestCallOpenAI(unittest.TestCase):
     @patch("tools.SimpleOcrTool._get_client")
     def test_image_payload_with_temperature_for_non_gpt5(self, mock_get_client):
         client = MagicMock()
-        client.responses.create.return_value = MagicMock(output_text="ok")
+        client.responses.with_raw_response.create.return_value = _raw(MagicMock(output_text="ok"))
         mock_get_client.return_value = (client, None)
 
         _call_openai(
-            "gpt-4o-mini", "openai", "sys", "q",
-            b"img", "image/png", None,
+            "gpt-4o-mini",
+            "openai",
+            "sys",
+            "q",
+            b"img",
+            "image/png",
+            None,
         )
-        kwargs = client.responses.create.call_args.kwargs
+        kwargs = client.responses.with_raw_response.create.call_args.kwargs
         self.assertEqual(kwargs["temperature"], DEFAULT_OCR_TEMPERATURE)
         self.assertEqual(kwargs["model"], "gpt-4o-mini")
         self.assertEqual(kwargs["input"][1]["content"][0]["type"], "input_image")
@@ -240,14 +294,19 @@ class TestCallOpenAI(unittest.TestCase):
     @patch("tools.SimpleOcrTool._get_client")
     def test_structured_schema_added(self, mock_get_client):
         client = MagicMock()
-        client.responses.create.return_value = MagicMock(output_text="ok")
+        client.responses.with_raw_response.create.return_value = _raw(MagicMock(output_text="ok"))
         mock_get_client.return_value = (client, None)
 
         _call_openai(
-            "gpt-4o-mini", "openai", "sys", "q",
-            b"img", "image/png", _FakeSchema,
+            "gpt-4o-mini",
+            "openai",
+            "sys",
+            "q",
+            b"img",
+            "image/png",
+            _FakeSchema,
         )
-        kwargs = client.responses.create.call_args.kwargs
+        kwargs = client.responses.with_raw_response.create.call_args.kwargs
         self.assertIn("text", kwargs)
         self.assertEqual(kwargs["text"]["format"]["type"], "json_schema")
         self.assertEqual(kwargs["text"]["format"]["name"], "ocr_output")
@@ -259,17 +318,34 @@ class TestCallGemini(unittest.TestCase):
         client = MagicMock()
         msg = MagicMock()
         msg.content = "gem"
-        client.chat.completions.create.return_value = MagicMock(
-            choices=[MagicMock(message=msg)]
+        response = MagicMock(choices=[MagicMock(message=msg)])
+        response.usage.prompt_tokens = 7
+        response.usage.completion_tokens = 2
+        client.chat.completions.with_raw_response.create.return_value = _raw(
+            response, {"x-litellm-response-cost": "1e-05"}
         )
         mock_get_client.return_value = (client, "https://proxy")
 
-        out = _call_gemini(
-            "gemini-2.0", "gemini", "sys", "q",
-            b"img", "image/png", None,
+        out, usage = _call_gemini(
+            "gemini-2.0",
+            "gemini",
+            "sys",
+            "q",
+            b"img",
+            "image/png",
+            None,
         )
         self.assertEqual(out, "gem")
-        kwargs = client.chat.completions.create.call_args.kwargs
+        self.assertEqual(
+            usage,
+            {
+                "model": "gemini/gemini-2.0",
+                "inputTokens": 7,
+                "outputTokens": 2,
+                "costUsd": 1e-05,
+            },
+        )
+        kwargs = client.chat.completions.with_raw_response.create.call_args.kwargs
         self.assertEqual(kwargs["model"], "gemini/gemini-2.0")
         self.assertEqual(kwargs["temperature"], DEFAULT_OCR_TEMPERATURE)
         self.assertNotIn("response_format", kwargs)
@@ -279,20 +355,23 @@ class TestCallGemini(unittest.TestCase):
         client = MagicMock()
         msg = MagicMock()
         msg.content = "gem"
-        client.chat.completions.create.return_value = MagicMock(
-            choices=[MagicMock(message=msg)]
+        client.chat.completions.with_raw_response.create.return_value = _raw(
+            MagicMock(choices=[MagicMock(message=msg)])
         )
         mock_get_client.return_value = (client, None)
 
         _call_gemini(
-            "gemini-2.0", "gemini", "sys", "q",
-            b"img", "image/png", _FakeSchema,
+            "gemini-2.0",
+            "gemini",
+            "sys",
+            "q",
+            b"img",
+            "image/png",
+            _FakeSchema,
         )
-        kwargs = client.chat.completions.create.call_args.kwargs
+        kwargs = client.chat.completions.with_raw_response.create.call_args.kwargs
         self.assertIn("response_format", kwargs)
-        self.assertEqual(
-            kwargs["response_format"]["json_schema"]["name"], "ocr_output"
-        )
+        self.assertEqual(kwargs["response_format"]["json_schema"]["name"], "ocr_output")
 
 
 class TestSimpleOcrTool(unittest.TestCase):
@@ -307,9 +386,7 @@ class TestSimpleOcrTool(unittest.TestCase):
     @patch("tools.SimpleOcrTool._validate_mime")
     @patch("tools.SimpleOcrTool._read_mime")
     @patch("tools.SimpleOcrTool._resolve_file_path")
-    def test_run_openai_path(
-        self, mock_resolve, mock_mime, mock_validate, mock_cfg, mock_openai
-    ):
+    def test_run_openai_path(self, mock_resolve, mock_mime, mock_validate, mock_cfg, mock_openai):
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(b"hello")
             tmp_path = tmp.name
@@ -317,7 +394,7 @@ class TestSimpleOcrTool(unittest.TestCase):
             mock_resolve.return_value = tmp_path
             mock_mime.return_value = "application/pdf"
             mock_cfg.return_value = ("gpt-5-mini", "openai")
-            mock_openai.return_value = "openai-result"
+            mock_openai.return_value = ("openai-result", {"model": "openai/gpt-5-mini"})
 
             tool = SimpleOcrTool()
             out = tool.run({"path": "/x.pdf", "question": "q"})
@@ -325,8 +402,13 @@ class TestSimpleOcrTool(unittest.TestCase):
             self.assertEqual(out, "openai-result")
             mock_validate.assert_called_once_with(tmp_path, "application/pdf")
             mock_openai.assert_called_once_with(
-                "gpt-5-mini", "openai", SYSTEM_PROMPT, "q",
-                b"hello", "application/pdf", None,
+                "gpt-5-mini",
+                "openai",
+                SYSTEM_PROMPT,
+                "q",
+                b"hello",
+                "application/pdf",
+                None,
             )
         finally:
             os.unlink(tmp_path)
@@ -336,9 +418,7 @@ class TestSimpleOcrTool(unittest.TestCase):
     @patch("tools.SimpleOcrTool._validate_mime")
     @patch("tools.SimpleOcrTool._read_mime")
     @patch("tools.SimpleOcrTool._resolve_file_path")
-    def test_run_gemini_path(
-        self, mock_resolve, mock_mime, mock_validate, mock_cfg, mock_gemini
-    ):
+    def test_run_gemini_path(self, mock_resolve, mock_mime, mock_validate, mock_cfg, mock_gemini):
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(b"img")
             tmp_path = tmp.name
@@ -346,12 +426,17 @@ class TestSimpleOcrTool(unittest.TestCase):
             mock_resolve.return_value = tmp_path
             mock_mime.return_value = "image/png"
             mock_cfg.return_value = ("gemini-2.0", "gemini")
-            mock_gemini.return_value = "gem-result"
+            usage = {"model": "gemini/gemini-2.0", "inputTokens": 7, "outputTokens": 2, "costUsd": 1e-05}
+            mock_gemini.return_value = ("gem-result", usage)
 
             tool = SimpleOcrTool()
             out = tool.run({"path": "/x.png", "question": "q"})
-
             self.assertEqual(out, "gem-result")
+            # /executeTool gets the same answer plus the usage of the model call.
+            self.assertEqual(
+                tool.run_with_usage({"path": "/x.png", "question": "q"}),
+                ("gem-result", usage),
+            )
 
         finally:
             os.unlink(tmp_path)
@@ -363,8 +448,13 @@ class TestSimpleOcrTool(unittest.TestCase):
     @patch("tools.SimpleOcrTool._read_mime")
     @patch("tools.SimpleOcrTool._resolve_file_path")
     def test_run_with_structured_output(
-        self, mock_resolve, mock_mime, mock_validate, mock_cfg,
-        mock_openai, mock_load_schema,
+        self,
+        mock_resolve,
+        mock_mime,
+        mock_validate,
+        mock_cfg,
+        mock_openai,
+        mock_load_schema,
     ):
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(b"x")
@@ -374,18 +464,21 @@ class TestSimpleOcrTool(unittest.TestCase):
             mock_mime.return_value = "application/pdf"
             mock_cfg.return_value = ("gpt-5-mini", "openai")
             mock_load_schema.return_value = _FakeSchema
-            mock_openai.return_value = "structured"
+            mock_openai.return_value = ("structured", {"model": "m"})
 
             tool = SimpleOcrTool()
-            out = tool.run(
-                {"path": "/x.pdf", "question": "q", "structured_output": "Invoice"}
-            )
+            out = tool.run({"path": "/x.pdf", "question": "q", "structured_output": "Invoice"})
 
             self.assertEqual(out, "structured")
             mock_load_schema.assert_called_once_with("Invoice")
             mock_openai.assert_called_once_with(
-                "gpt-5-mini", "openai", SYSTEM_PROMPT, "q",
-                b"x", "application/pdf", _FakeSchema,
+                "gpt-5-mini",
+                "openai",
+                SYSTEM_PROMPT,
+                "q",
+                b"x",
+                "application/pdf",
+                _FakeSchema,
             )
         finally:
             os.unlink(tmp_path)
@@ -397,8 +490,13 @@ class TestSimpleOcrTool(unittest.TestCase):
     @patch("tools.SimpleOcrTool._read_mime")
     @patch("tools.SimpleOcrTool._resolve_file_path")
     def test_run_with_inline_structured_output_schema(
-        self, mock_resolve, mock_mime, mock_validate, mock_cfg,
-        mock_openai, mock_load_schema,
+        self,
+        mock_resolve,
+        mock_mime,
+        mock_validate,
+        mock_cfg,
+        mock_openai,
+        mock_load_schema,
     ):
         """Inline JSON Schema dict takes precedence and skips load_schema."""
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -408,7 +506,7 @@ class TestSimpleOcrTool(unittest.TestCase):
             mock_resolve.return_value = tmp_path
             mock_mime.return_value = "application/pdf"
             mock_cfg.return_value = ("gpt-5-mini", "openai")
-            mock_openai.return_value = "structured"
+            mock_openai.return_value = ("structured", {"model": "m"})
 
             inline_schema = {
                 "type": "object",
@@ -417,18 +515,25 @@ class TestSimpleOcrTool(unittest.TestCase):
             }
 
             tool = SimpleOcrTool()
-            out = tool.run({
-                "path": "/x.pdf",
-                "question": "q",
-                "structured_output": "Invoice",       # ignored when inline is set
-                "structured_output_schema": inline_schema,
-            })
+            out = tool.run(
+                {
+                    "path": "/x.pdf",
+                    "question": "q",
+                    "structured_output": "Invoice",  # ignored when inline is set
+                    "structured_output_schema": inline_schema,
+                }
+            )
 
             self.assertEqual(out, "structured")
             mock_load_schema.assert_not_called()
             mock_openai.assert_called_once_with(
-                "gpt-5-mini", "openai", SYSTEM_PROMPT, "q",
-                b"x", "application/pdf", inline_schema,
+                "gpt-5-mini",
+                "openai",
+                SYSTEM_PROMPT,
+                "q",
+                b"x",
+                "application/pdf",
+                inline_schema,
             )
         finally:
             os.unlink(tmp_path)
@@ -441,6 +546,8 @@ class TestSimpleOcrTool(unittest.TestCase):
         self.assertIsInstance(out, dict)
         self.assertIn("error", out)
         self.assertIn("nope", out["error"])
+        # Nothing reached the model, so there is no usage to record.
+        self.assertEqual(tool.run_with_usage({"path": "/missing.pdf", "question": "q"})[1], None)
 
 
 if __name__ == "__main__":
