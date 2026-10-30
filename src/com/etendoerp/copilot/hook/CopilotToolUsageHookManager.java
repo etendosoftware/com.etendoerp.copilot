@@ -21,6 +21,13 @@ public class CopilotToolUsageHookManager {
   private Instance<CopilotToolUsageHook> usageHooks;
 
   /**
+   * Hand the usage of one tool call to every deployed {@link CopilotToolUsageHook}. A failing hook
+   * is logged and skipped; this method never throws.
+   *
+   * @param toolName the tool that ran, as requested
+   * @param agentId the agent whose tool configuration was used, or null
+   * @param usage what the tool reported (model, tokens and, when priced, costUsd)
+   * @param durationMs how long Copilot took to answer, in milliseconds
    * @see CopilotToolUsageHook#exec(String, String, JSONObject, long)
    */
   public void executeHooks(String toolName, String agentId, JSONObject usage, long durationMs) {

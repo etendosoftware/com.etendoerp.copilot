@@ -13,6 +13,8 @@ import org.codehaus.jettison.json.JSONObject;
 public interface CopilotToolUsageHook {
 
   /**
+   * Record the usage of one tool call that used a model.
+   *
    * @param toolName
    *     the tool that ran, as requested ({@code tool_name})
    * @param agentId

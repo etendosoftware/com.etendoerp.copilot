@@ -360,6 +360,14 @@ public class RestService {
   /** Receives the usage a tool reported; see {@link CopilotToolUsageHookManager}. */
   @FunctionalInterface
   interface ToolUsageSink {
+    /**
+     * Receive the usage one tool call reported.
+     *
+     * @param toolName the tool that ran, as requested
+     * @param agentId the agent whose tool configuration was used, or null
+     * @param usage what the tool reported (model, tokens and, when priced, costUsd)
+     * @param durationMs how long Copilot took to answer, in milliseconds
+     */
     void accept(String toolName, String agentId, JSONObject usage, long durationMs);
   }
 

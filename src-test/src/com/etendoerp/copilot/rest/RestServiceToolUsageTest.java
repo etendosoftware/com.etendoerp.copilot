@@ -16,15 +16,19 @@ import org.junit.Test;
  */
 public class RestServiceToolUsageTest {
 
+  private static final String TOOL_NAME = "tool_name";
+  private static final String OCR_TOOL = "SimpleOcrTool";
+
   private final List<Object[]> received = new ArrayList<>();
   private final RestService.ToolUsageSink sink = (tool, agent, usage, ms) ->
       received.add(new Object[] { tool, agent, usage, ms });
 
+  /** The usage is handed to the hooks and stripped from the answer sent to the browser. */
   @Test
   public void theUsageIsRecordedAndNeverReachesTheCaller() throws Exception {
     String body = "{\"answer\":\"{\\\"total\\\":10}\",\"usage\":{\"model\":\"gemini/m\","
         + "\"inputTokens\":3,\"outputTokens\":12,\"costUsd\":4.7E-5}}";
-    JSONObject request = new JSONObject().put("tool_name", "SimpleOcrTool").put("agent_id", "A1");
+    JSONObject request = new JSONObject().put(TOOL_NAME, OCR_TOOL).put("agent_id", "A1");
 
     String answer = RestService.takeToolUsage(body, request, 820L, sink);
 
@@ -32,15 +36,16 @@ public class RestServiceToolUsageTest {
     assertFalse(sent.has("usage"));
     assertEquals("{\"total\":10}", sent.getString("answer"));
     assertEquals(1, received.size());
-    assertEquals("SimpleOcrTool", received.get(0)[0]);
+    assertEquals(OCR_TOOL, received.get(0)[0]);
     assertEquals("A1", received.get(0)[1]);
     assertEquals(4.7E-5, ((JSONObject) received.get(0)[2]).getDouble("costUsd"), 0);
     assertEquals(820L, received.get(0)[3]);
   }
 
+  /** An answer without usage, or one that is not JSON, is sent as is and records nothing. */
   @Test
   public void anAnswerWithoutUsageIsSentUntouchedAndRecordsNothing() throws Exception {
-    JSONObject request = new JSONObject().put("tool_name", "OtherTool");
+    JSONObject request = new JSONObject().put(TOOL_NAME, "OtherTool");
     String plain = "{\"answer\":\"x\"}";
     String notJson = "Internal error";
 
@@ -49,9 +54,10 @@ public class RestServiceToolUsageTest {
     assertEquals(0, received.size());
   }
 
+  /** A hook that throws never changes what the caller receives. */
   @Test
   public void aFailingHookNeverChangesTheAnswer() throws Exception {
-    JSONObject request = new JSONObject().put("tool_name", "SimpleOcrTool");
+    JSONObject request = new JSONObject().put(TOOL_NAME, OCR_TOOL);
     String body = "{\"answer\":\"x\",\"usage\":{\"costUsd\":0.1}}";
 
     String answer = RestService.takeToolUsage(body, request, 1L, (tool, agent, usage, ms) -> {

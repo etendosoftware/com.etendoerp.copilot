@@ -91,7 +91,7 @@ def _validate_mime(file_path, mime):
     """Raise if MIME type is not supported."""
     if mime not in SUPPORTED_MIME_TYPES:
         raise ValueError(
-            f"Unsupported MIME type '{mime}' for {file_path}. " f"Supported: {sorted(SUPPORTED_MIME_TYPES)}"
+            f"Unsupported MIME type '{mime}' for {file_path}. Supported: {sorted(SUPPORTED_MIME_TYPES)}"
         )
 
 
@@ -314,7 +314,7 @@ class SimpleOcrTool(ToolWrapper):
                 file_bytes = f.read()
 
             model_name, provider = _get_model_config(self.agent_id)
-            copilot_debug(f"SimpleOcrTool: model={model_name}, " f"provider={provider}, mime={mime}")
+            copilot_debug(f"SimpleOcrTool: model={model_name}, provider={provider}, mime={mime}")
 
             question = input_params.get("question")
             structured_schema = None
