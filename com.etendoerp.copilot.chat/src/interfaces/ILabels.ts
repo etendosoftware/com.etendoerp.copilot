@@ -27,4 +27,8 @@ export interface ILabels {
     ETCOP_Delete?: string;
     ETCOP_Restore?: string;
     ETCOP_PermanentDelete?: string;
+    ETCOP_WebMcp_Off?: string;
+    ETCOP_WebMcp_Active?: string;
+    ETCOP_WebMcp_Empty?: string;
+    ETCOP_WebMcp_Unavailable?: string;
 }

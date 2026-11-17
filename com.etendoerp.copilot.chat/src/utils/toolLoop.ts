@@ -30,6 +30,9 @@ import { ClientToolDescriptor, ToolCall, ToolRound, executeClientTools } from '.
  */
 export const MAX_TOOL_ROUNDS = 25;
 
+/** Prefix of every diagnostic line, so the whole tool path can be filtered in the console. */
+const LOG = '[copilot-tools]';
+
 /** Reported while the tools of a round are running, so the user is not left staring at nothing. */
 export interface ToolProgress {
   calls: ToolCall[];
@@ -58,11 +61,15 @@ export async function askWithClientTools(
       body.tool_exchange = exchange;
     }
 
+    console.log(`${LOG} round ${round}: posting ${clientTools.length} tool(s) and `
+      + `${exchange.length} previous round(s)`);
     const answer = await postQuestion(body);
     const calls: ToolCall[] = Array.isArray(answer?.tool_calls) ? answer.tool_calls : [];
     if (calls.length === 0) {
+      console.log(`${LOG} round ${round}: the backend answered with text, the loop ends`, answer);
       return answer;
     }
+    console.log(`${LOG} round ${round}: the backend asked for`, calls.map(call => call.name));
 
     onProgress?.({ calls, text: answer.response });
     exchange.push({ calls, results: await executeClientTools(calls) });

@@ -47,12 +47,36 @@ export interface ToolRound {
   results: ToolResult[];
 }
 
+/** Prefix of every diagnostic line, so the whole tool path can be filtered in the console. */
+const LOG = '[copilot-tools]';
+
 /**
  * @returns the WebMCP context of this realm, or null when the browser does not expose it
  */
 function getModelContext(): any | null {
   const context = (document as any)?.modelContext;
   return context && typeof context.getTools === 'function' ? context : null;
+}
+
+/**
+ * Report why WebMCP is or is not usable in this realm.
+ *
+ * The three ways the tool path dies silently are indistinguishable from the outside: the browser
+ * does not implement WebMCP, the host page registered nothing, or the iframe is looking at the
+ * wrong realm. This separates them.
+ *
+ * @returns a plain object describing the state of this realm
+ */
+export function describeWebMcp(): Record<string, unknown> {
+  const raw = (document as any)?.modelContext;
+  return {
+    origin: window.location.origin,
+    isIframe: window.self !== window.top,
+    hasDocumentModelContext: !!raw,
+    hasGetTools: typeof raw?.getTools === 'function',
+    // The pre-150 namespace, checked only to tell an outdated browser apart from one with no support.
+    hasNavigatorModelContext: !!(navigator as any)?.modelContext,
+  };
 }
 
 /**
@@ -72,12 +96,19 @@ export function isWebMcpAvailable(): boolean {
  */
 export async function discoverClientTools(): Promise<ClientToolDescriptor[]> {
   const context = getModelContext();
-  if (!context) return [];
+  if (!context) {
+    console.warn(`${LOG} no WebMCP context in this realm, the chat will run without tools`,
+      describeWebMcp());
+    return [];
+  }
 
   try {
     const tools = await context.getTools();
-    if (!Array.isArray(tools)) return [];
-    return tools
+    if (!Array.isArray(tools)) {
+      console.warn(`${LOG} getTools() did not return an array`, tools);
+      return [];
+    }
+    const descriptors = tools
       .filter((tool: any) => tool && typeof tool.name === 'string')
       .map((tool: any) => ({
         name: tool.name,
@@ -85,8 +116,11 @@ export async function discoverClientTools(): Promise<ClientToolDescriptor[]> {
         // Kept exactly as the browser reports it; the backend parses either a string or an object.
         inputSchema: tool.inputSchema,
       }));
+    console.log(`${LOG} discovered ${descriptors.length} tool(s) of ${tools.length} registered:`,
+      descriptors.map(descriptor => descriptor.name));
+    return descriptors;
   } catch (error) {
-    console.warn('WebMCP: could not read the registered tools', error);
+    console.warn(`${LOG} could not read the registered tools`, error);
     return [];
   }
 }
@@ -145,10 +179,13 @@ async function executeOne(context: any, call: ToolCall): Promise<string> {
     }
     // executeTool takes the RegisteredTool object and a JSON *string*; passing a plain object
     // fails with "Failed to parse input arguments".
+    console.log(`${LOG} executing "${call.name}" with`, call.arguments);
     const raw = await context.executeTool(registered, call.arguments || '{}');
-    return readToolOutput(raw);
+    const output = readToolOutput(raw);
+    console.log(`${LOG} "${call.name}" returned`, output);
+    return output;
   } catch (error: any) {
-    console.warn(`WebMCP: tool "${call.name}" failed`, error);
+    console.warn(`${LOG} tool "${call.name}" failed`, error);
     return `The tool failed: ${error?.message ?? String(error)}`;
   }
 }
@@ -214,3 +251,12 @@ function reason(text: string): string {
   }
   return text;
 }
+
+/*
+ * Debug handle. The chat runs in an iframe, so `document.modelContext` cannot be inspected from
+ * the host page's console without switching realm first. Exposing the two read-only probes here
+ * makes the check one line from the iframe context:
+ *   __copilotTools.describeWebMcp()
+ *   await __copilotTools.discoverClientTools()
+ */
+(window as any).__copilotTools = { describeWebMcp, discoverClientTools, isWebMcpAvailable };

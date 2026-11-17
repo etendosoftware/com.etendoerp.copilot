@@ -103,6 +103,11 @@ public class ClientToolSupport {
   public static void copyClientToolFields(JSONObject clientRequest, JSONObject agentRequest)
       throws JSONException {
     if (clientRequest == null) {
+      // The streaming GET path has no body, so this is also what a turn that never left SSE looks
+      // like. Saying so explicitly is the difference between "the client sent nothing" and "the
+      // client sent tools and something dropped them".
+      log.info("Copilot tools: no client body on this request (streaming path or internal call), "
+          + "so no client-executed tools were forwarded.");
       return;
     }
     if (clientRequest.has(PROP_CLIENT_TOOLS)) {
@@ -111,6 +116,38 @@ public class ClientToolSupport {
     if (clientRequest.has(PROP_TOOL_EXCHANGE)) {
       agentRequest.put(PROP_TOOL_EXCHANGE, clientRequest.get(PROP_TOOL_EXCHANGE));
     }
+    log.info("Copilot tools: client body carried {} tool descriptor(s) and {} exchange round(s). "
+            + "Body keys: {}", arrayLength(clientRequest, PROP_CLIENT_TOOLS),
+        arrayLength(clientRequest, PROP_TOOL_EXCHANGE), keysOf(clientRequest));
+  }
+
+  /**
+   * @param source
+   *     the object to read
+   * @param field
+   *     the field expected to hold an array
+   * @return the array length, or -1 when the field is absent or is not an array
+   */
+  private static int arrayLength(JSONObject source, String field) {
+    JSONArray array = source.optJSONArray(field);
+    if (array != null) {
+      return array.length();
+    }
+    return source.has(field) ? -1 : 0;
+  }
+
+  /**
+   * @param source
+   *     the object to read
+   * @return its top-level field names, for a diagnostic log line
+   */
+  private static String keysOf(JSONObject source) {
+    List<String> keys = new ArrayList<>();
+    JSONArray names = source.names();
+    for (int i = 0; names != null && i < names.length(); i++) {
+      keys.add(names.optString(i));
+    }
+    return String.join(", ", keys);
   }
 
   /**
@@ -146,6 +183,8 @@ public class ClientToolSupport {
     List<ToolSpecification> specifications = new ArrayList<>();
     JSONArray clientTools = request.optJSONArray(PROP_CLIENT_TOOLS);
     if (clientTools == null) {
+      log.info("Copilot tools: the agent request has no '{}' array, so the model is offered no tools.",
+          PROP_CLIENT_TOOLS);
       return specifications;
     }
     for (int i = 0; i < clientTools.length(); i++) {
@@ -165,6 +204,12 @@ public class ClientToolSupport {
       }
       specifications.add(builder.build());
     }
+    List<String> names = new ArrayList<>();
+    for (ToolSpecification specification : specifications) {
+      names.add(specification.name());
+    }
+    log.info("Copilot tools: built {} tool specification(s) out of {} descriptor(s): {}",
+        specifications.size(), clientTools.length(), String.join(", ", names));
     return specifications;
   }
 

@@ -58,6 +58,9 @@ public class LangChain4jEngine implements CopilotEngine {
     ChatModel model = ChatModelFactory.build(request);
     String conversationId = request.optString(RestServiceUtil.PROP_CONVERSATION_ID, null);
 
+    log.info("Copilot tools: agent '{}' runs with {} message(s) and {} client tool(s) offered to "
+        + "the model (async={}).", app.getName(), messages.size(), clientTools.size(), asyncRequest);
+
     AiMessage aiMessage;
     try {
       ChatRequest.Builder chatRequest = ChatRequest.builder().messages(messages);
@@ -80,6 +83,13 @@ public class LangChain4jEngine implements CopilotEngine {
         return toolCall;
       }
       return new JSONObject().put(RestServiceUtil.PROP_ANSWER, toolCall);
+    }
+
+    if (!clientTools.isEmpty()) {
+      // Tools were on the table and the model answered with prose anyway. That is a legitimate
+      // outcome, but it is also what a broken tool schema looks like, so it is worth a line.
+      log.info("Copilot tools: the model answered without calling any of the {} tool(s) offered.",
+          clientTools.size());
     }
 
     String answerText = aiMessage == null ? null : aiMessage.text();

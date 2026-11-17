@@ -457,11 +457,35 @@ public class RestService {
     validateRequiredParams(json);
 
     // Handle request
-    if (isAsyncRequest(request)) {
+    boolean async = isAsyncRequest(request);
+    // The very first fork of the tool path: only the synchronous POST carries a body, so a turn
+    // that lands here as async can never have brought tool descriptors with it.
+    log4j.info("Copilot tools: {} {} arrived as {} with body keys [{}]", request.getMethod(),
+        request.getPathInfo(), async ? "async (SSE)" : "sync (POST)", bodyKeys(json));
+    if (async) {
       processAsyncRequest(request, response, json);
     } else {
       processSyncRequest(response, json);
     }
+  }
+
+  /**
+   * List the top-level field names of the received body, for the diagnostic log line.
+   *
+   * @param json
+   *     the parsed request body
+   * @return the field names, comma separated
+   */
+  private String bodyKeys(JSONObject json) {
+    var names = json.names();
+    StringBuilder keys = new StringBuilder();
+    for (int i = 0; names != null && i < names.length(); i++) {
+      if (i > 0) {
+        keys.append(", ");
+      }
+      keys.append(names.optString(i));
+    }
+    return keys.toString();
   }
 
 

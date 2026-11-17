@@ -23,6 +23,8 @@ import { ROLE_BOT, ROLE_ERROR, ROLE_NODE, ROLE_TOOL, ROLE_USER, ROLE_WAIT } from
 import { getMessageContainerClasses } from './utils/styles';
 import { discoverClientTools } from './utils/webmcp';
 import { askWithClientTools } from './utils/toolLoop';
+import WebMcpIndicator from './components/WebMcpIndicator';
+import { useWebMcpStatus, WebMcpStatus } from './hooks/useWebMcpStatus';
 
 // StatusIcon component to avoid duplication
 const StatusIcon = ({ statusIcon, responseSent }: { statusIcon: string, responseSent: string }) => (
@@ -45,6 +47,7 @@ const AssistantSelector = ({
   showOnlyFeatured,
   hasFeaturedAssistants,
   onToggleFeaturedFilter,
+  webMcpStatus,
 }: {
   labels: any;
   selectedOption: any;
@@ -53,7 +56,8 @@ const AssistantSelector = ({
   handleNewConversation: () => void;
   showOnlyFeatured?: boolean;
   hasFeaturedAssistants?: boolean;
-  onToggleFeaturedFilter?: () => void;}) => (
+  onToggleFeaturedFilter?: () => void;
+  webMcpStatus: WebMcpStatus;}) => (
   <div
     id={'iframe-selector'}
     style={{
@@ -81,6 +85,10 @@ const AssistantSelector = ({
       hasFeaturedAssistants={hasFeaturedAssistants}
       onToggleFeaturedFilter={onToggleFeaturedFilter}
     />
+    {/* `#assistant-title` above is hidden by App.css, so the indicator gets its own visible row. */}
+    <div className="flex justify-end mt-1">
+      <WebMcpIndicator status={webMcpStatus} labels={labels} />
+    </div>
   </div>
 );
 
@@ -108,6 +116,9 @@ function App() {
   // Hooks
   const { selectedOption, assistants, filteredAssistants, hasFeaturedAssistants, showOnlyFeatured, toggleFeaturedFilter, getAssistants, handleOptionSelected } =
     useAssistants();
+
+  // Whether the agent can act on the page it is embedded in, surfaced in the header.
+  const webMcpStatus = useWebMcpStatus();
 
   const {
     conversations,
@@ -512,6 +523,8 @@ function App() {
         // the synchronous POST endpoint: the streaming GET whitelists its parameters, so neither
         // the descriptors nor the results would survive it.
         const clientTools = await discoverClientTools();
+        console.log('[copilot-tools] routing this question over',
+          clientTools.length > 0 ? 'the sync POST with tools' : 'the streaming GET without tools');
         if (clientTools.length > 0) {
           await sendWithClientTools(finalQuestion, clientTools);
           return;
@@ -782,6 +795,7 @@ function App() {
                 showOnlyFeatured={showOnlyFeatured}
                 hasFeaturedAssistants={hasFeaturedAssistants}
                 onToggleFeaturedFilter={toggleFeaturedFilter}
+                webMcpStatus={webMcpStatus}
               />
             )}
 
@@ -823,6 +837,7 @@ function App() {
               showOnlyFeatured={showOnlyFeatured}
               hasFeaturedAssistants={hasFeaturedAssistants}
               onToggleFeaturedFilter={toggleFeaturedFilter}
+              webMcpStatus={webMcpStatus}
             />
           )}
 
