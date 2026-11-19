@@ -45,6 +45,7 @@ from copilot.core.vectordb_utils import (
     get_vector_db_path,
     handle_zip_file,
     index_file,
+    release_unused_memory,
 )
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from langchain_community.vectorstores import Chroma
@@ -397,6 +398,8 @@ def reset_vector_db(body: VectorDBInputSchema):
     except Exception as e:
         copilot_debug(f"Error resetting VectorDB: {e}")
         raise e
+    finally:
+        release_unused_memory()
     return {"answer": f"VectorDB marked for purge successfully. {total_marked} documents marked."}
 
 
@@ -501,6 +504,8 @@ def process_text_to_vector_db(
         message = f"Error processing to VectorDb: {e}"
         copilot_error(message)
         db_path = ""
+    finally:
+        release_unused_memory()
 
     return {"answer": message, "success": success, "db_path": db_path}
 
@@ -554,6 +559,8 @@ def purge_vectordb(body: VectorDBInputSchema):
     except Exception as e:
         copilot_debug(f"Error purging VectorDB: {e}")
         raise e
+    finally:
+        release_unused_memory()
     return {"answer": f"Documents marked for purge have been removed. Total purged: {total_purged}"}
 
 

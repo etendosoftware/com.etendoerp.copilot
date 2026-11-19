@@ -1,4 +1,6 @@
 import base64
+import ctypes
+import gc
 import hashlib
 import json
 import os
@@ -32,6 +34,26 @@ IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "bmp", "tiff", "gif", "webp"]
 
 LANGCHAIN_DEFAULT_COLLECTION_NAME = "langchain"
 IMAGES_COLLECTION_NAME = "IMAGES"
+
+
+def release_unused_memory():
+    """
+    Hands the heap memory freed by a vector DB operation back to the operating system.
+
+    glibc keeps freed memory in per-thread malloc arenas instead of returning it, and FastAPI runs
+    each sync endpoint on a pooled thread. Without this, every knowledge base sync (e.g. the
+    326 MB docs ZIP of an agent, re-sent on each Etendo startup) leaves its peak behind and the
+    process memory only grows until the container is killed for running out of memory.
+
+    Collects garbage first, so cyclic garbage is freed before trimming. Where glibc is not
+    available (macOS, Windows, musl), only the collection runs.
+    """
+    gc.collect()
+    try:
+        libc = ctypes.CDLL("libc.so.6")
+    except OSError:
+        return
+    libc.malloc_trim(0)
 
 
 def get_embedding():
